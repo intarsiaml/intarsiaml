@@ -168,7 +168,10 @@ constant uint MX_ADD = 4u;
 constant uint MX_SUM = 8u;
 constant uint MX_NORM = 16u;  // mix output normed (bf16), else the f32 mix
 constant uint MX_RING = 32u;  // write the ring rows of this launch's rows here (no row of the launch reads a row written)
-constant uint MX_PAIR = 64u;  // blend path: also write the controller pair rA([d w(d), m w(m)]) of each stream (bf16 scratch)
+constant uint MX_PAIR = 64u;
+// row-table form (lane ink-batch, `OpCall::rows`): row t is the T = 1 conv of sequence t at posb[t], on the ring whose address
+// is table entry [t, rti] (+ roff bytes); no in-call history, the ring row always written here
+constant uint MX_ROWTAB = 128u;  // blend path: also write the controller pair rA([d w(d), m w(m)]) of each stream (bf16 scratch)
 
 constant float SRC_EPS = 1e-6f;
 constant int MX_NMAX = 8;     // stored sources + last
@@ -182,6 +185,8 @@ struct InkMixP {
     float eps, cscale, fpad0, fpad1;
     // leading bf16 elements per binding: x, taps, res, add, y, ring, sum, src, norm, out
     uint sk[12];
+    uint rts, rti, tab_lo, tab_hi;  // MX_ROWTAB: table stride, entry, the table's GPU address
+    uint roff, rpad0, rpad1, rpad2; // MX_ROWTAB: the ring carrier's byte offset
 };
 
 // v[j] (j < nr) summed over the threadgroup: simd_sum, then the simdgroup partials in sg order. All threads get red[].
@@ -270,11 +275,18 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
     }
     float last[NE];
     if (conv) {
-        const int pos = p.use_dev ? posb[0] : int(p.pos0);
-        const int pp = pos + int(t);
+        const bool rt = (p.flags & MX_ROWTAB) != 0;
+        // the row-table form: row t is a T = 1 call at posb[t] (in-call row index 0, its x row at t)
+        const int pos = rt ? posb[t] : p.use_dev ? posb[0] : int(p.pos0);
+        const int pp = pos + (rt ? 0 : int(t));
+        const int xoff = rt ? int(t) : 0;
         device const ushort* xr = x + p.sk[0];
         device const ushort* tr = taps + p.sk[1];
-        device const ushort* rg = ring + p.sk[5];
+        device ushort* rg = ring + p.sk[5];
+        if (rt) {
+            device const ulong* tab = reinterpret_cast<device const ulong*>(as_type<ulong>(uint2(p.tab_lo, p.tab_hi)));
+            rg = reinterpret_cast<device ushort*>(tab[(ulong)t * p.rts + p.rti] + p.roff);
+        }
         float acc[NE], xc[NE], rv[NE], av[NE];
         for (int j = 0; j < NE; ++j) {
             acc[j] = 0.0f;
@@ -284,7 +296,7 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
         }
         for (uint l = 0; l < p.k; ++l) {
             const int qq = pp - int(l);
-            device const ushort* bp = qq >= pos ? xr + (ulong)(qq - pos) * d : rg + (ulong)(uint(max(qq, 0)) % p.rr) * d;
+            device const ushort* bp = qq >= pos ? xr + (ulong)(qq - pos + xoff) * d : rg + (ulong)(uint(max(qq, 0)) % p.rr) * d;
             device const ushort* tl = tr + (ulong)l * d;
             for (int j = 0; j < NE; ++j) {
                 const float xv = qq >= 0 ? bf2f(bp[cc[j]]) : 0.0f;
@@ -302,8 +314,8 @@ kernel void ink_mix_row(device const ushort* x [[buffer(0)]],
                 if (hres && hsum) sum[p.sk[6] + o] = f2bf(lv);
             }
         }
-        if ((p.flags & MX_RING) != 0 && int(t) >= int(p.t) - int(p.rr)) {
-            device ushort* wr = ring + p.sk[5] + (ulong)(uint(pp) % p.rr) * d;
+        if ((p.flags & MX_RING) != 0 && (rt || int(t) >= int(p.t) - int(p.rr))) {
+            device ushort* wr = rg + (ulong)(uint(pp) % p.rr) * d;
             for (int j = 0; j < NE; ++j)
                 if (on[j]) wr[cc[j]] = xr[(ulong)t * d + cc[j]];
         }

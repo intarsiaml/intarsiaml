@@ -140,7 +140,9 @@ impl Model {
             Block::Attn(a) => hybrid || !a.gated,
             Block::Ffn(_) => true,
             Block::Gdn(_) | Block::Conv(_) | Block::Moe(_) => hybrid,
-            Block::Gemma(_) | Block::Ink(_) => false,
+            Block::Gemma(_) => false,
+            // lane ink-batch: the row-table forms of the stateful Inkling-2 ops (`inkling2::ops`, "Row tables")
+            Block::Ink(_) => true,
         });
         if !dense {
             return Err(Error::Unsupported(
@@ -175,6 +177,29 @@ impl Model {
                 if mtp_state > 0 { format!(", + {} MiB of MTP drafter state", mtp_state >> 20) } else { String::new() }
             ));
         }
+        // Inkling-2 (lane ink-batch): the rings (SWA KV and conv windows) are fixed-size per sequence; the plan's workspace holds
+        // one sequence's, the other `max_rows - 1` come out of the KV budget, which the full-attention KV then shares
+        let ring_extra = if self.ink.is_some() {
+            if !self.row_tables_wanted() {
+                return Err(Error::Unsupported(format!(
+                    "batched decode of Inkling-2 needs the row-table kernels of ConvMix and InkAttnDecode or InkKvPrologue + RelSinkAttn (the {} backend registers none{})",
+                    self.backend.name(),
+                    if std::env::var("INTARSIA_ROW_TABLES").is_ok_and(|v| v == "0") { ", or INTARSIA_ROW_TABLES=0" } else { "" }
+                )));
+            }
+            let ring = self.ring_bytes_per_state();
+            let extra = (max_rows as u64 - 1) * ring;
+            self.plan.workspace_bytes += extra;
+            self.plan.notes.push(format!(
+                "{} MiB of the KV budget reserved for the rings of {max_rows} batched Inkling-2 sequences ({} MiB per sequence)",
+                extra >> 20,
+                ring >> 20
+            ));
+            extra
+        } else {
+            0
+        };
+        let rec_extra = rec_extra + ring_extra;
         // the vocab-parallel batched head's gather tile (every rank) comes out of the KV budget too
         let tile_bytes = if self.vocab_par { (Self::BATCH_MAX_ROWS * self.dims.vocab * 4) as u64 } else { 0 };
         let kv_budget = self.plan.kv_budget_bytes.saturating_sub(rec_extra + tile_bytes);
@@ -233,11 +258,16 @@ impl Model {
     /// Whether this model's batched steps use row tables: the backend supports them, every row-table op of the model's blocks has
     /// a registered kernel, and `INTARSIA_ROW_TABLES` is not `0`.
     fn row_tables_wanted(&self) -> bool {
-        if !self.backend.supports_row_tables() || std::env::var("INTARSIA_ROW_TABLES").is_ok_and(|v| v == "0") {
+        if std::env::var("INTARSIA_ROW_TABLES").is_ok_and(|v| v == "0") || (!self.backend.supports_row_tables() && self.ink.is_none()) {
             return false;
         }
         let by_op = self.registry.by_op();
         let has = |op: Op| by_op.get(&op).is_some_and(|ks| ks.iter().any(|k| k.row_table));
+        if self.ink.is_some() {
+            // Inkling-2: the row-table forms (`inkling2::ops`, "Row tables"), on any backend that gives device addresses
+            // (the cpu reference decomposes them); `InkAttnDecode` is optional (the pair runs where it is missing)
+            return has(Op::ConvMix) && (has(Op::InkAttnDecode) || (has(Op::InkKvPrologue) && has(Op::RelSinkAttn)));
+        }
         let attn = self.layers.iter().flatten().any(|b| matches!(b, Block::Attn(_)));
         let gdn = self.layers.iter().flatten().any(|b| matches!(b, Block::Gdn(_)));
         (!attn || (has(Op::KvAppend) && has(Op::AttnDecode))) && (!gdn || (has(Op::GdnConv) && has(Op::GdnDeltaRule)))
@@ -258,6 +288,8 @@ impl Model {
                 let (a0, a1) = match slot {
                     StateSlot::AttnKv(kv) => (addr(&kv.k)?, addr(&kv.v)?),
                     StateSlot::Recurrent(rec) => (addr(&rec.buf)?, 0),
+                    // an Inkling-2 ring: both planes behind the one buffer address, reached through their carrier offsets
+                    StateSlot::Ring(r) if matches!(r.kind, crate::state::RingKind::InkKv | crate::state::RingKind::InkConv) => (addr(&r.buf)?, addr(&r.buf)?),
                     StateSlot::Ring(_) | StateSlot::Shared(_) => {
                         return Err(Error::Unsupported("batched decode row tables of DeepSeek-V4.1 ring / shared slots".into()))
                     }
@@ -305,6 +337,11 @@ impl Model {
                 _ => 0,
             })
             .sum()
+    }
+
+    /// Bytes of the fixed-size rings of one Inkling-2 sequence (SWA KV and conv windows).
+    pub fn ring_bytes_per_state(&self) -> u64 {
+        self.slot_specs.iter().map(|s| if matches!(s, SlotSpec::Ring { .. }) { s.bytes(0) as u64 } else { 0 }).sum()
     }
 
     /// Most sequences a batched step may have (0: batching not enabled).
@@ -389,6 +426,12 @@ impl Model {
             self.batch_head(&hn, b, profile)
         })();
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        if run.is_err() && self.ink.is_some() {
+            // a failed pass leaves Inkling-2 rings half-written: every sequence of the batch starts over (as `forward` does)
+            for st in states.iter_mut() {
+                let _ = st.reset(&*self.backend);
+            }
+        }
         run?;
         drop(prof_launch);
         let out = self.batch_outputs(tok, modes)?;
@@ -452,13 +495,18 @@ impl Model {
                     }
                     HeadMode::LastTopK(k) if top.as_ref().is_some_and(|t| t.2[r] == 0) => {
                         let (ids, vals, _) = top.as_ref().expect("checked");
-                        StepOut::TopK { ids: ids[r * kmax..r * kmax + k].to_vec(), vals: vals[r * kmax..r * kmax + k].to_vec() }
+                        // the solo step's host softcap (Inkling-2; monotone, so the ids are the device's)
+                        let mut v = vals[r * kmax..r * kmax + k].to_vec();
+                        self.softcap_logits(&mut v);
+                        StepOut::TopK { ids: ids[r * kmax..r * kmax + k].to_vec(), vals: v }
                     }
                     _ => {
                         // LastLogits, or a top-k row whose logits hold a NaN (the host sampler's comparator path decides then)
                         let (lo, o) = runs.iter().rev().find(|(lo, _)| *lo <= r).expect("row was downloaded");
                         let o = o + (r - lo) * v * 4;
-                        StepOut::Logits(super::logits_row(&buf[o..o + v * 4]))
+                        let mut row = super::logits_row(&buf[o..o + v * 4]);
+                        self.softcap_logits(&mut row);
+                        StepOut::Logits(row)
                     }
                 });
             }

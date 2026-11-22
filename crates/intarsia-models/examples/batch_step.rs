@@ -63,7 +63,8 @@ mod imp {
             m.enable_batch(top.max(2)).unwrap();
         }
         m.configure_plan(&Default::default(), None).unwrap();
-        println!("# Qwen3-8B BF16 Metal, context {ctx} (+{} decoded), {rounds} rounds x {steps} steps, chunk {chunk}", rounds * steps);
+        let name = dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        println!("# {name} Metal, context {ctx} (+{} decoded), {rounds} rounds x {steps} steps, chunk {chunk}", rounds * steps);
 
         let mut solo: Vec<SequenceState> = Vec::new();
         let mut bat: Vec<SequenceState> = Vec::new();

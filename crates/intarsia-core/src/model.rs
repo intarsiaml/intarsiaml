@@ -2919,7 +2919,7 @@ impl Model {
         let nv = self.view(&self.ws.n, self.act, &[t, self.dims.hidden]);
         let mut dump = InkTensors::new();
         let pos0 = st.len;
-        self.ink_pass(st, &self.view(&self.ws.ids, DType::I32, &[t]), t, pos0, &nv, false, tf, Some(&mut dump))?;
+        self.ink_pass(st, None, &self.view(&self.ws.ids, DType::I32, &[t]), t, pos0, &nv, false, tf, Some(&mut dump))?;
         let mut logits = Vec::with_capacity(t * self.dims.vocab);
         for r0 in (0..t).step_by(LOGIT_ROWS) {
             logits.extend(self.head_logits(&nv, r0, LOGIT_ROWS.min(t - r0), false)?);
@@ -4060,9 +4060,18 @@ impl Model {
 
         if self.ink.is_some() {
             // Inkling-2 runs its own visit table (`model/inkling2.rs`) and leaves the final normed hidden state in `ws.n`
-            let Seqs::One(st) = seqs else {
-                return Err(Error::Unsupported("batched or packed passes of Inkling-2".into()));
+            // a batched decode step (lane ink-batch): one row per sequence, the stateful ops in their row-table form on the
+            // table and positions `forward_batch` uploaded (`upload_row_table`), row 0's state as the carrier
+            let (st, batch) = match seqs {
+                Seqs::One(st) => (st, None),
+                Seqs::Batch(sts) if dpos.is_none() && !sts.is_empty() => {
+                    let pos = self.batch_pos.as_ref().ok_or_else(|| Error::invalid("inkling2 batched step without row tables"))?;
+                    let max_pos = sts.iter().map(|s| s.len).max().unwrap_or(0);
+                    (sts[0], Some(inkling2::InkBatch { rows: sts.len(), pos: self.view(pos, DType::I32, &[sts.len()]), max_pos }))
+                }
+                _ => return Err(Error::Unsupported("packed passes of Inkling-2".into())),
             };
+            let pos0 = batch.as_ref().map_or(pos0, |b| b.max_pos);
             if dpos.is_some() {
                 return Err(Error::Unsupported("device-position (graph) decode of Inkling-2".into()));
             }
@@ -4074,7 +4083,7 @@ impl Model {
             if mark {
                 self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
             }
-            let r = self.ink_pass(st, &ids_t, t, pos0, &nv, profile, None, None);
+            let r = self.ink_pass(st, batch.as_ref(), &ids_t, t, pos0, &nv, profile, None, None);
             if mark {
                 self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
             }

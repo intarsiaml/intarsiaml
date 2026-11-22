@@ -32,7 +32,17 @@ struct InkP {
     float qk_clip, rel_clip, eps, tau_alpha;
     float scale, cscale, f2, f3;
     uint sk[16];  // leading element skip per binding index
+    // row-table form (lane ink-batch, `OpCall::rows`): table stride / this call's first entry, and each state tensor's byte
+    // offset in its row's buffer (the carrier's offset); unused by the other kernels
+    uint rts, rti, tab_lo, tab_hi;  // the table's GPU address (lo, hi): resident through the indirect set
+    uint roff[4];
 };
+
+// Row-table entry j of row r: the state buffer of sequence r (plus the carrier's byte offset).
+inline device ushort* ink_rt(constant InkP& p, uint r, uint j) {
+    device const ulong* tab = reinterpret_cast<device const ulong*>(as_type<ulong>(uint2(p.tab_lo, p.tab_hi)));
+    return reinterpret_cast<device ushort*>(tab[(ulong)r * p.rts + p.rti + j] + p.roff[j]);
+}
 
 inline float rA(float x) { return bf2f(f2bf(x)); }
 
@@ -308,7 +318,7 @@ inline InkSplit ink_split(constant InkP& p, uint pos0, uint t, uint split) {
 // the partial. KV_TG: the call's own keys (j >= pos0) come from threadgroup rows `kvt` instead of the k / v inputs.
 template <uint GP, bool KV_TG>
 inline void ink_attn_body(threadgroup InkTg<GP>& S, threadgroup const float* bias, threadgroup const ushort* kvt, uint kvoff, InkSplit g, uint kvh, uint split, uint t,
-                          uint pos0, device const ushort* kn, device const ushort* vn, device const ushort* kc,
+                          uint PT, uint pos0, device const ushort* kn, device const ushort* vn, device const ushort* kc,
                           device const ushort* vc, device const ushort* pq, device ushort* out, device float* scr,
                           constant InkP& p, uint tid, uint lane, uint sg) {
     const uint D = p.d, H = p.h, Hk = p.hk, Cr = p.cr;
@@ -338,7 +348,7 @@ inline void ink_attn_body(threadgroup InkTg<GP>& S, threadgroup const float* bia
                 if (KV_TG) {
                     const uint ro = (j - pos0 - kvoff) * D + le * 8;
                     kw = *(threadgroup const uint4*)(kvt + ro);
-                    vw = *(threadgroup const uint4*)(kvt + p.t * D + ro);
+                    vw = *(threadgroup const uint4*)(kvt + PT * D + ro);
                 } else {
                     const ulong o = ((ulong)(j - pos0) * Hk + kvh) * D + le * 8;
                     kw = *(device const uint4*)(kn + o);
@@ -421,7 +431,7 @@ inline void ink_attn_body(threadgroup InkTg<GP>& S, threadgroup const float* bia
             const ulong slotp = ((ulong)t * H + h) * INK_MAXS + split;
             scr[slotp * D + i] = aa;
             if (i == 0) {
-                device float* ml = scr + (ulong)p.t * H * INK_MAXS * D;
+                device float* ml = scr + (ulong)PT * H * INK_MAXS * D;
                 ml[slotp * 2] = mm;
                 ml[slotp * 2 + 1] = ll;
             }
@@ -483,7 +493,7 @@ template <uint GP>
         tb[h * g.nb + b] = bf2f(rel[((ulong)t * H + kvh * GP + h) * E + g.dlo + b]) * INK_LOG2E;
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
-    ink_attn_body<GP, false>(S, tb, nullptr, 0, g, kvh, split, t, pos0, kn, vn, kc, vc, pq, out, scr, p, tid, lane, sg);
+    ink_attn_body<GP, false>(S, tb, nullptr, 0, g, kvh, split, t, p.t, pos0, kn, vn, kc, vc, pq, out, scr, p, tid, lane, sg);
 }
 
 #define INK_S1(GP)                                                                                                         \
@@ -506,7 +516,9 @@ INK_S1(3)
 // bind: 0 pq, 1 pk, 2 pv, 3 k taps, 4 v taps, 5 q scale, 6 r scale, 7 rel proj, 8 k cache, 9 v cache, 10 out, 11 k ring,
 // 12 v ring, 13 pos, 14 scratch, 15 InkP. Grid (Hk, max splits, T), INK_NSG simdgroups; D in {8..128}, dr <= 32, E <= 1024.
 // flags: 4 = cache write in-kernel (else into the scratch's staging rows for ink_kv_write_bf16), 16 = conv-ring write in-kernel.
-template <uint GP>
+// RT (`ink_attn_dec_rows_g{GP}`, lane ink-batch): the row-table form. Threadgroup row r runs the T = 1 call of sequence r at
+// pos[r]: its row-indexed operands shifted by r, its caches / rings from table entries 0..4, its own T = 1 scratch block.
+template <uint GP, bool RT>
 [[kernel, max_total_threads_per_threadgroup(INK_NSG * 32)]] void ink_attn_dec(
     device const ushort* pq_ [[buffer(0)]],
     device const ushort* pk_ [[buffer(1)]],
@@ -522,7 +534,7 @@ template <uint GP>
     device ushort* kr_ [[buffer(11)]],
     device ushort* vr_ [[buffer(12)]],
     device const int* pos [[buffer(13)]],
-    device float* scr [[buffer(14)]],
+    device float* scr_ [[buffer(14)]],
     constant InkP& p [[buffer(15)]],
     threadgroup float* tb [[threadgroup(0)]],
     threadgroup ushort* tkv [[threadgroup(1)]],
@@ -547,12 +559,30 @@ template <uint GP>
     device ushort* out = out_ + p.sk[10];
     device ushort* kr = kr_ + p.sk[11];
     device ushort* vr = vr_ + p.sk[12];
+    device float* scr = scr_;
 
-    const uint kvh = tg.x, split = tg.y, t = tg.z;
+    const uint kvh = tg.x, split = tg.y;
+    uint t = tg.z, PT = p.t;
     const uint D = p.d, H = p.h, Hk = p.hk, dr = p.dr, E = p.e, Cr = p.cr;
     const uint ckv = Hk * D;
     const bool ring = (p.flags & 2u) != 0;
-    const uint pos0 = ink_pos0(p, pos);
+    uint pos0 = ink_pos0(p, pos);
+    if (RT) {
+        // row r: the T = 1 call of sequence r
+        const uint r = tg.z;
+        pos0 = (uint)max(pos[r], 0);
+        pq += (ulong)r * p.nq;
+        pk += (ulong)r * p.pw;
+        pv += (ulong)r * p.pw;
+        out += (ulong)r * H * D;
+        scr += (ulong)r * H * INK_MAXS * (D + 2);
+        kc = ink_rt(p, r, 0);
+        vc = ink_rt(p, r, 1);
+        kr = ink_rt(p, r, 2);
+        vr = ink_rt(p, r, 3);
+        t = 0;
+        PT = 1;
+    }
     const InkSplit g = ink_split(p, pos0, t, split);
     if (split >= g.ns) return;
     const uint c = tid, ch = kvh * D + c;
@@ -631,65 +661,82 @@ template <uint GP>
         if (c < D) {
             tkv[r * D + c] = f2bf(kcv[r] * ink_clipf(tk, p.qk_clip));
             const float inv = precise::divide(1.0f, precise::sqrt(tv / (float)D + p.eps));
-            tkv[(p.t + r) * D + c] = f2bf(vcv[r] * inv);
+            tkv[(PT + r) * D + c] = f2bf(vcv[r] * inv);
         }
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
     // the threadgroup that holds the row's own key (the split with ke == pp + 1) writes its K / V row and its conv-ring row
     if (g.ks < g.ke && g.ke == g.pp + 1 && c < D) {
         const uint r = t - t0;
-        if (!ring || t + Cr >= p.t) {
+        if (!ring || t + Cr >= PT) {
             if ((p.flags & 4u) != 0) {
                 const uint row = ring ? g.pp % Cr : g.pp;
                 const ulong dst = ((ulong)kvh * Cr + row) * D + c;
                 kc[dst] = tkv[r * D + c];
-                vc[dst] = tkv[(p.t + r) * D + c];
+                vc[dst] = tkv[(PT + r) * D + c];
             } else {
-                device ushort* stg = (device ushort*)(scr + (ulong)p.t * H * INK_MAXS * (D + 2));
+                device ushort* stg = (device ushort*)(scr + (ulong)PT * H * INK_MAXS * (D + 2));
                 const ulong o = ((ulong)t * Hk + kvh) * D + c;
                 stg[o] = tkv[r * D + c];
-                stg[(ulong)p.t * ckv + o] = tkv[(p.t + r) * D + c];
+                stg[(ulong)PT * ckv + o] = tkv[(PT + r) * D + c];
             }
         }
-        if ((p.flags & 16u) != 0 && t + p.rr >= p.t) {
+        if ((p.flags & 16u) != 0 && t + p.rr >= PT) {
             const ulong ro = (ulong)(g.pp % p.rr) * ckv + ch;
             kr[ro] = pk[(ulong)t * p.pw + ch];
             vr[ro] = pv[(ulong)t * p.pw + ch];
         }
     }
     // staged row r is the key at position pos0 + t0 + r
-    ink_attn_body<GP, true>(S, tb, tkv, t0, g, kvh, split, t, pos0, pk, pv, kc, vc, pq, out, scr, p, tid, lane, sg);
+    ink_attn_body<GP, true>(S, tb, tkv, t0, g, kvh, split, t, PT, pos0, pk, pv, kc, vc, pq, out, scr, p, tid, lane, sg);
 }
 
-#define INK_DEC(GP)                                                                                                        \
-    template [[host_name("ink_attn_dec_g" #GP)]] [[kernel]] void ink_attn_dec<GP>(                                        \
+#define INK_DEC(NAME, GP, RT)                                                                                              \
+    template [[host_name(NAME)]] [[kernel]] void ink_attn_dec<GP, RT>(                                                    \
         device const ushort*, device const ushort*, device const ushort*, device const ushort*, device const ushort*,       \
         device const ushort*, device const ushort*, device const ushort*, device ushort*, device ushort*, device ushort*,   \
         device ushort*, device ushort*, device const int*, device float*, constant InkP&, threadgroup float*,               \
         threadgroup ushort*, uint3, uint3, uint, uint);
-INK_DEC(1)
-INK_DEC(2)
-INK_DEC(3)
+INK_DEC("ink_attn_dec_g1", 1, false)
+INK_DEC("ink_attn_dec_g2", 2, false)
+INK_DEC("ink_attn_dec_g3", 3, false)
+INK_DEC("ink_attn_dec_rows_g1", 1, true)
+INK_DEC("ink_attn_dec_rows_g2", 2, true)
+INK_DEC("ink_attn_dec_rows_g3", 3, true)
 
-// stage 2. bind: 0 pq, 1 out, 2 pos, 3 scratch, 4 InkP. Grid (H, T), threads >= D.
-kernel void ink_attn_comb_bf16(device const ushort* pq_ [[buffer(0)]],
-                               device ushort* out_ [[buffer(1)]],
-                               device const int* pos [[buffer(2)]],
-                               device const float* scr [[buffer(3)]],
-                               constant InkP& p [[buffer(4)]],
-                               uint2 tg [[threadgroup_position_in_grid]],
-                               uint2 tid2 [[thread_position_in_threadgroup]]) {
+// stage 2. bind: 0 pq, 1 out, 2 pos, 3 scratch, 4 InkP. Grid (H, T), threads >= D. RT (`ink_attn_comb_rows_bf16`): row r is
+// the T = 1 call of sequence r at pos[r] on its own scratch block (as ink_attn_dec_rows writes it).
+template <bool RT>
+[[kernel]] void ink_attn_comb(device const ushort* pq_ [[buffer(0)]],
+                              device ushort* out_ [[buffer(1)]],
+                              device const int* pos [[buffer(2)]],
+                              device const float* scr_ [[buffer(3)]],
+                              constant InkP& p [[buffer(4)]],
+                              uint2 tg [[threadgroup_position_in_grid]],
+                              uint2 tid2 [[thread_position_in_threadgroup]]) {
     const uint tid = tid2.x;
-    const uint h = tg.x, t = tg.y, D = p.d, H = p.h;
+    const uint h = tg.x, D = p.d, H = p.h;
+    uint t = tg.y, PT = p.t;
     if (tid >= D) return;
     device const ushort* pq = pq_ + p.sk[6];
     device ushort* out = out_ + p.sk[7];
-    const uint pp = ink_pos0(p, pos) + t;
+    device const float* scr = scr_;
+    uint pos0 = ink_pos0(p, pos);
+    if (RT) {
+        const uint r = tg.y;
+        pos0 = (uint)max(pos[r], 0);
+        pq += (ulong)r * p.nq;
+        out += (ulong)r * H * D;
+        scr += (ulong)r * H * INK_MAXS * (D + 2);
+        t = 0;
+        PT = 1;
+    }
+    const uint pp = pos0 + t;
     const uint vis = pp - ink_lo(pp, p.window) + 1;
     const uint ns = ink_nsplit(vis, as_type<uint>(p.f3));
     if (ns == 1) return;
     const ulong base = ((ulong)t * H + h) * INK_MAXS;
-    device const float* ml = scr + (ulong)p.t * H * INK_MAXS * D;
+    device const float* ml = scr + (ulong)PT * H * INK_MAXS * D;
     float mm = -INFINITY;
     for (uint s = 0; s < ns; ++s) mm = max(mm, ml[(base + s) * 2]);
     float ll = 0.0f, aa = 0.0f;
@@ -704,6 +751,11 @@ kernel void ink_attn_comb_bf16(device const ushort* pq_ [[buffer(0)]],
     const float gate = bf2f(pq[pr + H * D + H * p.dr + h * D + tid]);
     out[((ulong)t * H + h) * D + tid] = ink_finish(aa, mm, ll, sink2, gate);
 }
+
+template [[host_name("ink_attn_comb_bf16")]] [[kernel]] void ink_attn_comb<false>(device const ushort*, device ushort*, device const int*,
+                                                                                   device const float*, constant InkP&, uint2, uint2);
+template [[host_name("ink_attn_comb_rows_bf16")]] [[kernel]] void ink_attn_comb<true>(device const ushort*, device ushort*, device const int*,
+                                                                                       device const float*, constant InkP&, uint2, uint2);
 
 // the cache write as its own pass. bind: 0 k, 1 v, 2 k cache, 3 v cache, 4 pos, 5 InkP. One thread per (row, kv head, dim).
 kernel void ink_kv_write_bf16(device const ushort* kn_ [[buffer(0)]],

@@ -14,6 +14,9 @@ enum Kind {
         mem: Arc<dyn HostMemory>,
         offset: usize,
     },
+    /// A writable view of another owned buffer's memory by its address (a row-table call's per-sequence state,
+    /// `OpCall::rows`; the table entry is [`CpuBuffer::address`] of a buffer the step's states keep alive).
+    Raw(usize),
 }
 
 pub struct CpuBuffer {
@@ -35,8 +38,21 @@ impl CpuBuffer {
         CpuBuffer { kind: Kind::Host { mem, offset }, bytes: len }
     }
 
+    /// A view of `bytes` bytes at `addr` (an [`CpuBuffer::address`] of a live owned buffer of at least that size).
+    ///
+    /// # Safety
+    /// `addr .. addr + bytes` must be the memory of a live owned cpu buffer for as long as the view is used.
+    pub unsafe fn raw(addr: usize, bytes: usize) -> CpuBuffer {
+        CpuBuffer { kind: Kind::Raw(addr), bytes }
+    }
+
+    /// The host address of an owned buffer's first byte (the cpu backend's `device_address`); `None` for wrapped memory.
+    pub fn address(&self) -> Option<u64> {
+        matches!(self.kind, Kind::Owned(_)).then(|| self.ptr() as u64)
+    }
+
     pub fn writable(&self) -> bool {
-        matches!(self.kind, Kind::Owned(_))
+        matches!(self.kind, Kind::Owned(_) | Kind::Raw(_))
     }
 
     fn ptr(&self) -> *mut u8 {
@@ -44,6 +60,7 @@ impl CpuBuffer {
             // SAFETY: only the pointer is taken; accesses are bounds-checked by callers.
             Kind::Owned(v) => unsafe { (*v.get()).as_mut_ptr() as *mut u8 },
             Kind::Host { mem, offset } => unsafe { mem.as_slice().as_ptr().add(*offset) as *mut u8 },
+            Kind::Raw(a) => *a as *mut u8,
         }
     }
 

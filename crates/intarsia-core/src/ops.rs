@@ -726,7 +726,8 @@ impl OpCall {
             }
             // one position (token t sits at pos + t), or one per token (`[T]`: batched decode rows, each at its own position)
             let t = self.inputs.first().and_then(|x| x.shape.first().copied()).unwrap_or(1);
-            let per_token = p.numel() == t && t > 1 && matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv);
+            let ink_rows = self.rows.is_some() && crate::inkling2::ops::ROW_TABLE_OPS.contains(&self.op);
+            let per_token = p.numel() == t && (t > 1 || ink_rows) && (ink_rows || matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv));
             if p.dtype != DType::I32 || (p.numel() != 1 && !per_token) {
                 return Err(Error::invalid(format!("{}: device position must be i32 [1] (or [T] for a batch of decode rows), got {} {:?}", self.op, p.dtype, p.shape)));
             }
@@ -736,16 +737,31 @@ impl OpCall {
         }
         if let Some(r) = &self.rows {
             r.ptrs.check_bounds()?;
-            if !matches!(self.op, Op::GdnConv | Op::GdnDeltaRule | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv) {
+            let ink = crate::inkling2::ops::ROW_TABLE_OPS.contains(&self.op);
+            if !ink && !matches!(self.op, Op::GdnConv | Op::GdnDeltaRule | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv) {
                 return Err(Error::invalid(format!("{}: takes no row table", self.op)));
             }
+            if ink {
+                // Inkling-2 row-table form (inkling2::ops, "Row tables"): per-row positions, `index + states` entries
+                let t = self.inputs.first().and_then(|x| x.shape.first().copied()).unwrap_or(0);
+                let n = crate::inkling2::ops::row_states(self.op);
+                if r.ptrs.dtype != DType::U8 || r.ptrs.shape != [r.rows, r.stride, 8] || r.rows != t || r.rows == 0 || r.index + n > r.stride || r.byte_off != 0 {
+                    return Err(Error::invalid(format!(
+                        "{}: row table {:?} {:?} rows {} stride {} index {} (+{n} entries) does not fit a call over {t} rows",
+                        self.op, r.ptrs.dtype, r.ptrs.shape, r.rows, r.stride, r.index
+                    )));
+                }
+                if !self.pos.as_ref().is_some_and(|p| p.numel() == t) {
+                    return Err(Error::invalid(format!("{}: a row-table call needs the per-row positions (`pos`, i32 [{t}])", self.op)));
+                }
+            }
             let t = self.inputs.first().and_then(|x| x.shape.first().copied()).unwrap_or(0);
-            if r.ptrs.dtype != DType::U8
+            if !ink && (r.ptrs.dtype != DType::U8
                 || r.ptrs.shape != [r.rows, r.stride, 8]
                 || r.rows != t
                 || r.rows == 0
                 || r.index >= r.stride
-                || (matches!(self.op, Op::AttnDecode | Op::QkNormRopeKv) && r.index + 1 >= r.stride)
+                || (matches!(self.op, Op::AttnDecode | Op::QkNormRopeKv) && r.index + 1 >= r.stride))
             {
                 return Err(Error::invalid(format!(
                     "{}: row table {:?} {:?} rows {} stride {} index {} does not fit a call over {t} rows",

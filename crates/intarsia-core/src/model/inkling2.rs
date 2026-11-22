@@ -159,6 +159,15 @@ pub(super) struct InkWs {
     pub ri: Buffer,
 }
 
+/// A batched decode pass (`Model::forward_batch`, lane ink-batch): `rows` sequences, one row each, at the positions in `pos`
+/// (i32 `[rows]`, device); the stateful ops run in their row-table form (`inkling2::ops`, "Row tables") on the row table the
+/// step uploaded (`Model::upload_row_table`). `max_pos` is the largest position (the attention selection rule's context).
+pub(super) struct InkBatch {
+    pub rows: usize,
+    pub pos: TensorRef,
+    pub max_pos: usize,
+}
+
 pub(super) struct InkModel {
     pub layers: Vec<InkLayer>,
     pub visits: Vec<InkVisit>,
@@ -246,6 +255,8 @@ pub(super) fn push_slots(visits: &mut [InkVisit], ink: &InkDims, dims: &ModelDim
     let ckv = dims.n_kv_heads * dims.head_dim;
     let m = INK_RING_MARGIN;
     for v in visits.iter_mut() {
+        // the row-table form of InkAttnDecode reaches the KV slot's and the K/V conv ring's entries as one run
+        // (`2 * kv_slot .. + 4`): the conv ring is the next slot
         v.kv_slot = specs.len();
         specs.push(if ink.local[v.layer] {
             SlotSpec::Ring { rows: ink.window + m, width: ckv, planes: 2, dtype: act, margin: m, kind: RingKind::InkKv }
@@ -253,6 +264,7 @@ pub(super) fn push_slots(visits: &mut [InkVisit], ink: &InkDims, dims: &ModelDim
             SlotSpec::AttnKv { n_kv_heads: dims.n_kv_heads, head_dim: dims.head_dim, dtype: act }
         });
         v.kvconv_slot = specs.len();
+        debug_assert_eq!(v.kvconv_slot, v.kv_slot + 1);
         specs.push(SlotSpec::Ring { rows: ink.k_conv - 1 + m, width: ckv, planes: 2, dtype: act, margin: m, kind: RingKind::InkConv });
         v.hconv_slot = specs.len();
         specs.push(SlotSpec::Ring { rows: ink.k_conv - 1 + m, width: dims.hidden, planes: 2, dtype: act, margin: m, kind: RingKind::InkConv });
@@ -623,12 +635,15 @@ impl Model {
     }
 
     /// One Inkling-2 pass over `t` rows at positions `pos0..` of `st`, the final normed hidden state into `out` (`[t, D]`).
+    /// `batch`: a batched decode step instead, row `r` the next token of sequence `r` (`st` is row 0's state, the carrier of
+    /// the row-table calls; `pos0` the largest position).
     /// `tf`: teacher forcing (every visit's blocks / partial / bank and the head's from these tensors, every attention mix
     /// standalone); `dump`: collect the oracle-named intermediates (tests).
     #[allow(clippy::too_many_arguments)]
     pub(super) fn ink_pass(
         &self,
         st: &SequenceState,
+        batch: Option<&InkBatch>,
         ids: &TensorRef,
         t: usize,
         pos0: usize,
@@ -647,6 +662,22 @@ impl Model {
         let act = self.act;
         let eps = self.dims.rms_eps;
         let ex = |op: Op, i: Vec<TensorRef>, o: Vec<TensorRef>, a: OpAttrs| self.exec(op, i, o, a, profile);
+        // the stateful ops: in a batched step their row-table form over the state slot `slot` (entries `2 * slot ..`)
+        let rowtab = |c: &mut OpCall, slot: usize| -> Result<()> {
+            if let Some(bt) = batch {
+                c.rows = Some(self.row_tab_for(bt.rows, slot, 0, 0).ok_or_else(|| Error::invalid("inkling2 batched step without its row table"))?);
+                c.pos = Some(bt.pos.clone());
+            }
+            Ok(())
+        };
+        let sx = |op: Op, i: Vec<TensorRef>, o: Vec<TensorRef>, a: OpAttrs, slot: usize| -> Result<()> {
+            if batch.is_none() {
+                return ex(op, i, o, a);
+            }
+            let mut c = OpCall::new(op, i, o, a);
+            rowtab(&mut c, slot)?;
+            self.exec_call(c, profile)
+        };
         let a0 = OpAttrs { eps, ..OpAttrs::default() };
         let none = |dt: DType, shape: &[usize]| TensorRef::new(ws.emb.clone(), dt, shape);
         let stack = |start: usize, n: usize| planes(&ws.s, act, start, n, t, d);
@@ -778,12 +809,23 @@ impl Model {
             aa.ink = InkAttrs { kv_ring: l.local, d_rel: dr, ..InkAttrs::default() };
             // decode rows: the fused InkAttnDecode (75) where the selection rule (or INTARSIA_INK_ATTN_FUSED) asks for it and the
             // backend admits the call, else the pair; a dump needs the pair's q / k / v / rel
-            let want_fused = !dumping
-                && t <= 16
-                && match ink_attn_fused_env() {
-                    Some(f) => f,
-                    None => self.backend.name() == "metal" && ink_attn_fused_rule(t, l.local, pos0 + t, ink.window),
-                };
+            // a batched step runs the pair only where the backend has its row-table kernels (the bits are the same either way)
+            let pair_rows = batch.is_none() || {
+                let by_op = self.registry.by_op();
+                [Op::InkKvPrologue, Op::RelSinkAttn].iter().all(|op| by_op.get(op).is_some_and(|ks| ks.iter().any(|k| k.row_table)))
+            };
+            let rule = match ink_attn_fused_env() {
+                Some(f) => f,
+                // a batched step's rows are 1-row calls each: the 1-row rule over the largest context
+                None => {
+                    self.backend.name() == "metal"
+                        && match batch {
+                            Some(bt) => ink_attn_fused_rule(1, l.local, bt.max_pos + 1, ink.window),
+                            None => ink_attn_fused_rule(t, l.local, pos0 + t, ink.window),
+                        }
+                }
+            };
+            let want_fused = !dumping && t <= 16 && (rule || !pair_rows);
             let fused = want_fused.then(|| {
                 let mut fa = aa.clone();
                 fa.ink = InkAttrs { kv_ring: l.local, ..pa.ink };
@@ -805,25 +847,29 @@ impl Model {
                     fa,
                 )
             });
-            let fused = fused.map(|mut c| {
-                c.exact_rows = self.verifying();
-                c
-            });
+            let fused = fused
+                .map(|mut c| -> Result<OpCall> {
+                    c.exact_rows = self.verifying();
+                    rowtab(&mut c, v.kv_slot)?;
+                    Ok(c)
+                })
+                .transpose()?;
             if let Some(call) = fused.filter(|c| self.registry.select(c).is_ok()) {
                 self.exec_call(call, profile)?;
             } else {
-                ex(
+                sx(
                     Op::InkKvPrologue,
                     vec![pq.clone(), pk, pv, l.ktaps.clone(), l.vtaps.clone(), l.qscale.clone(), l.rscale.clone(), l.relproj.clone()],
                     vec![q.clone(), rel.clone(), k.clone(), vv.clone(), kvc.plane(0), kvc.plane(1)],
                     pa,
+                    v.kvconv_slot,
                 )?;
                 put(format!("{tag}.q"), &q)?;
                 put(format!("{tag}.k"), &k)?;
                 put(format!("{tag}.v"), &vv)?;
                 put(format!("{tag}.rel"), &rel)?;
                 put(format!("{tag}.sink"), &pq)?;
-                ex(Op::RelSinkAttn, vec![q, k, vv, kc.clone(), vc.clone(), rel, pq], vec![o.clone(), kc, vc], aa)?;
+                sx(Op::RelSinkAttn, vec![q, k, vv, kc.clone(), vc.clone(), rel, pq], vec![o.clone(), kc, vc], aa, v.kv_slot)?;
             }
             let aproj = plane(&ws.aproj, act, 0, t, d);
             ex(Op::Matmul, vec![o, l.wo.clone()], vec![aproj.clone()], OpAttrs::default())?;
@@ -846,7 +892,7 @@ impl Model {
             } else {
                 ins.extend([l.mlp_norm.clone(), none(act, &[0]), none(act, &[0]), none(act, &[0]), none(act, &[0])]);
             }
-            ex(Op::ConvMix, ins, vec![aout.clone(), hc.plane(0), none(act, &[0]), mlpin.clone()], pc.clone())?;
+            sx(Op::ConvMix, ins, vec![aout.clone(), hc.plane(0), none(act, &[0]), mlpin.clone()], pc.clone(), v.hconv_slot)?;
             put(format!("{tag}.attn_out"), &aout)?;
             let mlpin = mlpin.reshaped(&[t, d]);
             put(format!("{tag}.mlp_in"), &mlpin)?;
@@ -921,7 +967,7 @@ impl Model {
                 ins.extend([TensorRef::new(ws.emb.clone(), DType::F32, &[0, d]), none(act, &[0]), none(act, &[0]), none(act, &[0]), none(act, &[0]), none(act, &[0])]);
                 mix_out = none(act, &[0]);
             }
-            ex(Op::ConvMix, ins, vec![plane(&ws.aproj, act, 0, t, d), hc.plane(1), dest.clone(), mix_out], pc)?;
+            sx(Op::ConvMix, ins, vec![plane(&ws.aproj, act, 0, t, d), hc.plane(1), dest.clone(), mix_out], pc, v.hconv_slot)?;
             put(format!("{tag}.partial_out"), &dest)?;
             x_ready = fuse;
         }

@@ -114,6 +114,17 @@
 //! then with msg the blend `LoopBlend(mix, msg, down, gain, forget, norm)` (the mix unnormed, f32), else the norm as in
 //! `AttnResMix`. `mix` is `[S,T,D]` in `A` (S = msg rows with a blend, Q otherwise), or f32 `[Q,T,D]` without norm and blend.
 //! `Q = 0` (queries `[0,D]`, mix `[0]`) is the conv alone.
+//!
+//! # Row tables (batched decode of several sequences; lane ink-batch, docs/results/2026-11-21-inkling2-batch.md)
+//!
+//! `SconvRes`, `InkKvPrologue`, `RelSinkAttn`, `ConvMix` and `InkAttnDecode` also take an optional row-table form:
+//! `OpCall::rows` = a [`crate::ops::RowTab`] over `T = B` rows (`byte_off` 0) and `OpCall::pos` = i32 `[B]`, the per-row
+//! positions. Row `r` of the call is then, bit for bit, the `T = 1` call at device position `pos[r]` whose row-indexed
+//! tensors are row `r` of the call's ([`row_roles`]: `[T, ..]` tensors and row `r` of every plane of `[N, T, D]` sources,
+//! messages and the mix) and whose state is sequence `r`'s: no row reads or writes another row's state, and no row has
+//! in-call history. The call's state tensors (rings, caches; `State(j)` in [`row_roles`]) describe row 0's buffers and are
+//! shape / dtype / offset carriers: state tensor `j` of row `r` lives at `tab[r, index + j] + carrier.offset`. The calls
+//! without a row table are unchanged.
 
 use crate::backend::TensorRef;
 use crate::dtype::DType;
@@ -182,6 +193,46 @@ pub const POSITIONED: [Op; 5] = [Op::SconvRes, Op::InkKvPrologue, Op::RelSinkAtt
 
 /// Most rows of an `InkAttnDecode` call.
 pub const ATTN_DECODE_MAX_ROWS: usize = 16;
+
+/// The ops with a row-table form (module doc, "Row tables").
+pub const ROW_TABLE_OPS: [Op; 5] = [Op::SconvRes, Op::InkKvPrologue, Op::RelSinkAttn, Op::ConvMix, Op::InkAttnDecode];
+
+/// What a tensor of a row-table call is (module doc, "Row tables").
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RowRole {
+    /// `[T, ..]`: row `r` is sequence `r`'s.
+    Row,
+    /// `[N, T, D]`: row `r` of every plane is sequence `r`'s.
+    Planes,
+    /// Per-sequence state, table entry `index + j` (the tensor is row 0's carrier).
+    State(usize),
+    /// Weights, queries, norms: shared by every row.
+    Fixed,
+}
+
+/// Roles of the (inputs, outputs) of a row-table call of `op`; `None` for an op without a row-table form. An absent
+/// optional tensor (`[0]`) is shared whatever its role.
+pub fn row_roles(op: Op) -> Option<(Vec<RowRole>, Vec<RowRole>)> {
+    use RowRole::{Fixed as F, Planes as P, Row as R, State as S};
+    Some(match op {
+        Op::SconvRes => (vec![R, F, R, R], vec![R, S(0), R]),
+        Op::ConvMix => (vec![R, F, R, R, P, F, F, P, F, F, F], vec![R, S(0), R, P]),
+        Op::InkKvPrologue => (vec![R, R, R, F, F, F, F, F], vec![R, R, R, R, S(0), S(1)]),
+        Op::RelSinkAttn => (vec![R, R, R, S(0), S(1), R, R], vec![R, S(0), S(1)]),
+        Op::InkAttnDecode => (vec![R, R, R, F, F, F, F, F, S(0), S(1)], vec![R, S(0), S(1), S(2), S(3)]),
+        _ => return None,
+    })
+}
+
+/// Table entries a row-table call of `op` reads per row (its state tensors).
+pub fn row_states(op: Op) -> usize {
+    match op {
+        Op::SconvRes | Op::ConvMix => 1,
+        Op::InkKvPrologue | Op::RelSinkAttn => 2,
+        Op::InkAttnDecode => 4,
+        _ => 0,
+    }
+}
 
 /// The two calls `InkAttnDecode` is defined as (prologue, attention), with `q`, `rel`, `k`, `v` the intermediates (any
 /// buffers of the right shapes; the checks only look at shapes and dtypes).

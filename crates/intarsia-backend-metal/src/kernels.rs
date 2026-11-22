@@ -428,6 +428,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkattn::INK_KV_PROLOGUE_BF16, Op::InkKvPrologue),
     (crate::inkattn::REL_SINK_ATTN_BF16, Op::RelSinkAttn),
     (crate::inkattn::INK_ATTN_DECODE_BF16, Op::InkAttnDecode),
+    (crate::inkattn::INK_ATTN_DECODE_BF16_ROWS, Op::InkAttnDecode),
     (crate::inkattn::REL_SINK_ATTN_BF16_NAX, Op::RelSinkAttn),
     // lane ink-m-moe: the Inkling-2-Mini router and experts (inkmoe.rs)
     (crate::inkmoe::KERNELS[0].0, Op::MoeRoute),
@@ -663,6 +664,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .scratch(crate::inkattn::decode_scratch),
+                // the row-table form (batched decode, lane ink-batch): row r the T = 1 call of sequence r; inkling2_batch.rs
+                crate::inkattn::INK_ATTN_DECODE_BF16_ROWS => k
+                    .acts(bf)
+                    .weights(bf)
+                    .when(crate::inkattn::decode_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .scratch(crate::inkattn::decode_scratch)
+                    .row_table(),
                 // prefill chunks on the neural accelerators (falls back to the split-KV kernel for what it cannot take)
                 crate::inkattn::REL_SINK_ATTN_BF16_NAX => k
                     .acts(bf)
