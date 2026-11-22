@@ -27,6 +27,14 @@
    CUDA builds and tests stay on spark1 / spark2 through fleetq. Reading files, git and local edits are fine. (Before
    this rule the lane ran `cargo check` / `cargo test --lib` for the CUDA crate and one tiny-model refusal test locally;
    from now on it runs none.)
+5. 2026-11-21 (coordinator): **Approved: the staged body restored for window > 0 layers** (a per-layer constant; rows-exact
+   and fused == pair stay bitwise). Then, in order:
+   1. One cheap diagnostic, a single spark1 quiet job: the same 134 MB read three ways with the read-only kernel:
+      (a) one linear stream; (b) today's 264 interleaved K/V row streams; (c) each block one contiguous range of a single
+      head, >= 64 KB per block. If (a) and (c) reach ~240+ GB/s and (b) stays ~195, the cause is stream count / pattern:
+      rework the decode grid so each block owns a contiguous key range per head, one attempt, measured against 668. If all
+      stay ~195: footprint / TLB, record and accept 668.
+   2. Then idea 3 (fold the combine into the tile kernel) under the same bitwise rules.
 
 ## Summary
 
