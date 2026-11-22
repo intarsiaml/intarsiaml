@@ -147,6 +147,31 @@ fn from_bits(b: u16) -> f32 {
     f32::from_bits((b as u32) << 16)
 }
 
+/// `a . b` with eight independent partial sums (so the compiler vectorises it).
+fn dot8(a: &[f32], b: &[f32]) -> f32 {
+    let mut acc = [0f32; 8];
+    let (ca, cb) = (a.chunks_exact(8), b.chunks_exact(8));
+    let (ra, rb) = (ca.remainder(), cb.remainder());
+    for (x, y) in ca.zip(cb) {
+        for l in 0..8 {
+            acc[l] += x[l] * y[l];
+        }
+    }
+    acc.iter().sum::<f32>() + ra.iter().zip(rb).map(|(x, y)| x * y).sum::<f32>()
+}
+
+fn dot8_bf16(a: &[u16], b: &[f32]) -> f32 {
+    let mut acc = [0f32; 8];
+    let (ca, cb) = (a.chunks_exact(8), b.chunks_exact(8));
+    let (ra, rb) = (ca.remainder(), cb.remainder());
+    for (x, y) in ca.zip(cb) {
+        for l in 0..8 {
+            acc[l] += from_bits(x[l]) * y[l];
+        }
+    }
+    acc.iter().sum::<f32>() + ra.iter().zip(rb).map(|(x, y)| from_bits(*x) * y).sum::<f32>()
+}
+
 fn sigmoid(x: f32) -> f32 {
     1.0 / (1.0 + (-x).exp())
 }
@@ -459,7 +484,26 @@ impl Model {
 
     /// Context rows of `t` target positions (`kv.len ..`) from the tap buffers `src` into the draft caches, and their `f_rnn` rows
     /// into the host ring.
+    /// Run `f` with the row-exact kernels selected (`OpCall::exact_rows`, the GEMV `_rows` family) when `rows` <= 16 and
+    /// `INTARSIA_DSPARK_ROWS_KERNELS` is not `0`: at 2-16 rows the generic GEMM kernels read the weights at about half the
+    /// bandwidth (lane dcp's measurement for the DFlash2 draft). A speed choice only: drafts never reach the output.
+    fn ds_rows<T>(&self, rows: usize, f: impl FnOnce() -> Result<T>) -> Result<T> {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        let on = *ON.get_or_init(|| std::env::var("INTARSIA_DSPARK_ROWS_KERNELS").map_or(true, |v| v != "0"));
+        if !on || rows > 16 || self.exact_rows.load(std::sync::atomic::Ordering::Relaxed) {
+            return f();
+        }
+        self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        let r = f();
+        self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        r
+    }
+
     pub(super) fn dspark_ingest(&self, ds: &Dspark, d: &mut DflashState, src: &[Buffer], t: usize, profile: bool) -> Result<()> {
+        self.ds_rows(t, || self.dspark_ingest_inner(ds, d, src, t, profile))
+    }
+
+    fn dspark_ingest_inner(&self, ds: &Dspark, d: &mut DflashState, src: &[Buffer], t: usize, profile: bool) -> Result<()> {
         let (h, act) = (self.dims.hidden, self.act);
         let (nkv, hd) = (ds.c.n_kv_heads, ds.c.head_dim);
         if self.recorder.lock().unwrap().is_some() {
@@ -516,6 +560,10 @@ impl Model {
     /// Drafts after `next` (the token at position `st.len`): one block pass and up to `k` (at most 7) Markov steps, stopping at the
     /// first proposal whose top-1 probability is below the gate. Empty: no proposal cleared the gate (a plain step follows).
     pub(super) fn dspark_draft(&self, ds: &Dspark, st: &mut SequenceState, next: u32, k: usize) -> Result<Vec<u32>> {
+        self.ds_rows(BLOCK, || self.dspark_draft_inner(ds, st, next, k))
+    }
+
+    fn dspark_draft_inner(&self, ds: &Dspark, st: &mut SequenceState, next: u32, k: usize) -> Result<Vec<u32>> {
         let d = st.dflash.as_ref().ok_or_else(|| Error::invalid("sequence without DFlash state"))?;
         let kmax = k.min(BLOCK - 1);
         let p0 = d.kv.len;
@@ -664,15 +712,13 @@ impl Model {
             Vec::new()
         };
         for i in 0..kmax {
-            let w1 = &ds.w1[prev * r..(prev + 1) * r];
+            // [state, w1[prev]] . rnn_proj[:, :2r]^T, eight partial sums per row (vectorises; the draft only needs f32 accuracy)
+            let mut inp = Vec::with_capacity(2 * r);
+            inp.extend_from_slice(&state);
+            inp.extend(ds.w1[prev * r..(prev + 1) * r].iter().map(|&b| from_bits(b)));
             let mut raw = vec![0f32; 3 * r];
             for (j, z) in raw.iter_mut().enumerate() {
-                let w = &ds.w_sp[j * 2 * r..(j + 1) * 2 * r];
-                let mut s = ds.rnn_bias[j] + hw[i * 3 * r + j] + fw[j];
-                for c in 0..r {
-                    s += w[c] * state[c] + w[r + c] * from_bits(w1[c]);
-                }
-                *z = s;
+                *z = ds.rnn_bias[j] + hw[i * 3 * r + j] + fw[j] + dot8(&ds.w_sp[j * 2 * r..(j + 1) * 2 * r], &inp);
             }
             let mut latent = vec![0f32; r];
             for c in 0..r {
@@ -689,7 +735,7 @@ impl Model {
                     .iter()
                     .map(|&(v, b)| {
                         let w = &ds.fold_host[v * r..(v + 1) * r];
-                        let f: f32 = w.iter().zip(&latent).map(|(&a, &l)| from_bits(a) * l).sum();
+                        let f = dot8_bf16(w, &latent);
                         (v, rbf(b + rbf(f + ds.fold_b[v])))
                     })
                     .unzip()
