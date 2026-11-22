@@ -1206,7 +1206,7 @@ impl Model {
         };
         // the lossless 12-bit copy of the Inkling-2 unembed (lane ink-pack12): the replicated bf16 head only
         let head_p12 = match (&dims.ink, &lm_head) {
-            (Some(_), Some(h)) if crate::quant::p12::enabled(b.name()) && head_quant.is_none() && !vocab_par && h.format == crate::quant::BF16 => {
+            (Some(_), Some(h)) if crate::quant::p12::enabled(b) && head_quant.is_none() && !vocab_par && h.format == crate::quant::BF16 => {
                 let nm = resolve(src, &lh.tensor)?;
                 let i = src.info(&nm).ok_or_else(|| Error::model(format!("lm_head tensor '{nm}' missing")))?;
                 if i.dtype != DType::Bf16 {

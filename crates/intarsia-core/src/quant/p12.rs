@@ -29,7 +29,7 @@ use crate::error::{Error, Result};
 pub const P12: super::QuantId = "p12";
 
 /// `INTARSIA_INK_PACK12`: Inkling-2 stores in_proj, wo and the unembed as P12 too, for the few-row kernels (lossless).
-/// Default on where the backend has the kernels (Metal), `0` turns it off, `1` turns it on everywhere ([`enabled`]).
+/// Default on on Metal, `0` turns it off, `1` turns it on on any backend with the P12 kernels ([`decide`]).
 pub const ENV: &str = "INTARSIA_INK_PACK12";
 
 /// Most activation rows a P12 kernel takes (decode and verify; prefill chunks keep the bf16 weights).
@@ -307,19 +307,62 @@ pub fn random_weight(rng: &mut crate::rng::SplitMix64, n: usize, k: usize, std: 
     w
 }
 
-/// Whether Inkling-2 packs P12 copies at load on `backend` (its `Backend::name`): `INTARSIA_INK_PACK12=0` / `off` /
-/// `false` never, `1` / `on` / `true` always, unset (or anything else) only on Metal, the backend with the P12 kernels.
-pub fn enabled(backend: &str) -> bool {
-    match std::env::var(ENV).ok().as_deref().map(str::trim) {
-        Some("0" | "off" | "false") => false,
-        Some("1" | "on" | "true") => true,
-        _ => backend == "metal",
+/// What `INTARSIA_INK_PACK12` (`env`) decides on the backend named `backend`, which registers the P12 kernels
+/// (`Op::MatmulP12`: Metal and the cpu reference) or not (CUDA, HIP): whether to pack, and a load-log note when a forced
+/// `1` is not honoured. `0` / `off` / `false`: never. `1` / `on` / `true`: wherever the kernels exist; a backend without
+/// them keeps the bf16 weights and says so (it never packs and then fails at plan or dispatch). Unset (or anything else):
+/// Metal only.
+pub fn decide(env: Option<&str>, backend: &str, has_kernels: bool) -> (bool, Option<String>) {
+    match env.map(str::trim) {
+        Some("0" | "off" | "false") => (false, None),
+        Some("1" | "on" | "true") if has_kernels => (true, None),
+        Some("1" | "on" | "true") => {
+            (false, Some(format!("{ENV}=1: the {backend} backend has no P12 kernels (MatmulP12); keeping the bf16 weights")))
+        }
+        _ => (backend == "metal" && has_kernels, None),
     }
+}
+
+/// Whether Inkling-2 packs P12 copies at load on `b` ([`decide`] on the environment and `b`'s kernel list). Prints the
+/// note of a forced `1` that is not honoured, once per process.
+pub fn enabled(b: &dyn Backend) -> bool {
+    let has = b.kernels().iter().any(|k| k.op == crate::ops::Op::MatmulP12);
+    let (on, note) = decide(std::env::var(ENV).ok().as_deref(), b.name(), has);
+    static NOTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if let Some(n) = note {
+        if !NOTED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+            eprintln!("{n}");
+        }
+    }
+    on
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decide_default_metal_off_switch_and_no_kernel_backends() {
+        // unset: Metal only (and only with the kernels)
+        assert_eq!(decide(None, "metal", true), (true, None));
+        assert_eq!(decide(None, "cpu", true), (false, None));
+        assert_eq!(decide(None, "cuda", false), (false, None));
+        assert_eq!(decide(Some("garbage"), "metal", true), (true, None));
+        // the off switch, everywhere
+        for v in ["0", "off", "false", " 0 "] {
+            assert_eq!(decide(Some(v), "metal", true), (false, None));
+            assert_eq!(decide(Some(v), "cpu", true), (false, None));
+        }
+        // forced on: wherever the kernels exist; without them bf16 is kept, with a note naming the backend
+        assert_eq!(decide(Some("1"), "cpu", true), (true, None));
+        assert_eq!(decide(Some("on"), "metal", true), (true, None));
+        for b in ["cuda", "hip"] {
+            let (on, note) = decide(Some("1"), b, false);
+            assert!(!on, "{b}");
+            let n = note.expect("a note");
+            assert!(n.contains(b) && n.contains("keeping the bf16 weights"), "{n}");
+        }
+    }
 
     fn rng(seed: &mut u64) -> u64 {
         *seed ^= *seed << 13;

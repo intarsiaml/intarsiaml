@@ -383,8 +383,7 @@ pub(super) fn load(
     let qbytes = std::cell::Cell::new(0u64);
     // lossless 12-bit copies of the bf16 in-projection and wo (lane ink-pack12, default on Metal); not with a quantised
     // projection
-    let pack12 =
-        crate::quant::p12::enabled(b.name()) && attn_quant.is_none() && wdt_of(src, &names.root) == DType::Bf16;
+    let pack12 = crate::quant::p12::enabled(b) && attn_quant.is_none() && wdt_of(src, &names.root) == DType::Bf16;
     let mut p12_stats = P12Stats::default();
     let mut put = |data: &[u8], dt: DType, shape: &[usize]| -> Result<TensorRef> {
         let buf = crate::backend::upload_new(b, data)?;
