@@ -218,3 +218,25 @@ batch phase's shapes (`Batch t=10..`). It ran before the merge that brought ink/
 merged at 22:27:45) and on the old script that used a prebuilt binary: the known failure, not a batch-specific one. Log kept
 in `.scratch/serve_batch-10811.log` / `serve-10811-prefix/`. Rerun queued with the script that builds the tip at job start; a
 default-load admission probe (`serve --max-batch 16` on the tip until `/v1/models` answers, one chat request) runs first.
+
+## 8. Where the 8 -> 16 step goes (#10885, kernel-mode trace, default load: shares only)
+
+`batch_prof --ctx 1024`, `INTARSIA_METAL_PROFILE=kernel` (one command buffer per launch, so absolute times are inflated and
+launch-count changes are over-weighted), cut by step marks, median over 10 steps; GPU ms per step:
+
+| op | B 8 | B 16 | delta | launches at 16 |
+|---|---:|---:|---:|---:|
+| matmul_bf16_gemv_rows (wo, two chunks above 8) | 2.87 | 6.50 | +3.63 | 96 |
+| ink_in_proj_bf16_gemv_rows | 8.19 | 11.80 | +3.61 | 48 |
+| moe_experts_situ_bf16_rows (gate+up / down / gather) | 29.05 | 33.91 | +4.86 | 132 |
+| ink_attn_decode_bf16_rows | 10.59 | 12.08 | +1.48 | 48 |
+| logits_bf16_gemv_rows (unembed) | 3.47 | 4.63 | +1.16 | 2 |
+| logits_bf16_gemv_rows (router, two chunks above 8) | 1.06 | 1.83 | +0.76 | 96 |
+| moe_experts_mxfp8 (the bf16 / mxfp8 visits) | 3.06 | 4.37 | +1.31 | 12 |
+| everything else | 9.73 | 9.02 | -0.71 | |
+| **sum** | **67.0** | **84.1** | **+17.1** | |
+
+Summed GPU time grows 17 ms while the real step (`batch_step`, quiet) grows 34 ms (58.4 -> 92.1). Before choosing a kernel
+lever the command-buffer timeline (GPU busy vs wall per step, B 2 / 8 / 16) is measured, to tell real GPU growth from host
+gaps (queued). The coordinator's InkInProj figure (+4 ms) matches this table; it is one of three similar shares, not the
+largest (the MoE situ path is).
