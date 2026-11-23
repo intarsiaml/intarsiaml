@@ -276,6 +276,16 @@
     spec off; report graphed ms / token and the new idle; (4) under +0.5 %: park with the numbers; no lever 2 (separate
     brief). Report branch, head, numbers; no push (the coordinator opens the PR). Spark memory: 121 GB budget, MAX_JOBS=4,
     10 GB free (15 without earlyoom).
+56. 2026-11-23 (coordinator, brief 56): the sampled-MTP-draft risk blocks the CUDA screen flip and Metal spec (#496); fix it
+    first as its own small PR. Branch `ink/screen-full-logits` off origin/main 0b8fab600, worktree
+    `.worktrees/ink-screen-full-logits` only; include the graph-key fix 523586de1 if it applies on its own. Audit every reader
+    of `ws.logits` / per-step logits rows after a screened head (sampled drafts, t>0 sampling, logprobs/top-k, penalties,
+    structured-output masks, verify/acceptance) with file:line; fix each that can see a screened row (full head whenever the
+    full row is read; greedy keeps the screen). Test: t=1.0, fixed seed, spec default, screen on vs off identical tokens
+    (md5 64/256), also on pre-fix code (live vs latent); a tiny test for the sampled-draft path if feasible; greedy md5
+    64/256/1.2k == main, screen on and off. CUDA gates on spark1 in one slot; Metal tests + greedy md5 64/256 on endor in
+    one slot if shared core changed. Push inside a slot or --no-verify after docs_env_vars and recipes_doc pass. Report audit
+    table, pre/post t=1.0, gates, branch + head; coordinator opens the PR; do not merge or push the flip branch.
 
 ## Summary
 
