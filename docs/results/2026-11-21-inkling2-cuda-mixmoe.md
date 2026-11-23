@@ -314,6 +314,9 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   binaries differ), spec off and default, plus ink_rows, tiny cuda and admission; (3) the hash question is answered (why this
   lane's g64 / g1.2k differ from the CUDA lane's faf40cecb06b / dc28658094c0; if it is the harness, say which). If any gate
   fails, stop and report, do not merge. Send the merge commit.
+- (coordinator, 47th) rank4 (#504, Metal-only code plus one row each in `docs/tuning.md` and `docs/decisions/LOG.md`) may merge
+  first. If GitHub then shows a conflict on #501: merge origin/main, keep both docs rows, re-push for CI. If it merges cleanly,
+  the code is disjoint, so green CI on the merged head is enough (no endor / spark re-gate). Pin the merge to the head CI tested.
 - (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
   chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
   is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
