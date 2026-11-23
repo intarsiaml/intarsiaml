@@ -358,6 +358,12 @@ merged 26d1ad1a…, main 2324bd77…): all pass; MG4 after a script fix, evaluat
 vs off 1.617 s here (the default arm ran first in the slot), 1.636 vs 1.652 s in #11738; turn-2 TTFT 0.153 vs 0.135 s here, 0.136
 vs 0.136 s in #11738. #11621 measures TTFT with a warm-up and A B B A.
 
+**Coordinator (2026-11-22 ~23:45): MG4 accepted; correction to step 2.** After #11621 passes, merge in whatever origin/main is at
+that point, not dabd0d448 (main is now ca3b4e55b, #503 the Metal prefill blend in `inkmix.rs`; rank4, the Metal router in
+`inkctrl.rs` and `inkling2_ctrl.metal`, is about to merge). Both touch the Metal path, so on the merged tree rerun md5 64 / 256
+(default == `--spec off` == that main) and the full MG6 Metal set. The report includes #11621's TTFT spec on vs off (the cold 2.07 vs
+1.62 s of #11751 needs a proper reading). The hold stays: no push, PR or merge until the user's go is relayed.
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
