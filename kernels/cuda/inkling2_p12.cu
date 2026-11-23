@@ -13,6 +13,7 @@
 #include "ik_internal.h"
 #include "ik_quant.cuh"
 #include "ik_cuda_abi_inkp12.h"
+#include "ink_pdl.cuh"
 
 namespace {
 
@@ -83,12 +84,21 @@ IK_DEVI uint4 p12_dec(P12Row& w, const P12Raw& r, int64_t c) {
 IK_DEVI uint4 p12_load(P12Row& w, int64_t c) { return p12_dec(w, p12_raw(w, c), c); }
 
 // ---- MatmulP12: matmul.cu gemv_body<M, OutT, VEC = true> with the weight loads replaced by p12_load ------------------------
-template <int M, typename OutT>
+// PM (MatmulP12 = wo, INTARSIA_INK_ATTN_PDL): 0 a plain launch; inkpdl::ON / LAUNCH a programmatic dependent of the kernel
+// before it (op 75's combine or tile, or a cache-write kernel). Edge -> wo: before the wait a warp reads only its own
+// weight row (ON: prefetch.global.L2 of the row's codes), written at load, long before the step; x (the attention output)
+// and aux come after the wait. Every warp waits before it returns. wo triggers nothing: the kernel after it is a plain
+// launch.
+template <int M, typename OutT, int PM = 0>
 __global__ void __launch_bounds__(kWarpsPerBlock * IK_WARP)
 p12_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ codes, const uint32_t* __restrict__ aux,
                 OutT* __restrict__ out, int64_t N, int64_t K) {
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
     const int64_t n = (int64_t)blockIdx.x * kWarpsPerBlock + warp;
+    if constexpr (PM != 0) {
+        if (PM == inkpdl::ON && n < N) inkpdl::l2_lines(codes + n * (3 * K / 2), 3 * K / 2, lane, IK_WARP);
+        inkpdl::wait();
+    }
     if (n >= N) return;
     P12Row wr = p12_row(codes, aux, N, n, K);
     float acc[M];
@@ -115,12 +125,20 @@ p12_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ codes
     }
 }
 
-template <typename OutT>
+template <typename OutT, int PM = 0>
 int p12_gemv(const ik_bf16* x, const uint8_t* codes, const uint32_t* aux, OutT* out, int64_t M, int64_t N, int64_t K, cudaStream_t s) {
     const unsigned grid = (unsigned)((N + kWarpsPerBlock - 1) / kWarpsPerBlock);
     const unsigned block = kWarpsPerBlock * IK_WARP;
-#define IK_P12_CASE(R) \
-    case R: p12_gemv_kernel<R, OutT><<<grid, block, 0, s>>>(x, codes, aux, out, N, K); break;
+#define IK_P12_CASE(R)                                                                                                         \
+    case R:                                                                                                                    \
+        if (PM != 0) {                                                                                                         \
+            if (inkpdl::launch(p12_gemv_kernel<R, OutT, PM>, dim3(grid), dim3(block), 0, s, x, codes, aux, out, N, K) !=       \
+                cudaSuccess)                                                                                                   \
+                return IK_ERR_LAUNCH;                                                                                          \
+        } else {                                                                                                               \
+            p12_gemv_kernel<R, OutT><<<grid, block, 0, s>>>(x, codes, aux, out, N, K);                                         \
+        }                                                                                                                      \
+        break;
     switch (M) {
         IK_P12_CASE(1) IK_P12_CASE(2) IK_P12_CASE(3) IK_P12_CASE(4) IK_P12_CASE(5) IK_P12_CASE(6) IK_P12_CASE(7) IK_P12_CASE(8)
         IK_P12_CASE(9) IK_P12_CASE(10) IK_P12_CASE(11) IK_P12_CASE(12) IK_P12_CASE(13) IK_P12_CASE(14) IK_P12_CASE(15) IK_P12_CASE(16)
@@ -250,10 +268,14 @@ struct GemvSegs {
     int r0[4];
 };
 
+// pdl (INTARSIA_INK_ATTN_PDL): edge in_proj -> tile. in_proj (a plain launch) lets its programmatic dependent (op 75's
+// decode tile) launch as soon as every block has started, so the tile's blocks take SMs in in_proj's last wave and
+// prefetch their old K / V rows; the tile waits for this grid before it reads q / k / v. No-op for a plain dependent.
 template <int M, bool P12>
 __global__ void __launch_bounds__(kWarpsPerBlock * IK_WARP)
 in_proj_gemv_kernel(GemvSegs sg, const ik_bf16* __restrict__ w, const uint8_t* __restrict__ codes, const uint32_t* __restrict__ aux,
-                    int64_t N, int64_t K) {
+                    int64_t N, int64_t K, bool pdl) {
+    if (pdl) inkpdl::trigger();
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
     const int64_t n = (int64_t)blockIdx.x * kWarpsPerBlock + warp;
     if (n >= N) return;
@@ -339,8 +361,9 @@ int in_proj_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* codes,
     cudaStream_t s = IK_STREAM(stream);
     const unsigned grid = (unsigned)((nsum + kWarpsPerBlock - 1) / kWarpsPerBlock);
     const unsigned block = kWarpsPerBlock * IK_WARP;
+    const bool pdl = inkpdl::mode() != inkpdl::OFF;
 #define IK_IPG_CASE(R) \
-    case R: in_proj_gemv_kernel<R, P12><<<grid, block, 0, s>>>(sg, wp, cp, ap, nsum, D); break;
+    case R: in_proj_gemv_kernel<R, P12><<<grid, block, 0, s>>>(sg, wp, cp, ap, nsum, D, pdl); break;
     switch (T) {
         IK_IPG_CASE(1) IK_IPG_CASE(2) IK_IPG_CASE(3) IK_IPG_CASE(4) IK_IPG_CASE(5) IK_IPG_CASE(6) IK_IPG_CASE(7) IK_IPG_CASE(8)
         IK_IPG_CASE(9) IK_IPG_CASE(10) IK_IPG_CASE(11) IK_IPG_CASE(12) IK_IPG_CASE(13) IK_IPG_CASE(14) IK_IPG_CASE(15) IK_IPG_CASE(16)
@@ -350,11 +373,8 @@ int in_proj_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* codes,
     return ik_launch_status();
 }
 
-}  // namespace
-
-extern "C" {
-
-int ik_matmul_p12_gemv(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* out, void* stream) {
+// wo: pdl = true (MatmulP12, the op after op 75 decode); logits: false (a plain launch, as before)
+int matmul_p12_gemv(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* out, void* stream, bool pdl) {
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
     if (out->ndim != 2) return IK_ERR_SHAPE;
     const int64_t M = x->shape[0], K = x->shape[1], N = out->shape[1];
@@ -368,17 +388,28 @@ int ik_matmul_p12_gemv(const ik_tensor* x, const ik_tensor* codes, const ik_tens
     const uint8_t* cp = (const uint8_t*)codes->data;
     const uint32_t* ap = (const uint32_t*)aux->data;
     if (out->dtype == IK_DTYPE_F32) return p12_gemv<float>(xp, cp, ap, (float*)out->data, M, N, K, s);
-    if (out->dtype == IK_DTYPE_BF16) return p12_gemv<ik_bf16>(xp, cp, ap, (ik_bf16*)out->data, M, N, K, s);
-    return IK_ERR_DTYPE;
+    if (out->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
+    ik_bf16* op = (ik_bf16*)out->data;
+    const int pm = pdl ? inkpdl::mode() : inkpdl::OFF;
+    if (pm == inkpdl::ON) return p12_gemv<ik_bf16, inkpdl::ON>(xp, cp, ap, op, M, N, K, s);
+    if (pm == inkpdl::LAUNCH) return p12_gemv<ik_bf16, inkpdl::LAUNCH>(xp, cp, ap, op, M, N, K, s);
+    return p12_gemv<ik_bf16>(xp, cp, ap, op, M, N, K, s);
+}
+}  // namespace
+
+extern "C" {
+
+int ik_matmul_p12_gemv(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* out, void* stream) {
+    return matmul_p12_gemv(x, codes, aux, out, stream, true);
 }
 int ik_matmul_p12_gemv_rows(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* out, void* stream) {
-    return ik_matmul_p12_gemv(x, codes, aux, out, stream);
+    return matmul_p12_gemv(x, codes, aux, out, stream, true);
 }
 int ik_matmul_p12_logits_gemv(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* out, void* stream) {
-    return ik_matmul_p12_gemv(x, codes, aux, out, stream);
+    return matmul_p12_gemv(x, codes, aux, out, stream, false);
 }
 int ik_matmul_p12_logits_gemv_rows(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* out, void* stream) {
-    return ik_matmul_p12_gemv(x, codes, aux, out, stream);
+    return matmul_p12_gemv(x, codes, aux, out, stream, false);
 }
 
 int ik_ink_in_proj_p12_mma(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* pq, ik_tensor* pk,
