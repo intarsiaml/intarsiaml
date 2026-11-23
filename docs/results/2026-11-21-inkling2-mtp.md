@@ -351,6 +351,13 @@ merged 26d1ad1a…, main 2324bd77…): all pass; MG4 after a script fix, evaluat
    publishing. This replaces step 4 of the brief above (fast-forward and push after #11621). If #11621 fails the bar: stop and
    report.
 
+**MG4 clean rerun, #11751 (endor `--quiet gpu,cpu`, 23:34; binary a6e3cc43a from #11738, md5 26d1ad1a…): PASS.** Turn 1 (prompt 4575,
+189 tokens) and turn 2 (prompt 4633, 128 tokens, reasoning only: content "" on both, finish length) equal on the default and the
+`--spec off` server; turn 2 cached 4575 on both. The default server printed its line and speculated over the flow (spec steps
+0 -> 75); `--spec off` did not (0). Info, one cold request per server, no warm-up (not a speed measurement): turn-1 TTFT on 2.073 s
+vs off 1.617 s here (the default arm ran first in the slot), 1.636 vs 1.652 s in #11738; turn-2 TTFT 0.153 vs 0.135 s here, 0.136
+vs 0.136 s in #11738. #11621 measures TTFT with a warm-up and A B B A.
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
