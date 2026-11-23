@@ -303,12 +303,14 @@ pub fn metal4_shaders() -> Vec<&'static str> {
         crate::gemm_nax::NAX_VARIANTS.iter().flat_map(|v| [v.shader, v.pair_shader]).collect();
     v.extend(crate::flash_nax::NAX_FLASH_VARIANTS.iter().map(|f| f.name));
     v.extend(crate::fp8::NAX_FP8_SHADERS.iter().flatten());
+    v.extend(crate::fp8::NAX_FP8X_SHADERS.iter().flatten());
     v.extend(crate::moe::NAX_MM_GU.iter().chain(&crate::moe::NAX_MM_DN));
     v.extend(crate::mxfp4::NAXD_FORMS.iter().flat_map(|f| [f.0, f.1]));
     v.extend(crate::inkattn::metal4_shader_names());
     v.extend(crate::inkmoe::metal4_shaders());
     v.extend(crate::inkprefill::metal4_shaders());
     v.extend(crate::inkmix::NAX_SHADERS);
+    v.extend(crate::inkmix::F8_NAX_SHADERS);
     v.extend(crate::inkctrl::METAL4_SHADERS);
     v
 }
@@ -332,6 +334,7 @@ pub const NAX_KERNELS: &[&str] = &[
     crate::mxfp4::MATMUL_MXFP4_NAX,
     crate::inkattn::REL_SINK_ATTN_BF16_NAX,
     crate::inkmix::INK_IN_PROJ_BF16_NAX,
+    crate::inkmix::INK_IN_PROJ_F8_NAX,
     crate::inkctrl::INK_ROUTE_BF16,
 ];
 
@@ -466,6 +469,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::inkmix::INK_IN_PROJ_BF16_NAX, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_F8_GEMV, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj),
+    (crate::inkmix::INK_IN_PROJ_F8_NAX, Op::InkInProj),
     (crate::inkmix::INK_IN_PROJ_BF16_GEMV_CHUNKS, Op::InkInProj),
     (crate::inkmix::CONV_MIX_BF16, Op::ConvMix),
     (crate::inkmix::CONV_MIX_BF16_ROWS, Op::ConvMix),
@@ -953,6 +957,8 @@ mod tests {
                 + crate::inkmoe::metal4_shaders().count()
                 + crate::inkprefill::metal4_shaders().len()
                 + crate::inkmix::NAX_SHADERS.len()
+                + crate::inkmix::F8_NAX_SHADERS.len()
+                + 2 * crate::gemm_nax::NAX_VARIANTS.len()
                 + crate::inkctrl::METAL4_SHADERS.len()
         );
         assert!(!shader_names().iter().any(|n| m4.contains(n)));

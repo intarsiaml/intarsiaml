@@ -5,6 +5,8 @@
 //! * a row's bits depend on neither the call's M, its position in the call, the tile, nor the output offset;
 //! * run-to-run deterministic; a NaN weight code poisons its output column as in `matmul_fp8_mma`;
 //! * registered for M > 8 only (the decode GEMV class and M <= 8 `mma` calls are untouched) and ahead of `mma`;
+//! * W8A16 reads x in place (`gemm_nax_fp8x_*`, every fp8 model at M > 8) bitwise the copy path (`fp8_xprep_bf16` +
+//!   plain `gemm_nax_fp8_*`, `INTARSIA_METAL_FP8_XINPLACE=0`), W8A8 too;
 //! * within the oracle's tolerance (tests/quant.rs runs the shared cases through this kernel too).
 //! The sweep against the cpu backend is `intarsia kernels test --backend metal --op matmul_fp8`.
 
@@ -65,6 +67,8 @@ struct Run<'a> {
     wb: Buffer,
     sb: Buffer,
     w_off: usize,
+    /// byte offset of x row 0 in `xb` (2: a leftover element)
+    x_off: usize,
 }
 
 impl<'a> Run<'a> {
@@ -79,7 +83,7 @@ impl<'a> Run<'a> {
     ) -> Self {
         let x = rand_bf16(m_total * k, seed);
         let w = e4m3(n * k, seed + 1, nan_at);
-        Run { be, k, n, xb: up(be, 0, as_bytes(&x)), wb: up(be, 8, &w), sb: up(be, 4, &f32_bytes(&scales)), w_off: 8 }
+        Run { be, k, n, xb: up(be, 0, as_bytes(&x)), wb: up(be, 8, &w), sb: up(be, 4, &f32_bytes(&scales)), w_off: 8, x_off: 0 }
     }
 
     /// Output bytes of `kernel` for rows `r0..r0+m`, written at byte `y_off` of a fresh buffer (bf16 or f32).
@@ -93,7 +97,7 @@ impl<'a> Run<'a> {
         let mut cl = OpCall::new(
             Op::MatmulFp8,
             vec![
-                t(&self.xb, r0 * k * 2, DType::Bf16, &[m, k]),
+                t(&self.xb, self.x_off + r0 * k * 2, DType::Bf16, &[m, k]),
                 t(&self.wb, self.w_off, DType::Fp8E4m3, &[n, k]),
                 t(&self.sb, 4, DType::F32, &[2]),
             ],
@@ -289,4 +293,36 @@ fn nax_is_registered_for_m_above_the_gemv_rows_only() {
     assert!(!nax.accepts(&shape(300, 8192, 40)), "K % 16 != 0 stays on mma only if mma takes it");
     assert!(nax.priority > mma.priority && nax.priority < gemv.priority, "above mma, below the GEMV class");
     assert!(nax.scratch_bytes(&shape(2048, 8192, 2048)) >= (2048 + 8192) * 2048 * 2);
+}
+
+/// The in-place x read (`fp8_xprep_bf16_a8` + `gemm_nax_fp8x_*`, every fp8 model on Metal at M > 8 since lane ink-fp8 brief
+/// 22) is bitwise the copy path (`fp8_xprep_bf16` + the plain `gemm_nax_fp8_*`, the build before it and
+/// `INTARSIA_METAL_FP8_XINPLACE=0`): W8A16 (is = 0) and W8A8 (is > 0), bf16 and f32 out, M tails (full and partial M tiles
+/// at every tile height), N and K tails, x at a leftover-element offset, the picked tile and every tile forced.
+#[test]
+fn nax_x_in_place_is_bitwise_the_copy_path() {
+    let be = backend();
+    let shapes: &[(usize, usize, usize)] =
+        &[(9, 64, 80), (100, 130, 48), (200, 777, 2064), (300, 4096, 2304), (2049, 1000, 2048)];
+    for (si, &(m, n, k)) in shapes.iter().enumerate() {
+        for is in [0.0f32, 0.37] {
+            for x_off in [0usize, 2] {
+                let seed = 500 + si as u64;
+                let base = Run::new(&be, m, n, k, [0.0123, is], seed, None);
+                let r = Run { xb: up(&be, x_off, as_bytes(&rand_bf16(m * k, seed))), x_off, ..base };
+                for f32_out in [false, true] {
+                    for tile in std::iter::once(None).chain((0..NAX_VARIANTS.len()).map(Some)) {
+                        let got = r.go(NAX, 0, m, 0, f32_out, tile);
+                        let want = intarsia_backend_metal::fp8::with_nax_copy(|| r.go(NAX, 0, m, 0, f32_out, tile));
+                        let esz = if f32_out { 4 } else { 2 };
+                        let bad = got.chunks_exact(esz).zip(want.chunks_exact(esz)).filter(|(a, b)| a != b).count();
+                        assert_eq!(
+                            bad, 0,
+                            "m={m} n={n} k={k} is={is} x_off={x_off} f32={f32_out} tile={tile:?}: {bad} outputs differ from the copy path"
+                        );
+                    }
+                }
+            }
+        }
+    }
 }

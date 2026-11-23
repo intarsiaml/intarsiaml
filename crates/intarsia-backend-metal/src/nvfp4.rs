@@ -293,6 +293,8 @@ impl MetalBackend {
                 for (i, b) in [xb, &wbf, &scb, ob].into_iter().enumerate() {
                     enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
                 }
+                // slot 5 (X) is read only by the `gemm_nax_fp8x_*` instances; bound to a valid buffer anyway
+                enc.setBuffer_offset_atIndex(Some(&xb.mtl), xb.off, 5);
             }
             set_bytes(enc, &pg, 4);
             enc.dispatchThreadgroups_threadsPerThreadgroup(
