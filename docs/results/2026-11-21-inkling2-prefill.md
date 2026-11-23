@@ -294,6 +294,16 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     pairs at 8k and 16k, chunk 2048 vs 4096 via the existing flag; record peak memory and whether self-goldens match. Book
     with `fleetq when` for the first slot after #11812; never bump a reservation. 16k >= +2 % and 8k not negative -> report
     and propose the switch design (coordinator says go); else close. Endor builds are `--load cpu` and wait for quiet jobs.
+31. 2026-11-23 (coordinator, via SendMessage): **go on the long-prompt chunk, opt-in** (default off): new branch off current
+    origin/main, worktree under .worktrees/ink-prefill only. Recipe PrefillChunk gets an optional long-prompt chunk (4096 when
+    the prompt >= 8192 tokens, else the normal chunk), Inkling-2 Metal only, `INTARSIA_INK_LONG_CHUNK=1` enables it,
+    `--prefill-chunk` overrides; 4096-row scratch / admission probes only when on; startup log line with the rule's state and
+    threshold; tuning row, results entry, LOG row. Gates in ONE endor slot: build, Metal tests, kernels test, rule-off md5
+    64 / 256 == main and plan show identical, rule-on md5 64 at 8k / 16k == chunk 2048, docs_env_vars + recipes_doc. Engine
+    variables only via env or a binary prefix. Push inside the slot (or --no-verify after those two tests passed there);
+    send branch, head, gates. **Book the clean 03:00 window Tue 11-24** for the confirmation run (same script, >= 7 kept pairs
+    at 8k and 16k, after a box check). ConvMix v2 stopped: push it as `archive/ink-pf-convmix-v2` (--no-verify OK), keep the
+    occupancy / spill hypothesis in this doc.
 
 ## Status
 
