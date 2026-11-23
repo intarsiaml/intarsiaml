@@ -302,6 +302,12 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   it at spec on >= 1 % with spec off not slower. #498 (CUDA defaults) is merging and needs Spark slots: let fleetq order this
   behind it, and rebase onto main after #498 lands, before the final gate. If it passes, open a PR and ask before merging. If
   the map change is not bitwise or costs prefill, stop and report; no third variant. Worktree: this one only.
+- (coordinator, 45th) Add the flip commit to #501 (REPACK=1 + PDL=1 default-on, env opt-outs, tuning rows); rerun g64 / g256 /
+  g1.2k + ink_rows + tiny cuda on the flipped default with no env set. Reconcile hashes: the CUDA lane's main references md5
+  64 / 256 / 1.2k are faf40cecb06b / 029e44fede1d / dc28658094c0 vs this lane's 95ed05f4d023 / 029e44fede1d / e0d669c198dd:
+  a different harness? Confirm that #11716's main binary is main: md5 differs from the branch binary, own target dir, no
+  branch-only string (guards against the git-archive stale-binary bug). The merge needs the user's go, relayed by the
+  coordinator; then merge on green CI and send the merge commit.
 - (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
   chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
   is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
