@@ -343,6 +343,12 @@ pub struct SequenceState {
     /// valid keys for positions `replay_from..len` only, the earlier rows skipped those layers. 0 (always, for every other
     /// model and for DeepSeek-V4.1 without the option): nothing was skipped.
     pub replay_from: usize,
+    /// Ring snapshot (Inkling-2 chat reuse, lane ink-spec-land; [`SequenceState::ring_snapshot`]): a copy of every
+    /// [`SlotSpec::Ring`] slot, back to back, taken at the end of a prompt's prefill. `None` until reserved or first taken.
+    pub ring_snap_buf: Option<Buffer>,
+    /// `(len, ring_high)` of the state [`SequenceState::ring_snap_buf`] holds, while it is valid: the tokens `0..len` are unchanged
+    /// since it was taken (it is dropped when the state is cut below `len` or the prefix store overwrites the slots).
+    pub ring_snap_at: Option<(usize, usize)>,
 }
 
 impl SequenceState {
@@ -408,6 +414,8 @@ impl SequenceState {
             dflash: None,
             spec_rows: SpecRows::default(),
             replay_from: 0,
+            ring_snap_buf: None,
+            ring_snap_at: None,
         })
     }
 
@@ -449,10 +457,78 @@ impl SequenceState {
         len + margin >= self.len && len + margin + 1 >= self.ring_high
     }
 
+    /// Whether a cut to `len` that the live rings cannot follow ([`SequenceState::ring_cut_ok`]) can go through the ring
+    /// snapshot: restored, the state is the one at the snapshot's `(s, high)`, and the cut to `len <= s` follows the same rule
+    /// from there. 0 never needs it (the empty state).
+    fn ring_snap_cut_ok(&self, len: usize, margin: usize) -> bool {
+        self.ring_snap_at.is_some_and(|(s, high)| len != 0 && len <= s && s <= self.len && len + margin >= s && len + margin + 1 >= high)
+    }
+
+    /// Bytes of all ring slots (what one ring snapshot holds).
+    pub fn ring_bytes(&self) -> usize {
+        self.slots
+            .iter()
+            .map(|s| match s {
+                StateSlot::Ring(r) => r.buf.bytes(),
+                _ => 0,
+            })
+            .sum()
+    }
+
+    /// Allocate the ring snapshot's buffer now (a serving engine's slots: no device allocation while serving). No-op without ring
+    /// slots or when it exists.
+    pub fn reserve_ring_snapshot(&mut self, backend: &dyn Backend) -> Result<()> {
+        let total = self.ring_bytes();
+        if total > 0 && self.ring_snap_buf.is_none() {
+            self.ring_snap_buf = Some(backend.alloc(total, MemKind::Device)?);
+        }
+        Ok(())
+    }
+
+    /// Copy every ring slot as of the current length into the ring snapshot (lane ink-spec-land, Inkling-2 chat reuse), replacing
+    /// the one held. The engine takes it at the end of each prompt's prefill (`Model::forward_prefill`): the reply's decode rows
+    /// that follow overwrite the ring rows a later prompt resuming at this length needs, and on a chunk-sensitive backend that
+    /// prompt end is where the next turn of a chat resumes ([`crate::Model::reuse_len`]). Single-rank states without recurrent
+    /// slots only (Inkling-2); a no-op elsewhere, and at length 0.
+    pub fn ring_snapshot(&mut self, backend: &dyn Backend) -> Result<()> {
+        let total = self.ring_bytes();
+        if total == 0 || self.len == 0 || self.has_recurrent() || !self.peers.is_empty() || self.remote.is_some() {
+            return Ok(());
+        }
+        self.ring_snap_at = None;
+        self.reserve_ring_snapshot(backend)?;
+        let buf = self.ring_snap_buf.as_ref().expect("reserved above");
+        let mut off = 0;
+        for s in &self.slots {
+            if let StateSlot::Ring(r) = s {
+                backend.copy(buf, off, &r.buf, 0, r.buf.bytes(), 0)?;
+                off += r.buf.bytes();
+            }
+        }
+        self.ring_snap_at = Some((self.len, self.ring_high));
+        Ok(())
+    }
+
+    /// Put the ring snapshot back into the ring slots and take its `ring_high` (the cut that follows sets the length).
+    fn ring_restore(&mut self, backend: &dyn Backend) -> Result<()> {
+        let (Some(buf), Some((_, high))) = (self.ring_snap_buf.as_ref(), self.ring_snap_at) else {
+            return Err(Error::invalid("ring restore without a ring snapshot"));
+        };
+        let mut off = 0;
+        for s in &self.slots {
+            if let StateSlot::Ring(r) = s {
+                backend.copy(&r.buf, 0, buf, off, r.buf.bytes(), 0)?;
+                off += r.buf.bytes();
+            }
+        }
+        self.ring_high = high;
+        Ok(())
+    }
+
     /// Refuse a cut from `self.len` to `len` that a ring slot cannot follow (0, the empty state, always works).
     fn check_ring_cut(&self, len: usize) -> Result<()> {
         if let Some(m) = self.ring_margin() {
-            if len != 0 && !self.ring_cut_ok(len, m) {
+            if len != 0 && !self.ring_cut_ok(len, m) && !self.ring_snap_cut_ok(len, m) {
                 return Err(Error::Unsupported(format!(
                     "cannot roll ring state (sliding-window KV, compressor tail) back from {} to {len} tokens: margin {m}",
                     self.len
@@ -739,8 +815,12 @@ impl SequenceState {
     /// length, a snapshot, or 0 (the zero state). Without recurrent slots every length qualifies.
     pub fn restorable_len(&self, want: usize) -> usize {
         let want = want.min(self.len);
-        if self.ring_margin().is_some_and(|m| !self.ring_cut_ok(want, m)) {
-            return 0;
+        if let Some(m) = self.ring_margin().filter(|&m| !self.ring_cut_ok(want, m)) {
+            // past the live rings' margin: the ring snapshot's length, or up to `margin` below it (lane ink-spec-land)
+            return match self.ring_snap_at {
+                Some((s, _)) if self.ring_snap_cut_ok(want.min(s), m) => want.min(s),
+                _ => 0,
+            };
         }
         if !self.has_recurrent() || want == self.len {
             return want;
@@ -843,6 +923,12 @@ impl SequenceState {
     /// remote rank's refusal leaves every rank as it was; a device error part-way is fatal for the group.
     pub fn truncate(&mut self, len: usize, backend: &dyn Backend) -> Result<()> {
         self.check_truncate(len)?;
+        // a cut the live rings cannot follow goes through the ring snapshot (check_truncate allowed it)
+        if let Some(m) = self.ring_margin() {
+            if len != 0 && !self.ring_cut_ok(len, m) {
+                self.ring_restore(backend)?;
+            }
+        }
         if let Some(r) = &mut self.remote {
             r.truncate(len)?;
         }
@@ -922,6 +1008,10 @@ impl SequenceState {
         }
         self.spec_rows.saved = 0;
         self.drop_snapshots_above(len);
+        // rows from `len` on will be written again: a ring snapshot taken past them no longer matches the tokens
+        if self.ring_snap_at.is_some_and(|(s, _)| s > len) {
+            self.ring_snap_at = None;
+        }
         for s in self.slots.iter_mut() {
             if let StateSlot::AttnKv(a) = s {
                 a.len = len;
@@ -943,6 +1033,7 @@ impl SequenceState {
         self.tokens.clear();
         self.tokens.extend_from_slice(tokens);
         self.snapshots.clear();
+        self.ring_snap_at = None;
         for s in self.slots.iter_mut() {
             if let StateSlot::AttnKv(a) = s {
                 a.len = len;
