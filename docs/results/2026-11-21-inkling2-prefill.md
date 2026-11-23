@@ -605,6 +605,16 @@ prompts keep the recipe's 2048. Design:
 - The gate's on/off timings ran with `INTARSIA_METAL_PROFILE=kernel` on the on arm (4k: same schedule, 27 % slower): profiler
   cost, not speed.
 
+### Long-chunk gates #11840 (18d9d8853): ALL PASS, pushed `ink/long-chunk`
+
+- Tests (docs_env_vars, recipes_doc, core lib, Metal), kernels test, plan show rule off identical to main (3 models x json/txt),
+  rule-on probes to 4096, md5 rule off == main (64 / 256).
+- Rule on: md5 64 == off == main at 4k / 6k / 8k / 16k; prefill pass lists equal the reference exactly: 4k [2048, 1902]
+  (== off), 6k [4096, 1902], 8k [4096, 3938], 16k [4096, 4096, 4096, 3780] (== `--prefill-chunk 4096`).
+- Not covered: the batch scheduler path (`serve`); `generate` runs the single-sequence engine. Its hint is typed and
+  compiled, not run.
+- Tue 03:00 confirmation (#11834, `ch2.sh`): 6k arm added (p6k, 5998 tokens) after 8k / 16k, ~32 of 45 min worst case.
+
 ### Chunk 4096 vs 2048 result (#11822, binary ink/pf-convmix 3886acfeb, v2 off = main's code)
 
 **Contamination:** the coordinator's `git push` pre-push hook ran cargo tests on endor's CPU about 05:56:20-05:57:14, inside
