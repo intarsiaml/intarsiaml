@@ -297,6 +297,12 @@
     Qwen3-8B / Llama / Inkling-2, kernels test 0 FAIL, Metal tests, greedy md5 64/256 == main, cargo test of the touched
     crates, separate target dir); endor reserved 09:00-14:25. Push inside a slot or --no-verify after docs_env_vars and
     recipes_doc pass. Coordinator opens the PR and merges.
+59. 2026-11-23 (coordinator): the user approved the CUDA screen flip ("Yes, flip CUDA screen"). The flip's LOG row reads
+    "go: user 2026-11-23". Two PRs back to back: A `ink/cuda-screen` (opt-in, brief 58 gates), B `ink/cuda-screen-flip` (one
+    commit on A) with its own checks: CUDA md5 64/256/1.2k == main with defaults (spec off and default) and with
+    `INTARSIA_INK_HEAD_SCREEN=0`, plan show 35B / 8B identical, tiny 17/17; Metal plan show Qwen3-8B / Llama / Inkling-2
+    identical, Inkling-2 md5 64/256 == main. One slot per box for both heads where possible. Push both inside a slot or
+    --no-verify after docs_env_vars and recipes_doc pass.
 
 ## Summary
 
@@ -1665,7 +1671,7 @@ rescored.
 - `24c3ed1a5`: the tuning row.
 - Landing (brief 58): branch `ink/cuda-screen` off main 0b8fab600 carries the kernels, the graph-key fix, the sampled-draft
   guard and these notes; on CUDA the screen stays opt-in (`INTARSIA_INK_HEAD_SCREEN=1`). The **CUDA default on** is one
-  commit on the local branch `ink/cuda-screen-flip` (LOG row, go PENDING: a default flip needs the user's go);
+  commit on the branch `ink/cuda-screen-flip` (LOG row; go: user 2026-11-23, brief 59);
   `INTARSIA_INK_HEAD_SCREEN=0` reverts it.
 
 **What was built.**
