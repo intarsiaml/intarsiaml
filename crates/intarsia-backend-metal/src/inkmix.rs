@@ -93,8 +93,9 @@ pub fn register(k: KernelImpl) -> KernelImpl {
             .tol(BF16_TOL)
             .priority(-1)
             .rows_exact(),
-        // e4m3 weights (scales [3] third input, lane ink-fp8): decode / verify rows only; prefill chunks take the model's
-        // three `MatmulFp8` packs (the NAX fp8 GEMM)
+        // e4m3 weights (scales [3] third input, lane ink-fp8): the GEMVs serve decode / verify rows (1..=16); prefill
+        // chunks (M > 8 outside verify) take `ink_in_proj_f8_nax` below, or the model's three `MatmulFp8` packs where it is
+        // not registered (no metal4.0 library, INTARSIA_METAL_FP8_NAX=0). INTARSIA_INK_FP8_PROJ=0 sends every T to the packs.
         INK_IN_PROJ_F8_GEMV => k.acts(bf).weights([DType::Fp8E4m3]).when(|s| s.m == 1).exact(Exactness::Deterministic).tol(BF16_TOL),
         INK_IN_PROJ_F8_GEMV_ROWS => k
             .acts(bf)

@@ -1,7 +1,7 @@
 //! `ink_in_proj_f8_nax` (lane ink-fp8, brief 22; kernels/metal/gemm_nax_fp8.metal `ink_in_proj_f8_nax_t`): the e4m3
 //! `InkInProj` prefill kernel is BITWISE the model's pack path, three `matmul_fp8_nax` launches with scales `(ws_j, 0)` on the
 //! row views of the same e4m3 stack, each reading input plane `min(j, S-1)`. Real Inkling-2-Mini shapes (D 2304, stacks
-//! [6552, 1056, 1056] and [6552, 1024, 1024]), S = 1 and 3, T = 9 (the selection boundary), 17, 256, 2048, the default
+//! [6552, 1056, 1056] and [6552, 1024, 1024]), S = 1 and 3, T = 9 (the selection boundary), 17, 100, 200, 256, 2048, the default
 //! tile and every tile forced; x at a 2-byte (leftover element) offset too. Also: the registry picks it exactly where the
 //! packs take `matmul_fp8_nax` (M > 8), and `matmul_fp8_nax` W8A16 with x at a leftover-element offset is bitwise the same
 //! call on an aligned copy of x (the GEMM reads x in place since brief 22).
@@ -153,13 +153,14 @@ fn same(a: &[Vec<u8>], b: &[Vec<u8>], what: &str) {
 
 const STACKS: [[usize; 3]; 2] = [[6552, 1056, 1056], [6552, 1024, 1024]];
 
-/// Gate 1 of brief 22: bitwise the packs at the real shapes, T = 9 / 17 / 256 / 2048, S = 1 and 3, default tile.
+/// Gate 1 of brief 22: bitwise the packs at the real shapes, T = 9 / 17 / 100 / 200 / 256 / 2048, S = 1 and 3, default tile.
 #[test]
 fn f8_nax_is_bitwise_the_pack_path() {
     let be = backend();
     for (si, ns) in STACKS.iter().enumerate() {
         let st = Stack::new(&be, 2304, *ns, 11 + si as u64);
-        for t_ in [9usize, 17, 256, 2048] {
+        // 100 / 200: full and partial M tiles in one call (tail M x tail N on every tile height)
+        for t_ in [9usize, 17, 100, 200, 256, 2048] {
             for s in [1usize, 3] {
                 for x_off in [0usize, 2] {
                     if x_off == 2 && t_ == 2048 {

@@ -123,6 +123,27 @@ pub fn with_nax_tile<R>(tile: usize, f: impl FnOnce() -> R) -> R {
     r
 }
 
+/// `INTARSIA_METAL_FP8_XINPLACE=0`: `matmul_fp8_nax` takes the copy path again (`fp8_xprep_bf16` writes x to the scratch
+/// for W8A16 too, the plain `gemm_nax_fp8_*` instances read it), bitwise the in-place default (tests/fp8_nax.rs) and the
+/// build before lane ink-fp8 brief 22. Read once per process.
+pub fn x_in_place_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_METAL_FP8_XINPLACE").map_or(true, |v| v != "0"))
+}
+
+thread_local! {
+    static NAX_COPY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Test hook: run `f` with every `matmul_fp8_nax` launch of this thread on the copy path (as
+/// `INTARSIA_METAL_FP8_XINPLACE=0`), to compare it with the in-place default in one process.
+pub fn with_nax_copy<R>(f: impl FnOnce() -> R) -> R {
+    NAX_COPY.with(|t| t.set(true));
+    let r = f();
+    NAX_COPY.with(|t| t.set(false));
+    r
+}
+
 /// The [`with_nax_tile`] override of this thread, if any (also honoured by `ink_in_proj_f8_nax`).
 pub(crate) fn nax_tile_override() -> Option<usize> {
     NAX_TILE.with(|t| t.get())
@@ -316,15 +337,21 @@ impl MetalBackend {
             None => pick_variant(m, n),
         };
         let vi = NAX_VARIANTS.iter().position(|x| x.shader == v.shader).expect("NAX variant table");
-        let gemm = NAX_FP8X_SHADERS[vi][f32_out as usize];
-        let pso_x = self.pso(XPREP_A8).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP_A8}'")))?;
+        // in place (default): W8A16 reads the call's x (slot 5); copy path: q(x) of every mode through the scratch
+        let in_place = x_in_place_enabled() && !NAX_COPY.with(|t| t.get());
+        let (gemm, xprep) = if in_place {
+            (NAX_FP8X_SHADERS[vi][f32_out as usize], XPREP_A8)
+        } else {
+            (NAX_FP8_SHADERS[vi][f32_out as usize], XPREP)
+        };
+        let pso_x = self.pso(xprep).ok_or_else(|| Error::backend(format!("metal: no pipeline '{xprep}'")))?;
         let pso_w = self.pso(W_TO_BF16).ok_or_else(|| Error::backend(format!("metal: no pipeline '{W_TO_BF16}'")))?;
         let pso_g = self
             .pso(gemm)
             .ok_or_else(|| Error::backend(format!("metal: no pipeline '{gemm}' (metal4.0 library not loaded)")))?;
         let px = OpP { dims: pdims, skips: [xb.skip, 0, 0, 0, 0], ..Default::default() };
         let pw = OpP { dims: pdims, ..Default::default() };
-        let pg = NaxFp8Params { m: pdims[0], n: pdims[1], k: pdims[2], swz_log: 0, s_c: ob.skip, pad: [xb.skip, 0, 0] };
+        let pg = NaxFp8Params { m: pdims[0], n: pdims[1], k: pdims[2], swz_log: 0, s_c: ob.skip, pad: [if in_place { xb.skip } else { 0 }, 0, 0] };
         let tx = pso_x.maxTotalThreadsPerThreadgroup().min(256);
         let tw = pso_w.maxTotalThreadsPerThreadgroup().min(256);
         let (gx, gy) = grid(v, pg.m, pg.n, 0);
@@ -363,8 +390,10 @@ impl MetalBackend {
                 for (i, b) in [&xs, &wbf, sb, ob].into_iter().enumerate() {
                     enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
                 }
-                // the call's x for W8A16 (`pad[0]` = its leftover element)
-                enc.setBuffer_offset_atIndex(Some(&xb.mtl), xb.off, 5);
+                if in_place {
+                    // the call's x for W8A16 (`pad[0]` = its leftover element)
+                    enc.setBuffer_offset_atIndex(Some(&xb.mtl), xb.off, 5);
+                }
             }
             set_bytes(enc, &pg, 4);
             enc.dispatchThreadgroups_threadsPerThreadgroup(
