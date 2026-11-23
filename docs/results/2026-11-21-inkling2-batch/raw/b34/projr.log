@@ -1,0 +1,53 @@
+fleetq: #11583 running on endor: bash .scratch/projr.sh c7ad2a823
+fleetq: #11583 went ahead of the line and must end within 12h24m (by Mon 03:00); it is stopped then
+tree c7ad2a823; modified files: 0
+rustfmt: DIFF
+    Finished `release` profile [optimized] target(s) in 13.66s
+== test inkmix PROJ_R=
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s
+== test inkmix PROJ_R=80
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s
+== test inkmix PROJ_R=320
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s
+== PROJ_R=
+InkInProj R=4 S=1                                71.14     71.01     72.71    562.4
+InkInProj R=8 S=1                                80.61     80.52     81.02    497.5
+InkInProj R=16 S=1                              149.92    149.71    150.10    268.6
+== PROJ_R=80
+InkInProj R=4 S=1                               116.22    116.07    116.37    344.3
+InkInProj R=8 S=1                               146.89    146.74    147.08    273.0
+InkInProj R=16 S=1                              236.62    236.41    236.80    170.2
+== PROJ_R=160
+InkInProj R=4 S=1                                76.06     75.77     76.79    526.1
+InkInProj R=8 S=1                                91.40     91.31     91.73    438.7
+InkInProj R=16 S=1                              185.95    185.76    186.29    216.6
+== PROJ_R=320
+InkInProj R=4 S=1                                81.11     80.61     82.50    493.3
+InkInProj R=8 S=1                               107.25    106.91    107.42    373.9
+InkInProj R=16 S=1                              183.70    183.51    184.02    219.2
+== PROJ_R=640
+InkInProj R=4 S=1                                78.99     78.54     80.12    506.5
+InkInProj R=8 S=1                                95.71     95.54     95.95    419.0
+InkInProj R=16 S=1                              180.80    180.58    181.04    222.8
+== PROJ_R=640
+InkInProj R=4 S=1                                79.15     78.85     80.63    505.5
+InkInProj R=8 S=1                                96.24     95.89     96.97    416.6
+InkInProj R=16 S=1                              181.79    180.79    183.75    221.5
+== PROJ_R=320
+InkInProj R=4 S=1                                81.35     80.99     82.46    491.8
+InkInProj R=8 S=1                               118.78    107.22    131.48    337.6
+InkInProj R=16 S=1                              193.27    183.83    207.89    208.4
+== PROJ_R=160
+InkInProj R=4 S=1                                76.85     76.30     77.42    520.6
+InkInProj R=8 S=1                                98.78     91.98    106.67    406.0
+InkInProj R=16 S=1                              192.52    186.37    211.06    209.2
+== PROJ_R=80
+InkInProj R=4 S=1                               116.53    116.40    116.67    343.4
+InkInProj R=8 S=1                               147.67    147.49    147.92    271.5
+InkInProj R=16 S=1                              236.83    236.63    237.14    170.1
+== PROJ_R=
+InkInProj R=4 S=1                                71.72     71.41     72.45    557.9
+InkInProj R=8 S=1                                82.45     80.90     99.10    486.3
+InkInProj R=16 S=1                              176.05    163.49    183.68    228.8
+projr done
+fleetq: #11583 done (exit 0)

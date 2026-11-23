@@ -29,7 +29,7 @@ use crate::error::{Error, Result};
 pub const P12: super::QuantId = "p12";
 
 /// `INTARSIA_INK_PACK12`: Inkling-2 stores in_proj, wo and the unembed as P12 too, for the few-row kernels (lossless).
-/// Default on on Metal, `0` turns it off, `1` turns it on on any backend with the P12 kernels ([`decide`]).
+/// Default on on Metal and CUDA, `0` turns it off, `1` turns it on on any backend with the P12 kernels ([`decide`]).
 pub const ENV: &str = "INTARSIA_INK_PACK12";
 
 /// Most activation rows a P12 kernel takes (decode and verify; prefill chunks keep the bf16 weights).
@@ -307,11 +307,49 @@ pub fn random_weight(rng: &mut crate::rng::SplitMix64, n: usize, k: usize, std: 
     w
 }
 
+/// Whether the in-projection gets a P12 copy on the backend named `backend` (wo and the unembed always do when P12 is on).
+/// Not on CUDA: its P12 in_proj kernel is bitwise the bf16 one but slower there (spark1 #11157, nsys of the decode step at
+/// 1.2k: 197 vs 182 us per visit; decode-ALU bound), while wo (48 vs 59 us) and the unembed (2873 vs 3756 us) gain. The
+/// kernel stays registered (`INTARSIA_INK_P12_IN_PROJ=1` packs it anyway, for measurement).
+pub fn pack_in_proj(backend: &str) -> bool {
+    backend != "cuda" || std::env::var("INTARSIA_INK_P12_IN_PROJ").is_ok_and(|v| v.trim() == "1") || in_proj_gemv(backend)
+}
+
+/// `INTARSIA_INK_IN_PROJ_GEMV` (lane ink-cuda-attn): `=1` / `=0` force the GEMV form on / off; unset, [`in_proj_gemv`]
+/// decides per backend. Read once.
+pub fn in_proj_gemv_env() -> Option<bool> {
+    static ON: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| match std::env::var("INTARSIA_INK_IN_PROJ_GEMV").map(|v| v.trim().to_string()) {
+        Ok(v) if v == "1" => Some(true),
+        Ok(v) if v == "0" => Some(false),
+        _ => None,
+    })
+}
+
+/// The in-projection at 1..=[`ROWS_MAX`] rows in the GEMV form (one warp per weight row; on CUDA
+/// `ink_in_proj_{bf16,p12}_gemv`, bitwise twins) instead of the mma form, and its P12 copy packed and used at every such row
+/// count. Default on for CUDA (brief 31, user decision 6, 2026-11-22: +8-9 % spec-off decode; G2 short decode drift 3.73e-3
+/// -> 4.43e-3 accepted, no precision loss in the f64 test), off elsewhere; `INTARSIA_INK_IN_PROJ_GEMV=0` reverts. Rows-exact
+/// either way; the forms sum in different orders, so the switch moves the model's output bits.
+pub fn in_proj_gemv(backend: &str) -> bool {
+    in_proj_gemv_env().unwrap_or(backend == "cuda")
+}
+
+/// Most rows of an in-projection call that take its P12 copy: [`DENSE_ROWS_MAX`], or [`ROWS_MAX`] in the GEMV form.
+pub fn in_proj_rows_max(backend: &str) -> usize {
+    if in_proj_gemv(backend) {
+        ROWS_MAX
+    } else {
+        DENSE_ROWS_MAX
+    }
+}
+
 /// What `INTARSIA_INK_PACK12` (`env`) decides on the backend named `backend`, which registers the P12 kernels
 /// (`Op::MatmulP12`: Metal and the cpu reference) or not (CUDA, HIP): whether to pack, and a load-log note when a forced
 /// `1` is not honoured. `0` / `off` / `false`: never. `1` / `on` / `true`: wherever the kernels exist; a backend without
 /// them keeps the bf16 weights and says so (it never packs and then fails at plan or dispatch). Unset (or anything else):
-/// Metal only.
+/// Metal and CUDA (default-on on CUDA since lane ink-cuda-p12, spark1 #11172: decode +4.4 % short / +4.3 % 1.2k / +4.5 % 5k,
+/// bitwise at model level), where they register the kernels.
 pub fn decide(env: Option<&str>, backend: &str, has_kernels: bool) -> (bool, Option<String>) {
     match env.map(str::trim) {
         Some("0" | "off" | "false") => (false, None),
@@ -319,7 +357,7 @@ pub fn decide(env: Option<&str>, backend: &str, has_kernels: bool) -> (bool, Opt
         Some("1" | "on" | "true") => {
             (false, Some(format!("{ENV}=1: the {backend} backend has no P12 kernels (MatmulP12); keeping the bf16 weights")))
         }
-        _ => (backend == "metal" && has_kernels, None),
+        _ => ((backend == "metal" || backend == "cuda") && has_kernels, None),
     }
 }
 
@@ -343,10 +381,12 @@ mod tests {
 
     #[test]
     fn decide_default_metal_off_switch_and_no_kernel_backends() {
-        // unset: Metal only (and only with the kernels)
+        // unset: Metal and CUDA (and only with the kernels)
         assert_eq!(decide(None, "metal", true), (true, None));
+        assert_eq!(decide(None, "cuda", true), (true, None));
         assert_eq!(decide(None, "cpu", true), (false, None));
         assert_eq!(decide(None, "cuda", false), (false, None));
+        assert_eq!(decide(None, "hip", false), (false, None));
         assert_eq!(decide(Some("garbage"), "metal", true), (true, None));
         // the off switch, everywhere
         for v in ["0", "off", "false", " 0 "] {

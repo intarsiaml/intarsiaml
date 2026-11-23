@@ -275,6 +275,56 @@ TTFT p99 at 16 streams: main 11.12 / 11.54 s, flip 11.11 / 11.35 s. Runs: `20261
 `20261122-195626-…-conc4-flip`, `20261122-201518-…-conc4-main` (localeval results dir). Under `--max-batch 16` the flip
 behaves as main: spec off, the batching engine unchanged.
 
+## #496 merge of main 08ae803e0 (coordinator brief, 2026-11-22 ~21:15), lane ink-spec-land
+
+Brief (condensed): prepare #496's merge without touching `ink/spec-flip`, so #11621's code-hash marker stays valid. (1) New
+worktree `.worktrees/ink-spec-flip-merge`, branch `ink/spec-flip-merge` from `ink/spec-flip` 9c78ba5e0, merge main 08ae803e0.
+(2) Resolve `tests/mtp.rs`; check `load.rs`, `recipe.rs` and `recipes/inkling2.toml` against #498's CUDA DSpark default: Metal's
+default k=3 and CUDA's must both survive, and `--max-batch` > 1 must still turn the Metal default off. (3) Non-timing gates on endor
+via fleetq: md5 64 / 256 spec default == `--spec off`, the Metal spec / mtp tests, the unit test with the `Some(16)` case, the conc
+behaviour check (4 concurrent greedy identical, no DSpark line at `--max-batch 16`); skip timing. (4) After #11621 passes (Mon 05:45):
+fast-forward `ink/spec-flip` to the prepared merge, push, wait for green CI, report. Merging #496 still needs the user's go (the
+coordinator asks in the morning). If #11621 fails the bar: stop and report.
+
+**Resolution.** #498 brought a second implementation of the same default for CUDA: `[tuning.cuda] mtp_default_k = 3`, which on a
+recipe without `[mtp]` is the DSpark draft's default (`Recipe::resolve_draft_default`, `load.rs` `dspark_default` /
+`dspark_draft_present`). This branch had its own key, `[tuning.metal] dspark_default_k = 3` (`resolve_dspark_default_k`, a
+`DsparkDefault` enum). One key for one behaviour: the merge keeps main's code (`recipe.rs`, `load.rs`, `tests/mtp.rs` as on main)
+and moves Metal onto it, `[tuning.metal] mtp_default_k = 3`; the branch's `dspark_default_k` field and function are gone.
+- Same as before on Metal: no `--spec`, one rank in process, `--max-batch` unset or 1, no `--spec-draft` / `--dcoco`, `--spec-k 0`
+  off, a lone `--spec-k N` sets k, `INTARSIA_SPEC_DEFAULT=0` / `--spec off` opt out, greedy requests draft and sampled ones take plain
+  steps (engine unchanged), the startup line ("the DSpark default of recipe inkling2 on metal ([tuning.metal] mtp_default_k ...").
+- Changed on Metal, from main's code: a configured prefix store turns the default off silently (the branch printed one "not applied"
+  line); a checkpoint without the draft prints main's line ("not applied: no DSpark draft in this checkpoint").
+- The branch's other code is unchanged by the merge: `engine.rs` (an out-of-sync draft keeps the KV prefix, Brief L2a) and its test
+  in `inkling2_dspark.rs`.
+- The unit test is main's `dspark_default_only_where_the_recipe_sets_it`, extended: Metal `Some(3)`; CUDA and Metal off at tp 2, on
+  a remote rank, at `--max-batch` 2 / 4 / 16 and with a prefix store; on at `--max-batch 1`; an explicit `--spec`, `--spec-k 2 / 0`
+  and `--spec-draft` on both; no other recipe has a draft default on any backend.
+- Docs: `docs/recipes.md` and `docs/tuning.md` take main's rows plus "and Metal"; the decision-log rows name the new key.
+- Interaction with #499 (ring snapshot, now on main): a chat's turn 2 resumes at turn 1's prompt end. The DSpark draft's cache is a
+  plain attention cache (no ring) and `DflashState::cut` truncates it to the resume point, so the draft stays in sync; the `f_rnn`
+  ring row a draft reads is the last committed position's, which the remainder prefill writes. Greedy ids cannot change either way
+  (verify is row-exact). Gate MG4 checks it.
+
+**Gate rules (written before the run; `.scratch/flipm_gate.sh` in this worktree, endor, default load, not timing).** Merged tip vs
+main 08ae803e0 (both built fresh: own target dirs, main from `git archive` with touched files; the merged binary must carry the new
+recipe text and main's must not). PASS when all hold:
+- MG1: Inkling greedy md5 at 64 / 256 (the A1 prompt): default (no `--spec`) == `--spec off` == main; the default run prints the
+  DSpark default line naming `mtp_default_k` and has verify passes > 0; `--spec off` prints no default line.
+- MG2: `serve --max-batch 16`, main then merged: each prints `continuous batching: up to 16` and no DSpark default line, the spec
+  steps counter is 0 after the arm, and the 4 concurrent greedy completions (1021 / 1021 / 1021 / 1500 prompt tokens, 64 out) on the
+  merged server equal main's.
+- MG3: default server (no `--spec`, no `--max-batch`): the ~1.4k greedy chat request HTTP 200 with verify passes rising; a t1.0
+  request HTTP 200 with the steps counter unchanged.
+- MG4: two-turn chat at ~4.6k (`chat_gate.py flow 130`, greedy), default server vs `--spec off` server: turn 1 and turn 2 replies
+  equal, turn 2's cached tokens equal on both and > 0. Info: the default server's spec steps over the flow.
+- MG5: a model dir without `mtp.safetensors`: rc 0, exactly one "not applied: no DSpark draft" line, no speculation, md5 = main's.
+- MG6 tests pass (none skipped where the fixture is present): `intarsia-models --lib dspark_default` (the extended unit test),
+  `--lib recipe`, `--test recipes_doc`, `--test recipe_gumbel`, `--test mtp`, `intarsia-cli --test docs_env_vars`; on Metal
+  (`INTARSIA_INKLING2_BACKEND=metal`) `inkling2_dspark`, `inkling2_dspark_cut`, `inkling2_verify_softcap`, `inkling2_chat_reuse`,
+  `inkling2`, `inkling2_batch`.
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,

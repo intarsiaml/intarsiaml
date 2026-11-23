@@ -65,6 +65,15 @@ fn ink_debug_dispatches() -> usize {
     *V.get_or_init(|| std::env::var("INTARSIA_INK_DEBUG_DISPATCHES").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(0))
 }
 
+/// `INTARSIA_INK_PREFILL_FUSED` (lane ink-cuda-attn, briefs 30a / 30b; default on, `=0` off): prefill chunks (more than 16 rows)
+/// take the fused `InkAttnDecode` where the backend admits it (CUDA `ink_attn_prefill_bf16`: the flash kernel forms the rel bias,
+/// no `[T,H,E]` table), else the pair. Bitwise the pair either way; warm-serve prefill +2.7-4.1 % at 1k-16k on CUDA (#11632).
+/// Metal and cpu admit op 75 at 1..=16 rows only, so the pair runs there. Read once.
+fn ink_prefill_fused_env() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| !std::env::var("INTARSIA_INK_PREFILL_FUSED").is_ok_and(|v| v.trim() == "0"))
+}
+
 /// Whether a visit's attention of `rows` rows ending at context `ctx` (positions `0..ctx`) takes the fused `InkAttnDecode`
 /// instead of the pair, on Metal. From lane ink-m-attn's per-visit timings (docs/results/2026-11-21-inkling2-metal-attn.md),
 /// keyed on the keys a row reads (`ctx`, at most the window on an SWA visit): 1 row fused up to 4096 keys (measured: fused wins at
@@ -100,13 +109,23 @@ fn ink_route_fused_env() -> Option<bool> {
     })
 }
 
-/// Whether an Inkling-2 pass of `t` rows runs under `exact_rows` (the row-exact kernels): on Metal for 2..=16 rows (the 1-row
+/// Whether an Inkling-2 pass of `t` rows runs under `exact_rows` (the row-exact kernels): on Metal and CUDA for 2..=16 rows (the 1-row
 /// kernels are the reference the rows kernels are bitwise to), unless `INTARSIA_INK_ROWS_EXACT=0`. Larger passes (prefill
 /// chunks) take the fast kernels and are not bitwise a decode step's rows on Metal.
 pub(crate) fn ink_rows_exact(backend: &str, t: usize) -> bool {
     static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     let off = *OFF.get_or_init(|| std::env::var("INTARSIA_INK_ROWS_EXACT").is_ok_and(|v| v.trim() == "0"));
-    !off && backend == "metal" && (2..=16).contains(&t)
+    !off && (backend == "metal" || backend == "cuda") && (2..=16).contains(&t)
+}
+
+/// `INTARSIA_INK_VERIFY_P12` (lane ink-cuda-attn, brief 26): the CUDA verify pass takes the P12 copy of wo at all its rows
+/// (1..=`p12::ROWS_MAX`, the rows-exact P12 kernel, bitwise the bf16 rows GEMV each row) instead of the bf16 wo above
+/// `DENSE_ROWS_MAX` rows (the verify head takes the P12 rows head through `Model::head_proj` either way). Default on (bitwise: greedy md5 unchanged, +1.1-1.3 % spec-on decode, fleetq #11494);
+/// `0` reverts. CUDA only: Metal and every non-verify call keep `DENSE_ROWS_MAX`. Read once.
+pub(crate) fn verify_p12(backend: &str) -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let on = *ON.get_or_init(|| !std::env::var("INTARSIA_INK_VERIFY_P12").is_ok_and(|v| v.trim() == "0"));
+    backend == "cuda" && on
 }
 
 /// Where a partial lives (see the module doc).
@@ -169,6 +188,20 @@ pub(super) enum InkInW {
 /// `INTARSIA_INK_ATTN_QUANT` (`fp8`, `mxfp4`; the off spellings of `INTARSIA_LMHEAD_QUANT`), else the recipe's
 /// `[tuning.<backend>] ink_attn_quant`; unset on both: the bf16 projections as stored.
 pub const ATTN_QUANT_ENV: &str = "INTARSIA_INK_ATTN_QUANT";
+
+/// `INTARSIA_INK_ACT_QUANT` (`w4a4` / `w4a16`), else the recipe's `[tuning.<backend>] act_quant`; unset on both: `w4a16`
+/// (16-bit expert activations). `w4a4` quantises the expert inputs as the checkpoint's `required_activation_quantization`
+/// (contract: `crate::inkling2::ops`, `ink.act_quant = 1`).
+pub const ACT_QUANT_ENV: &str = "INTARSIA_INK_ACT_QUANT";
+
+/// The expert activation mode from its spelling (`w4a16` -> 0, `w4a4` -> 1).
+pub fn parse_act_quant(v: &str) -> Result<u8> {
+    match v.trim().to_ascii_lowercase().as_str() {
+        "w4a16" | "a16" | "0" | "off" => Ok(0),
+        "w4a4" | "a4" | "1" | "on" => Ok(1),
+        other => Err(Error::model(format!("inkling2 act_quant '{other}' (w4a16 or w4a4)"))),
+    }
+}
 
 pub(super) struct InkLayer {
     pub local: bool,
@@ -254,6 +287,9 @@ pub(super) struct InkModel {
     pub msg_q_all: Option<TensorRef>,
     pub ws: InkWs,
     pub dims: InkDims,
+    /// `ink.act_quant` of the expert calls: 0 16-bit activations (default), 1 W4A4 (`ACT_QUANT_ENV`, else the recipe's
+    /// `[tuning.<backend>] act_quant`; opt-in, changes outputs).
+    pub act_quant: u8,
 }
 
 /// Teacher-forced inputs / dumped tensors by the oracle's names (`vNN.partial_in`, `vNN.attn_out`, `final_hidden`, ...):
@@ -503,7 +539,8 @@ pub(super) fn load(
         }
         let nq = nq_width(h, dh, dr);
         let nk = ckv + if local { 0 } else { hk * kc };
-        let in_p12 = if pack12 { Some(p12_stats.pack(b, &stacked, nq + 2 * nk, d)?) } else { None };
+        // per tensor class: the in-projection only where its P12 kernel is faster (`p12::pack_in_proj`)
+        let in_p12 = if pack12 && crate::quant::p12::pack_in_proj(b.name()) { Some(p12_stats.pack(b, &stacked, nq + 2 * nk, d)?) } else { None };
         let in_w = match attn_quant {
             None => InkInW::Stacked(put(&stacked, wdt, &[nq + 2 * nk, d])?),
             Some(kind) => {
@@ -737,7 +774,7 @@ pub(super) fn load(
         *bytes += p12_stats.bytes as u64;
         eprintln!("{}", p12_stats.note("in_proj + wo"));
     }
-    Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, msg_q_all, ws, dims: ink })
+    Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, msg_q_all, ws, dims: ink, act_quant: 0 })
 }
 
 impl InkWs {
@@ -839,7 +876,8 @@ impl Model {
     /// `batch`: a batched decode step instead, row `r` the next token of sequence `r` (`st` is row 0's state, the carrier of
     /// the row-table calls; `pos0` the largest position).
     /// `tf`: teacher forcing (every visit's blocks / partial / bank and the head's from these tensors, every attention mix
-    /// standalone); `dump`: collect the oracle-named intermediates (tests).
+    /// standalone); `dump`: collect the oracle-named intermediates (tests). `dpos`: the device position (`i32 [1]`) of a
+    /// captured decode step: the positioned ops (`inkling2::ops::POSITIONED`) read it instead of `pos0`.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn ink_pass(
         &self,
@@ -852,6 +890,7 @@ impl Model {
         profile: bool,
         tf: Option<&InkTensors>,
         dump: Option<&mut InkTensors>,
+        dpos: Option<&TensorRef>,
     ) -> Result<()> {
         // passes of 2..=16 rows take the row-exact kernels on Metal ([`ink_rows_exact`]), so any schedule of such passes
         // (decode, a small chunk, a rolled-back verify-sized pass) leaves the state a token-by-token decode would
@@ -859,7 +898,7 @@ impl Model {
         if mark {
             self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         }
-        let r = self.ink_pass_rows(st, batch, ids, t, pos0, out, profile, tf, dump);
+        let r = self.ink_pass_rows(st, batch, ids, t, pos0, out, profile, tf, dump, dpos);
         if mark {
             self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         }
@@ -878,6 +917,7 @@ impl Model {
         profile: bool,
         tf: Option<&InkTensors>,
         mut dump: Option<&mut InkTensors>,
+        dpos: Option<&TensorRef>,
     ) -> Result<()> {
         let im = self.ink.as_ref().ok_or_else(|| Error::invalid("inkling2 pass on another model"))?;
         let (ink, ws) = (&im.dims, &im.ws);
@@ -889,16 +929,20 @@ impl Model {
         let act = self.act;
         let eps = self.dims.rms_eps;
         let ex = |op: Op, i: Vec<TensorRef>, o: Vec<TensorRef>, a: OpAttrs| self.exec(op, i, o, a, profile);
-        // the stateful ops: in a batched step their row-table form over the state slot `slot` (entries `2 * slot ..`)
+        // the stateful ops: in a batched step their row-table form over the state slot `slot` (entries `2 * slot ..`), in a
+        // captured decode step (`dpos`) the device position
         let rowtab = |c: &mut OpCall, slot: usize| -> Result<()> {
             if let Some(bt) = batch {
                 c.rows = Some(self.row_tab_for(bt.rows, slot, 0, 0).ok_or_else(|| Error::invalid("inkling2 batched step without its row table"))?);
                 c.pos = Some(bt.pos.clone());
+            } else {
+                // a captured decode step: the device position
+                c.pos = dpos.cloned();
             }
             Ok(())
         };
         let sx = |op: Op, i: Vec<TensorRef>, o: Vec<TensorRef>, a: OpAttrs, slot: usize| -> Result<()> {
-            if batch.is_none() {
+            if batch.is_none() && dpos.is_none() {
                 return ex(op, i, o, a);
             }
             let mut c = OpCall::new(op, i, o, a);
@@ -1018,11 +1062,11 @@ impl Model {
             let pk = TensorRef::new(ws.pk.clone(), act, &[t, l.nk]);
             let pv = TensorRef::new(ws.pv.clone(), act, &[t, l.nk]);
             match &l.in_w {
-                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows where the backend admits it, else the
-                // bf16 stack (the same bits)
+                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows (1..=ROWS_MAX in the GEMV form,
+                // INTARSIA_INK_IN_PROJ_GEMV) where the backend admits it, else the bf16 stack (the same bits)
                 InkInW::Stacked(w) => {
                     let mut done = false;
-                    if let Some(p) = l.in_p12.as_ref().filter(|_| t <= crate::quant::p12::DENSE_ROWS_MAX) {
+                    if let Some(p) = l.in_p12.as_ref().filter(|_| t <= crate::quant::p12::in_proj_rows_max(self.backend.name())) {
                         let mut c = OpCall::new(Op::InkInProj, vec![xs(nx), p.parts[0].clone(), p.parts[1].clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default());
                         c.exact_rows = self.verifying();
                         if self.registry.select(&c).is_ok() {
@@ -1100,15 +1144,18 @@ impl Model {
             let rule = match ink_attn_fused_env() {
                 Some(f) => f,
                 // a batched step's rows are 1-row calls each: the 1-row rule over the largest context
+                // CUDA: fused for every visit of 1..16 rows
                 None => {
-                    self.backend.name() == "metal"
-                        && match batch {
-                            Some(bt) => ink_attn_fused_rule(1, l.local, bt.max_pos + 1, ink.window),
-                            None => ink_attn_fused_rule(t, l.local, pos0 + t, ink.window),
-                        }
+                    self.backend.name() == "cuda"
+                        || (self.backend.name() == "metal"
+                            && match batch {
+                                Some(bt) => ink_attn_fused_rule(1, l.local, bt.max_pos + 1, ink.window),
+                                None => ink_attn_fused_rule(t, l.local, pos0 + t, ink.window),
+                            })
                 }
             };
-            let want_fused = !dumping && t <= 16 && (rule || !pair_rows);
+            // prefill chunks (briefs 30a / 30b; INTARSIA_INK_PREFILL_FUSED=0 turns it off): op 75 where the backend admits it (CUDA), else the pair
+            let want_fused = !dumping && if t <= 16 { rule || !pair_rows } else { batch.is_none() && ink_prefill_fused_env() };
             let fused = want_fused.then(|| {
                 let mut fa = aa.clone();
                 fa.ink = InkAttrs { kv_ring: l.local, ..pa.ink };
@@ -1170,10 +1217,11 @@ impl Model {
             }
             let aproj = plane(&ws.aproj, act, 0, t, d);
             {
-                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows where the backend admits it, else wo as
-                // loaded (the same bits)
+                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows (a CUDA verify pass: 1..=ROWS_MAX under
+                // INTARSIA_INK_VERIFY_P12) where the backend admits it, else wo as loaded (the same bits)
                 let mut done = false;
-                if let Some(p) = l.wo_p12.as_ref().filter(|_| t <= crate::quant::p12::DENSE_ROWS_MAX) {
+                let wo_max = if self.verifying() && verify_p12(self.backend.name()) { crate::quant::p12::ROWS_MAX } else { crate::quant::p12::DENSE_ROWS_MAX };
+                if let Some(p) = l.wo_p12.as_ref().filter(|_| t <= wo_max) {
                     let mut c = p.call(o.clone(), aproj.clone());
                     c.exact_rows = self.verifying();
                     if self.registry.select(&c).is_ok() {
@@ -1243,7 +1291,7 @@ impl Model {
             put(format!("{tag}.expert_w"), &rw)?;
             let moe = plane(&ws.moe, act, 0, t, d);
             let mut xa = OpAttrs { top_k: ink.top_k, ..OpAttrs::default() };
-            xa.ink = InkAttrs { situ: true, gate_cap: ink.gate_cap, up_cap: ink.up_cap, ..InkAttrs::default() };
+            xa.ink = InkAttrs { situ: true, gate_cap: ink.gate_cap, up_cap: ink.up_cap, act_quant: im.act_quant, ..InkAttrs::default() };
             match &l.experts {
                 InkExperts::Nvfp4 { gate_up_w, gate_up_s, down_w, down_s, gscales } => ex(
                     Op::MoeExperts,

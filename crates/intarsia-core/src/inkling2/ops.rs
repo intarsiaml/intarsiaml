@@ -90,8 +90,10 @@
 //! ## InkAttnDecode: the fused decode attention (lane ink-m-attn, discriminant 75)
 //!
 //! Exactly `RelSinkAttn(InkKvPrologue(..))`: the prologue's q / rel / k / v are rounded to `A` as that op writes them and
-//! are not outputs; `RelSinkAttn` reads `pq` (gate, sink) and the caches as above. T is 1..=16 (decode and verify rows; the
-//! check refuses more, so a graph falls back to the pair for a chunk). A kernel is rows-exact like the pair.
+//! are not outputs; `RelSinkAttn` reads `pq` (gate, sink) and the caches as above, bit for bit at any T >= 1. Decode and verify
+//! rows (1..=16, [`ATTN_DECODE_MAX_ROWS`]): a kernel is rows-exact like the pair. Prefill chunks (T > 16, brief 30a): a backend
+//! may admit them with a kernel bitwise its own pair (CUDA: the flash kernel forms the rel bias from r, no [T,H,E] table); the
+//! graph takes the call where the backend admits it, else the pair (also the dump path). Metal and cpu admit 1..=16 only.
 //!
 //! ## MoeExpertsMxfp8 and the `situ` activation of `MoeExperts`
 //!
@@ -101,7 +103,20 @@
 //! `out = rA(sum_k rA(y * w_k))`. With `ink.situ` (SiTU, spec a14; also on `MoeExperts`, NVFP4):
 //! `a = rA(gate_cap * tanh(g / gate_cap) * sigmoid(g) * up_cap * tanh(u / up_cap) * w_k)` (the routing weight before w2),
 //! `y = rA(a . W2)`, `out = rA(sum_k y)`. A `situ` call selects only kernels registered `.situ()` (`ShapeInfo::situ`).
-//! `ink.act_quant` is reserved for a W4A4 / W8A8 activation mode and must be 0.
+//! **`ink.act_quant = 1` (W4A4, the checkpoint's `required_activation_quantization`; opt-in, recipe `[tuning.<backend>] act_quant`;
+//! with `situ` only).** The expert inputs `x` (per token) and `a` (per (token, slot) row) are quantised before their matmul, by
+//! `crate::inkling2::actq` exactly (f32, these operation orders; a kernel must reproduce every bit of `xq` and `outer`):
+//! * NVFP4 (`MoeExperts`), per row of C values: `amax = max |v|`, `enc = min(1536 / amax, f32::MAX)`, `dec = 1 / enc`,
+//!   `outer = amax * (1/1536)`; per block of 16 the e4m3 scales `s6 = e4m3(min(bmax * (enc * (1/6)), 448))` and
+//!   `s4 = e4m3(min(bmax * (enc * 0.25), 448))`, inverses `i = min(1 / (s * dec), f32::MAX)`, codes `c = e2m1(v * i)` (nearest,
+//!   ties to even, saturating), the error `sum |(c * s) * outer - v|` (pairwise: adjacent pairs, then pairs of those); the 4-based
+//!   block is taken when its error is strictly smaller ("fouroversix_mae"). `xq = c * s` (exact in bf16).
+//!   Then `g = rA(outer * (xq . Wg))` (the NVFP4 global scale is part of W as above), likewise `u`; `a` as above;
+//!   `(aq, outer_a) = quant(a)`, `y = rA(outer_a * (aq . W2))`.
+//! * MXFP8 (`MoeExpertsMxfp8`), per block of 32 (no row scale): `raw = bmax * (1/448)`, `e = ((bits(raw) + 0x7FFFFF) & 0x7F800000)
+//!   >> 23` (0 when `raw <= 2^-127`, at most 254), `scale = max(2^(e-127), 2^-127)`, `inv = 2^127` when `e == 0` else `1 / scale`,
+//!   `xq = rA(e4m3(clamp(v * inv, +-448)) * scale)`; `g = rA(xq . Wg)`, `y = rA(aq . W2)`.
+//! The value of a row depends on that row alone, so a kernel stays rows-exact; it quantises at every row count (decode too).
 //!
 //! ## InkInProj: the attention in-projection of one visit
 //!
@@ -161,7 +176,7 @@ pub struct InkAttrs {
     pub situ: bool,
     pub gate_cap: f32,
     pub up_cap: f32,
-    /// Expert ops: activation quantisation mode, reserved (0 = 16-bit activations, the only one implemented).
+    /// Expert ops: activation quantisation mode (0 = 16-bit activations, 1 = W4A4: module doc, `actq`); 1 needs `situ`.
     pub act_quant: u8,
     /// `InkKvPrologue`: L2 clip thresholds of q / k and of r.
     pub qk_clip: f32,
@@ -212,7 +227,7 @@ pub const OPS: [Op; 10] = [
 /// The ops that take a device position (`OpCall::pos`, `i32 [1]`).
 pub const POSITIONED: [Op; 5] = [Op::SconvRes, Op::InkKvPrologue, Op::RelSinkAttn, Op::ConvMix, Op::InkAttnDecode];
 
-/// Most rows of an `InkAttnDecode` call.
+/// Most rows of a decode / verify `InkAttnDecode` call (the rows-exact kernels; prefill chunks above it: module doc).
 pub const ATTN_DECODE_MAX_ROWS: usize = 16;
 
 /// The ops with a row-table form (module doc, "Row tables").
@@ -596,8 +611,8 @@ pub fn check(call: &OpCall) -> Result<()> {
         }
         Op::InkAttnDecode => {
             let t = i[0].shape.first().copied().unwrap_or(0);
-            if !(1..=ATTN_DECODE_MAX_ROWS).contains(&t) || i[7].shape.len() != 2 {
-                return bad(op, format!("1..={ATTN_DECODE_MAX_ROWS} rows (got {t}) and a [dr,E] rel proj"));
+            if t == 0 || i[7].shape.len() != 2 {
+                return bad(op, format!("at least 1 row (got {t}) and a [dr,E] rel proj"));
             }
             let a = i[0].dtype;
             let [qs, rs, ks, vs] = attn_decode_inter(call);
@@ -614,8 +629,8 @@ pub fn check(call: &OpCall) -> Result<()> {
 /// The expert-activation attributes (`MoeExperts`, `MoeExpertsMxfp8`).
 pub fn check_act_epilogue(call: &OpCall) -> Result<()> {
     let (a, ink) = (&call.attrs, &call.attrs.ink);
-    if ink.act_quant != 0 {
-        return bad(call.op, format!("ink.act_quant {} is reserved (only 16-bit activations are implemented)", ink.act_quant));
+    if ink.act_quant > 1 || (ink.act_quant == 1 && !ink.situ) {
+        return bad(call.op, format!("ink.act_quant {} (0 = 16-bit, 1 = W4A4 with situ; situ {})", ink.act_quant, ink.situ));
     }
     if ink.situ && (a.gelu || !(ink.gate_cap > 0.0) || !(ink.up_cap > 0.0)) {
         return bad(call.op, format!("situ needs gate_cap, up_cap > 0 and no gelu (caps {} / {}, gelu {})", ink.gate_cap, ink.up_cap, a.gelu));
@@ -628,6 +643,7 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
     let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
     let dim = |t: &TensorRef, d: usize| t.shape.get(d).copied().unwrap_or(0);
     s.situ = a.ink.situ;
+    s.act_quant = a.ink.act_quant;
     match call.op {
         Op::AttnResMix => {
             s.m = dim(&i[1], 0);

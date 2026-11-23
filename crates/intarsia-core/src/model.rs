@@ -145,6 +145,15 @@ fn prefix_reuse_override() -> Option<bool> {
     })
 }
 
+/// `INTARSIA_INK_RING_SNAPSHOT` (default on; `0` off; lane ink-spec-land): an Inkling-2 sequence copies its ring slots
+/// (sliding-window KV and conv windows) at the end of each prompt's prefill ([`SequenceState::ring_snapshot`]), so the next turn
+/// of a chat, which on Metal resumes at that prompt end, finds the rows its window needs after the reply's decode rows overwrote
+/// them in the live rings. Off: a resume reaches at most `INK_RING_MARGIN` rows below the cached end, as before.
+fn ink_ring_snapshot_env() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("INTARSIA_INK_RING_SNAPSHOT").map_or(true, |v| v.trim() != "0"))
+}
+
 /// `INTARSIA_ROW_INVARIANT_PREFILL`: `1` / `0` overrides `Backend::row_invariant_prefill` (lane rip; [`Model::forward_prefill`]);
 /// unset or anything else: the backend decides.
 fn row_invariant_override() -> Option<bool> {
@@ -706,6 +715,8 @@ pub struct Model {
     inv_on: std::sync::atomic::AtomicBool,
     /// [`Model::set_prefix_reuse_exact`].
     reuse_exact: std::sync::atomic::AtomicBool,
+    /// [`Model::set_ring_snapshots`]`(false)`: no ring snapshots for this model (tests; the env turns them off for the process).
+    ring_snap_off: std::sync::atomic::AtomicBool,
     /// Inside an MTP head pass over several rows ([`Model::mtp_layer_at`]): attention runs one decode call per row on a backend
     /// that asks for it ([`Backend::verify_attn_per_row`]), so the eager head's rows are the captured step's bit for bit.
     head_rows_attn: std::sync::atomic::AtomicBool,
@@ -952,10 +963,28 @@ impl Model {
         let r = self.reuse_len_policy(st, plen, want);
         // ring slots (Inkling-2's sliding-window KV and conv windows) follow a cut of at most their margin: past it, start over.
         // No other model of the generic graph has ring slots, so this is a no-op for them
-        if st.ring_margin().is_some() && st.restorable_len(r) != r {
-            return 0;
+        if st.ring_margin().is_some() {
+            let rr = st.restorable_len(r);
+            if rr != r {
+                // ... unless the ring snapshot reaches a shorter prefix (lane ink-spec-land: the end of the previous prompt, where a
+                // chat's next turn resumes), and the policy takes that prefix too
+                return if rr > 0 && self.reuse_len_policy(st, plen, rr) == rr { rr } else { 0 };
+            }
         }
         r
+    }
+
+    /// [`Backend::prefix_reuse_min_pass_rows`] for this model: Inkling-2 on Metal runs passes of 2..=16 rows under the row-exact
+    /// kernels (`inkling2::ink_rows_exact`), whose rows are not bitwise the fast prefill kernels' rows, so a reused prefix and the
+    /// remainder after it both need passes of 17 rows or more (lane ink-spec-land: with the ring snapshot a chat's turn 2 resumed
+    /// with a 14-row remainder and differed from a full re-prefill, fleetq #11649). With a prefill chunk of 16 or less every pass
+    /// is row-exact (bitwise the decode step per row), so the backend's rule stands.
+    fn model_min_pass_rows(&self, n: usize) -> usize {
+        if self.ink.is_some() && self.prefill_chunk() > 16 && inkling2::ink_rows_exact(self.backend.name(), 2) {
+            n.max(17)
+        } else {
+            n
+        }
     }
 
     fn reuse_len_policy(&self, st: &SequenceState, plen: usize, want: usize) -> usize {
@@ -980,7 +1009,11 @@ impl Model {
         let chunk = self.prefill_chunk().max(1);
         let avoid = self.backend.avoid_single_row_prefill();
         // a prefill tail peel can end the remainder in a 1-row pass the schedule below does not show
-        let min_rows = self.backend.prefix_reuse_min_pass_rows().filter(|_| over.is_none() && self.prefill_peel == 0);
+        let min_rows = self
+            .backend
+            .prefix_reuse_min_pass_rows()
+            .map(|n| self.model_min_pass_rows(n))
+            .filter(|_| over.is_none() && self.prefill_peel == 0);
         if let Some(n) = min_rows {
             let mut cut = st.wide_reuse_len(want, n);
             // the remainder runs as the schedule says from the cut: back off until none of its passes is below `n` rows
@@ -1777,7 +1810,15 @@ impl Model {
                 if let Some(k) = attn_quant {
                     eprintln!("inkling2: attention projections quantised to {} at load ({} = {}; changes outputs)", k.name(), inkling2::ATTN_QUANT_ENV, k.name());
                 }
-                let m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, &mut slot_specs, &mut nbytes)?;
+                let mut m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, &mut slot_specs, &mut nbytes)?;
+                // opt-in W4A4 expert activations: the variable wins over the recipe
+                m.act_quant = match std::env::var(inkling2::ACT_QUANT_ENV).ok().filter(|v| !v.is_empty()) {
+                    Some(v) => inkling2::parse_act_quant(&v)?,
+                    None => recipe.ink_act_quant(backend.name()).map(inkling2::parse_act_quant).transpose()?.unwrap_or(0),
+                };
+                if m.act_quant == 1 {
+                    eprintln!("inkling2: W4A4 expert activations ({} / recipe act_quant; changes outputs)", inkling2::ACT_QUANT_ENV);
+                }
                 weights_bytes.set(weights_bytes.get() + nbytes);
                 eprintln!("inkling2: {} layers, {} visits, {} state slots, loaded in {:.1} s", m.layers.len(), m.visits.len(), slot_specs.len(), t0.elapsed().as_secs_f64());
                 layers = (0..dims.n_layers).map(|li| vec![Block::Ink(li)]).collect();
@@ -1933,7 +1974,9 @@ impl Model {
         ws_bytes += moe_bytes;
         ws_bytes += rec_bytes * (1 + crate::state::RECURRENT_SNAPSHOTS as u64);
         // ring slots are fixed-size like recurrent ones (Inkling-2's SWA KV and conv windows; no other model here has them)
-        ws_bytes += slot_specs.iter().map(|s| if matches!(s, SlotSpec::Ring { .. }) { s.bytes(0) as u64 } else { 0 }).sum::<u64>();
+        // ... and an Inkling-2 sequence's ring snapshot is one more copy of them (`INTARSIA_INK_RING_SNAPSHOT`, lane ink-spec-land)
+        let ring_copies = 1 + u64::from(ink_model.is_some() && ink_ring_snapshot_env());
+        ws_bytes += ring_copies * slot_specs.iter().map(|s| if matches!(s, SlotSpec::Ring { .. }) { s.bytes(0) as u64 } else { 0 }).sum::<u64>();
         ws_bytes += ink_model.as_ref().map_or(0, |m| m.ws.bytes() as u64);
         if mtp_head.is_some() {
             // per-row recurrent states of a verify pass (up to `mtp_k` saved rows: `--spec-k`, or the copy chain's `len` with `INTARSIA_SPEC_COPY`) and the drafter's hidden-row queue
@@ -2135,6 +2178,7 @@ impl Model {
             prefill_inv: std::sync::atomic::AtomicBool::new(false),
             inv_on: std::sync::atomic::AtomicBool::new(inv_want),
             reuse_exact: std::sync::atomic::AtomicBool::new(false),
+            ring_snap_off: std::sync::atomic::AtomicBool::new(false),
             head_rows_attn: std::sync::atomic::AtomicBool::new(false),
             head_whole: std::sync::atomic::AtomicBool::new(false),
             kv_only_skip_q: std::sync::atomic::AtomicBool::new(false),
@@ -3131,7 +3175,7 @@ impl Model {
         let nv = self.view(&self.ws.n, self.act, &[t, self.dims.hidden]);
         let mut dump = InkTensors::new();
         let pos0 = st.len;
-        self.ink_pass(st, None, &self.view(&self.ws.ids, DType::I32, &[t]), t, pos0, &nv, false, tf, Some(&mut dump))?;
+        self.ink_pass(st, None, &self.view(&self.ws.ids, DType::I32, &[t]), t, pos0, &nv, false, tf, Some(&mut dump), None)?;
         let mut logits = Vec::with_capacity(t * self.dims.vocab);
         for r0 in (0..t).step_by(LOGIT_ROWS) {
             logits.extend(self.head_logits(&nv, r0, LOGIT_ROWS.min(t - r0), false)?);
@@ -3149,6 +3193,10 @@ impl Model {
             // a batching engine's slots hold their recurrent snapshots from the start (reserved in `enable_batch`'s memory
             // plan): no device allocation inside the scheduler loop
             st.reserve_snapshots(&*self.backend, self.batch_snapshots())?;
+        }
+        if self.ring_snapshots() > 0 {
+            // counted in the plan's workspace (one sequence) and in `enable_batch`'s ring reserve (the others)
+            st.reserve_ring_snapshot(&*self.backend)?;
         }
         st.mtp = self.new_mtp_state(self.plan.kv_cap_tokens)?;
         st.dflash = self.new_dflash_state(self.plan.kv_cap_tokens)?;
@@ -3376,7 +3424,36 @@ impl Model {
     /// pass wrote are recorded as row-invariant (`PassKind::RowInvariant`), joining the state's row-invariant prefix
     /// (`SequenceState::inv_len`) when they extend it. Otherwise, and for
     /// `HeadMode::AllLogits` (its multi-row head groups have no row-invariant kernel), exactly [`Model::forward`].
+    ///
+    /// A pass that ends a prompt (a last-row head) leaves an Inkling-2 sequence's ring snapshot at the prompt's end
+    /// ([`Model::ring_snapshots`]).
     pub fn forward_prefill(
+        &self,
+        st: &mut SequenceState,
+        ids: &[u32],
+        mode: HeadMode,
+        on_row: Option<RowCallback<'_>>,
+    ) -> Result<StepOut> {
+        let out = self.forward_prefill_inner(st, ids, mode, on_row)?;
+        if self.ring_snapshots() > 0 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_) | HeadMode::LastTopK(_)) {
+            st.ring_snapshot(&*self.backend)?;
+        }
+        Ok(out)
+    }
+
+    /// Ring snapshots an Inkling-2 sequence keeps (lane ink-spec-land): 1 with `INTARSIA_INK_RING_SNAPSHOT` on (the default),
+    /// else 0; 0 for every other model.
+    pub fn ring_snapshots(&self) -> usize {
+        usize::from(self.ink.is_some() && ink_ring_snapshot_env() && !self.ring_snap_off.load(std::sync::atomic::Ordering::Relaxed))
+    }
+
+    /// Turn this model's ring snapshots off (or back on, if `INTARSIA_INK_RING_SNAPSHOT` allows them), as the variable does for the
+    /// process (tests). States made before keep their reserved buffer; the memory plan is unchanged.
+    pub fn set_ring_snapshots(&self, on: bool) {
+        self.ring_snap_off.store(!on, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    fn forward_prefill_inner(
         &self,
         st: &mut SequenceState,
         ids: &[u32],
@@ -3959,7 +4036,18 @@ impl Model {
                 HeadMode::AllLogits => {
                     let cb = on_row.as_mut().unwrap();
                     for (r, c) in self.head_groups(mode, chunk.len(), last) {
-                        let flat = self.head_logits(&hn, r, c, profile)?;
+                        // Inkling-2: a head group of 2..=16 rows takes the row-exact head (as its pass does), so each row's
+                        // logits are the one-row decode head's bits whatever the chunking (on CUDA the ordinary head is
+                        // cuBLAS from 5 rows)
+                        let mark = self.dims.ink.is_some() && !self.verifying() && inkling2::ink_rows_exact(self.backend.name(), c);
+                        if mark {
+                            self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+                        }
+                        let flat = self.head_logits(&hn, r, c, profile);
+                        if mark {
+                            self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+                        }
+                        let flat = flat?;
                         for i in 0..c {
                             cb(base + r + i, &flat[i * self.dims.vocab..(i + 1) * self.dims.vocab])?;
                         }
@@ -4297,12 +4385,10 @@ impl Model {
                 _ => return Err(Error::Unsupported("packed passes of Inkling-2".into())),
             };
             let pos0 = batch.as_ref().map_or(pos0, |b| b.max_pos);
-            if dpos.is_some() {
-                return Err(Error::Unsupported("device-position (graph) decode of Inkling-2".into()));
-            }
             let ids_t = ids_at.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t]));
             let nv = self.view(&ws.n, act, &[t, h]);
-            self.ink_pass(st, batch.as_ref(), &ids_t, t, pos0, &nv, profile, None, None)?;
+            // a captured decode step (`dpos`): pos0 is 0 and the positioned ops read the device position
+            self.ink_pass(st, batch.as_ref(), &ids_t, t, pos0, &nv, profile, None, None, dpos)?;
             return Ok(nv);
         }
 

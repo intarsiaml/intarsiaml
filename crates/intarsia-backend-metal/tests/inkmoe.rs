@@ -4,7 +4,9 @@
 //! and odd-element activations. Admission checks the values against the f64 reference; this checks the rows-exact rule.
 //!
 //! * `ink_moe_rows_are_bitwise_the_one_row_calls`: T 2..=16, routings random / identical / pooled / invalid ids /
-//!   duplicates, bf16 and f32 out, real H and I (2304, 1152) over 32 experts, top-8.
+//!   duplicates, bf16 and f32 out, real H and I (2304, 1152) over 32 experts, top-8. NVFP4 runs twice: with
+//!   `INTARSIA_INK_MOE_T1` off, and on (lane ink-dfuse), where the one-row reference calls take the `ink_moe_gu1_nv_*` /
+//!   `ink_moe_dn_f3_nv_*` instances and the T-row calls the shipped ones: the compare crosses the kernels.
 //! * `ink_moe_negative_control`: the compare is live (one changed activation of the last token changes its bytes only).
 //!
 //! Uses the GPU (about 1.5 GB): on endor take a fleetq slot first.
@@ -13,7 +15,7 @@
 
 mod common;
 use common::*;
-use intarsia_backend_metal::inkmoe::{set_policy, Policy};
+use intarsia_backend_metal::inkmoe::{dnu3_served, set_dnu3, set_policy, set_t1, t1_served, Policy};
 use intarsia_backend_metal::MetalBackend;
 use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
 use intarsia_core::quant::cases::{random_experts, random_routing};
@@ -279,8 +281,30 @@ fn rows_exact(f: Fmt) {
 
 #[test]
 fn ink_moe_rows_are_bitwise_the_one_row_calls() {
+    for t1 in [false, true] {
+        set_t1(Some(t1));
+        let n0 = t1_served();
+        rows_exact(Fmt::Nv);
+        let n = t1_served() - n0;
+        eprintln!("INKMOE Nv INTARSIA_INK_MOE_T1 {t1}: {n} one-row calls took the gu1 / dn_f3 instances");
+        if t1 {
+            assert!(n > 0, "INTARSIA_INK_MOE_T1 on, but no one-row call took the one-row instances");
+        } else {
+            assert_eq!(n, 0, "INTARSIA_INK_MOE_T1 off, but one-row calls took the one-row instances");
+        }
+    }
+    set_t1(None);
+    rows_exact(Fmt::Mx);
+    // the by-pair down with 3 chunks ahead (INTARSIA_INK_MOE_DNU3): the T-row calls take ink_moe_dn_u3_*, the one-row
+    // references the shipped kernels, so the compare crosses them
+    set_dnu3(Some(true));
+    let n0 = dnu3_served();
     rows_exact(Fmt::Nv);
     rows_exact(Fmt::Mx);
+    let n = dnu3_served() - n0;
+    eprintln!("INKMOE INTARSIA_INK_MOE_DNU3 on: {n} by-pair down launches took the dn_u3 instances");
+    assert!(n > 0, "INTARSIA_INK_MOE_DNU3 on, but no launch took the dn_u3 instances");
+    set_dnu3(None);
 }
 
 /// The compare can see a difference: one changed activation of the last token changes its output bytes, and only those.

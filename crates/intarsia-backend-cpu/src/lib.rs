@@ -204,6 +204,9 @@ impl Backend for CpuBackend {
             if matches!(op, Op::MoeExperts | Op::MoeExpertsMxfp8) {
                 r = r.situ();
                 f = f.situ();
+                // and its W4A4 activation mode (`ShapeInfo::act_quant`; quant_ref.rs / ink_ref.rs, `inkling2::actq`)
+                r = r.act_quant();
+                f = f.act_quant();
             }
             // the Inkling-2 row-table forms (batched decode, `rowtab.rs`): twins `<kernel>_rows`, selected only with a table;
             // after the base kernels (admission takes an op's first reference kernel as its oracle)
@@ -214,6 +217,12 @@ impl Backend for CpuBackend {
                 fr.name = format!("{}_rows", f.name);
                 [rr.row_table(), fr.row_table()]
             });
+            // InkAttnDecode: decode / verify rows only (prefill chunks take the pair; inkling2::ops module doc)
+            if op == Op::InkAttnDecode {
+                let rows: intarsia_core::registry::Predicate = |s| s.m <= intarsia_core::inkling2::ops::ATTN_DECODE_MAX_ROWS;
+                r = r.when(rows);
+                f = f.when(rows);
+            }
             v.push(r);
             v.push(f);
             v.extend(twins.into_iter().flatten());

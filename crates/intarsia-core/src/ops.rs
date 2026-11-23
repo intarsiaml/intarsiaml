@@ -230,7 +230,8 @@ pub enum Op {
     InkInProj,
     /// Inkling-2 sublayer boundary: `SconvRes`, then the next depth mix, optional blend and norm.
     ConvMix,
-    /// Inkling-2 fused decode attention (1..=16 rows): exactly `RelSinkAttn(InkKvPrologue(..))` (lane ink-m-attn).
+    /// Inkling-2 fused attention (decode rows; prefill chunks where a backend admits them): exactly
+    /// `RelSinkAttn(InkKvPrologue(..))` (lane ink-m-attn).
     InkAttnDecode,
     // reserved ONCE (2026-11-21, coordinator): placeholder discriminants 76..=95 for the Inkling-2 lanes, four each (ink-dfuse
     // 76-79, ink-pack12 80-83, ink-d1row 84-87, ink-fp8 88-91, ink-mtp 92-95). A lane replaces only its own placeholders, in
@@ -1225,6 +1226,9 @@ pub struct ShapeInfo {
     /// `OpAttrs::ink.situ` of the call (`MoeExperts` / `MoeExpertsMxfp8` with the Inkling-2 SiTU activation): only kernels registered
     /// `.situ()` accept it, so an expert kernel that predates SiTU (including the `.ext()` ones for Gemma's GELU) never runs it.
     pub situ: bool,
+    /// `OpAttrs::ink.act_quant` of the call (Inkling-2 expert ops, 1 = W4A4 activations): only kernels registered `.act_quant()`
+    /// accept a call with a nonzero mode.
+    pub act_quant: u8,
 }
 
 impl ShapeInfo {
@@ -1252,6 +1256,7 @@ impl ShapeInfo {
             mxfp4_w4a16: call.attrs.mxfp4_w4a16,
             win_split: call.attrs.win_split,
             situ: call.attrs.ink.situ,
+            act_quant: call.attrs.ink.act_quant,
             ..Default::default()
         };
         match call.op {
