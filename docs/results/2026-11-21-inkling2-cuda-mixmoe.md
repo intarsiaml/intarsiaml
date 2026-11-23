@@ -1154,3 +1154,34 @@ stay off by default until the coordinator decides the flip (the bits are the sam
 
 **Memory:** the repack is in place (one transient row-block buffer per tensor at load), not a second copy. The ~25 GB
 estimate in the stage A notes was wrong.
+
+### Flip (brief 45) and final gates on the 08ae803e0 merge (brief 46)
+
+**Flip, `8b7345086`.** `INTARSIA_INK_MOE_REPACK` and `INTARSIA_INK_MOE_PDL` are on by default; `=0` turns either off. With W4A4
+the repack turns itself off: the activation mode is now resolved before the load. `REPACK=1` with W4A4 is refused.
+
+**Final tree `660c02ec4`** (main 08ae803e0 merged), no env set:
+- `ink_rows` 9/9, tiny cuda 17/17, moe_experts admitted (16 kernels / 121 cases) (#11741).
+- W4A4 loads with the repack off; `REPACK=1` + W4A4 is refused.
+- endor: workspace check and tests green (#11742).
+
+**Fresh main build (#11750).** A git archive of 08ae803e0 from the repo top level, every source touched (10 intarsia crates
+recompiled), in its own target dir. The main binary's md5 is `910029772c97`, the branch's `a29bf2b59ff1`. The branch-only env
+strings are absent from main and present in the branch.
+
+| harness | spec | fresh main | branch (no env) |
+|---|---|---|---|
+| CUDA lane (`lgate.sh`): d64 / d256 / d1k | off | faf40cecb06b / 029e44fede1d / dc28658094c0 | same |
+| CUDA lane | default | faf40cecb06b / 029e44fede1d / dc28658094c0 | same |
+| this lane: g64 / g1.2k (g256 = d256) | off | 95ed05f4d023 / e0d669c198dd | same |
+| this lane | default | 95ed05f4d023 / e0d669c198dd | same |
+
+**Hash question (brief 45):** the harnesses differ, not the outputs. The CUDA lane's d64 uses "The capital of France is", 64
+tokens without `--ignore-eos`, max-seq 4096. This lane's g64 uses the hash-map prompt with `--ignore-eos`, max-seq 8192.
+The CUDA lane's "1.2k" is `p1k.txt` at max-seq 4096; this lane's is `p3600.txt` (3.6k characters) at max-seq 8192. g256 is the
+same prompt and flags in both, hence the one match.
+
+**A slip in my own gate scripts, caught:** flipgate / finalgate ran `git archive` from `.scratch` and got an empty tree. The
+"fresh main" step there failed (`main build rc=101`) and fell back to the #11716 main binary. That binary was a genuine
+c1fc029aa (md5 `b5e7bed18d20`, no branch strings), but it was not fresh. #11750 is the valid fresh-main comparison; it runs from
+the repo top level and guards against an empty archive.
