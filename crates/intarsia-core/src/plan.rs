@@ -265,7 +265,8 @@ fn shape_str(s: &ShapeInfo) -> String {
 
 /// Record the plan: probe decode and prefill shapes, collect calls and missing kernels.
 fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize, usize))> {
-    let chunk = model.prefill_chunk();
+    // the opt-in long-prompt chunk runs passes of its rows: probe (and size scratch for) those too
+    let chunk = model.long_prefill_chunk().map_or(model.prefill_chunk(), |(_, c)| c);
     let cap = model.plan.kv_cap_tokens.max(1);
     let sizes = probe_sizes(chunk);
     let mut probes: Vec<(Phase, usize, usize)> = vec![(Phase::Decode, 1, 0), (Phase::Decode, 1, cap - 1)];

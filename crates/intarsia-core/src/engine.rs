@@ -1914,7 +1914,8 @@ impl Seq {
                 decode: Duration::ZERO,
             }));
         }
-        let chunk = model.prefill_chunk().max(1);
+        // the opt-in long-prompt chunk (from the whole prompt's length); the prefix store keeps its own schedule (`ps.chunk`)
+        let chunk = if self.ps.is_some() { model.prefill_chunk() } else { model.prefill_chunk_for(self.plen) }.max(1);
         if self.cancelled() {
             return Ok(PrefillStep::Finished(self.cancel_outcome()));
         }

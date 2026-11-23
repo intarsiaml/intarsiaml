@@ -504,6 +504,10 @@ impl BatchModel for SlotModel {
         // the backend flag (Metal), except for recurrent state (never batched; mirrors `Seq::prefill_step`)
         self.model.backend.avoid_single_row_prefill() && !self.states[0].has_recurrent()
     }
+    fn long_prefill_chunk(&self, plen: usize) -> Option<usize> {
+        let m = &self.model;
+        m.long_prefill_chunk().map(|_| m.prefill_chunk_for(plen)).filter(|&c| c != m.prefill_chunk())
+    }
     fn tail_merge(&self) -> usize {
         self.model.tail_merge()
     }

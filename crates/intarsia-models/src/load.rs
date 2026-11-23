@@ -1033,10 +1033,14 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let telemetry = Arc::new(Telemetry::new());
     let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backends.first().map_or("cpu", |b| b.name()));
     eprintln!("prefill chunk {}", prefill_chunk.describe());
+    if recipe.model.family == "inkling2" && backends.first().is_some_and(|b| b.name() == "metal") {
+        eprintln!("prefill chunk: {}", prefill_chunk.describe_long());
+    }
     let mtp = opts.spec.mode == intarsia_core::spec::SpecMode::Mtp;
     // `--spec auto` (lane asp) loads the MTP head beside the DFlash draft
     let mut load_opts = LoadOptions {
         prefill_chunk: prefill_chunk.value,
+        long_prefill_chunk: prefill_chunk.long,
         mtp: opts.load.mtp || mtp || spec_auto,
         mtp_k: if mtp { opts.spec.save_rows() } else if spec_auto { intarsia_core::spec::AUTO_MTP_K } else { opts.load.mtp_k },
         // a rank in another process (lane d2r): a dense MTP head runs whole on rank 0 (`serve_remote_rank` sets the same)
@@ -1355,7 +1359,7 @@ fn load_dsv41(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> 
         engine: Arc::new(engine),
         max_batch: 1,
         recipe_source: "deepseek_v41 (rank cache)".into(),
-        prefill_chunk: PrefillChunk { value: chunk, source: "INTARSIA_DSV41_CHUNK / --prefill-chunk / 2048".into() },
+        prefill_chunk: PrefillChunk { value: chunk, source: "INTARSIA_DSV41_CHUNK / --prefill-chunk / 2048".into(), long: None },
         chat_template_source: Some(dir.join("chat_template.jinja").display().to_string()),
     })
 }

@@ -176,6 +176,9 @@ pub struct LoadOptions {
     pub kv_fraction: f32,
     /// Tokens per forward pass (prefill chunk / activation workspace rows).
     pub prefill_chunk: usize,
+    /// Opt-in long-prompt chunk `(min prompt tokens, chunk)` ([`crate::recipe::PrefillChunk::long`], lane ink-prefill): a prompt of at
+    /// least that many tokens prefills in passes of `chunk` rows, others in `prefill_chunk`; the workspace holds `chunk` rows.
+    pub long_prefill_chunk: Option<(usize, usize)>,
     pub act_dtype: Option<DType>,
     pub kv_dtype: Option<DType>,
     /// Time every Nth step per op (synchronises the device); 1 = every step; 0 = never.
@@ -248,6 +251,7 @@ impl Default for LoadOptions {
             max_seq: 4096,
             kv_fraction: 0.5,
             prefill_chunk: 256,
+            long_prefill_chunk: None,
             act_dtype: None,
             kv_dtype: None,
             profile_every: 1,
@@ -798,6 +802,10 @@ pub struct Model {
     /// Opt-in prefill tail merge in rows (`INTARSIA_PREFILL_TAIL_MERGE`, already clamped; 0 = off). The workspace holds
     /// `prefill_chunk + tail_merge` rows when set.
     tail_merge: usize,
+    /// The prefill chunk of prompts below the long-prompt threshold, `Some` only with the opt-in long-prompt chunk
+    /// (`(threshold, chunk)` in `long_chunk`); `None`: the workspace rows are the chunk.
+    base_chunk: Option<usize>,
+    long_chunk: Option<(usize, usize)>,
     /// Prefill tail peel in rows (recipe `[tuning.<backend>] prefill_peel`, `INTARSIA_PREFILL_PEEL`; 0 = off):
     /// [`crate::scheduler::peel_tail`] in [`Model::forward_chunks`].
     prefill_peel: usize,
@@ -910,7 +918,22 @@ fn resolve(src: &dyn WeightSource, name: &str) -> Result<String> {
 impl Model {
     /// Tokens per forward pass (the prefill chunk); callers split long prompts on it to stay responsive.
     pub fn prefill_chunk(&self) -> usize {
-        self.ws.max_tokens
+        self.base_chunk.unwrap_or(self.ws.max_tokens)
+    }
+
+    /// The prefill chunk of a prompt of `plen` tokens: the opt-in long-prompt chunk ([`LoadOptions::long_prefill_chunk`]) when
+    /// the prompt reaches its threshold, else [`Model::prefill_chunk`]. Decided from the whole prompt, so a resumed prefix keeps
+    /// the schedule its prompt's cold prefill runs.
+    pub fn prefill_chunk_for(&self, plen: usize) -> usize {
+        match self.long_chunk {
+            Some((min, c)) if plen >= min => c,
+            _ => self.prefill_chunk(),
+        }
+    }
+
+    /// The opt-in long-prompt chunk `(threshold, chunk)`, if on.
+    pub fn long_prefill_chunk(&self) -> Option<(usize, usize)> {
+        self.long_chunk
     }
 
     /// Turn the dead-tail skip of non-final prefill chunks on or off (`INTARSIA_PREFILL_SKIP_DEAD`).
@@ -994,7 +1017,7 @@ impl Model {
                 return st.restorable_len(want);
             }
             // opt-in (`exact`): only where the prompt's own cold prefill leaves its state, written by that schedule's passes (lane hrr)
-            let cuts = crate::scheduler::recurrent_schedule_cuts(plen, self.prefill_chunk().max(1), self.tail_merge());
+            let cuts = crate::scheduler::recurrent_schedule_cuts(plen, self.prefill_chunk_for(plen).max(1), self.tail_merge());
             return st.recurrent_reuse_len(want, &cuts);
         }
         match over {
@@ -1006,7 +1029,7 @@ impl Model {
             None if self.row_invariant_prefill() => return want.min(st.inv_len()),
             None => {}
         }
-        let chunk = self.prefill_chunk().max(1);
+        let chunk = self.prefill_chunk_for(plen).max(1);
         let avoid = self.backend.avoid_single_row_prefill();
         // a prefill tail peel can end the remainder in a 1-row pass the schedule below does not show
         let min_rows = self
@@ -1741,10 +1764,14 @@ impl Model {
                 b.name()
             )));
         }
-        let chunk = opts.prefill_chunk.max(1);
+        let base_chunk = opts.prefill_chunk.max(1);
+        // the opt-in long-prompt chunk: the workspace (and every row-sized buffer below) holds its rows; prompts below its
+        // threshold keep `base_chunk` ([`Model::prefill_chunk_for`])
+        let long_chunk = opts.long_prefill_chunk.filter(|&(_, c)| c > base_chunk);
+        let chunk = long_chunk.map_or(base_chunk, |(_, c)| c);
         let tail_merge = crate::scheduler::effective_tail_merge(
             crate::scheduler::parse_tail_merge(std::env::var(crate::scheduler::TAIL_MERGE_ENV).ok().as_deref())?,
-            chunk,
+            base_chunk,
         );
         // the recipe's prefill tail peel for this backend, `INTARSIA_PREFILL_PEEL` over it (0 = off)
         let prefill_peel =
@@ -2209,6 +2236,8 @@ impl Model {
             spec_sampled: std::sync::atomic::AtomicU8::new(0),
             feedback_hold,
             tail_merge,
+            base_chunk: long_chunk.map(|_| base_chunk),
+            long_chunk,
             prefill_peel,
             prefill_peel_period,
             macro_rows,
@@ -3790,10 +3819,12 @@ impl Model {
     /// are `1..=peel` runs those rows as their own pass ([`crate::scheduler::peel_tail`]).
     fn forward_chunks<'a>(&self, st: &SequenceState, ids: &'a [u32]) -> Vec<&'a [u32]> {
         let avoid = self.backend.avoid_single_row_prefill() && !st.has_recurrent();
-        let mut out = Vec::with_capacity(ids.len().div_ceil(self.ws.max_tokens));
+        // the long-prompt chunk applies to the prompt this pass belongs to (rows before it plus these); off: the workspace rows
+        let rows = if self.long_chunk.is_some() { self.prefill_chunk_for(st.len + ids.len()) } else { self.ws.max_tokens };
+        let mut out = Vec::with_capacity(ids.len().div_ceil(rows));
         let mut pos = 0;
         while pos < ids.len() {
-            let n = crate::scheduler::next_prefill_chunk_tm(ids.len() - pos, self.ws.max_tokens, avoid, self.tail_merge);
+            let n = crate::scheduler::next_prefill_chunk_tm(ids.len() - pos, rows, avoid, self.tail_merge);
             let n = crate::scheduler::peel_tail(n, self.prefill_peel, self.prefill_peel_period);
             out.push(&ids[pos..pos + n]);
             pos += n;

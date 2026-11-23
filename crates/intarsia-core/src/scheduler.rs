@@ -176,6 +176,11 @@ pub trait BatchModel {
     fn housekeep(&mut self, _at: Housekeep) {}
     /// Opt-in tail merge threshold in rows ([`next_prefill_chunk_tm`]); default 0 (off). The real adapter returns the
     /// model's `INTARSIA_PREFILL_TAIL_MERGE`, whose workspace is sized for it.
+    /// The opt-in long-prompt chunk for a prompt of `plen` tokens prefilling while nothing decodes
+    /// ([`crate::model::Model::prefill_chunk_for`]); `None` (default): the scheduler's solo chunk.
+    fn long_prefill_chunk(&self, _plen: usize) -> Option<usize> {
+        None
+    }
     fn tail_merge(&self) -> usize {
         0
     }
@@ -2038,7 +2043,13 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let chunk = match chunk {
             Some(c) => c,
             None => {
-                let c = if n_decoding > 0 { self.cfg.busy_chunk } else { self.cfg.solo_chunk };
+                let plen = self.active[i].seq.prompt().len();
+                let c = if n_decoding > 0 {
+                    self.cfg.busy_chunk
+                } else {
+                    // a request on its own (prefix store) schedule runs that whatever this picks
+                    self.model.long_prefill_chunk(plen).filter(|_| self.active[i].seq.own_chunk().is_none()).unwrap_or(self.cfg.solo_chunk)
+                };
                 let id = self.active[i].id;
                 // a request on its own schedule runs that chunk, not the one the scheduler picked
                 let used = self.active[i].seq.own_chunk().unwrap_or(c);
