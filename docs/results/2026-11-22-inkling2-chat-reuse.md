@@ -182,3 +182,11 @@ Marker `.scratch/gate_pass_bdcdee4b1`.
 Order: #497, then #498 (CUDA defaults), then #499. When #498 is on main: merge main into `ink/chat-reuse`, rerun md5 and the tiny /
 chat-reuse tests, wait for green CI, then merge, and send the coordinator the merge commit. If anything fails, fix it and report;
 don't merge. #496 is not covered by this go.
+
+## Coordinator ruling (2026-11-22 ~19:00): postmerge check now, on the local merge of main 0c8f2c037
+
+Order stays #498 then #499. Queue the postmerge job now (behind #498's re-push #11684 and the mlx-serve bench #11677). When #498
+lands, merge main in again:
+- if #498's diff since 0c8f2c037 touches none of this branch's files and no Metal or shared engine path (expected: CUDA files and
+  `docs/tuning.md` only): no endor rerun; push, wait for green CI, merge;
+- otherwise rerun the postmerge job on the final tree first.
