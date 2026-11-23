@@ -364,6 +364,13 @@ that point, not dabd0d448 (main is now ca3b4e55b, #503 the Metal prefill blend i
 (default == `--spec off` == that main) and the full MG6 Metal set. The report includes #11621's TTFT spec on vs off (the cold 2.07 vs
 1.62 s of #11751 needs a proper reading). The hold stays: no push, PR or merge until the user's go is relayed.
 
+**#11621 (Mon 05:45) did not measure: aborted in its box check on a parse bug, not on the box.** All three box-check runs decoded
+at 76.69 / 76.56 / 76.69 tok/s (bar 65), but the script read the rate only from a `decode overall:` line, which `generate` prints
+for long prompts; the 19-token box prompt prints it on the finish line (`| decode 3325 ms (76.69 tok/s)`). The script read "?"
+three times and exited 6 before any server started. Fixed in `.worktrees/ink-spec-flip/.scratch/flip_night.sh` (scratch only;
+`ink/spec-flip` and its code hash 34525d854 untouched): it falls back to the finish line; checked on the three saved logs (76.69,
+76.56, 76.69). The bar and every other step are unchanged. Rerun needs a 75-minute quiet slot on endor.
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
