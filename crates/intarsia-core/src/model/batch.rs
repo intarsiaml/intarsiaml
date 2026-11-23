@@ -221,13 +221,15 @@ impl Model {
                     if std::env::var("INTARSIA_ROW_TABLES").is_ok_and(|v| v == "0") { ", or INTARSIA_ROW_TABLES=0" } else { "" }
                 )));
             }
-            let ring = self.ring_bytes_per_state();
+            // with the ring snapshot (`Model::ring_snapshots`, lane ink-spec-land) each sequence holds its rings twice
+            let ring = self.ring_bytes_per_state() * (1 + self.ring_snapshots() as u64);
             let extra = (max_rows as u64 - 1) * ring;
             self.plan.workspace_bytes += extra;
             self.plan.notes.push(format!(
-                "{} MiB of the KV budget reserved for the rings of {max_rows} batched Inkling-2 sequences ({} MiB per sequence)",
+                "{} MiB of the KV budget reserved for the rings of {max_rows} batched Inkling-2 sequences ({} MiB per sequence{})",
                 extra >> 20,
-                ring >> 20
+                ring >> 20,
+                if self.ring_snapshots() > 0 { ", live + ring snapshot" } else { "" }
             ));
             extra
         } else {
@@ -1269,6 +1271,7 @@ impl Model {
             prefill_inv: std::sync::atomic::AtomicBool::new(false),
             inv_on: std::sync::atomic::AtomicBool::new(self.row_invariant_prefill()),
             reuse_exact: std::sync::atomic::AtomicBool::new(self.reuse_exact.load(std::sync::atomic::Ordering::Relaxed)),
+            ring_snap_off: std::sync::atomic::AtomicBool::new(self.ring_snap_off.load(std::sync::atomic::Ordering::Relaxed)),
             head_rows_attn: std::sync::atomic::AtomicBool::new(false),
             head_whole: std::sync::atomic::AtomicBool::new(false),
             kv_only_skip_q: std::sync::atomic::AtomicBool::new(false),
