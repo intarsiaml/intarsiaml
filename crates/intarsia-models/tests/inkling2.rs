@@ -824,10 +824,6 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
 #[test]
 fn inkling2_tiny_screened_head_one_row_only() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
-    // the screened head's ops (HeadScreen, LogitsGather, ScreenArgmax) are cpu and Metal only: CUDA refuses the screen=1 load
-    if backend().name() == "cuda" {
-        return skip("no screened-head kernels on CUDA");
-    }
     let mut m = load_screen(&dir, chunk(), "1");
     m.enable_verify(16).unwrap();
     assert!(m.head_screen_stats().is_some(), "INTARSIA_INK_HEAD_SCREEN=1 loads the screen on the tiny model");
@@ -853,8 +849,9 @@ fn inkling2_tiny_screened_head_one_row_only() {
     let got = greedy(&m, 12);
     let (g1, _) = m.head_screen_stats().unwrap();
     if g1 == g0 {
-        // the screen turned itself off for the tiny head on this backend (Metal: its lm_head is not 16-byte aligned)
-        assert!(on_metal(), "the screen did not engage on cpu");
+        // the screen turned itself off for the tiny head on this backend (Metal: its lm_head is not 16-byte aligned; CUDA:
+        // a head without its P12 copy, whose bf16 head kernel has no index mode there)
+        assert!(on_metal() || backend().name() == "cuda", "the screen did not engage on cpu");
         return skip("screened head: the screen is off for the tiny head on this backend (see the load log)");
     }
     assert_eq!(got, want, "greedy tokens, screen on vs off");
@@ -871,6 +868,13 @@ fn inkling2_tiny_screened_head_one_row_only() {
     all_logits(&m, &mut st, &ids[..20]);
     m.forward_verify(&mut st, &ids[20..25]).unwrap();
     assert_eq!(m.head_screen_stats().unwrap().0, g0, "a 5-row verify never calls the screen");
+    // sampling (t > 0) reads the logits row (`LastLogits`, or the device top-k): the full head, never the screen
+    let mut st = m.new_state().unwrap();
+    all_logits(&m, &mut st, &ids[..20]);
+    for &t in &ids[20..24] {
+        assert!(matches!(m.forward(&mut st, &[t], HeadMode::LastLogits, None).unwrap(), intarsia_core::model::StepOut::Logits(_)));
+    }
+    assert_eq!(m.head_screen_stats().unwrap().0, g0, "a sampled (logits) step never calls the screen");
 }
 
 /// The screened head never changes what batching accepts (brief 12, endor #11315): its plan-probe calls are recorded as
@@ -879,10 +883,6 @@ fn inkling2_tiny_screened_head_one_row_only() {
 #[test]
 fn inkling2_tiny_screen_keeps_batching() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
-    // the screened head's ops (HeadScreen, LogitsGather, ScreenArgmax) are cpu and Metal only: CUDA refuses the screen=1 load
-    if backend().name() == "cuda" {
-        return skip("no screened-head kernels on CUDA");
-    }
     let plan = |screen: &str| -> std::result::Result<(), String> {
         let mut m = load_screen(&dir, chunk(), screen);
         m.enable_batch(4).map_err(|e| format!("enable_batch: {e}"))?;
