@@ -1284,3 +1284,21 @@ with that scratch in place.**
 4. rel_mode: stage the bias per (tile, distance band) in threadgroup memory instead of 16 FMAs per score; then re-measure
    (branch ink/prefill-rel).
 5. Metal prefill chunk 2048 in the recipe (serve and accuracy use 256 today): pending #11109.
+
+## Parked 2026-11-23 (quota stop)
+
+- Branch `ink/long-chunk` (worktree `.worktrees/ink-prefill/.scratch/wt-longchunk`), head **12c13713a** (WIP, local only; PR #508
+  is still at 18d9d8853 on origin). Not pushed.
+- Fable findings on #508 (brief 34) in 12c13713a: (1) MEDIUM fixed: `forward_chunks` uses the hint only when it exceeds
+  the recipe's chunk (the long chunk); any other hinted call is cut by the recipe's chunk, as with the switch off; the scheduler
+  passes `own_chunk().unwrap_or(c.chunk)`. (2) LOW fixed: `scheduler::min_rows_back_off` checks the long and the recipe
+  schedules; exact recurrent cuts are those both schedules share (the ladder path is unchanged: it already needs passes of
+  exactly the chunk). (3) NIT fixed: the in-flight errors clear the hint. (4) NIT: comment on `pack_body_rows`.
+- Not verified: the core library compiled (`cargo check -p intarsia-core`, before the comment-only last edit). The two new
+  tests (`tests/scheduler.rs` `min_rows_back_off_covers_every_schedule`, `tests/prefix_store.rs`
+  `batched_hybrid_long_chunk_store_busy_start_is_the_switch_off_schedule`) were never compiled or run. The unit-test job #11850
+  (with a negative control of the old rule, `.scratch/ut.sh`) was cancelled before it started. No Metal re-gate, no CUDA no-op, no serve smoke.
+- Next: run `.scratch/ut.sh` in a cpu slot (the store test must pass, and FAIL under the negative control); re-run
+  `.scratch/lc-gate.sh` (Metal: tests, plan show, md5, pass lists; it pushes on all-pass); `.scratch/ms-smoke.sh` (Metal serve,
+  switch on, 6k) and `.scratch/cn/cuda-noop.sh` on spark1 (set `BR` to the new head); report to #508; rebook #11834
+  (`.worktrees/ink-pf-convmix/.scratch/ch2.sh`, now with the 6k arm, `--expect 45 --mem 30 --quiet gpu,cpu`, a clean 03:00 window).
