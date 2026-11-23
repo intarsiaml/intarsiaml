@@ -190,3 +190,19 @@ lands, merge main in again:
 - if #498's diff since 0c8f2c037 touches none of this branch's files and no Metal or shared engine path (expected: CUDA files and
   `docs/tuning.md` only): no endor rerun; push, wait for green CI, merge;
 - otherwise rerun the postmerge job on the final tree first.
+
+## Postmerge #11689 was invalid on its main arm; recheck #11697 (2026-11-22 19:10)
+
+#11689 (code caafdc339, main 0c8f2c037) reported md5 64 / 256 on == off == main, but its "main" binary was the branch binary
+(byte-identical, md5 f7428ab2…, and it carries the `INTARSIA_INK_RING_SNAPSHOT` string that main's source lacks). The script built
+main's `git archive` tree in the branch's target dir; git archive keeps commit-time mtimes and cargo's workspace-relative
+fingerprints then reused the branch's `intarsia-core` / `intarsia-models` (only `intarsia-cli` recompiled). Still valid from
+#11689: on == off and the tiny Metal tests (17 passed, branch code). Not affected: gate M of #11659 (real main 22303d704 binary,
+md5 023f884c…). Fix in `.scratch/postmerge.sh`: main builds in its own `.scratch/target-main` with the extracted files touched;
+guards: the branch binary has the snapshot string, main's has not, and they differ. The invalid pass marker was deleted.
+
+## Coordinator (2026-11-22 ~19:23): #498 on main as 576ead89b; #499 can go
+
+#498 touches shared engine paths (`intarsia-core` model/inkling2.rs, ops.rs, quant/p12.rs, `load.rs`, `recipe.rs`), so the
+postmerge check reruns on the final tree. Steps: merge main in (7187ae8ed, clean), the recheck #11697 on that tree vs main
+576ead89b, push, green CI, merge, send the coordinator the merge commit.
