@@ -65,6 +65,15 @@ fn ink_debug_dispatches() -> usize {
     *V.get_or_init(|| std::env::var("INTARSIA_INK_DEBUG_DISPATCHES").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(0))
 }
 
+/// `INTARSIA_INK_PREFILL_FUSED` (lane ink-cuda-attn, briefs 30a / 30b; default on, `=0` off): prefill chunks (more than 16 rows)
+/// take the fused `InkAttnDecode` where the backend admits it (CUDA `ink_attn_prefill_bf16`: the flash kernel forms the rel bias,
+/// no `[T,H,E]` table), else the pair. Bitwise the pair either way; warm-serve prefill +2.7-4.1 % at 1k-16k on CUDA (#11632).
+/// Metal and cpu admit op 75 at 1..=16 rows only, so the pair runs there. Read once.
+fn ink_prefill_fused_env() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| !std::env::var("INTARSIA_INK_PREFILL_FUSED").is_ok_and(|v| v.trim() == "0"))
+}
+
 /// Whether a visit's attention of `rows` rows ending at context `ctx` (positions `0..ctx`) takes the fused `InkAttnDecode`
 /// instead of the pair, on Metal. From lane ink-m-attn's per-visit timings (docs/results/2026-11-21-inkling2-metal-attn.md),
 /// keyed on the keys a row reads (`ctx`, at most the window on an SWA visit): 1 row fused up to 4096 keys (measured: fused wins at
@@ -107,6 +116,16 @@ pub(crate) fn ink_rows_exact(backend: &str, t: usize) -> bool {
     static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     let off = *OFF.get_or_init(|| std::env::var("INTARSIA_INK_ROWS_EXACT").is_ok_and(|v| v.trim() == "0"));
     !off && (backend == "metal" || backend == "cuda") && (2..=16).contains(&t)
+}
+
+/// `INTARSIA_INK_VERIFY_P12` (lane ink-cuda-attn, brief 26): the CUDA verify pass takes the P12 copy of wo at all its rows
+/// (1..=`p12::ROWS_MAX`, the rows-exact P12 kernel, bitwise the bf16 rows GEMV each row) instead of the bf16 wo above
+/// `DENSE_ROWS_MAX` rows (the verify head takes the P12 rows head through `Model::head_proj` either way). Default on (bitwise: greedy md5 unchanged, +1.1-1.3 % spec-on decode, fleetq #11494);
+/// `0` reverts. CUDA only: Metal and every non-verify call keep `DENSE_ROWS_MAX`. Read once.
+pub(crate) fn verify_p12(backend: &str) -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    let on = *ON.get_or_init(|| !std::env::var("INTARSIA_INK_VERIFY_P12").is_ok_and(|v| v.trim() == "0"));
+    backend == "cuda" && on
 }
 
 /// Where a partial lives (see the module doc).
@@ -1085,11 +1104,11 @@ impl Model {
             let pk = TensorRef::new(ws.pk.clone(), act, &[t, l.nk]);
             let pv = TensorRef::new(ws.pv.clone(), act, &[t, l.nk]);
             match &l.in_w {
-                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows where the backend admits it, else the
-                // bf16 stack (the same bits)
+                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows (1..=ROWS_MAX in the GEMV form,
+                // INTARSIA_INK_IN_PROJ_GEMV) where the backend admits it, else the bf16 stack (the same bits)
                 InkInW::Stacked(w) => {
                     let mut done = false;
-                    if let Some(p) = l.in_p12.as_ref().filter(|_| t <= crate::quant::p12::DENSE_ROWS_MAX) {
+                    if let Some(p) = l.in_p12.as_ref().filter(|_| t <= crate::quant::p12::in_proj_rows_max(self.backend.name())) {
                         let mut c = OpCall::new(Op::InkInProj, vec![xs(nx), p.parts[0].clone(), p.parts[1].clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default());
                         c.exact_rows = self.verifying();
                         if self.registry.select(&c).is_ok() {
@@ -1177,7 +1196,8 @@ impl Model {
                             })
                 }
             };
-            let want_fused = !dumping && t <= 16 && (rule || !pair_rows);
+            // prefill chunks (briefs 30a / 30b; INTARSIA_INK_PREFILL_FUSED=0 turns it off): op 75 where the backend admits it (CUDA), else the pair
+            let want_fused = !dumping && if t <= 16 { rule || !pair_rows } else { batch.is_none() && ink_prefill_fused_env() };
             let fused = want_fused.then(|| {
                 let mut fa = aa.clone();
                 fa.ink = InkAttrs { kv_ring: l.local, ..pa.ink };
@@ -1239,10 +1259,11 @@ impl Model {
             }
             let aproj = plane(&ws.aproj, act, 0, t, d);
             {
-                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows where the backend admits it, else wo as
-                // loaded (the same bits)
+                // the P12 copy (lossless, INTARSIA_INK_PACK12) on 1..=DENSE_ROWS_MAX rows (a CUDA verify pass: 1..=ROWS_MAX under
+                // INTARSIA_INK_VERIFY_P12) where the backend admits it, else wo as loaded (the same bits)
                 let mut done = false;
-                if let Some(p) = l.wo_p12.as_ref().filter(|_| t <= crate::quant::p12::DENSE_ROWS_MAX) {
+                let wo_max = if self.verifying() && verify_p12(self.backend.name()) { crate::quant::p12::ROWS_MAX } else { crate::quant::p12::DENSE_ROWS_MAX };
+                if let Some(p) = l.wo_p12.as_ref().filter(|_| t <= wo_max) {
                     let mut c = p.call(o.clone(), aproj.clone());
                     c.exact_rows = self.verifying();
                     if self.registry.select(&c).is_ok() {

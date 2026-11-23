@@ -90,8 +90,10 @@
 //! ## InkAttnDecode: the fused decode attention (lane ink-m-attn, discriminant 75)
 //!
 //! Exactly `RelSinkAttn(InkKvPrologue(..))`: the prologue's q / rel / k / v are rounded to `A` as that op writes them and
-//! are not outputs; `RelSinkAttn` reads `pq` (gate, sink) and the caches as above. T is 1..=16 (decode and verify rows; the
-//! check refuses more, so a graph falls back to the pair for a chunk). A kernel is rows-exact like the pair.
+//! are not outputs; `RelSinkAttn` reads `pq` (gate, sink) and the caches as above, bit for bit at any T >= 1. Decode and verify
+//! rows (1..=16, [`ATTN_DECODE_MAX_ROWS`]): a kernel is rows-exact like the pair. Prefill chunks (T > 16, brief 30a): a backend
+//! may admit them with a kernel bitwise its own pair (CUDA: the flash kernel forms the rel bias from r, no [T,H,E] table); the
+//! graph takes the call where the backend admits it, else the pair (also the dump path). Metal and cpu admit 1..=16 only.
 //!
 //! ## MoeExpertsMxfp8 and the `situ` activation of `MoeExperts`
 //!
@@ -231,7 +233,7 @@ pub const OPS: [Op; 10] = [
 /// The ops that take a device position (`OpCall::pos`, `i32 [1]`).
 pub const POSITIONED: [Op; 5] = [Op::SconvRes, Op::InkKvPrologue, Op::RelSinkAttn, Op::ConvMix, Op::InkAttnDecode];
 
-/// Most rows of an `InkAttnDecode` call.
+/// Most rows of a decode / verify `InkAttnDecode` call (the rows-exact kernels; prefill chunks above it: module doc).
 pub const ATTN_DECODE_MAX_ROWS: usize = 16;
 
 /// The ops with a row-table form (module doc, "Row tables").
@@ -615,8 +617,8 @@ pub fn check(call: &OpCall) -> Result<()> {
         }
         Op::InkAttnDecode => {
             let t = i[0].shape.first().copied().unwrap_or(0);
-            if !(1..=ATTN_DECODE_MAX_ROWS).contains(&t) || i[7].shape.len() != 2 {
-                return bad(op, format!("1..={ATTN_DECODE_MAX_ROWS} rows (got {t}) and a [dr,E] rel proj"));
+            if t == 0 || i[7].shape.len() != 2 {
+                return bad(op, format!("at least 1 row (got {t}) and a [dr,E] rel proj"));
             }
             let a = i[0].dtype;
             let [qs, rs, ks, vs] = attn_decode_inter(call);

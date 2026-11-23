@@ -1,0 +1,40 @@
+fleetq: #11604 waiting (#1 in line): needs gpu quiet on endor, but #11603 "intarsiaml ink-metal mixsplit: in-situ KO timing (row kernel / blend / router), short, measure only" (claude-57ee98d5) loads it
+fleetq:   #11603 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11603 set, or it will wait for #11603 to be released.
+fleetq: #11604 running on endor: bash m2.sh 031d52b60
+fleetq: #11604 went ahead of the line and must end within 11h57m (by Mon 03:00); it is stopped then
+tree 031d52b60; modified files: 0
+    Finished `release` profile [optimized] target(s) in 18.60s
+== test inkmoe
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.78s
+== test rows_exact
+test result: ok. 11 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 2.41s
+md5 64 T1=0 65cde8f35a1802e3e2fadb44d94d080d decode 831 ms (75.78 tok/s)
+md5 64 T1=1 65cde8f35a1802e3e2fadb44d94d080d decode 817 ms (77.15 tok/s)
+md5 256 T1=0 61fd59fecb5e0d72ffd08f2c6d07855a decode 3337 ms (76.42 tok/s)
+md5 256 T1=1 61fd59fecb5e0d72ffd08f2c6d07855a decode 3292 ms (77.46 tok/s)
+== cb trace 64
+decode 837 ms (75.27 tok/s)
+== kernel trace 64
+md5 65cde8f35a1802e3e2fadb44d94d080d
+== moevar pass 1
+| variant | threads gu / dn | TGs gu / dn | max threads/TG gu / dn | visit us | GB/s | gate+up us | down us | max abs vs shipped (of max |out|) |
+|---|---|---|---|---:|---:|---:|---:|---|
+| ship | 128 / 128 | 576 / 288 | 1024 / 1024 | 80.33 | 446.1 | 48.37 | 31.33 | reference (9216 of 9216 nonzero, 0 inf / nan) |
+| lut | 128 / 128 | 576 / 288 | 1024 / 1024 | 79.34 | 451.6 | 48.28 | 30.17 | 0 (bitwise) |
+| xr1_dn_nb3 | 128 / 128 | 576 / 288 | 1024 / 1024 | 79.50 | 450.7 | 45.77 | 31.05 | 0 (bitwise) |
+| xr1_dn_nb3_lut | 128 / 128 | 576 / 288 | 1024 / 1024 | 80.24 | 446.6 | 49.36 | 30.22 | 0 (bitwise) |
+| xr1_alu | 128 / 128 | 576 / 288 | 1024 / 1024 | 39.80 | 900.3 | 24.04 | 15.68 | 0.191 (of 0.0835) |
+| xr1_lut_alu | 128 / 128 | 576 / 288 | 1024 / 1024 | 55.11 | 650.2 | 35.03 | 20.06 | 0.191 (of 0.0835) |
+| ship | 128 / 128 | 576 / 288 | 1024 / 1024 | 79.60 | 450.2 | 47.97 | 31.10 | 0 (bitwise) |
+== moevar pass 2
+| variant | threads gu / dn | TGs gu / dn | max threads/TG gu / dn | visit us | GB/s | gate+up us | down us | max abs vs shipped (of max |out|) |
+|---|---|---|---|---:|---:|---:|---:|---|
+| ship | 128 / 128 | 576 / 288 | 1024 / 1024 | 79.70 | 449.6 | 47.95 | 31.23 | reference (9216 of 9216 nonzero, 0 inf / nan) |
+| xr1_lut_alu | 128 / 128 | 576 / 288 | 1024 / 1024 | 55.18 | 649.4 | 35.06 | 20.08 | 0.197 (of 0.083) |
+| xr1_alu | 128 / 128 | 576 / 288 | 1024 / 1024 | 39.62 | 904.4 | 24.07 | 15.77 | 0.197 (of 0.083) |
+| xr1_dn_nb3_lut | 128 / 128 | 576 / 288 | 1024 / 1024 | 80.21 | 446.7 | 49.23 | 30.61 | 0 (bitwise) |
+| xr1_dn_nb3 | 128 / 128 | 576 / 288 | 1024 / 1024 | 77.32 | 463.4 | 45.76 | 31.28 | 0 (bitwise) |
+| lut | 128 / 128 | 576 / 288 | 1024 / 1024 | 79.56 | 450.4 | 48.68 | 30.66 | 0 (bitwise) |
+| ship | 128 / 128 | 576 / 288 | 1024 / 1024 | 80.84 | 443.3 | 47.86 | 31.34 | 0 (bitwise) |
+m2 done
+fleetq: #11604 done (exit 0)

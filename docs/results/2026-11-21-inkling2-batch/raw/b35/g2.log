@@ -1,0 +1,35 @@
+fleetq: #11624 waiting (#1 in line): needs gpu quiet on endor, but #11620 "intarsiaml inkling spec-flip: gates F1-F8 (DSpark default-on: md5 on/off/main, plan show 8B/Llama, serve default/b4/multi-turn reuse, missing drafter, t1 ids, Metal tests)" (claude-57ee98d5) loads it
+fleetq:   #11620 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11620 set, or it will wait for #11620 to be released.
+fleetq: #11624 running on endor: bash g2.sh 74be1f7fa 17b999272
+fleetq: #11624 went ahead of the line and must end within 11h14m (by Mon 03:00); it is stopped then
+    Finished `release` profile [optimized] target(s) in 18.53s
+tree 74be1f7fa; modified files: 0
+    Finished `release` profile [optimized] target(s) in 17.20s
+rustfmt: clean
+-- metal inkmoe
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.20s
+-- metal rows_exact
+test result: ok. 11 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 2.40s
+-- models inkling2
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.52s
+-- models inkling2_batch
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.44s
+-- docs_env_vars
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+admission OFF exit 0 | ADMITTED 4 | 0 fail/reject
+admission ON exit 0 | ADMITTED 4 | 0 fail/reject
+md5 64 OFF 65cde8f35a1802e3e2fadb44d94d080d
+md5 64 ON 65cde8f35a1802e3e2fadb44d94d080d
+md5 256 OFF 61fd59fecb5e0d72ffd08f2c6d07855a
+md5 256 ON 61fd59fecb5e0d72ffd08f2c6d07855a
+== g2-short ON: OVERALL 569 98.59 2.609e-3 2.087e-3 2.087e-3 1.637e-1 0.0679 0.0669 96.56 79.3% 0|OVERALL 128 99.22 2.744e-3 2.928e-3 2.928e-3 5.677e-2 0.0173 0.0167 93.59 97.7% 0| EXIT 0
+   self-golden OFF vs ON: EQUAL
+== g3-short ON: OVERALL 569 97.54 9.342e-3 8.420e-3 8.420e-3 3.871e-1 0.0679 0.0672 93.08 39.7% 0| EXIT 0
+   self-golden OFF vs ON: EQUAL
+== g2-long ON: OVERALL 1569 99.30 3.463e-3 3.239e-3 3.239e-3 6.918e-1 0.0407 0.0407 94.74 48.7% 0|OVERALL 160 98.75 2.609e-3 2.761e-3 2.761e-3 5.677e-2 0.0196 0.0196 93.75 91.9% 0| EXIT 0
+   self-golden OFF vs ON: EQUAL
+== g3-long ON: OVERALL 1569 97.39 1.278e-2 1.229e-2 1.229e-2 6.494e-1 0.0414 0.0411 89.83 18.0% 0| EXIT 0
+   self-golden OFF vs ON: EQUAL
+PLAN Qwen3-8B base vs tip: byte-identical
+g2 done
+fleetq: #11624 done (exit 0)
