@@ -325,6 +325,24 @@ recipe text and main's must not). PASS when all hold:
   (`INTARSIA_INKLING2_BACKEND=metal`) `inkling2_dspark`, `inkling2_dspark_cut`, `inkling2_verify_softcap`, `inkling2_chat_reuse`,
   `inkling2`, `inkling2_batch`.
 
+**Gate results, #11738 (endor, default load, 21:22-21:41; code a6e3cc43a vs main 08ae803e0, both built fresh; binaries differ:
+merged 26d1ad1a…, main 2324bd77…): all pass; MG4 after a script fix, evaluated on the job's saved replies.**
+- MG1 PASS: md5 default == `--spec off` == main at 64 (65cde8f3…) and 256 (61fd59fe…); the default run printed the line naming
+  `[tuning.metal] mtp_default_k` and speculated (57 verify passes, acceptance 80.7 %, 2.61 tokens per pass); `--spec off` and main
+  printed no default line.
+- MG2 PASS: `--max-batch 16`, main and merged: no default line, batching up to 16, spec steps 0; the 4 concurrent greedy
+  completions equal main's [True, True, True, True].
+- MG3 PASS: default server, ~1.4k greedy HTTP 200 with verify passes 0 -> 13; t1.0 HTTP 200, steps unchanged (13).
+- MG4 PASS (re-evaluated): the job printed "FAIL ... t2 reply differs", but the replies are byte-identical. The script's
+  non-empty check read only `content`; turn 2 hit `max_tokens` 128 inside the reasoning (content "" on both servers, reasoning 547
+  chars). Fixed check: reasoning and content both equal, and the reply (reasoning or content) non-empty. On the saved replies: turn 1
+  (189 tokens) and turn 2 (128 tokens) equal, turn 2 cached 4575 of 4633 on both, TTFT 0.136 s on both. The default server
+  speculated over the flow (spec steps 0 -> 75), so the draft stays in use when a chat turn resumes at the prompt end (#499).
+- MG5 PASS: no `mtp.safetensors`: rc 0, one "not applied: no DSpark draft" line, no speculation, md5 = main's.
+- MG6 PASS: dspark_default (1, the extended unit test), recipe (17), recipes_doc (3), recipe_gumbel (1), mtp (69), docs_env_vars
+  (2); on Metal inkling2_dspark (4), inkling2_dspark_cut (1), inkling2_verify_softcap (1), inkling2_chat_reuse (6), inkling2 (17),
+  inkling2_batch (8).
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
