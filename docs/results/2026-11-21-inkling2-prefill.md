@@ -522,6 +522,46 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### Brief 29: top 3 open Metal prefill levers on main (desk work; no endor time)
+
+Basis: the Metal lane's latest prefill profile on main ca3b4e55b (brief 45 B, quiet #11757, `prof45/kt-4k-2048.jsonl.gz`:
+4k prompt, GPU busy 1337 ms; experts 759 / floor 404, mix 138 / 33, prologue 102 / 25, attention 117 / 42, router 34 / 2,
+in_proj and wo at floor), their 16k stage numbers (brief 39, #11673: prologue 394 / 100, attention 731 / 342, mix 674 / 133),
+the rel-bias share (brief 48, #11791: 21-22 % of the prologue, ~30 % of attention), and this lane's per-call bench
+(#11370: no-rel prologue 0.52 ms vs 0.98; no-rel SWA attention 0.95 ms vs 0.42 floor, full 2.40 / 3.51 / 12.36 ms vs 1.25 /
+2.08 / 7.07 at ctx 2k / 4k / 16k). main bc03406d1 changes none of these kernels after ca3b4e55b's profile. Excluded per the
+brief: rel bias, NSG 6, router GEMM, pf-blend. Also excluded: the MoE expert kernel (Metal lane brief 46 closed it for
+kernel work; 356 ms over floor at 4k remain, only a format change would move it).
+
+Per-row costs scale with the prompt, so 8k ~ 2 x 4k and 16k ~ 4 x 4k, except attention, which grows with context.
+
+| # | lever | ms saved 4k / 8k / 16k (realistic) | source | hours | bitwise |
+|---|---|---|---|---:|---|
+| 1 | **KV prologue without the rel part, to its bandwidth floor** (rel write excluded: it belongs to ink/relbias-mma). Today's non-rel prologue is ~3x its byte floor: ~0.5 ms per visit vs ~0.17. | over floor: 34-64 / 70-130 / 135-255; realistic half: **17-32 / 35-65 / 70-130** (1.3-2.3 %) | prof45 102 ms x 79 % non-rel vs floor ~16; bench E 1 prologue 0.52 ms vs 0.17 floor; brief 39 16k 394 ms | 8-12 (2 h trace of what it reads / writes, then a rewrite of the row kernel) | **yes** (per-row elementwise math kept in order) |
+| 2 | **Chunk 4096 for prompts >= 8k** (recipe rule; 2048 below) | **~0 / 25-60 / 115-230** (16k +2-4 %) | brief 39 #11673 chunk 4096 vs 2048 at 16k: 2959 / 2960 / 3032 vs 2917 / 2891 / 2842 tok/s; 4k mixed | 3-4 (rule + scratch check + gate) | **to verify** (row math is the same; attention reads earlier keys from the bf16 cache either way; self-goldens decide) |
+| 3 | **Attention softmax / rescale after the rel bias work** (the part left when the bias is gone: no-rel SWA 0.95 ms vs 0.42 floor, full visits 1.7x floor at 16k) | over floor ~53 / ~150 / ~500; realistic third: **~18 / ~50 / ~160** (1.4 % / 2 % / 2.9 %) | bench #11370 E 1 per visit x 40 SWA + 8 full per chunk; brief 48 nobias attention | 16-24 (after ink/relbias-mma lands in the same kernel) | **no** in general (larger key tiles or lazy rescale change the online-softmax rounding); skipping a rescale by exactly 1.0 is bitwise but small |
+
+Next below these: the ConvMix row kernel (`conv_mix_bf16` first dispatch, 0.279 ms x 192 per 4k = 57 ms, ~2x its byte
+floor; ~24 / 48 / 96 ms, bitwise, 1 day) and the expert combine dispatch (`moe_experts_situ_bf16#3`, 20 ms per 4k).
+
+Caveats. #2's 16k gain was measured before pf-blend made the blend scratch 170 MB at 2048 rows, and chunk 4096 doubles it
+(plus the rel tensor while mode 0 is live). Brief 20's note says a scratch footprint above ~21 MB slows untouched ops by
+9-14 %, so #2 must be re-measured on main before any build. #1 and #3 touch the kernels that ink/relbias-mma is changing:
+#1 after it lands, or as a separate pass on the non-rel half of the prologue.
+
+**The p8k swing and the 2 % bars.** p8k moved 2129-2753 tok/s (+-13 %) in 15 minutes at load 1-3 (#11543), and reading 0
+(2728, after hours idle) was followed by 2129 five minutes later with the box idle. So a fixed rest before each arm does not
+put the GPU in a known state: the governor's state persists across idle and is not set by heat history alone. Adjacent
+pairs track each other, though. In #11543's pairs the two arms of a pair agreed to 0.2-1.7 % even when both moved 3 %
+together (8k pair 3). Recommendation:
+1. Kernel levers: score them with the Metal lane's drift-proof method (#11736): the lever's op ms over an untouched
+   reference op (in_proj) in the same kernel trace, A B B A. It is immune to the clock state and resolved #503's 5 %
+   cleanly.
+2. End to end: keep the box check as a label, not a gate. Use more adjacent pairs (>= 7 per length, median of per-pair
+   ratios) and drop a pair when an in-run reference (a fixed ALU microkernel, ~50 ms, before each arm) differs by > 2 %
+   between its two arms. A 2 % bar is then resolvable. With 3 pairs and no reference it is not.
+3. Before any flip, one confirmation run in the 03:00 window.
+
 ### NSG 6 vs 12 night run (#11543, Mon 03:00, rg4.sh unchanged): box passed, rule says NO FLIP
 
 Box: p8k 2728.0 (03:00), 2129.1 (03:05), 2139.8 (03:10), **2752.7 (03:15, pass)**, load1 1.0-2.8 throughout; pairs ran
