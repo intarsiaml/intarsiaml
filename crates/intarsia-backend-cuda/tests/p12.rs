@@ -200,7 +200,8 @@ fn in_proj_gemv_twins_rows_exact() {
     let be = be.as_ref();
     let mut rng = SplitMix64::new(0x9e15);
     let d = 2304usize;
-    for (ns, adv) in [([6552usize, 1056, 1056], false), ([40, 24, 24], true)] {
+    // [41, 23, 25]: segment edges off a multiple of 2 / 4 rows and a ragged tail
+    for (ns, adv) in [([6552usize, 1056, 1056], false), ([40, 24, 24], true), ([41, 23, 25], true)] {
         let n: usize = ns.iter().sum();
         let w = weight(be, &mut rng, n, d, adv, &[(ns[0], 1.0), (ns[1], 0.25), (ns[2], 3.7)]);
         for s in [1usize, 3] {
@@ -259,9 +260,11 @@ fn p12_selection() {
             let mut c = OpCall::new(Op::InkInProj, vec![zeros(be, DType::Bf16, &[1, t, k]), pcodes.clone(), paux.clone()], outs, OpAttrs::default());
             c.exact_rows = exact;
             let got = reg.select(&c).map(|k| k.name.clone()).ok();
+            // the GEMV form is the CUDA default (brief 31; INTARSIA_INK_IN_PROJ_GEMV=0 the mma form)
+            let gemv = p12::in_proj_gemv("cuda");
             let want = match exact {
-                false if t <= 16 => Some("ink_in_proj_p12_mma"),
-                true if t <= 16 => Some("ink_in_proj_p12_mma_rows"),
+                false if t <= 16 => Some(if gemv { "ink_in_proj_p12_gemv" } else { "ink_in_proj_p12_mma" }),
+                true if t <= 16 => Some(if gemv { "ink_in_proj_p12_gemv_rows" } else { "ink_in_proj_p12_mma_rows" }),
                 _ => None,
             };
             assert_eq!(got.as_deref(), want, "InkInProj p12 T={t} exact={exact}");
