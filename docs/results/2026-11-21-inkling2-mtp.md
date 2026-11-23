@@ -371,6 +371,12 @@ three times and exited 6 before any server started. Fixed in `.worktrees/ink-spe
 `ink/spec-flip` and its code hash 34525d854 untouched): it falls back to the finish line; checked on the three saved logs (76.69,
 76.56, 76.69). The bar and every other step are unchanged. Rerun needs a 75-minute quiet slot on endor.
 
+**Coordinator (2026-11-23 ~05:55): option 1** (the rerun at 07:05 in place of #11653, #11653 after #11812; touch no other lane's
+job; `--quiet gpu,cpu`, 75 min; a real box-check failure (< 65 tok/s) stops and reports, no retry; hold stays). **Not achieved:** I
+cancelled #11653 before booking 07:05, and fleetq at once started the fp8 lane's waiting #11821 (deadline 09:00), with #11822
+behind it, so 07:05 was no longer free without stopping another lane's job. Booked instead: the rerun **#11828 at 11:15** (75 min,
+after #11812), the spec-k sweep **#11829 at 12:35** (110 min). Result of the bar around 12:30.
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
