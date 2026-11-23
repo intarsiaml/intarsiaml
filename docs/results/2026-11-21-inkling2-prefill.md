@@ -515,6 +515,21 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### NSG 6 vs 12 night run (#11543, Mon 03:00, rg4.sh unchanged): box passed, rule says NO FLIP
+
+Box: p8k 2728.0 (03:00), 2129.1 (03:05), 2139.8 (03:10), **2752.7 (03:15, pass)**, load1 1.0-2.8 throughout; pairs ran
+03:15:34-03:17:26 at load 1.3-1.8.
+
+| prompt | pair ratios (NSG 6 / 12) | median | need | TTFT ms NSG 12 | TTFT ms NSG 6 |
+|---|---|---:|---:|---|---|
+| 4k | 1.0023 / 1.0110 / 1.0087 | 1.0087 | 1.01 FAIL | 1596 / 1603 / 1599 | 1592 / 1585 / 1586 |
+| 8k | 1.0087 / 0.9971 / 0.9831 | 0.9971 | 1.01 FAIL | 2918 / 2926 / 3001 | 2893 / 2935 / 3052 |
+| 16k | 0.9752 / 1.0222 / 1.0135 | 1.0135 | 1.01 PASS | 6282 / 6507 / 6307 | 6442 / 6365 / 6223 |
+
+**No flip; NSG 6 stays opt-in** (`INTARSIA_INK_NAX_SG=6`, bitwise identical to 12). On a clean box the end-to-end difference is
+~0 to +1 %: the per-call saving in the microbench (#11468, ~11 ms per chunk on a noisy box) does not show up in the model
+run, where attention shares the GPU with MoE / in_proj and its per-call variance is smaller. This closes the NSG item.
+
 ### NSG 6 vs 12 with cool-down (#11517, rg4.sh, brief 27): p8k never reached 2736 in 20 min; no pairs, no flip
 
 | reading | time | p8k tok/s | load1 | top CPU processes |
