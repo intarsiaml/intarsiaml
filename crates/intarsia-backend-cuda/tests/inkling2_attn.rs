@@ -128,6 +128,12 @@ fn scratch_for(be: &dyn Backend, name: &str, call: &OpCall) -> TensorRef {
 /// Run the visit as calls of `rows` rows each (rows divides T); `dev`: device positions; `fused`: InkAttnDecode.
 #[allow(clippy::too_many_arguments)]
 fn run(be: &dyn Backend, l: &Layer, inp: &Inputs, t: usize, pos0: usize, rows: usize, dev: bool, fused: bool) -> Run {
+    run_with(be, l, inp, t, pos0, rows, dev, fused, "rel_sink_attn_bf16")
+}
+
+/// `run` with the pair's attention kernel `ak`; the fused calls take the prefill kernel above 16 rows.
+#[allow(clippy::too_many_arguments)]
+fn run_with(be: &dyn Backend, l: &Layer, inp: &Inputs, t: usize, pos0: usize, rows: usize, dev: bool, fused: bool, ak: &str) -> Run {
     let ckv = HK * DH;
     let pw = inp.pk.len() / 2 / t;
     let nqw = nq(H, DH, DR);
@@ -175,8 +181,9 @@ fn run(be: &dyn Backend, l: &Layer, inp: &Inputs, t: usize, pos0: usize, rows: u
                 a,
             );
             f.pos = pos;
-            f.scratch = Some(scratch_for(be, "ink_attn_decode_bf16", &f));
-            be.launch("ink_attn_decode_bf16", &f, 0).unwrap();
+            let fk = if rows > 16 { "ink_attn_prefill_bf16" } else { "ink_attn_decode_bf16" };
+            f.scratch = Some(scratch_for(be, fk, &f));
+            be.launch(fk, &f, 0).unwrap();
             be.synchronize(0).unwrap();
             continue;
         }
@@ -210,8 +217,8 @@ fn run(be: &dyn Backend, l: &Layer, inp: &Inputs, t: usize, pos0: usize, rows: u
             a,
         );
         att.pos = pos;
-        att.scratch = Some(scratch_for(be, "rel_sink_attn_bf16", &att));
-        be.launch("rel_sink_attn_bf16", &att, 0).unwrap();
+        att.scratch = Some(scratch_for(be, ak, &att));
+        be.launch(ak, &att, 0).unwrap();
         be.synchronize(0).unwrap();
     }
     let outs = vec![read(be, &q, t * H * DH), read(be, &rel, t * H * E), read(be, &k, t * ckv), read(be, &v, t * ckv), read(be, &o, t * H * DH)];
@@ -267,4 +274,32 @@ fn rows_exact_real_shapes() {
         }
     }
     eprintln!("{n} rows-exact cases bitwise");
+}
+
+/// Op 75 on prefill chunks (`ink_attn_prefill_bf16`, the rel bias formed in the flash kernel) is bitwise the pair the graph
+/// runs there (prologue + `rel_sink_attn_bf16_flash`): output, conv rings and K / V caches (brief 30a).
+#[test]
+fn op75_prefill_bitwise_pair() {
+    let Some(be) = device() else { return };
+    let be = be.as_ref();
+    let mut n = 0;
+    for &t in &[17usize, 64, 2048] {
+        for (window, poss) in [(1024usize, [0usize, 1500, 3001]), (0, [0, 1500, 5003])] {
+            for &pos0 in &poss {
+                let l = if window > 0 {
+                    Layer { window, ring: true, cr: 1040, dynamic: false }
+                } else {
+                    Layer { window: 0, ring: false, cr: pos0 + t + 64, dynamic: true }
+                };
+                let inp = make(&l, t, (t * 131 + pos0 + window) as u64);
+                let pair = run_with(be, &l, &inp, t, pos0, t, false, false, "rel_sink_attn_bf16_flash");
+                let fused = run_with(be, &l, &inp, t, pos0, t, false, true, "rel_sink_attn_bf16_flash");
+                let what = format!("window {window} T={t} pos0={pos0}");
+                same(&pair, &fused, &format!("{what} (InkAttnDecode prefill vs pair)"));
+                assert!(pair.outs[4].iter().any(|&x| x & 0x7fff != 0), "{what}: zero output");
+                n += 1;
+            }
+        }
+    }
+    eprintln!("{n} op 75 prefill cases bitwise the pair");
 }
