@@ -1,0 +1,8 @@
+# localeval run IDs (results in /opt/code/deepeval/results/<id> on endor), all in fleetq quiet slot #11677, 2026-11-22
+A mlx-serve draft on : 20261122-172125-adhoc-mlxbench-p1-A-speed  20261122-172348-adhoc-mlxbench-p1-A-conc
+B intarsia spec on   : 20261122-174201-adhoc-mlxbench-p1-B-speed  20261122-174410-adhoc-mlxbench-p1-B-conc
+C mlx-serve draft off: 20261122-181432-adhoc-mlxbench-p1-C-speed  20261122-181808-adhoc-mlxbench-p1-C-conc
+D intarsia spec off  : 20261122-183714-adhoc-mlxbench-p1-D-speed  20261122-183950-adhoc-mlxbench-p1-D-conc
+box check before     : 20261122-172052-adhoc-mlxbench-boxcheck (76.4 tok/s)
+box check after      : 20261122-185815-adhoc-mlxbench-boxcheck (76.3 tok/s)
+aborted first check  : 20261122-170819-adhoc-mlxbench-boxcheck (74.5 tok/s)
