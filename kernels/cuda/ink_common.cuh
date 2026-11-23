@@ -43,6 +43,8 @@ struct InkMmaArgs {
     int aq;
     const float* xo;
     float* ho;
+    /* the NVFP4 weights are in the decode repack (ink.moe_layout = 1; ink_moe_mma only, 16-bit activations); 0 otherwise */
+    int rp;
 };
 int64_t ink_moe_mma_scratch_bytes(int64_t P, int64_t E, int64_t H, int64_t I);
 

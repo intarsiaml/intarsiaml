@@ -221,7 +221,8 @@ mod launch {
                 0
             };
             let (gc, uc) = (ink.gate_cap, ink.up_cap);
-            let aq = ink.act_quant as c_int;
+            // bit 1: `ink.moe_layout` (the decode repack; NVFP4 situ only, ink_moe.cu refuses it elsewhere)
+            let aq = ink.act_quant as c_int | ((ink.moe_layout as c_int & 1) << 1);
             // SAFETY: tensors are bounds-checked views of live device buffers (held by `call`); the launchers validate dtype /
             // rank / shape / alignment / scratch and return an error status instead of faulting, and never synchronise or allocate.
             let rc = unsafe {

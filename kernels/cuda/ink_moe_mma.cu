@@ -42,7 +42,14 @@ struct RawGeom {
     static constexpr int RU = kWRows * RS;          // one unit
 };
 
-template <int MT, int WM, int MODE, int FMT, int ACT>
+// RP (NVFP4 only): the weights are in the decode repack (`ink.moe_layout = 1`, `inkling2::ops::moe_repack_rows`: blocks of R rows,
+// a 16-byte payload / 2-byte scale chunk j of row q at piece (j / L) * 32 + q * L + j % L; gate_up R 4 L 8, down R 8 L 4). The
+// copies and scale reads below fetch the same bytes from there, so the tile and every product are the plain layout's.
+IK_DEVI int64_t rp_piece(int64_t row, int j, int R, int L, int64_t row_bytes, int c) {
+    return (row / R) * R * row_bytes + ((int64_t)(j / L) * 32 + (row % R) * L + j % L) * c;
+}
+
+template <int MT, int WM, int MODE, int FMT, int ACT, bool RP = false>
 __global__ void __launch_bounds__(128 * WM)
 ink_moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
                    const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
@@ -88,17 +95,21 @@ ink_moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict_
     // packed-weight copy: chunk (tid + NTHREADS q) = row r, 16-byte part p of the unit's RB bytes
     const int rpart = tid % RCH;
     const int64_t wrow_bytes = FMT == 0 ? Kdim / 2 : Kdim;
+    constexpr int RR = MODE == 0 ? 4 : 8, RL = MODE == 0 ? 8 : 4;  // the repack's rows per block and lanes per row (RP)
     const uint8_t* rsrc[RQ];
+    int64_t rrow[RQ];
 #pragma unroll
     for (int q = 0; q < RQ; ++q) {
         const int r = tid / RCH + (NTHREADS / RCH) * q;
-        rsrc[q] = w + ((int64_t)e * nrows + weight_row(r)) * wrow_bytes + rpart * 16;
+        rrow[q] = (int64_t)e * nrows + weight_row(r);
+        rsrc[q] = w + rrow[q] * wrow_bytes + rpart * 16;
     }
     auto issue_raw = [&](int u, int slot) {
 #pragma unroll
         for (int q = 0; q < RQ; ++q) {
             const int r = tid / RCH + (NTHREADS / RCH) * q;
-            ik_cp_async16(rawu(slot) + r * kRawStride + rpart * 16, rsrc[q] + u * RawGeom<FMT>::RB, 16);
+            const uint8_t* src = RP ? w + rp_piece(rrow[q], u * RCH + rpart, RR, RL, wrow_bytes, 16) : rsrc[q] + u * RawGeom<FMT>::RB;
+            ik_cp_async16(rawu(slot) + r * kRawStride + rpart * 16, src, 16);
         }
     };
 
@@ -107,9 +118,15 @@ ink_moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict_
     const int khalf = WM == 1 ? 0 : (tid & 1);
     const uint8_t* sp = FMT == 0 ? sc + ((int64_t)e * nrows + weight_row(wr)) * (Kdim / 16) + khalf * 2
                                  : sc + ((int64_t)e * nrows + weight_row(wr)) * (Kdim / 32) + khalf;
+    const int64_t srow = (int64_t)e * nrows + weight_row(wr);
+    auto sc_chunk = [&](int j) { return *reinterpret_cast<const uint16_t*>(sc + rp_piece(srow, j, RR, RL, Kdim / 16, 2)); };
     uint32_t rawsc;
     auto load_sc = [&](int st) {
-        if (FMT == 0) {
+        if (RP) {
+            // 2-byte chunk j = 32 k: step st (64 k) is chunks 2 st and 2 st + 1 (WM 1), or the thread's half 2 st + khalf
+            if (WM == 1) rawsc = (uint32_t)sc_chunk(2 * st) | ((uint32_t)sc_chunk(2 * st + 1) << 16);
+            else rawsc = sc_chunk(2 * st + khalf);
+        } else if (FMT == 0) {
             if (WM == 1) rawsc = *reinterpret_cast<const uint32_t*>(sp + st * (BK / 16));
             else rawsc = *reinterpret_cast<const uint16_t*>(sp + st * (BK / 16));
         } else {
@@ -312,24 +329,24 @@ int pick_bm_ink(int64_t P, int64_t E) {
     return mu <= 10.0 ? 16 : (mu <= 21.0 ? 32 : 64);
 }
 
-template <int MT, int WM, int MODE, int FMT, int ACT>
+template <int MT, int WM, int MODE, int FMT, int ACT, bool RP = false>
 int launch_one(const ik_bf16* a, const uint8_t* w, const uint8_t* sc, const float* gs, const int* pairs, const int* offsets,
                const int2* tiles, const int* ntiles, ik_bf16* out, unsigned tiles_ub, int H, int I, int K, const float* wts, float gc,
                float uc, const float* rscale, cudaStream_t s) {
     constexpr size_t smem = (size_t)(3 * 16 * MT * WM + 2 * kWRows) * LDS * 2 + 2 * RawGeom<FMT>::RU;
-    static const cudaError_t attr = cudaFuncSetAttribute(reinterpret_cast<const void*>(ink_moe_mma_kernel<MT, WM, MODE, FMT, ACT>),
+    static const cudaError_t attr = cudaFuncSetAttribute(reinterpret_cast<const void*>(ink_moe_mma_kernel<MT, WM, MODE, FMT, ACT, RP>),
                                                          cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem);
     if (attr != cudaSuccess) return IK_ERR_LAUNCH;
     const unsigned nx = MODE == 0 ? (unsigned)(I / 64) : (unsigned)(H / 128);
-    ink_moe_mma_kernel<MT, WM, MODE, FMT, ACT><<<dim3(nx, tiles_ub), 128 * WM, smem, s>>>(a, w, sc, gs, pairs, offsets, tiles, ntiles,
+    ink_moe_mma_kernel<MT, WM, MODE, FMT, ACT, RP><<<dim3(nx, tiles_ub), 128 * WM, smem, s>>>(a, w, sc, gs, pairs, offsets, tiles, ntiles,
                                                                                          out, H, I, K, wts, gc, uc, rscale);
     return ik_launch_status();
 }
 
-template <int MT, int WM, int FMT, int ACT>
+template <int MT, int WM, int FMT, int ACT, bool RP = false>
 int gemms(const InkMmaArgs& a, const int* pairs, const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* h, ik_bf16* y,
           unsigned tiles_ub, cudaStream_t s) {
-    IK_TRY((launch_one<MT, WM, 0, FMT, ACT>(a.x, a.guw, a.gus, a.gs, pairs, offsets, tiles, ntiles, h, tiles_ub, a.H, a.I, a.K, a.wts,
+    IK_TRY((launch_one<MT, WM, 0, FMT, ACT, RP>(a.x, a.guw, a.gus, a.gs, pairs, offsets, tiles, ntiles, h, tiles_ub, a.H, a.I, a.K, a.wts,
                                             a.gc, a.uc, a.xo, s)));
     if (a.aq) {
         // W4A4: the sorted h rows in place (rows past the routed pairs are never read)
@@ -337,7 +354,7 @@ int gemms(const InkMmaArgs& a, const int* pairs, const int* offsets, const int2*
         if (FMT == 0) IK_TRY(ink_actq_nv(h, P, a.I, h, a.ho, nullptr, nullptr, s));
         else IK_TRY(ink_actq_mx(h, P, a.I, h, s));
     }
-    return launch_one<MT, WM, 1, FMT, ACT>(h, a.dnw, a.dns, a.gs, pairs, offsets, tiles, ntiles, y, tiles_ub, a.H, a.I, a.K, a.wts,
+    return launch_one<MT, WM, 1, FMT, ACT, RP>(h, a.dnw, a.dns, a.gs, pairs, offsets, tiles, ntiles, y, tiles_ub, a.H, a.I, a.K, a.wts,
                                            a.gc, a.uc, FMT == 0 ? a.ho : nullptr, s);
 }
 
@@ -358,13 +375,13 @@ __global__ void __launch_bounds__(256) ink_mma_sum_kernel(const ik_bf16* __restr
     ik_store(out + (int64_t)t * H + c, acc);
 }
 
-template <int FMT, int ACT>
+template <int FMT, int ACT, bool RP = false>
 int run_fa(const InkMmaArgs& a, int BM, const int* pairs, const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* h,
            ik_bf16* y, unsigned tiles_ub, cudaStream_t s) {
     switch (BM) {
-        case 16: return gemms<1, 1, FMT, ACT>(a, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
-        case 32: return gemms<1, 2, FMT, ACT>(a, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
-        default: return gemms<2, 2, FMT, ACT>(a, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
+        case 16: return gemms<1, 1, FMT, ACT, RP>(a, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
+        case 32: return gemms<1, 2, FMT, ACT, RP>(a, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
+        default: return gemms<2, 2, FMT, ACT, RP>(a, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
     }
 }
 
@@ -390,7 +407,8 @@ int ink_moe_mma(const InkMmaArgs& a, void* scratch, int out_f32, cudaStream_t s)
     moe_group_tiles_kernel<<<1, 1024, (2 * E + 32) * sizeof(int), s>>>(a.ids, (int)P, (int)E, BM, pairs, offsets, ntiles, tiles);
     IK_TRY(ik_launch_status());
     int rc;
-    if (a.fmt == 0) rc = run_fa<0, 2>(a, BM, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
+    if (a.fmt == 0 && a.rp) rc = run_fa<0, 2, true>(a, BM, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
+    else if (a.fmt == 0) rc = run_fa<0, 2>(a, BM, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
     else if (a.act == 2) rc = run_fa<1, 2>(a, BM, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
     else if (a.act == 1) rc = run_fa<1, 1>(a, BM, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
     else rc = run_fa<1, 0>(a, BM, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
