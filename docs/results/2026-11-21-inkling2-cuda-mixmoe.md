@@ -1207,3 +1207,18 @@ the repo top level and guards against an empty archive.
 After main ca3b4e55b (#503 pf-blend: it touched `ink_rows.rs` and `tuning.md`) merged cleanly as `76d5d791c`:
 - spark2 #11774, no env set: ink_rows 9/9, p12 5/5, tiny cuda 17/17, moe_experts admitted.
 - endor #11773: workspace check and tests green.
+
+## Parked 2026-11-23 (quota stop; branch `ink/cuda-moepf`, worktree `.worktrees/ink-cuda-moepf`, not pushed)
+
+Brief 48 step 1 is partly done. nsys of main a4e281264 (#11801, log `.scratch/prof48.log`) gives 8k prefill as 3441 ms wall /
+2906 ms GPU busy:
+- MoE 1614 ms: `ink_moe_mma` NVFP4 gate/up 940 (5.34 ms a call), down 454, MXFP8 147, `ink_mma_sum` 69, tile grouping 2.5.
+  About 33 TFLOP/s vs ~110 for cuBLAS here, so tensor-core bound, not byte bound.
+- rows + blend 511 ms: `ink_row_kernel` 301 (1840 x 164 us, one block per row), `ink_blend_gate` 115, ctl GEMV 73, blend norm 22.
+- ncu is blocked on spark2 (`ERR_NVGPUCTRPERM`, profiling counters admin-only; not changed).
+The sizing add-on (#11849: mma / row register + smem usage, ink_bench MoE 2048 at BM 16/32/64, 8k prefill ids + ms at BM 32 / 64)
+was still running at the stop. Its log: `.worktrees/ink-cuda-moepf/.scratch/bmsweep.log` (remote script
+`~/intarsiaml-ink-cuda-mixmoe/bm_remote.sh` on spark2).
+Next on resume: read that log, write the lever table (candidates: mma tile / occupancy retune or a wider-k pipeline for gate/up;
+per-expert tail padding; row kernel several rows per block), send it to the coordinator, then start the top bitwise lever if it is
+>= 3 % of 8k prefill. Brief 47 commit e7c3c49b1 is on this branch and goes with its first push.
