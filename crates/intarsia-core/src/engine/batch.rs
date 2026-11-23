@@ -380,6 +380,8 @@ impl BatchModel for SlotModel {
     }
     fn prefill_begin(&mut self, slot: usize, tokens: &[u32], mode: Option<HeadMode>) -> Result<()> {
         if self.inflight.is_some() {
+            // the call does not run: its cut must not reach the slot's next one
+            self.states[slot].prefill_chunk_rows = 0;
             return Err(Error::Other("a prefill chunk is already in flight".into()));
         }
         let placeholder = self.model.placeholder_state();
@@ -423,6 +425,8 @@ impl BatchModel for SlotModel {
     }
     fn prefill_begin_paused(&mut self, slot: usize, tokens: &[u32], mode: Option<HeadMode>) -> Result<()> {
         if self.inflight.is_some() {
+            // the call does not run: its cut must not reach the slot's next one
+            self.states[slot].prefill_chunk_rows = 0;
             return Err(Error::Other("a prefill chunk is already in flight".into()));
         }
         let placeholder = self.model.placeholder_state();

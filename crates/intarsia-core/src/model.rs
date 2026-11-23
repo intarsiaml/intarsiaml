@@ -1017,7 +1017,12 @@ impl Model {
                 return st.restorable_len(want);
             }
             // opt-in (`exact`): only where the prompt's own cold prefill leaves its state, written by that schedule's passes (lane hrr)
-            let cuts = crate::scheduler::recurrent_schedule_cuts(plen, self.prefill_chunk_for(plen).max(1), self.tail_merge());
+            // with the long-prompt chunk the prompt may still run the recipe's chunk (a start while others decode): only the
+            // cuts both schedules share
+            let cuts: Vec<usize> = crate::scheduler::recurrent_schedule_cuts(plen, self.prefill_chunk_for(plen).max(1), self.tail_merge())
+                .into_iter()
+                .filter(|c| crate::scheduler::recurrent_schedule_cuts(plen, self.prefill_chunk().max(1), self.tail_merge()).contains(c))
+                .collect();
             return st.recurrent_reuse_len(want, &cuts);
         }
         match over {
@@ -1038,12 +1043,10 @@ impl Model {
             .map(|n| self.model_min_pass_rows(n))
             .filter(|_| over.is_none() && self.prefill_peel == 0);
         if let Some(n) = min_rows {
-            let mut cut = st.wide_reuse_len(want, n);
-            // the remainder runs as the schedule says from the cut: back off until none of its passes is below `n` rows
-            while cut > 0 && crate::scheduler::chunk_schedule_tm(cut, plen, chunk, avoid, self.tail_merge()).iter().any(|&(_, len)| len < n) {
-                cut -= 1;
-            }
-            return cut;
+            // the remainder runs as the schedule says from the cut: back off until none of its passes is below `n` rows. With
+            // the long-prompt chunk the remainder may still run the recipe's chunk (a start while others decode): both
+            let chunks = [chunk, self.prefill_chunk().max(1)];
+            return crate::scheduler::min_rows_back_off(st.wide_reuse_len(want, n), plen, &chunks, n, avoid, self.tail_merge());
         }
         let sched = crate::scheduler::chunk_schedule_tm(0, plen, chunk, avoid, self.tail_merge());
         let points: Vec<usize> = sched.iter().skip(1).map(|&(start, _)| start).collect();
@@ -3822,10 +3825,14 @@ impl Model {
     /// are `1..=peel` runs those rows as their own pass ([`crate::scheduler::peel_tail`]).
     fn forward_chunks<'a>(&self, st: &SequenceState, ids: &'a [u32]) -> Vec<&'a [u32]> {
         let avoid = self.backend.avoid_single_row_prefill() && !st.has_recurrent();
-        // the long-prompt chunk: the chunk the engine cut this call by (`SequenceState::prefill_chunk_rows`), else the chunk of
-        // the prompt this call belongs to (rows before it plus these: a whole-prompt caller); off: the workspace rows
+        // the long-prompt chunk: an engine's call cut by the long chunk (`SequenceState::prefill_chunk_rows` above the recipe's
+        // chunk) runs in passes of it; any other engine call (recipe, store or busy chunk) is cut by the recipe's chunk, as
+        // with the switch off; a whole-prompt caller (no hint) takes the chunk of the prompt (rows before it plus these).
+        // Off: the workspace rows
+        let base = self.prefill_chunk();
         let rows = match self.long_chunk {
-            Some(_) if st.prefill_chunk_rows > 0 => st.prefill_chunk_rows.min(self.ws.max_tokens),
+            Some(_) if st.prefill_chunk_rows > base => st.prefill_chunk_rows.min(self.ws.max_tokens),
+            Some(_) if st.prefill_chunk_rows > 0 => base,
             Some(_) => self.prefill_chunk_for(st.len + ids.len()),
             None => self.ws.max_tokens,
         };

@@ -711,6 +711,16 @@ pub fn chunk_schedule_tm(
     out
 }
 
+/// The longest `cut' <= cut` from which the remainder `cut'..plen` runs no pass below `n` rows under any of the `chunks`
+/// schedules ([`chunk_schedule_tm`]): exact prefix reuse on a backend whose short passes are not row-exact
+/// (`Backend::prefix_reuse_min_pass_rows`) backs off to it.
+pub fn min_rows_back_off(mut cut: usize, plen: usize, chunks: &[usize], n: usize, avoid: bool, tail_merge: usize) -> usize {
+    while cut > 0 && chunks.iter().any(|&c| chunk_schedule_tm(cut, plen, c, avoid, tail_merge).iter().any(|&(_, len)| len < n)) {
+        cut -= 1;
+    }
+    cut
+}
+
 /// Where a cold prefill of a `prompt_len`-token prompt leaves a model with recurrent state (no prefix store): the end of every
 /// pass before the last token, which runs alone (`engine::Seq::prefill_step`, the batched `run_prefill`). Plain `chunk`-row
 /// passes (no 1-row avoidance: the last token is alone anyway), until the tail merge or the remainder fits one pass, which ends
@@ -1384,7 +1394,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             let id = c.id;
             let begun = {
                 let tokens = self.active[i].seq.prompt()[c.pos..c.pos + c.len].to_vec();
-                self.model.set_prefill_chunk_rows(slot, c.chunk);
+                self.model.set_prefill_chunk_rows(slot, self.active[i].seq.own_chunk().unwrap_or(c.chunk));
                 self.model.prefill_begin(slot, &tokens, mode)
             };
             let res = match begun {
@@ -1897,7 +1907,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             let tokens = &self.active[i].seq.prompt()[c.pos..c.pos + c.len];
             let _prof = crate::hostprof::span(crate::hostprof::Cat::Prefill);
             crate::hostprof::prefilled();
-            self.model.set_prefill_chunk_rows(slot, c.chunk);
+            self.model.set_prefill_chunk_rows(slot, self.active[i].seq.own_chunk().unwrap_or(c.chunk));
             self.model.prefill_chunk(slot, tokens, mode)
         };
         self.prefill_finish(i, c, res)
@@ -1911,7 +1921,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let begun = {
             let tokens = self.active[i].seq.prompt()[c.pos..c.pos + c.len].to_vec();
             crate::hostprof::prefilled();
-            self.model.set_prefill_chunk_rows(slot, c.chunk);
+            self.model.set_prefill_chunk_rows(slot, self.active[i].seq.own_chunk().unwrap_or(c.chunk));
             self.model.prefill_begin_paused(slot, &tokens, mode)
         };
         let res = match begun {
@@ -1947,6 +1957,9 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
     /// body is what a packed pass runs for it; the final token of a last chunk runs alone afterwards.
     fn pack_body_rows(&self, i: usize, n_decoding: usize) -> Option<usize> {
         let Phase::Prefilling { pos, chunk } = self.active[i].phase else { return None };
+        // note: a request that has not started takes `solo_chunk` here, not the opt-in long-prompt chunk `prefill_plan` may pick
+        // (`BatchModel::long_prefill_chunk`); unreachable today (`Model::pack_capable` excludes Inkling-2, the only model with
+        // the long chunk), revisit if both ever meet
         let chunk = chunk.unwrap_or(if n_decoding > 0 { self.cfg.busy_chunk } else { self.cfg.solo_chunk });
         let plen = self.active[i].seq.prompt().len();
         if self.active[i].seq.chunk_len(pos, plen - pos).is_some() {
