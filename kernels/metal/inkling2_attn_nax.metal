@@ -193,6 +193,35 @@ template <int NSG, bool PB>
 
     for (uint kt = kt0; kt < kt1; ++kt) {
         const int key0 = (int)(kt * BK);  // source row of the tile
+        // packed, built before QK (its loads, 2 mma and stores overlap the QK mma): the tile's distances dist = row - key
+        // run from dlo = (first row of the slab) - (last key of the tile) over 47 values; column c of B is distance dlo + c, and element (row i, key 16f + 4cq + k) reads c = i - 16f - 4cq - k + 31
+        const int dlo = (int)(pos0 + qbase) - (int)(kbase + (uint)key0 + 31);
+        const bool pbias = packed && dlo < (int)E;
+        if (pbias) {
+            simdgroup_barrier(mem_flags::mem_threadgroup);  // the previous tile's reads of bs are done
+            ifrag_t<float> B[4];
+            IN_UNROLL
+            for (int j = 0; j < 4; ++j) B[j] = ifrag_t<float>(0.0f);
+            IN_UNROLL
+            for (int h2 = 0; h2 < 2; ++h2) {
+                const int ca = 32 * h2 + (int)fm, cb2 = ca + 16;
+                const int da = dlo + ca, db = dlo + ca + 8, dc = dlo + cb2, dd = dlo + cb2 + 8;
+                const ifrag_t<bfloat> b0 = inx_ld(rpt + (ulong)max(da, 0) * 16 + 4 * cq, da >= 0 && da < (int)E,
+                                                  rpt + (ulong)max(db, 0) * 16 + 4 * cq, db >= 0 && db < (int)E);
+                const ifrag_t<bfloat> b1 = inx_ld(rpt + (ulong)max(dc, 0) * 16 + 4 * cq, dc >= 0 && dc < (int)E,
+                                                  rpt + (ulong)max(dd, 0) * 16 + 4 * cq, dd >= 0 && dd < (int)E);
+                inx_mma<true>(B[2 * h2], B[2 * h2 + 1], Rf, b0, b1);
+            }
+            IN_UNROLL
+            for (int f = 0; f < 4; ++f) {
+                IN_UNROLL
+                for (int e = 0; e < 8; ++e) {
+                    const uint col = 16 * f + 4 * cq + (e & 3), rr = fm + ((e & 4) != 0 ? 8u : 0u);
+                    if (col < 48) bs[rr * 48 + col] = as_type<ushort>(bfloat(B[f][e]));
+                }
+            }
+            simdgroup_barrier(mem_flags::mem_threadgroup);
+        }
         ifrag_t<float> Sf[TK];
         IN_UNROLL
         for (int j = 0; j < TK; ++j) Sf[j] = ifrag_t<float>(0.0f);
@@ -222,35 +251,6 @@ template <int NSG, bool PB>
             }
         }
 
-        // packed: the tile's distances dist = row - key run from dlo = (first row of the slab) - (last key of the tile)
-        // over 47 values; column c of B is distance dlo + c, and element (row i, key 16f + 4cq + k) reads c = i - 16f - 4cq - k + 31
-        const int dlo = (int)(pos0 + qbase) - (int)(kbase + (uint)key0 + 31);
-        const bool pbias = packed && dlo < (int)E;
-        if (pbias) {
-            simdgroup_barrier(mem_flags::mem_threadgroup);  // the previous tile's reads of bs are done
-            ifrag_t<float> B[4];
-            IN_UNROLL
-            for (int j = 0; j < 4; ++j) B[j] = ifrag_t<float>(0.0f);
-            IN_UNROLL
-            for (int h2 = 0; h2 < 2; ++h2) {
-                const int ca = 32 * h2 + (int)fm, cb2 = ca + 16;
-                const int da = dlo + ca, db = dlo + ca + 8, dc = dlo + cb2, dd = dlo + cb2 + 8;
-                const ifrag_t<bfloat> b0 = inx_ld(rpt + (ulong)max(da, 0) * 16 + 4 * cq, da >= 0 && da < (int)E,
-                                                  rpt + (ulong)max(db, 0) * 16 + 4 * cq, db >= 0 && db < (int)E);
-                const ifrag_t<bfloat> b1 = inx_ld(rpt + (ulong)max(dc, 0) * 16 + 4 * cq, dc >= 0 && dc < (int)E,
-                                                  rpt + (ulong)max(dd, 0) * 16 + 4 * cq, dd >= 0 && dd < (int)E);
-                inx_mma<true>(B[2 * h2], B[2 * h2 + 1], Rf, b0, b1);
-            }
-            IN_UNROLL
-            for (int f = 0; f < 4; ++f) {
-                IN_UNROLL
-                for (int e = 0; e < 8; ++e) {
-                    const uint col = 16 * f + 4 * cq + (e & 3), rr = fm + ((e & 4) != 0 ? 8u : 0u);
-                    if (col < 48) bs[rr * 48 + col] = as_type<ushort>(bfloat(B[f][e]));
-                }
-            }
-            simdgroup_barrier(mem_flags::mem_threadgroup);
-        }
         float mx0 = -INFINITY, mx1 = -INFINITY;
         IN_UNROLL
         for (int f = 0; f < TK; ++f) {
