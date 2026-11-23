@@ -304,6 +304,12 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     send branch, head, gates. **Book the clean 03:00 window Tue 11-24** for the confirmation run (same script, >= 7 kept pairs
     at 8k and 16k, after a box check). ConvMix v2 stopped: push it as `archive/ink-pf-convmix-v2` (--no-verify OK), keep the
     occupancy / spill hypothesis in this doc.
+32. 2026-11-23 (coordinator, via SendMessage): **lower the long-chunk threshold to 4097** (rule: 4096-row passes once the
+    prompt needs more than one 4096 pass, so p8k 8034 is covered; still opt-in). Change `INK_LONG_CHUNK_MIN_PROMPT`
+    (recipe.rs:475) + tuning.md row text; re-run the full gate in ONE endor slot (backfill before #11812 at 09:00); push
+    from inside the slot (or --no-verify after the docs tests passed there); send head + gate results, coordinator opens
+    the PR. Add a ~6000-token prompt arm to the Tue 03:00 confirmation run (#11834) if it still fits with >= 7 kept pairs
+    at 8k and 16k; else keep 8k / 16k only and say so. If 6k shows no gain, the threshold is raised before any default flip.
 
 ## Status
 
