@@ -343,6 +343,14 @@ merged 26d1ad1a…, main 2324bd77…): all pass; MG4 after a script fix, evaluat
   (2); on Metal inkling2_dspark (4), inkling2_dspark_cut (1), inkling2_verify_softcap (1), inkling2_chat_reuse (6), inkling2 (17),
   inkling2_batch (8).
 
+**Coordinator on #496 (2026-11-22 ~21:50): gates accepted; HOLD on publishing.**
+1. Rerun MG4 clean with the fixed check (fleetq, endor, `--quiet gpu,cpu`, `--expect 30`, behind #11739); record it here.
+2. Main moved to dabd0d448 (#502: tests and docs only). After #11621 passes: merge origin/main in, rerun md5 64 / 256 and the Metal
+   test set of MG6 on the merged tree before any push.
+3. **HOLD: no push, no PR, no merge until the coordinator relays the user's own go.** The repo is public; pushing to it is
+   publishing. This replaces step 4 of the brief above (fast-forward and push after #11621). If #11621 fails the bar: stop and
+   report.
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
