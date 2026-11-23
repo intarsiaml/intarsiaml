@@ -316,6 +316,18 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     one ~9k greedy request, ids identical to main's serve. Optional: Metal serve smoke switch ON (one 6k greedy request, pass
     list [4096, 1902], ids == switch off) if it fits an endor backfill before 09:00 or after 14:25; else skip and note it as
     required before any flip. Main and branch in separate target dirs; check the two binaries differ. Push nothing; report.
+34. 2026-11-23 (coordinator, via SendMessage): Fable review of PR #508 (18d9d8853, code reading). Switch off clean (new
+    stderr line OK). Fix on ink/long-chunk before merge: (1) MEDIUM: the scheduler passes c.chunk (busy_chunk, 256) as the
+    hint, so with switch on + --max-batch > 1 + --prefix-store + a busy start, the 2048-row store chunk is cut into 8 x 256
+    (main: 1 x 2048). Fix: forward_chunks uses the hint only when it is LARGER than the base chunk; else exactly main; maybe
+    pass own_chunk().unwrap_or(c.chunk). (2) LOW: reuse_len_policy (model.rs:1020/1032) assumes the 4096 schedule even when a
+    busy start runs busy_chunk passes (2053-row remainder: 5-row pass the 17-row back-off misses); use the schedule that runs
+    or the conservative one whenever the long chunk might not apply. (3) NIT: clear the hint on the "already in flight" error
+    of prefill_begin / prefill_begin_paused. (4) NIT: comment that pack_body_rows (scheduler.rs:1950) assumes solo_chunk.
+    Tests: scheduler test switch on + store + busy start (pass list == switch off); the 2053-remainder back-off case. Re-gate
+    the new head: core lib, Metal tests, switch-off md5 / plan show, switch-on pass lists; point the serve smoke and CUDA no-op
+    at the new head (both were still queued: cancelled #11846 / #11847). Push inside a slot (or --no-verify after
+    docs_env_vars + recipes_doc passed there); report head and results.
 
 ## Status
 
