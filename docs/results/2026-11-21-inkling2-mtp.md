@@ -259,6 +259,22 @@ spec off and batch.
 4. localeval `suite --cells conc-plain-1k --max-num-seqs 4` (4 closed-loop streams): the flip's aggregate tok/s is within noise of
    main's (`localeval compare`: under 10%, both reps of each arm shown).
 
+**Conc check result: PASS (#11695, endor quiet, 19:15-20:34, A B B A).**
+1. All four servers printed `continuous batching: up to 16`, and none printed the DSpark default line.
+2. The spec steps counter was 0 after every arm.
+3. The 4 concurrent greedy completions on the flip equal main's: [True, True, True, True].
+4. localeval `conc-plain-1k`, aggregate tok/s, median per run, arms in run order (main, flip, flip, main):
+
+| streams | main (A1, A2) | flip (B1, B2) | flip vs main (medians of both reps) |
+|---:|---|---|---:|
+| 1 | 55.0, 50.8 | 55.0, 55.0 | +4% (one 50.8 rep on main; ITL steps, noise) |
+| 4 | 84.6, 84.6 | 84.6, 84.6 | 0% |
+| 16 | 121.5, 118.4 | 121.9, 122.7 | +2% |
+
+TTFT p99 at 16 streams: main 11.12 / 11.54 s, flip 11.11 / 11.35 s. Runs: `20261122-191557-…-conc4-main`, `20261122-193455-…-conc4-flip`,
+`20261122-195626-…-conc4-flip`, `20261122-201518-…-conc4-main` (localeval results dir). Under `--max-batch 16` the flip
+behaves as main: spec off, the batching engine unchanged.
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
