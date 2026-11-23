@@ -8,6 +8,9 @@
 //!   and a watchdog fails the test instead of hanging the suite). `INK_CTRL_STRESS=<n>` sets the call count (default 2000;
 //!   the lane's gate runs 12000).
 //!
+//! - the rank routing's float4 compares (`INTARSIA_INK_ROUTE_RANK4`, forced on and off here) are bitwise the scalar loop,
+//!   including tied logits (duplicated router rows, zero bias: the tie order is the expert index).
+//!
 //! Numerics against the f64 reference are `intarsia kernels test --backend metal --op ink_route` (the admission sweep).
 
 use intarsia_backend_metal::bench::{f32_to_bf16, Rng};
@@ -19,6 +22,7 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 const FUSED: &str = intarsia_backend_metal::inkctrl::INK_ROUTE_BF16;
+use intarsia_backend_metal::inkctrl::ROUTE_RANK4;
 
 fn be() -> Option<MetalBackend> {
     let b = MetalBackend::new().expect("Metal backend");
@@ -146,34 +150,71 @@ fn pair(be: &MetalBackend, c: &Case) -> [Vec<u8>; 3] {
 #[test]
 fn ink_route_is_the_metal_pair_bitwise_and_rows_exact() {
     let Some(be) = be() else { return };
-    let mut rng = Rng(0x5eed_76);
     let mut n = 0;
-    for sh in shapes() {
-        for t in [1usize, 2, 3, 4, 7, 16, 40] {
-            let c = case(&be, sh, t, &mut rng);
-            let want = pair(&be, &c);
-            for logits in [true, false] {
-                let got = fused(&be, &c, 0, t, logits, true).unwrap();
-                let what = format!("{sh:?} T={t} logits={logits}");
-                assert_eq!(down(&be, &got[0]), want[0], "{what}: weights");
-                assert_eq!(down(&be, &got[1]), want[1], "{what}: ids");
-                if logits {
-                    assert_eq!(down(&be, &got[2]), want[2], "{what}: logits");
+    for rank4 in [false, true] {
+        ROUTE_RANK4.set(Some(rank4));
+        let mut rng = Rng(0x5eed_76);
+        for sh in shapes() {
+            for t in [1usize, 2, 3, 4, 7, 16, 40] {
+                let c = case(&be, sh, t, &mut rng);
+                let want = pair(&be, &c);
+                for logits in [true, false] {
+                    let got = fused(&be, &c, 0, t, logits, true).unwrap();
+                    let what = format!("{sh:?} T={t} logits={logits}");
+                    assert_eq!(down(&be, &got[0]), want[0], "{what}: weights");
+                    assert_eq!(down(&be, &got[1]), want[1], "{what}: ids");
+                    if logits {
+                        assert_eq!(down(&be, &got[2]), want[2], "{what}: logits");
+                    }
                 }
+                // rows-exact: row r of the T-row call == the 1-row call on row r
+                let all = fused(&be, &c, 0, t, true, true).unwrap();
+                let (wa, ia) = (down(&be, &all[0]), down(&be, &all[1]));
+                for r in 0..t {
+                    let one = fused(&be, &c, r, 1, true, true).unwrap();
+                    let kb = c.k * 4;
+                    assert_eq!(down(&be, &one[0]), wa[r * kb..(r + 1) * kb], "{sh:?} T={t} row {r}: weights");
+                    assert_eq!(down(&be, &one[1]), ia[r * kb..(r + 1) * kb], "{sh:?} T={t} row {r}: ids");
+                }
+                n += 1;
             }
-            // rows-exact: row r of the T-row call == the 1-row call on row r
-            let all = fused(&be, &c, 0, t, true, true).unwrap();
-            let (wa, ia) = (down(&be, &all[0]), down(&be, &all[1]));
-            for r in 0..t {
-                let one = fused(&be, &c, r, 1, true, true).unwrap();
-                let kb = c.k * 4;
-                assert_eq!(down(&be, &one[0]), wa[r * kb..(r + 1) * kb], "{sh:?} T={t} row {r}: weights");
-                assert_eq!(down(&be, &one[1]), ia[r * kb..(r + 1) * kb], "{sh:?} T={t} row {r}: ids");
-            }
-            n += 1;
         }
     }
-    eprintln!("{n} cases bitwise the pair and rows-exact");
+    ROUTE_RANK4.set(None);
+    eprintln!("{n} cases bitwise the pair and rows-exact (rank4 off and on)");
+}
+
+/// Tied logits: router rows duplicated in groups of 4 (so 4 experts share each logit) and a zero bias. The rank routing
+/// breaks a tie by expert index; its float4 compares must pick exactly what the scalar loop and the pair pick.
+#[test]
+fn ink_route_rank4_ties_bitwise() {
+    let Some(be) = be() else { return };
+    let mut rng = Rng(0x7135);
+    let (d, e, k) = (2304usize, 128usize, 8usize);
+    for t in [1usize, 3, 16] {
+        let row = bf16_bytes((e / 4) * d, (d as f32).powf(-0.5), &mut rng);
+        let mut wb = Vec::with_capacity(e * d * 2);
+        for g in 0..e / 4 {
+            for _ in 0..4 {
+                wb.extend_from_slice(&row[g * d * 2..(g + 1) * d * 2]);
+            }
+        }
+        let x = dev(&be, DType::Bf16, &[t, d], &bf16_bytes(t * d, 1.0, &mut rng), 0);
+        let w = dev(&be, DType::Bf16, &[e, d], &wb, 0);
+        let bias = dev(&be, DType::F32, &[e], &vec![0u8; e * 4], 0);
+        let mut attrs = OpAttrs { top_k: k, scale: 8.0, norm_topk: true, temperature: 1.0, ..OpAttrs::default() };
+        attrs.dsv.score_func = ScoreFunc::Sigmoid;
+        let c = Case { x, w, bias, attrs, t, e, k };
+        let want = pair(&be, &c);
+        for rank4 in [false, true] {
+            ROUTE_RANK4.set(Some(rank4));
+            let got = fused(&be, &c, 0, t, true, true).unwrap();
+            assert_eq!(down(&be, &got[0]), want[0], "ties T={t} rank4={rank4}: weights");
+            assert_eq!(down(&be, &got[1]), want[1], "ties T={t} rank4={rank4}: ids");
+            assert_eq!(down(&be, &got[2]), want[2], "ties T={t} rank4={rank4}: logits");
+        }
+    }
+    ROUTE_RANK4.set(None);
 }
 
 /// Many fused calls back to back in one stream (no wait between them), every shape and row count, then each result checked
