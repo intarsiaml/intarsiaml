@@ -1631,3 +1631,105 @@ Gate (fleetq #11810, spark1, 8f332fba1):
 - Op 75 admission: quick, `ink_attn_decode_bf16` 16 cases and `ink_attn_decode_prefill_bf16` 1 case; full, 70 and 12
   cases. All ADMITTED.
 - md5 64 / 256 / 1.2k: faf40cecb06b / 029e44fede1d / dc28658094c0, spec off and default, main's references.
+
+## The screened greedy head on CUDA (brief 54 part 2, branch `ink/cuda-p12dec` off main 352acba93)
+
+Sizing and choice: brief 54 part 1 (on `ink/cuda-attn`). The unembed P12 GEMV already runs at the streaming peak, so the
+lever moves fewer bytes. An fp8 screen copy of 0.46 GB replaces reading the 0.69 GB P12 head, and only candidate rows get
+rescored.
+
+**Commits.**
+- `73e0c8afb`: the kernels, opt-in.
+- `7bdb0e71f`: a test fix.
+- `24c3ed1a5`: the tuning row.
+- `ce492db75`: the **CUDA default on**, a separate commit with a LOG row whose go is PENDING. `INTARSIA_INK_HEAD_SCREEN=0`
+  reverts.
+
+**What was built.**
+- `kernels/cuda/ink_screen.cu`: `head_screen_f32` and `screen_argmax_f32`, the contract's exact f32 operations, bitwise the
+  cpu reference. One 1024-thread block per row.
+- `logits_gather_p12`: the serving P12 head kernel instance `p12_gemv_kernel<1, float>` in an index mode. The pointer is
+  null in every serving call, and the gather launches on the head's grid, so a gathered logit is the head's.
+- `crates/intarsia-backend-cuda/src/inkscreen.rs`: registration and dispatch.
+- Changes in `model.rs::screened_argmax`:
+  - The CUDA head names are accepted.
+  - On CUDA the screen GEMV must be `matmul_fp8_gemv[_rows]` and runs with `exact_rows`.
+  - The first-use probe is skipped inside a graph capture, because CUDA's decode graph records the first head.
+- `INTARSIA_INK_HEAD_SCREEN_STATS=1` counts fallbacks on the device, graph replays included.
+
+**Gate 1, the bound under CUDA's arithmetic.** The bound needs the screen values to come from a tree of correctly rounded
+f32 adds and fmas over exact products, of depth at most D + 1, plus one scale multiply. CUDA's CUDA-core fp8 GEMV is exactly
+that, so the bound was not widened:
+- e4m3 decodes exactly (e4m3 to half to f32);
+- in W8A16 the bf16 activations are staged unchanged, so each e4m3 × bf16 product is exact in f32;
+- each lane runs 16-term fmaf chains, `acc += s`, then a 5-level warp tree: depth 16 + K/512 + 5;
+- no fast math.
+
+The tensor-core forms are refused, because their accumulation is not correctly rounded. The argument is written in the
+header of `ink_screen.cu`.
+
+**Gate 2, near ties** (`tests/inkling2_screen.rs`; both tests pass, #11827):
+- 40 near-tied top rows (exact copies and one-ulp variants) against a cap of 8: the count exceeds the cap, the fallback
+  gather writes all 4096 logits bitwise the serving head's, and the token is the full head's argmax.
+- +inf bounds give a non-finite row and the full head's token.
+- 3 near-tied rows within the cap take the candidate path. Every gathered slot is bitwise the head's logit for that row,
+  every maximiser is a candidate, and the token matches.
+- HeadScreen is bitwise `screen_row` in every case.
+
+**Gate 3, fallbacks and cost on real prompts** (#11825, #11827):
+
+| run | screened rows | fallbacks | mean candidates (path) | max |
+|---|---:|---:|---:|---:|
+| 5k prompt, 256 tokens | 256 | 0 | 2.02 | 33 |
+| hash map, 2048 tokens | 2048 | 5 | 1.26 | 1398 |
+| 1.2k prompt, 2048 tokens | 2048 | 0 | 1.18 | 32 |
+| story, 2048 tokens | 2048 | 4 | 1.55 | 881 |
+
+Screen cost per token from nsys (graphed, spec off; the same at short and 5k):
+
+| kernel | µs / token |
+|---|---:|
+| fp8 GEMV (`fp8_gemv_rows_full_kernel`) | 1951 |
+| `head_screen_kernel` (single block) | 166 |
+| gather | 31.5 |
+| ScreenArgmax | ~2 |
+| **total** | **~2150** |
+
+Against 2965 µs for the full head, about 0.8 ms per token is saved. A fallback step costs one full head on top (about 3 ms);
+at 9 in 6144 steps that averages about 4 µs a token. nsys wall per token: 25.23 ms (screen off, #11823) against 24.54 ms
+(screen on) at short.
+
+**Gate 4, token identity.**
+- md5 64 / 256 / 1.2k = faf40cecb06b / 029e44fede1d / dc28658094c0 (main's). That holds with the screen off, on, and on with
+  cap 1 (which forces fallbacks), spec off and default.
+- 3 × 2048-token greedy runs, screen on against off: identical ids (919ca9aaabc7, f0404a7b8833, 9b06e86d3aad).
+
+**Gate 5, full head elsewhere.** The tiny `inkling2_tiny_screened_head_one_row_only` test now runs on CUDA and passes. It
+checks:
+- screen on equals off;
+- forced fallbacks are counted;
+- a 5-row verify does not call the screen;
+- `LastLogits` (sampled) steps do not call the screen (assertion added).
+
+`inkling2_tiny_screen_keeps_batching` also runs on CUDA and passes.
+
+**Gate 6, tests.**
+- All intarsia-backend-cuda tests: 199 passed. The one failure was my test's wrong assumption that the maximum is row 1000
+  (a one-ulp-up row can win), fixed in `7bdb0e71f` and passing.
+- The 3 ops are ADMITTED: head_screen 18 cases, logits_gather 6, screen_argmax 18.
+- Tiny inkling2 on CUDA 17/17, batch 8/8, p12 5/5 (the head kernel's signature changed, its bits did not).
+- Core screen tests 6/6 and `docs_env_vars` 2/2 (local).
+
+**Speed, quiet A/B** (#11827, 3 reps, order alternated; decode tok/s, mean (min-max)):
+
+| length | spec | screen off | screen on | change |
+|---|---|---:|---:|---:|
+| short (15 + 256) | off | 40.12 (40.06-40.16) | 41.42 (41.31-41.50) | **+3.23 %** |
+| 5k (5039 + 128) | off | 38.33 (38.30-38.37) | 39.38 (38.81-39.69) | **+2.74 %** |
+| short | default | 49.44 | 50.11 | +1.36 % |
+| 5k | default | 50.86 | 51.23 | +0.73 % |
+
+The ship bar (+1 % spec off, no regression) is met. Spec default gains less because verify steps keep the full head.
+
+**Next:** HeadScreen in one block costs 166 µs a token. A multi-block form (per-block max and count, then an ordered write)
+would take about 15 µs: about -0.15 ms a token (+0.6 %), bitwise.
