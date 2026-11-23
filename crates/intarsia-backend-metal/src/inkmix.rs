@@ -1008,6 +1008,14 @@ impl MetalBackend {
         let v2 = (op == Op::ConvMix && rt.is_none() && ne == 3 && nrows >= crate::inkctrl::CONVMIX_V2_MIN_ROWS && crate::inkctrl::CONVMIX_V2.on())
             .then(|| (crate::inkctrl::convmix_v2_r(), rows_v2_shader(crate::inkctrl::convmix_v2_r(), ns_i, qb)))
             .filter(|(_, n)| self.pso(n).is_some_and(|ps| ps.maxTotalThreadsPerThreadgroup() >= tpg));
+        if op == Op::ConvMix && rt.is_none() && nrows >= crate::inkctrl::CONVMIX_V2_MIN_ROWS {
+            // the arm a run measured, once per process (lane ink-prefill: A/B scripts log the switch an arm depends on)
+            static SAID: std::sync::Once = std::sync::Once::new();
+            SAID.call_once(|| match v2 {
+                Some((r, n2)) => eprintln!("INTARSIA_INK_CONVMIX_V2: on, R {r} ({n2} for prefill ConvMix)"),
+                None => eprintln!("INTARSIA_INK_CONVMIX_V2: off (row kernels for prefill ConvMix)"),
+            });
+        }
         if let Some((r, n2)) = v2 {
             self.dispatch(n2, &binds, &p, crate::dense::Grid::Groups { x: nrows.div_ceil(r), y: 1, threads: tpg })?;
         } else if rt.is_some() {
