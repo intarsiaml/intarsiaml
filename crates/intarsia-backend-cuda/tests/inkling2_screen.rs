@@ -143,7 +143,9 @@ fn screened_head_near_ties_fall_back_and_match_the_full_head() {
         assert_eq!(r.y[n].to_bits(), r.head[n].to_bits(), "fallback gather row {n} vs the serving head");
     }
     assert_eq!(r.tok, argmax(&r.head), "fallback token vs the full head's argmax");
-    assert_eq!(r.tok, 1000, "exact ties: the lowest index of the maximum");
+    // the maximum is one of the planted rows (the copies or the one-ulp-up rows); among exact ties argmax keeps the lowest
+    assert!((1000..1040).contains(&r.tok), "the token is a planted top row (got {})", r.tok);
+    assert!(r.head[..r.tok as usize].iter().all(|&x| x < r.head[r.tok as usize]), "no lower index reaches the maximum");
     // the forced fallback (+inf bounds): non-finite row, every logit, the full head's token
     let r = run(&*be, v, d, 1000, 40, 8, true);
     assert_eq!(r.cnt, i32::MAX, "+inf bounds mark the row non-finite");
