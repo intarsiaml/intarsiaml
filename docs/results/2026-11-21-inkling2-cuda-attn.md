@@ -238,6 +238,32 @@
     #11517's quiet timing slot was active.)
 34. 2026-11-22 (coordinator, rule): `git push` from endor runs the pre-push hook's two `cargo test`s, so every push is a
     cargo run: push only inside a fleetq slot, e.g. `fleetq run --host endor --load cpu --expect 10 -- git push ...`.
+38. 2026-11-22 (coordinator, check A): run `cargo test --features cuda -p intarsia-models --test inkling2_batch` on spark1
+    via fleetq on main 576ead89b. If it fails, run it on 0c8f2c037 (pre-#498) too, fresh target dir per tree, confirm the
+    binaries differ. Main fails + 0c8f2c037 passes: #498 caused it; find the cause, propose a fix PR (or revert of the
+    offending default), no merge. Both fail: pre-existing; record it and say what the test checks. Report at once.
+39. 2026-11-22 (coordinator, brief 46, resent): go on the ranking. This lane now owns the CUDA mix/conv row kernels and the
+    loop-controller/blend kernels; mixmoe (a4fb180) keeps only expert kernels + repack. Order: (1) levers #1+#2, split the
+    single-block mix/conv row kernels across blocks, decode and prefill, each row keeping its reduction order; (2) lever #3,
+    P12 in_proj GEMV toward its byte floor; (3) lever #7, unembed P12 GEMV (0.5 day) wherever it fits; (4) lever #4, loop
+    controller / blend fusion after 1-3. Hold #5 and #6 (not bitwise); #8 measure-only if a Spark slot is idle. Per lever:
+    gates = CUDA md5 64/256/1.2k equal faf40cecb06b / 029e44fede1d / dc28658094c0, spec on == off, tiny CUDA tests incl.
+    inkling2_batch. Ship bar >= 2 % decode tok/s at g256 spec off, spec on not slower; for #2 >= 2 % prefill at 8k.
+    Opt-out env + tuning row, one PR per lever (#1+#2 may share); ask before merge. Spark slots via fleetq. Worktree
+    .worktrees/ink-cuda-attn/. Stop and report if a lever cannot be bitwise; no third variant. #499 is the chat-reuse
+    lane's, not this lane's.
+40. 2026-11-22 (coordinator): test-fix PR yes. Contents: p12_selection fix (fde495485), the ragged / ConvMix ink_rows cases
+    and the results-doc lines, from main 576ead89b. Rerun p12 + ink_rows on the final tree, unset and GEMV=0, push in a
+    fleetq slot, open the PR. Merge on green CI once #499 is on main (coordinator's word or `gh pr view 499`); test + docs
+    only, so no other approval needed; send the merge commit. Do not touch RmProfilingAdminOnly (a system setting).
+41. 2026-11-22 (coordinator, brief 48): lever #5, prefill flash-attention retile (~0.3 s per 8k, ~9 %). Build it OPT-IN
+    (env var, default off), since it changes output. Gates: KL against the bf16 / golden reference at short, 4k and 8k under
+    the existing quality rule (only KL increases count, against the 5 % limit), plus greedy agreement at 1.2k. Speed: quiet
+    prefill A/B at 4k and 8k, >= 2 % to count. Report the numbers; flipping the default is the user's call. Then lever #6
+    (SWA attention more blocks, ~2 % decode) on the same terms. Same worktree. If the retile cannot beat 2 % within two
+    variants, stop and report.
+42. 2026-11-22 (coordinator): #499 is on main as 08ae803e0. The p12 test-fix PR merges on green CI; merge main in first if
+    GitHub shows it behind or conflicting. Send the merge commit. Brief 48 continues.
 
 ## Summary
 
@@ -1309,3 +1335,181 @@ Gates on the merged tree:
 - endor #11652: cpu tests pass: models lib 80, inkling2 17, softcap, inkling2_batch 8, ink_attn_decode, core lib 264. docs_env_vars
   passes after c371d8242.
 - At 64 output tokens the spec default decodes 4 % slower (37.8 vs 39.4 tok/s, acceptance 44 %). From 256 tokens up it is faster.
+- Post-#497 merge (51503dd85, main 0c8f2c037), spark1 #11683:
+  - CUDA md5, default: faf40cecb06b / 029e44fede1d / dc28658094c0. `GEMV=0`: ec9a19c14b2d / a0e6f47bc45f / 32ec7a414c3a.
+    Spec on == off in both.
+  - Tiny CUDA 17/17 with PACK12 on and off. `inkling2_verify_softcap` passes in 4 arms.
+  - The push (#11684) waits in the endor queue behind the quiet mlx-serve bench #11677. The coordinator said to keep it there.
+- **#498 merged** on 2026-11-22 as main 576ead89b (head 51503dd85, all CI green). The landing worktree is removed.
+
+## Cleanup and next levers (brief 38, 2026-11-22)
+
+Cleanup:
+- Removed: the landing worktree, the remote `ink/cuda-mtp-land` branch, spark1 `~/intarsiaml-ink-cuda-mtp`, and everything
+  under spark1 `~/intarsiaml-ink-cuda-attn` except the model.
+- Kept: spark1 `~/intarsiaml-ink-cuda-attn/model` (19 GB; the ink-cuda-graph and ink-cuda-p12 gate scripts point at it).
+- Kept: worktrees `.worktrees/ink-cuda-attn`, branch `ink/cuda-attn`. Its results-doc lines after 51503dd85 are not on main.
+- Kept: worktree `.worktrees/ink-cuda-mtp`, branch merged; its untracked `.scratch` holds the gate, bench and profile scripts.
+
+Next CUDA levers, MoE experts excluded. The estimates come from the nsys tables above (decode at 1.2k-7.9k ctx, prefill per
+8k), not from new runs.
+(Correction after brief 46: the #1 and #4 estimates came from profiles taken before `INTARSIA_INK_ROW_HOIST` and the
+controller split-K were on by default. On main the row kernel is 1.25 ms a token and the blend class 1.27 ms, per #11719.)
+
+| rank | lever | saves | bitwise | days |
+|---|---|---|---|---|
+| 1 | Decode: split the `ink_row` mix / conv kernels across blocks. Today 124 single-block launches per token at 17 us. Keep each row's reduction order | ~1.5-2.0 ms / token (~6 %) | yes, if reductions are kept per row | 1-2 |
+| 2 | Prefill: the same row kernels at 2048 rows (460 calls at 180 us per chunk) | ~0.45 s per 8k (~15 %) | yes, as 1 | shared with 1 |
+| 3 | Decode: P12 in_proj GEMV to its byte floor. 141-150 us per visit vs ~110 us for 30 MB | ~1.5 ms / token (~5 %) | yes (P12 twin) | 1-2 |
+| 4 | Decode: fuse the loop controllers / blend (`ink_mma_gemv` on 1-3 blocks, blend_gate, blend_norm; 2x24 each) | ~1.0-1.2 ms / token | yes, if dot order is kept | 1-2 |
+| 5 | Prefill: flash retile (lever 2b). Flash runs at about 5 % of the GEMM rate; attention is ~100 ms per chunk after op 75 vs a floor of ~25 | ~0.3 s per 8k (~10 %) | no | 2-3 |
+| 6 | Decode: occupancy of the SWA attention tile kernel (48 blocks at 113 GB/s, ~1.2 ms / token) | ~0.5 ms / token | no, if the split changes | 1 |
+| 7 | Decode: unembed P12 GEMV, 2.93 ms vs a 2.53 ms floor | ~0.4 ms / token | yes | 0.5 |
+| 8 | Prefill: identify cuBLAS `Kernel2` (192 calls at 420 us, 3 TF/s per chunk) | up to ~80 ms per 8k | depends | 0.5 to measure |
+
+## inkling2_batch on main (brief 38 check A, fleetq #11705)
+
+Main 576ead89b built in its own src and target dir on spark1; test binary md5 c2318879f0ed. Result: no failure on main, so
+no fix or revert.
+- **The literal command** (`--features cuda`) does not start: `intarsia-models` has no `cuda` feature.
+- **Default backend (CPU), CI=1:** 8/8 pass in 12 s.
+- **INTARSIA_INKLING2_BACKEND=cuda:** every test panics at `inkling2_batch.rs:44`, by design. The test refuses CUDA because
+  CUDA has no Inkling-2 row-table kernels and refuses batching. The CUDA arm was removed in 8f5c9a31c, which landed with #498.
+- **The landing-gate panics** (`:80` / `:104`) came from the gate running this test with BACKEND=cuda on the landing tree
+  before 8f5c9a31c. CUDA refused that arm's `enable_batch` / `forward`.
+- **0c8f2c037 was not run;** the brief asked for it only if main failed.
+- **What the test checks:** on the tiny fixture, every row of a batched `forward_batch` step is bitwise the solo step of its
+  sequence (logits, softcapped sampler rows, tokens). Cases: 2, 5 and 16 sequences around the SWA window, the rel extent and
+  the attn-res blocks; membership changes; per-sequence rollback; failed-pass reset; the P12 plan; batched engine == solo.
+- **Lever gates** run it on its own backend.
+
+## Levers 1 + 2 (brief 46): row kernel split and prefetch, stopped
+
+Both approaches are bitwise, but neither reaches the ship bar, so neither ships and there is no third variant. The branch
+keeps only a 20-row ConvMix / SconvRes case in `ink_rows`, which exercises the deferred ring write at the real ring.
+
+**Approach 1, split** (commits 39def9d19, a384f3dc3; removed in a18d25935).
+- How it works: 2-8 blocks per row as a thread-block cluster. Each thread keeps the elements of the one-block layout, and the
+  warp partials are summed in warp order through distributed shared memory.
+- Bitwise: `ink_rows` passes at splits 2-8, decode and prefill, against one-block rows (fleetq #11709 / #11713).
+- Speed (`ink_bench mix`, #11709, us per call): flat to slower in decode, and slower at 2048 rows by +2 % (split 2) to
+  +340 % (split 8).
+- Why: each thread's dependent chain (loads, butterflies, block sums, the second reduction) is unchanged. The one-block
+  kernel is latency-bound per thread, not short of SMs.
+- Registers are not the cause: ptxas shows the production instance (NE 3, one block) at 63 registers with no spills.
+
+**Approach 2, L2 prefetch of all input rows at block start** (a384f3dc3, a18d25935; reverted).
+- Bitwise: `ink_rows` 8/8, with the 20 / 300-row calls (prefetch) against the 1-row calls (none).
+- md5: 64 / 256 / 1.2k = faf40cecb06b / 029e44fede1d / dc28658094c0, spec off and default (#11714).
+- `ink_bench mix` (#11713), prefetch on vs off:
+
+| call | rows | off us | on us |
+|---|---:|---:|---:|
+| conv_mix N7 Q3 norm | 2048 | 997-1196 | 774 |
+| conv_mix N4 Q1 norm | 2048 | 547 | 450-461 |
+| attn_res_mix N4 Q1 | 2048 | 373-519 | 297 |
+| sconv_res | 2048 | 234 | 212 |
+| blend calls (S 1 / 3) | 2048 | flat | flat |
+| conv_mix N4 Q1 norm | 1 / 16 | 10.2 | 12.3 |
+| conv_mix N7 Q3 norm | 1 / 16 | 16.4 | 18.5 |
+
+- Model, 8139-token prompt, spec off, 3 alternating pairs (#11714):
+
+| pair | default (prefetch above 16 rows) ms | `INTARSIA_INK_ROW_PREFETCH=0` ms |
+|---|---:|---:|
+| 1 | 3178 | 3180 |
+| 2 | 3163 | 3180 |
+| 3 | 3159 | 3171 |
+
+- Result: +0.4 % at 8k, under the 2 % bar. The faster mix calls are a small part of the chunk, and the blend calls dominate the
+  row kernel time there and do not move. Decode would lose about 2 us a call.
+
+**Gates on the prefetch tree** (#11714):
+- md5 as above.
+- `inkling2_batch` 8/8 on its own backend.
+- Tiny CUDA `inkling2`: 15 pass and 2 skip by design ("no screened-head kernels on CUDA"). They show as failures only because
+  the gate sets CI=1; the earlier 17/17 counts ran without CI.
+
+What would move the decode row kernel (1.25 ms a token: 124 x 10.1 us in #11719; the 2.1 ms / 17 us of the ranking predate `INTARSIA_INK_ROW_HOIST`) is a shorter per-thread chain, not more blocks:
+- fuse the two reductions of a ConvMix (the mix statistics and the norm) into fewer block barriers;
+- or overlap the row kernel with the next kernel (PDL).
+Both change code structure, not just tuning. A fused reduction order would not be bitwise. PDL is, but it is the mixmoe
+lane's repack + PDL work (#11700).
+
+## Lever 3 (brief 46): P12 in_proj GEMV toward its floor, stopped; lever 7 bounded below the bar
+
+Two bitwise approaches on `ink_in_proj_p12_gemv[_rows]`. Each keeps every row's lane, chunk and add order and its warp sum,
+so P12 stays bitwise its bf16 twin and the model's bits do not move.
+- `INTARSIA_INK_IN_PROJ_RPW=2|4`: 2 or 4 adjacent weight rows per warp. The rows' code loads are in flight together, and
+  rows of one segment share the activation load. Commit e0279e43a.
+- `INTARSIA_INK_IN_PROJ_PERSIST=1`: a grid of the resident blocks only, each warp striding over its row groups. Commit
+  7228a5862.
+- Both were default off; reverted after the measurement (RPW 2 / 4 also make 16-row calls 35-75 % slower). The [41, 23, 25]
+  twin case stays: it exercises the default kernel.
+
+Tests (fleetq #11717, #11718): p12 5/5 with unset, `GEMV=0`, `RPW=2 + PERSIST=1` and `PERSIST=1`. The twin test gained a
+[41, 23, 25] case, which puts segment edges inside a row pair or quad and leaves a ragged tail.
+
+`p12_selection` was stale on main. It still expected `ink_in_proj_p12_mma`, but the GEMV default-on of brief 31 (#498)
+selects `ink_in_proj_p12_gemv`. Fixed to follow `p12::in_proj_gemv("cuda")` in fde495485.
+
+ink_bench at [8664, 2304], us per call; ranges are the two reps and S = 1 / 3 (#11718):
+
+| rows | default | RPW 2 | PERSIST | RPW 2 + PERSIST |
+|---:|---:|---:|---:|---:|
+| 1 | 144-148 | 139-143 | 148-158 | 139-152 |
+| 2 | 148-151 | 140-143 | 140-157 | 140-155 |
+| 4 | 147-148 | 147-149 | 142-158 | 146-154 |
+| 16 | 181-183 | 250-257 | 161-164 | 237-250 |
+
+**Result:**
+- The best choice per row count saves about 6 us at 1 row, nothing at 4 rows (spec verify, k 3), and 18 us at 16 rows.
+- At 48 visits a token that is 0.29 ms, about 1.2 % at g256 spec off (about 25 ms a token), and 0 % with spec on.
+- That is under the 2 % bar, so no PR. The rest of the gap to the floor (146 vs about 120 us at the 252 GB/s streaming peak of
+  `bw.cu`) is not in wave tails or loads in flight.
+- The P12 code layout fixes the loads: an 8-byte plane-A and a 4-byte plane-B word per 8 elements and lane. A wider per-lane
+  chunk would change the lane-to-element map and so the sum order (md5).
+
+**Lever 7 (unembed `p12_gemv`) is bounded below the bar:**
+- It runs at 2.93 ms a token, 236 GB/s (87 % of 273).
+- At the 252 GB/s practical peak it would take 2.75 ms. The most it can give is 0.18 ms, about 0.7 %. Not attempted.
+
+## Lever 4 (brief 46): loop controller / blend, scoped, one bitwise try, no gain
+
+Fresh nsys of graphed decode (fleetq #11719; main 576ead89b kernels; hash-map prompt, 256 tokens, spec off):
+- 38.4 tok/s: 26.05 ms wall a token, 25.68 ms busy, 657 kernels a token.
+- MoE gu + dn 8.86 ms; in_proj (P12 GEMV) 6.67 ms; unembed 2.96 ms; wo 2.35 ms; SWA attention tile 1.31 ms; row kernel 1.25 ms
+  (124 x 10.1 us).
+- Blend / controller class, 1.27 ms a token:
+
+| kernel | streams | us per call | ms / token |
+|---|---|---:|---:|
+| `ink_ctl_kernel` | S = 3 | 14.55 | 0.35 |
+| `ink_ctl_kernel` | S = 1 | 8.34 | 0.20 |
+| `ink_blend_gate_kernel` | S = 3 | 13.77 | 0.33 |
+| `ink_blend_gate_kernel` | S = 1 | 6.13 | 0.15 |
+| `ink_blend_norm_kernel` | S = 1 / 3 | 5.1 | 0.25 |
+
+Byte floors: S = 3 moves 1.77 MB through each of ctl and gate, about 7 us at 252 GB/s. Taking both to their floors and folding
+the norm into the gate's last block would save at most about 0.8 ms (3 %). That bound needs latency fixes I cannot see:
+ncu is admin-only on spark1 (`RmProfilingAdminOnly: 1`).
+
+The try: `#pragma unroll` on the gate's gain / forget load loop and on the controller fold's partial loads. Same order, so
+bitwise; `ink_rows` ok. In-graph times did not move (#11721: ctl 14.63 / 8.33 us, gate 14.13 / 6.26 us), so the compiler was
+already overlapping those loads. Reverted.
+
+The norm fold alone is worth at most 0.25 ms (1 %), under the bar, so it was not built. The SWA attention tile (33 us a call
+at 271 positions, 1.31 ms a token) is a fixed in-block latency chain, not context-bound: its blocks already skip empty tiles.
+More warps for the in-block prologue would be bitwise but worth about 0.6 %.
+
+## Lever 8 (brief 46, measure only): the prefill's cuBLAS `Kernel2` is wo
+
+nsys `-t cuda,cublas` of the 8139-token prefill, one output token (fleetq #11726, spark1 idle).
+- **Calls:** `Kernel2` has grid 128 x 2, block 256, and runs 192 times (48 visits x 4 chunks).
+- **Driver call:** it is launched through `cuLaunchKernel`, as cuBLAS does.
+- **Neighbours:** every instance sits between the attention kernels (`ink_prologue_k`, `ink_ring_write_k`, `ink_flash_k`,
+  `ink_kv_write_k`) and the next sublayer's `ink_row_kernel`. So it is the wo projection: [2048 x 3072] by [3072 x 2304], bf16.
+- **Cost:** 404.9 us a call and 77.7 ms per 8k prefill (2.3 % of 3385 ms). That is 2.9e10 FLOP in 405 us, about 72 TFLOP/s.
+- **Correction:** the earlier class table put this kernel at 3 TF/s; that figure was wrong.
+- **Ceiling:** at the 110 TFLOP/s cuBLAS reaches on in_proj at 2048 rows, wo would take about 264 us. The most it can save
+  is about 27 ms per 8k (0.8 %).

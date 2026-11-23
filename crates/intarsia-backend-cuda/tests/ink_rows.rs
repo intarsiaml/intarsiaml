@@ -5,6 +5,8 @@
 //! SconvRes (every epilogue, mix and blend variant at D 2304 with the real ring, and D 64 with a ring the call's own rows
 //! wrap), AttnResMix, LoopBlend. A negative control checks that the comparison sees a one-element change.
 //!
+//! ConvMix / SconvRes at T 20 (above the decode row counts) also takes the deferred ring write at the real ring.
+//!
 //! Needs a GPU: without one the tests print SKIPPED (and fail under CI=1 / INTARSIA_REQUIRE_GPU=1).
 #![cfg(ik_cuda)]
 
@@ -342,7 +344,7 @@ fn ink_conv_mix_rows_exact() {
     let kt = 4usize;
     // (D, Rr): the real ring, and a small ring the call's own rows wrap (deferred ring write above 4 rows)
     for (d, rr, g) in [(2304usize, kt - 1 + 16, 64usize), (64, kt - 1 + 4, 8)] {
-        for t in [2usize, 3, 7, 16] {
+        for t in [2usize, 3, 7, 16, 20] {
             for pos0 in [0usize, 29] {
                 // (op, res, add, sum, N, Q, norm, S)
                 let variants: &[(Op, bool, bool, bool, usize, usize, bool, usize)] = &[
