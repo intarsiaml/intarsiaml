@@ -1185,3 +1185,7 @@ same prompt and flags in both, hence the one match.
 "fresh main" step there failed (`main build rc=101`) and fell back to the #11716 main binary. That binary was a genuine
 c1fc029aa (md5 `b5e7bed18d20`, no branch strings), but it was not fresh. #11750 is the valid fresh-main comparison; it runs from
 the repo top level and guards against an empty archive.
+
+After main ca3b4e55b (#503 pf-blend: it touched `ink_rows.rs` and `tuning.md`) merged cleanly as `76d5d791c`:
+- spark2 #11774, no env set: ink_rows 9/9, p12 5/5, tiny cuda 17/17, moe_experts admitted.
+- endor #11773: workspace check and tests green.
