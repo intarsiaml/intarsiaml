@@ -546,6 +546,28 @@ Bitwise test tests/inkconvmix_v2.rs against `ink_mix_row_h_*` (main's default).
 trace, A B B A, 4k and 16k) must show ConvMix <= -30 % at R 2 or R 4. If it misses at both, stop and report: no
 end-to-end pairs. -30 % of ~57 ms per 4k is ~17 ms, about +1.1 % of 4k TTFT, just over the +1 % end-to-end bar.
 
+### ConvMix v2 result (#11820, ink/pf-convmix 3886acfeb): bitwise, but SLOWER; kill rule fires, stopped
+
+First attempt #11814 measured nothing: the staged CLI lacked `--features metal` (the docs test rebuilt it); fixed in #11819,
+scripts now refuse a binary without Metal.
+
+- Bitwise: tests/inkconvmix_v2.rs 288 / 288 cases byte-identical to `ink_mix_row_h` (R 2 / 4, 64-257 rows, both ring paths,
+  host / device position, norm, f32, blend pieces); inkload 3 / 3; `conv_mix` admission 532 / 532 ADMITTED with v2 off and
+  on (identical max_abs 4.525e-3, rel_l2 1.181e-3); greedy md5 64 / 256 off = r4 = a2ab7b3d... / cbd62660...
+- Drift-proof trace (conv_mix ms / in_proj ms, off r2 r4 r4 r2 off; load1 9.9 at start, 8.9 at end):
+
+| prompt | off | R 2 | R 4 | R 2 vs off | R 4 vs off | bar |
+|---|---:|---:|---:|---:|---:|---|
+| 4k | 0.8776 | 0.9713 | 1.0900 | +10.7 % | +24.2 % | <= -30 % MISS |
+| 16k | 0.8952 | 0.9602 | 1.1088 | +7.3 % | +23.9 % | <= -30 % MISS |
+
+  Per call at 4k: off 0.27-0.29 ms, R 2 0.30 ms, R 4 0.37-0.40 ms. The trace records no kernel names, so the arm check is
+  indirect: three distinct, ordered and repeatable per-call times across the A B C C B A runs.
+- **Verdict: stop (rule fixed before the run).** More rows per threadgroup made the kernel slower, not faster. Likely cause
+  (not measured): per-thread state grows R-fold (`xs[R][NS][3]`, `mix[R][QB][3]`) at 768 threads, cutting occupancy or
+  spilling, which costs more than the shared loads save; the row kernel was not barrier- or launch-bound. Branch
+  ink/pf-convmix stays local, switch default off; no e2e pairs run.
+
 ### Chunk 4096 for prompts >= 8k, measured on main first (brief 30 B; `ink-pf-convmix/.scratch/ch1.sh`)
 
 Binary: ink/pf-convmix with ConvMix v2 off (= main bc03406d1's code paths). Method (b), fixed before the run: 7 adjacent
