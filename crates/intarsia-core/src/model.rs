@@ -106,6 +106,24 @@ thread_local! {
     /// thread that runs its body).
     pub(crate) static CAPTURES_ACTIVE: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
+thread_local! {
+    /// The screened greedy head is suspended in this scope ([`ScreenSuspend`]): a decode graph recorded for a `LastLogits`
+    /// step runs the full head, whose whole row the step reads back.
+    pub(crate) static SCREEN_SUSPENDED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+/// Suspends the screened greedy head for its scope when `on` (restores the previous state on drop).
+pub(crate) struct ScreenSuspend(bool);
+impl ScreenSuspend {
+    pub(crate) fn enter(on: bool) -> ScreenSuspend {
+        ScreenSuspend(SCREEN_SUSPENDED.with(|c| c.replace(c.get() || on)))
+    }
+}
+impl Drop for ScreenSuspend {
+    fn drop(&mut self) {
+        SCREEN_SUSPENDED.with(|c| c.set(self.0));
+    }
+}
+
 /// Lane postchain2: counts a graph capture in [`CAPTURES_ACTIVE`] for its scope.
 pub(crate) struct CaptureGuard;
 impl CaptureGuard {
@@ -5837,6 +5855,9 @@ impl Model {
     /// or the head's `Logits` kernel is not one the gather reproduces (then the caller runs the full head).
     fn screened_argmax(&self, x: &TensorRef, c: usize, tok: &TensorRef, profile: bool) -> Result<bool> {
         let Some(hs) = self.head_screen.as_ref() else { return Ok(false) };
+        if SCREEN_SUSPENDED.with(|c| c.get()) {
+            return Ok(false); // a recording whose step reads the whole logits row (graph_step.rs `full_logits`)
+        }
         // brief 14 option B: 1-row heads only (verify and every multi-row head run the full head); bf16 activations (the
         // screen ops' contract), 16-byte aligned (the head kernels' vector form)
         if c != 1 || self.vocab_par || x.dtype != DType::Bf16 || x.offset % 16 != 0 || hs.disabled.load(std::sync::atomic::Ordering::Relaxed) {
