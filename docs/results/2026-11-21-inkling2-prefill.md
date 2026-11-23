@@ -275,6 +275,13 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     own commit on ink/prefill (`INTARSIA_INK_NAX_SG=12` reverts) and message the coordinator the hash; it routes it to the
     landing lane. Leave a background waiter on the job, then stop. **Queued:** fleetq #11543, reserved Mon 03:00, 45 min,
     `--quiet gpu,cpu`, output `.scratch/rg4-night.out` (the day run's files moved to `.scratch/rg4-11517*`).
+29. 2026-11-23 (coordinator, via SendMessage): closing NSG 6 accepted; rel_mode 2 stays on ink/prefill-rel2. Desk work only
+    (no endor time, reserved until ~08:55), time box 1 h: rank the top 3 Metal prefill levers still open on main (bc03406d1),
+    each with expected ms saved at 4k / 8k / 16k and its source (trace or model), hours of work, bitwise yes / no; exclude
+    rel bias (mma and in-kernel: Metal lane, ink/relbias-mma), NSG 6, the pf-router GEMM (parked), pf-blend #503 (merged).
+    Start from the latest Metal prefill kernel trace (ours or the Metal lane's results doc). Also: where does the box's p8k
+    swing (2129-2753 within 15 min) leave the 2 % bars; is a fixed rest before every arm enough or is another measure
+    needed? Report the table and stop; no code changes, no push.
 
 ## Status
 
