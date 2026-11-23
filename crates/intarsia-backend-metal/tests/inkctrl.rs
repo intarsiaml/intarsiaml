@@ -152,33 +152,33 @@ fn ink_route_is_the_metal_pair_bitwise_and_rows_exact() {
     let Some(be) = be() else { return };
     let mut n = 0;
     for rank4 in [false, true] {
-    ROUTE_RANK4.set(Some(rank4));
-    let mut rng = Rng(0x5eed_76);
-    for sh in shapes() {
-        for t in [1usize, 2, 3, 4, 7, 16, 40] {
-            let c = case(&be, sh, t, &mut rng);
-            let want = pair(&be, &c);
-            for logits in [true, false] {
-                let got = fused(&be, &c, 0, t, logits, true).unwrap();
-                let what = format!("{sh:?} T={t} logits={logits}");
-                assert_eq!(down(&be, &got[0]), want[0], "{what}: weights");
-                assert_eq!(down(&be, &got[1]), want[1], "{what}: ids");
-                if logits {
-                    assert_eq!(down(&be, &got[2]), want[2], "{what}: logits");
+        ROUTE_RANK4.set(Some(rank4));
+        let mut rng = Rng(0x5eed_76);
+        for sh in shapes() {
+            for t in [1usize, 2, 3, 4, 7, 16, 40] {
+                let c = case(&be, sh, t, &mut rng);
+                let want = pair(&be, &c);
+                for logits in [true, false] {
+                    let got = fused(&be, &c, 0, t, logits, true).unwrap();
+                    let what = format!("{sh:?} T={t} logits={logits}");
+                    assert_eq!(down(&be, &got[0]), want[0], "{what}: weights");
+                    assert_eq!(down(&be, &got[1]), want[1], "{what}: ids");
+                    if logits {
+                        assert_eq!(down(&be, &got[2]), want[2], "{what}: logits");
+                    }
                 }
+                // rows-exact: row r of the T-row call == the 1-row call on row r
+                let all = fused(&be, &c, 0, t, true, true).unwrap();
+                let (wa, ia) = (down(&be, &all[0]), down(&be, &all[1]));
+                for r in 0..t {
+                    let one = fused(&be, &c, r, 1, true, true).unwrap();
+                    let kb = c.k * 4;
+                    assert_eq!(down(&be, &one[0]), wa[r * kb..(r + 1) * kb], "{sh:?} T={t} row {r}: weights");
+                    assert_eq!(down(&be, &one[1]), ia[r * kb..(r + 1) * kb], "{sh:?} T={t} row {r}: ids");
+                }
+                n += 1;
             }
-            // rows-exact: row r of the T-row call == the 1-row call on row r
-            let all = fused(&be, &c, 0, t, true, true).unwrap();
-            let (wa, ia) = (down(&be, &all[0]), down(&be, &all[1]));
-            for r in 0..t {
-                let one = fused(&be, &c, r, 1, true, true).unwrap();
-                let kb = c.k * 4;
-                assert_eq!(down(&be, &one[0]), wa[r * kb..(r + 1) * kb], "{sh:?} T={t} row {r}: weights");
-                assert_eq!(down(&be, &one[1]), ia[r * kb..(r + 1) * kb], "{sh:?} T={t} row {r}: ids");
-            }
-            n += 1;
         }
-    }
     }
     ROUTE_RANK4.set(None);
     eprintln!("{n} cases bitwise the pair and rows-exact (rank4 off and on)");
