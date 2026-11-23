@@ -625,8 +625,36 @@ pub const MIX_NE: [usize; 4] = [1, 2, 3, 4];
 pub const MIX_D_MAX: usize = 4096;
 /// Stored sources + last the depth mix holds in registers (`MX_NMAX`).
 pub const MIX_SOURCES_MAX: usize = 8;
-/// Rows per blend chunk (its scratch holds that many rows: 21 MB at D 2304, S 3), streams and controller rank bounds.
+/// Rows per blend chunk before lever #3 (scratch 21 MB at D 2304, S 3); `INTARSIA_INK_BLEND_ROWS=256` restores it.
 pub const BLEND_ROWS: usize = 256;
+/// Default rows per blend chunk: a whole 2048-row prefill chunk in one pass (scratch ~170 MB at D 2304, S 3). Every blend
+/// kernel works per row (the h GEMM and the gate GEMM keep their K order per output tile), so the chunking does not change
+/// the bits; it only cuts the launches (8 x fewer per 2048-row call).
+pub const BLEND_ROWS_DEFAULT: usize = 2048;
+/// Widest blend chunk `INTARSIA_INK_BLEND_ROWS` takes.
+pub const BLEND_ROWS_MAX: usize = 4096;
+
+thread_local! {
+    static BLEND_ROWS_SET: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Tests and benches: force the rows per blend chunk on this thread (0 = back to the env / default). Size the scratch after
+/// setting it.
+pub fn set_blend_rows(n: usize) {
+    BLEND_ROWS_SET.with(|c| c.set(n.min(BLEND_ROWS_MAX)));
+}
+
+/// Rows per blend chunk: `INTARSIA_INK_BLEND_ROWS` (1..=[`BLEND_ROWS_MAX`]), default [`BLEND_ROWS_DEFAULT`].
+pub fn blend_rows_max() -> usize {
+    static R: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    let set = BLEND_ROWS_SET.with(|c| c.get());
+    if set > 0 {
+        return set;
+    }
+    *R.get_or_init(|| {
+        std::env::var("INTARSIA_INK_BLEND_ROWS").ok().and_then(|v| v.parse::<usize>().ok()).filter(|v| (1..=BLEND_ROWS_MAX).contains(v)).unwrap_or(BLEND_ROWS_DEFAULT)
+    })
+}
 /// Rows per `ink_blend_gate` threadgroup. With [`BLEND_CS`] a launch-shape choice only: a channel's gate value and the 32-channel
 /// partial sums do not depend on it (`INTARSIA_INK_BLEND_RB` / `_CS` measurement knobs).
 pub const BLEND_RB: usize = 4;
@@ -762,10 +790,10 @@ pub fn row_shaders() -> Vec<&'static str> {
 
 /// Scratch of the blend path (ConvMix with msg, LoopBlend) for rows of `d` channels, regions 256-byte aligned:
 /// dest f32 [3, rows, D], pair bf16 [3, rows, 2D], h bf16 [3, rows, G <= 128], y f32 [3, rows, D], partial f32 [3, rows, nsl],
-/// rows = the call's rows up to [`BLEND_ROWS`].
+/// rows = the call's rows up to [`blend_rows_max`].
 fn blend_layout(d: usize, rows: usize) -> [usize; 6] {
     let r = |b: usize| b.next_multiple_of(256);
-    let (s, rows) = (BLEND_STREAMS_MAX, rows.clamp(1, BLEND_ROWS));
+    let (s, rows) = (BLEND_STREAMS_MAX, rows.clamp(1, blend_rows_max()));
     let dest = r(s * rows * d * 4);
     let pair = r(s * rows * 2 * d * 2);
     let h = r(s * rows * BLEND_G_MAX * 2);
@@ -1116,8 +1144,9 @@ impl MetalBackend {
                 let d = i[0].shape[1];
                 let nq = i[5].shape[0];
                 let lay = blend_layout(d, t);
-                for t0 in (0..t).step_by(BLEND_ROWS) {
-                    let n = (t - t0).min(BLEND_ROWS);
+                let br = blend_rows_max();
+                for t0 in (0..t).step_by(br) {
+                    let n = (t - t0).min(br);
                     let dest = TensorRef { shape: vec![nq, n, d], ..sview(scratch, lay[0], DType::F32, nq * n * d) };
                     let s = i[7].shape[0];
                     let pair = TensorRef { shape: vec![s, n, 2 * d], ..sview(scratch, lay[1], DType::Bf16, s * n * 2 * d) };
@@ -1132,8 +1161,9 @@ impl MetalBackend {
                 }
                 let r = o[0].shape[1];
                 let scratch = call.scratch.as_ref().ok_or_else(|| Error::invalid("metal loop_blend_bf16: the scratch (OpCall::scratch) is missing"))?;
-                for t0 in (0..r).step_by(BLEND_ROWS) {
-                    let n = (r - t0).min(BLEND_ROWS);
+                let br = blend_rows_max();
+                for t0 in (0..r).step_by(br) {
+                    let n = (r - t0).min(br);
                     self.blend_rows(&i[0], (t0, r), &i[1], &i[2], &i[3], &i[4], &i[5], &o[0], t0, n, scratch, call.attrs.eps, false)?;
                 }
                 Ok(())
