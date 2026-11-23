@@ -121,6 +121,21 @@ kernel void fp8_xprep_bf16(device const ushort* x [[buffer(0)]], device const fl
     }
 }
 
+// `fp8_xprep_bf16_a8`: `fp8_xprep_bf16` for the NAX GEMM only: W8A8 (is > 0) writes q(x) as above; W8A16 writes nothing,
+// since q(x) = x there and `gemm_nax_fp8_t` then reads x itself (lane ink-fp8, brief 22: no identity copy).
+kernel void fp8_xprep_bf16_a8(device const ushort* x [[buffer(0)]], device const float* sc [[buffer(1)]],
+                              device ushort* xs [[buffer(2)]], constant OpP& p [[buffer(3)]],
+                              uint g [[thread_position_in_grid]]) {
+    const float is = sc[1];
+    if (!(is > 0.0f)) return;
+    const ulong total = (ulong)p.a * p.c;
+    const ulong e0 = (ulong)g * 8;
+    if (e0 >= total) return;
+    for (int e = 0; e < 8; ++e) {
+        xs[e0 + e] = f2bf(fp8_qx(bf2f(x[p.s0 + e0 + e]), is));
+    }
+}
+
 // ---- decode GEMV ------------------------------------------------------------------------------------------------------
 
 constant constexpr uint FP8_SG = 8;  // simdgroups per threadgroup
