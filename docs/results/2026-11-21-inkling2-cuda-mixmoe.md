@@ -1108,3 +1108,37 @@ unchanged: repacked calls refuse W4A4, the only mode that reaches it.
 - **Single runs, not the gate:** spec off g256 36.57 -> 37.46 tok/s; spec on g256 47.12 -> 47.74.
 
 The final quiet ABBA waits for main with #498, then a rebase.
+
+### Final gate on main 576ead89b (#498: CUDA spec default-on, prefill chunk 2048) — #11700, tree `3ec6be076`: **kept**
+
+A is the default; B is `INTARSIA_INK_MOE_REPACK=1` + `INTARSIA_INK_MOE_PDL=1`. "def" is the default config (spec on, k3, no
+flags).
+
+| quiet ABBA g256, tok/s | A | B | delta |
+|---|---|---|---|
+| spec off (0 1 1 0 0 1 1 0) | 39.61 / 39.60 / 39.69 / 39.69, mean 39.65 | 40.54 / 40.69 / 40.54 / 40.69, mean 40.62 | **+2.44 %** |
+| default, spec on (1 0 0 1 1 0 0 1) | 49.39 / 49.48 / 49.41 / 49.50, mean 49.45 | 50.35 / 50.01 / 50.25 / 50.14, mean 50.19 | **+1.50 %** |
+
+Every B run beats every A run.
+
+**3.6k prompt prefill, spec off (rotated 0 1 1 0 0 1):** A 757 / 757 / 760 ms (mean 758), B 764 / 771 / 763 ms (mean 766):
+**+1.06 %**, under the 2 % bar. The MoE kernel at T=2048 measures A 7812.9 / 7795.1 us, B 7896.9 / 7788.6 us.
+
+| ink_bench nv, 2 passes | A | B |
+|---|---|---|
+| T=1 | 180.5 / 179.9 us | 165.8 / 164.1 us (-8.4 %) |
+| T=2 | 327.5 / 329.9 | 308.2 / 309.0 (-6.0 %) |
+| T=4 | 590.0 / 589.3 | 574.0 / 573.1 (-2.8 %) |
+| T=16 | 1681.0 / 1676.8 | 1644.7 / 1641.3 (-2.1 %) |
+
+**Bitwise:**
+- ids are identical A vs B everywhere: g64 `95ed05f4d023` spec off and default; g256 `029e44fede1d` spec off and default;
+  g1.2k `e0d669c198dd` spec off and default. (These ids are new on main since #498; the PR no-op below compares them with a
+  main binary.)
+- `ink_rows` 9/9, tiny cuda 17/17 with both arms, moe_experts admitted (16 kernels / 121 cases).
+
+The brief 44 rule (spec on >= 1 %, spec off not slower, prefill <= 2 %) holds, so it is kept. A PR follows; both switches
+stay off by default until the coordinator decides the flip (the bits are the same, so the flip changes speed only).
+
+**Memory:** the repack is in place (one transient row-block buffer per tensor at load), not a second copy. The ~25 GB
+estimate in the stage A notes was wrong.
