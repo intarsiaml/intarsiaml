@@ -310,6 +310,12 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     from inside the slot (or --no-verify after the docs tests passed there); send head + gate results, coordinator opens
     the PR. Add a ~6000-token prompt arm to the Tue 03:00 confirmation run (#11834) if it still fits with >= 7 kept pairs
     at 8k and 16k; else keep 8k / 16k only and say so. If 6k shows no gain, the threshold is raised before any default flip.
+33. 2026-11-23 (coordinator, via SendMessage): PR #508 open for ink/long-chunk (18d9d8853), Fable review alongside CI. One
+    more gate before merge: CUDA no-op on spark1, ONE fleetq slot (queue behind gate58/59): plan show 35B + 8B JSON identical
+    to main 0b8fab600 (or 352acba93); `kernels test --quick`; serve smoke, defaults (switch off), batch scheduler: one short and
+    one ~9k greedy request, ids identical to main's serve. Optional: Metal serve smoke switch ON (one 6k greedy request, pass
+    list [4096, 1902], ids == switch off) if it fits an endor backfill before 09:00 or after 14:25; else skip and note it as
+    required before any flip. Main and branch in separate target dirs; check the two binaries differ. Push nothing; report.
 
 ## Status
 
