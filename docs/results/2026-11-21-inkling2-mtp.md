@@ -1227,3 +1227,12 @@ Measured in #11634 on the `--spec off` server (main's behaviour, unchanged by th
 - Any OpenAI-chat client gets this on every turn (the coordinator's TTFT question, not the flip's). Levers, not built: snapshot
   the ring state at the end of each prompt (resume at the prompt boundary, which is where re-rendered histories diverge), or a
   larger margin sized to the template's re-render (memory cost per sliding layer).
+
+**Parked 2026-11-23 (coordinator: weekly quota at its limit).** The coordinator cancelled #11828 (the #11621 speed-bar rerun) and
+#11829 (spec-k sweep); not rebooked, waiters killed. State: `ink/spec-flip-merge` (merge of main 08ae803e0, code a6e3cc43a; MG1-MG6
+pass in #11738 and #11751) is local only, not pushed; `ink/spec-flip` untouched at 9c78ba5e0 (code 34525d854, `flip_pass_34525d854`
+valid); the box-check parse fix is in `.worktrees/ink-spec-flip/.scratch/flip_night.sh`. #496 stays HELD (no push, PR or merge
+without the user's go). Next: (1) rebook #11828 (75 min, `--quiet gpu,cpu`, from `.worktrees/ink-spec-flip`, `bash .scratch/flip_night.sh`);
+(2) then #11829 (spec-k sweep, 110 min, from `.worktrees/ink-spec-k`, `bash .scratch/sweep.sh`); (3) if the bar passes, merge the
+then-current origin/main into `ink/spec-flip-merge`, run `.scratch/flipm_post.sh` (md5 64 / 256 + full MG6), report TTFT on vs off,
+then the #496 call.
