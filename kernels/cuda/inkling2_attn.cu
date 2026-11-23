@@ -46,6 +46,7 @@ constexpr int F_KV_WRITE = 4;   // cache write in the attention kernel (else ink
 constexpr int F_RING_WRITE = 16;  // conv-ring write in the kernel (else ink_ring_write_k after it)
 constexpr int F_AL32 = 64;       // tile kernel: the K / V cache bases are 32-byte aligned (32-byte loads of the cache rows)
 constexpr int F_R_OUT = 128;     // prologue (op 75 prefill): write r [T,H,dr] to relo instead of the rel tail
+constexpr int F_NOBIAS = 256;    // diagnostic (INTARSIA_INK_FLASH_DIAG=nobias): the prefill flash kernel skips the rel bias (wrong output)
 constexpr int F_READONLY = 32;    // diagnostic (INTARSIA_INK_TILE_READONLY=1): the tile kernel only reads its K / V (no output)
 
 struct InkP {
@@ -1402,8 +1403,17 @@ constexpr int FBR = 64;  // query rows per block
 // RIN (op 75 prefill, InkAttnDecode above 16 rows): p.rel is r [T,H,dr] (rounded), and the bias of (row, head, d) is formed
 // here as ink_rel_g forms it (the same chain from 0, j ascending, then the bf16 round): bitwise the table path. Shared memory
 // after K / V: r of the block's rows [FBR][G][16] f32, then the relproj columns of a sub-chunk's distances [FBR + CH][16] f32.
-template <int D, bool RIN>
+// KB: keys per warp step (16 by default; INTARSIA_INK_FLASH_KB = 32 / 64 opt-in, lever 5): the running max, the o rescale
+// and the row sum move once per KB keys instead of once per 16. A different rounding of P and order of the sums, so not
+// bitwise the KB = 16 kernel; the default keeps its bits.
+// BM (RIN, KB 16; INTARSIA_INK_FLASH_BIAS=mma, lever 5 variant 2): the bias of a 16-key step as one tensor-core product per
+// warp, r [16 rows][dr 16] . W [16][32 distance columns] (4 mma), rounded to bf16 into a per-warp table (the rS region: r goes to
+// registers instead) and read per score at its distance. The same products, summed in the mma's order instead of ink_rel_g's
+// chain, so not bitwise the default.
+template <int D, bool RIN, int KB, bool BM = false>
 __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
+    constexpr int NB = KB / 8, NP = KB / 16;
+    static_assert(!BM || (RIN && KB == 16), "BM: the RIN kernel at KB 16");
     using SM = TileSmem<D>;
     constexpr int LD = SM::LD, NKS = D / 16, NDB = D / 8;
     extern __shared__ __align__(16) unsigned char sm[];
@@ -1469,10 +1479,22 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
     const bf16* relh[2] = {rt[0] < T ? p.rel + ((size_t)rt[0] * H + h) * E : p.rel, rt[1] < T ? p.rel + ((size_t)rt[1] * H + h) * E : p.rel};
     float* rS = (float*)(sm + TileSmem<D>::KV);
     float* wS = rS + FBR * G * 16;
-    if constexpr (RIN) {
+    uint32_t rf[4] = {0u, 0u, 0u, 0u};  // BM: r of this thread's rows as an mma A fragment (k = dr padded to 16)
+    if constexpr (RIN && !BM) {
         for (int x = tid; x < FBR * G * 16; x += blockDim.x) {
             const int r = x / (G * 16), g = x / 16 % G, j = x % 16, t = rb + r;
             rS[x] = (t < T && j < dr) ? b2f(p.rel[((size_t)t * H + kvh * G + g) * dr + j]) : 0.0f;
+        }
+    }
+    if constexpr (BM) {
+#pragma unroll
+        for (int k = 0; k < 2; ++k) {
+            if (rt[k] >= T) continue;
+            const bf16* rr = p.rel + ((size_t)rt[k] * H + h) * dr;
+            const int j0 = 2 * c4, j1 = 8 + 2 * c4;
+            const bf16 z = f2b(0.0f);
+            rf[k] = pack_bf16(j0 < dr ? rr[j0] : z, j0 + 1 < dr ? rr[j0 + 1] : z);
+            rf[2 + k] = pack_bf16(j1 < dr ? rr[j1] : z, j1 + 1 < dr ? rr[j1 + 1] : z);
         }
     }
     const int c0 = jlo / CH, c1 = jhi / CH;
@@ -1512,14 +1534,46 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
         const bf16* Ks = KV + (size_t)(buf * 2) * CH * LD;
         const bf16* Vs = KV + (size_t)(buf * 2 + 1) * CH * LD;
 #pragma unroll 1
-        for (int kb = 0; kb < CH; kb += 16) {
-            if (jb + kb + 15 < wlo || jb + kb > whi) continue;
+        for (int kb = 0; kb < CH; kb += KB) {
+            if (jb + kb + KB - 1 < wlo || jb + kb > whi) continue;
             // the bias loads first: they do not depend on the scores, so their latency overlaps the QK^T mma
-            float bb[2][4];
-            // RIN: the warp's smallest distance in this 16-key step is pos0 + w0 - (jb + kb + 15); at or past E no score is biased
-            if (RIN && pos0 + w0 - (jb + kb + 15) >= E) {
+            float bb[NB][4];
+            // RIN: the warp's smallest distance in this KB-key step is pos0 + w0 - (jb + kb + KB - 1); at or past E no score is biased
+            if (RIN && (pos0 + w0 - (jb + kb + KB - 1) >= E || (p.flags & F_NOBIAS))) {
 #pragma unroll
-                for (int nb = 0; nb < 2; ++nb) bb[nb][0] = bb[nb][1] = bb[nb][2] = bb[nb][3] = 0.0f;
+                for (int nb = 0; nb < NB; ++nb) bb[nb][0] = bb[nb][1] = bb[nb][2] = bb[nb][3] = 0.0f;
+            } else if constexpr (BM) {
+                // columns cb .. cb + 31 of wS hold every distance of this warp's 16 rows x 16 keys
+                bf16* tw = (bf16*)rS + warp * 16 * 32;
+                const int cb = rq * 16 - kb + 48;
+                float bt[4][4];
+#pragma unroll
+                for (int nt = 0; nt < 4; ++nt) {
+                    bt[nt][0] = bt[nt][1] = bt[nt][2] = bt[nt][3] = 0.0f;
+                    const float* wc = wS + (cb + nt * 8 + g8) * 16;
+                    const uint32_t b0 = pack_bf16(f2b(wc[2 * c4]), f2b(wc[2 * c4 + 1]));
+                    const uint32_t b1 = pack_bf16(f2b(wc[8 + 2 * c4]), f2b(wc[9 + 2 * c4]));
+                    mma_bf16(bt[nt], rf, b0, b1);
+                }
+                __syncwarp();
+#pragma unroll
+                for (int nt = 0; nt < 4; ++nt)
+#pragma unroll
+                    for (int e = 0; e < 2; ++e) {
+                        tw[g8 * 32 + nt * 8 + 2 * c4 + e] = f2b(bt[nt][e]);
+                        tw[(g8 + 8) * 32 + nt * 8 + 2 * c4 + e] = f2b(bt[nt][2 + e]);
+                    }
+                __syncwarp();
+#pragma unroll
+                for (int k = 0; k < 2; ++k)
+#pragma unroll
+                    for (int nb = 0; nb < NB; ++nb)
+#pragma unroll
+                        for (int u = 0; u < 2; ++u) {
+                            const int kk = nb * 8 + 2 * c4 + u, j = jb + kb + kk, d = rhi[k] - j, rl = g8 + 8 * k;
+                            bb[nb][2 * k + u] = (j >= rlo[k] && d >= 0 && d < E) ? b2f(tw[rl * 32 + rl - kk + 15]) : 0.0f;
+                        }
+                __syncwarp();
             } else if constexpr (RIN) {
 #pragma unroll
                 for (int k = 0; k < 2; ++k) {
@@ -1531,7 +1585,7 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
                         r[4 * q4] = v4.x, r[4 * q4 + 1] = v4.y, r[4 * q4 + 2] = v4.z, r[4 * q4 + 3] = v4.w;
                     }
 #pragma unroll
-                    for (int nb = 0; nb < 2; ++nb)
+                    for (int nb = 0; nb < NB; ++nb)
 #pragma unroll
                         for (int u = 0; u < 2; ++u) {
                             const int j = jb + kb + nb * 8 + 2 * c4 + u, d = rhi[k] - j;
@@ -1554,26 +1608,29 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
                 }
             } else {
 #pragma unroll
-                for (int nb = 0; nb < 2; ++nb)
+                for (int nb = 0; nb < NB; ++nb)
 #pragma unroll
                     for (int e = 0; e < 4; ++e) {
                         const int k = e >> 1, j = jb + kb + nb * 8 + 2 * c4 + (e & 1), d = rhi[k] - j;
                         bb[nb][e] = (j >= rlo[k] && d >= 0 && d < E) ? __bfloat162float(relh[k][d]) : 0.0f;
                     }
             }
-            float s[2][4];
+            float s[NB][4];
 #pragma unroll
-            for (int i = 0; i < 2; ++i) s[i][0] = s[i][1] = s[i][2] = s[i][3] = 0.0f;
+            for (int i = 0; i < NB; ++i) s[i][0] = s[i][1] = s[i][2] = s[i][3] = 0.0f;
 #pragma unroll
             for (int ks = 0; ks < NKS; ++ks) {
-                uint32_t b0, b1, b2, b3;
-                ldsm_x4(b0, b1, b2, b3, Ks + (size_t)(kb + (lm >> 1) * 8 + lr) * LD + ks * 16 + (lm & 1) * 8);
-                mma_bf16(s[0], qf[ks], b0, b1);
-                mma_bf16(s[1], qf[ks], b2, b3);
+#pragma unroll
+                for (int pp = 0; pp < NP; ++pp) {
+                    uint32_t b0, b1, b2, b3;
+                    ldsm_x4(b0, b1, b2, b3, Ks + (size_t)(kb + 16 * pp + (lm >> 1) * 8 + lr) * LD + ks * 16 + (lm & 1) * 8);
+                    mma_bf16(s[2 * pp], qf[ks], b0, b1);
+                    mma_bf16(s[2 * pp + 1], qf[ks], b2, b3);
+                }
             }
             float mx[2] = {-INFINITY, -INFINITY};
 #pragma unroll
-            for (int nb = 0; nb < 2; ++nb) {
+            for (int nb = 0; nb < NB; ++nb) {
 #pragma unroll
                 for (int e = 0; e < 4; ++e) {
                     const int k = e >> 1, j = jb + kb + nb * 8 + 2 * c4 + (e & 1);
@@ -1583,7 +1640,7 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
                     mx[k] = fmaxf(mx[k], v);
                 }
             }
-            uint32_t pa[2][2];
+            uint32_t pa[NB][2];
 #pragma unroll
             for (int k = 0; k < 2; ++k) {
                 mx[k] = fmaxf(mx[k], __shfl_xor_sync(0xffffffffu, mx[k], 1));
@@ -1592,25 +1649,31 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
                 const float mu = mn == -INFINITY ? 0.0f : mn;
                 const float corr = exp2f(m[k] - mu);
                 m[k] = mn;
-                const bf16 q0 = f2b(exp2f(s[0][2 * k] - mu)), q1 = f2b(exp2f(s[0][2 * k + 1] - mu));
-                const bf16 q2 = f2b(exp2f(s[1][2 * k] - mu)), q3 = f2b(exp2f(s[1][2 * k + 1] - mu));
-                const float ps = __fadd_rn(__fadd_rn(__fadd_rn(b2f(q0), b2f(q1)), b2f(q2)), b2f(q3));
+                float ps = 0.0f;
+#pragma unroll
+                for (int nb = 0; nb < NB; ++nb) {
+                    const bf16 q0 = f2b(exp2f(s[nb][2 * k] - mu)), q1 = f2b(exp2f(s[nb][2 * k + 1] - mu));
+                    // KB = 16: ((q0 + q1) + q2) + q3, the default's order
+                    ps = nb == 0 ? __fadd_rn(b2f(q0), b2f(q1)) : __fadd_rn(__fadd_rn(ps, b2f(q0)), b2f(q1));
+                    pa[nb][k] = pack_bf16(q0, q1);
+                }
                 l[k] = __fmaf_rn(l[k], corr, ps);
-                pa[0][k] = pack_bf16(q0, q1);
-                pa[1][k] = pack_bf16(q2, q3);
 #pragma unroll
                 for (int i = 0; i < NDB; ++i) {
                     o[i][2 * k] = __fmul_rn(o[i][2 * k], corr);
                     o[i][2 * k + 1] = __fmul_rn(o[i][2 * k + 1], corr);
                 }
             }
-            const uint32_t a[4] = {pa[0][0], pa[0][1], pa[1][0], pa[1][1]};
 #pragma unroll
-            for (int dp = 0; dp < NDB / 2; ++dp) {
-                uint32_t b0, b1, b2, b3;
-                ldsm_x4_t(b0, b1, b2, b3, Vs + (size_t)(kb + (lm & 1) * 8 + lr) * LD + (dp * 2 + (lm >> 1)) * 8);
-                mma_bf16(o[dp * 2], a, b0, b1);
-                mma_bf16(o[dp * 2 + 1], a, b2, b3);
+            for (int pp = 0; pp < NP; ++pp) {
+                const uint32_t a[4] = {pa[2 * pp][0], pa[2 * pp][1], pa[2 * pp + 1][0], pa[2 * pp + 1][1]};
+#pragma unroll
+                for (int dp = 0; dp < NDB / 2; ++dp) {
+                    uint32_t b0, b1, b2, b3;
+                    ldsm_x4_t(b0, b1, b2, b3, Vs + (size_t)(kb + 16 * pp + (lm & 1) * 8 + lr) * LD + (dp * 2 + (lm >> 1)) * 8);
+                    mma_bf16(o[dp * 2], a, b0, b1);
+                    mma_bf16(o[dp * 2 + 1], a, b2, b3);
+                }
             }
         }
     }
@@ -1868,17 +1931,60 @@ bool tile_dims(int d) { return d == 16 || d == 32 || d == 64 || d == 128; }
 // the RIN kernel's shared memory past K / V: r [FBR][G][16] and the distance columns [FBR + CH][16], f32
 constexpr size_t flash_rin_bytes(int g) { return (size_t)(FBR * g + FBR + CH) * 16 * 4; }
 
-template <int D, bool RIN>
-int launch_flash_d(const InkP& p, cudaStream_t st) {
+// INTARSIA_INK_FLASH_KB: keys per warp step of the prefill flash kernel, 16 (default) / 32 / 64 (opt-in, not bitwise 16)
+int flash_kb() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_INK_FLASH_KB");
+        const int k = e && e[0] ? atoi(e) : 16;
+        return k == 32 || k == 64 ? k : 16;
+    }();
+    return v;
+}
+
+bool flash_nobias() {
+    static const bool v = [] {
+        const char* e = getenv("INTARSIA_INK_FLASH_DIAG");
+        return e && strcmp(e, "nobias") == 0;
+    }();
+    return v;
+}
+
+// INTARSIA_INK_FLASH_BIAS=mma: the RIN prefill kernel forms the rel bias on tensor cores (KB 16 only; opt-in, not bitwise)
+bool flash_bias_mma() {
+    static const bool v = [] {
+        const char* e = getenv("INTARSIA_INK_FLASH_BIAS");
+        return e && strcmp(e, "mma") == 0;
+    }();
+    return v;
+}
+
+template <int D, bool RIN, int KB, bool BM = false>
+int launch_flash_kb(const InkP& p_in, cudaStream_t st) {
+    InkP p = p_in;
+    if (flash_nobias()) p.flags |= F_NOBIAS;
     const int G = p.h / p.hk;
     const size_t smem = TileSmem<D>::KV + (RIN ? flash_rin_bytes(G) : 0);
     static bool attr = false;
     if (!attr) {
         const size_t mx = TileSmem<D>::KV + (RIN ? flash_rin_bytes(3) : 0);
-        if (cudaFuncSetAttribute(ink_flash_k<D, RIN>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)mx) != cudaSuccess) return IK_ERR_LAUNCH;
+        if (cudaFuncSetAttribute(ink_flash_k<D, RIN, KB, BM>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)mx) != cudaSuccess) return IK_ERR_LAUNCH;
         attr = true;
     }
-    ink_flash_k<D, RIN><<<dim3(p.hk, (p.t + FBR - 1) / FBR), 128 * G, smem, st>>>(p);
+    ink_flash_k<D, RIN, KB, BM><<<dim3(p.hk, (p.t + FBR - 1) / FBR), 128 * G, smem, st>>>(p);
+    return IK_OK;
+}
+
+template <int D, bool RIN>
+int launch_flash_d(const InkP& p, cudaStream_t st) {
+    const int kb = flash_kb();
+    int r;
+    if constexpr (RIN) {
+        if (kb == 16 && flash_bias_mma()) r = launch_flash_kb<D, true, 16, true>(p, st);
+        else r = kb == 64 ? launch_flash_kb<D, RIN, 64>(p, st) : kb == 32 ? launch_flash_kb<D, RIN, 32>(p, st) : launch_flash_kb<D, RIN, 16>(p, st);
+    } else {
+        r = kb == 64 ? launch_flash_kb<D, RIN, 64>(p, st) : kb == 32 ? launch_flash_kb<D, RIN, 32>(p, st) : launch_flash_kb<D, RIN, 16>(p, st);
+    }
+    if (r != IK_OK) return r;
     return IK_OK;
 }
 
