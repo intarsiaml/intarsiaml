@@ -290,9 +290,12 @@ fn conv_mix_rows_exact() {
             }
         }
     }
-    // a chunk longer than the blend's 256-row scratch chunk (two blend chunks, the h GEMV's full 16-row chunks and its tail)
+    // a chunk longer than a 256-row blend chunk (`set_blend_rows(256)`: two blend chunks, the h GEMV's full 16-row chunks and its tail)
+    set_blend_rows(256);
     conv_case(&be, &mut rng, Op::ConvMix, 300, 64, 7, 2, (true, true, true), (3, 1, false, 3), false);
     conv_case(&be, &mut rng, Op::ConvMix, 300, 64, 7, 2, (true, false, false), (2, 3, false, 3), false);
+    set_blend_rows(0);
+    conv_case(&be, &mut rng, Op::ConvMix, 300, 64, 7, 2, (true, true, true), (3, 1, false, 3), false);
     // the real width past 16 rows: the h GEMV's 16-row chunks and tail at K = 4608, the deferred ring write at Rr 19
     conv_case(&be, &mut rng, Op::ConvMix, 40, 2304, 19, 2, (true, true, true), (3, 1, false, 3), false);
     conv_case(&be, &mut rng, Op::ConvMix, 40, 2304, 19, 29, (true, false, false), (4, 1, true, 0), false);
@@ -348,5 +351,58 @@ fn attn_res_mix_and_loop_blend_rows_exact() {
                 }
             }
         }
+    }
+}
+
+/// Lever #3 (one blend pass per prefill chunk): a prefill-mode (not row-exact) blended ConvMix and LoopBlend at the real width
+/// and a 2048-row chunk (and its 2045-row tail) are bitwise the same with the blend chunked by 2048 (the default) and by 256
+/// (`INTARSIA_INK_BLEND_ROWS=256`, the old chunking), outputs and ring alike.
+#[test]
+fn blend_chunk_rows_do_not_change_the_bits() {
+    let be = backend();
+    let bf = DType::Bf16;
+    let (c, rr, g, k) = (2304usize, 19usize, 64usize, 4usize);
+    for &t in &[2048usize, 2045] {
+        let mut rng = Rng(0xb1e0 + t as u64);
+        let (n, q, s) = (7usize, 1usize, 3usize);
+        let ins = vec![
+            Ht::rand(bf, &[t, c], 1.0, &mut rng),
+            Ht::rand(bf, &[k, c], 0.5, &mut rng),
+            Ht::rand(bf, &[t, c], 1.0, &mut rng),
+            Ht::none(),
+            Ht::rand(bf, &[n, t, c], 1.5, &mut rng),
+            Ht::rand(DType::F32, &[q, c], 0.2, &mut rng),
+            Ht::pos(&[s, c], &mut rng),
+            Ht::rand(DType::F32, &[s, t, c], 1.0, &mut rng),
+            Ht::rand(bf, &[s, g, 2 * c], (2.0 * c as f32).powf(-0.5), &mut rng),
+            Ht::rand(bf, &[s, c, g], 0.25, &mut rng),
+            Ht::rand(bf, &[s, c, g], 0.25, &mut rng),
+        ];
+        let outs = vec![Ht::zeros(bf, &[t, c]), Ht::rand(bf, &[rr, c], 1.0, &mut rng), Ht::none(), Ht::zeros(bf, &[s, t, c])];
+        let a = OpAttrs { pos0: 2, eps: 1e-6, ..OpAttrs::default() };
+        set_blend_rows(256);
+        let old = run(&be, CONV_MIX_BF16, Op::ConvMix, &ins, &outs, &a, false, None);
+        set_blend_rows(2048);
+        let new = run(&be, CONV_MIX_BF16, Op::ConvMix, &ins, &outs, &a, false, None);
+        for (oi, (x, y)) in old.iter().zip(&new).enumerate() {
+            assert!(x == y, "ConvMix T={t}: output {oi} differs between blend chunks 256 and 2048");
+        }
+        let lins = vec![
+            Ht::rand(DType::F32, &[s, t, c], 1.0, &mut rng),
+            Ht::rand(DType::F32, &[s, t, c], 1.0, &mut rng),
+            Ht::rand(bf, &[s, g, 2 * c], (2.0 * c as f32).powf(-0.5), &mut rng),
+            Ht::rand(bf, &[s, c, g], 0.25, &mut rng),
+            Ht::rand(bf, &[s, c, g], 0.25, &mut rng),
+            Ht::pos(&[s, c], &mut rng),
+        ];
+        let lout = vec![Ht::zeros(bf, &[s, t, c])];
+        let la = OpAttrs { eps: 1e-6, ..OpAttrs::default() };
+        set_blend_rows(256);
+        let old = run(&be, LOOP_BLEND_BF16, Op::LoopBlend, &lins, &lout, &la, false, None);
+        set_blend_rows(2048);
+        let new = run(&be, LOOP_BLEND_BF16, Op::LoopBlend, &lins, &lout, &la, false, None);
+        set_blend_rows(0);
+        assert!(old[0] == new[0], "LoopBlend T={t}: output differs between blend chunks 256 and 2048");
+        println!("blend chunk 256 vs 2048, T={t}: ConvMix and LoopBlend bitwise equal");
     }
 }
