@@ -282,6 +282,18 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     Start from the latest Metal prefill kernel trace (ours or the Metal lane's results doc). Also: where does the box's p8k
     swing (2129-2753 within 15 min) leave the 2 % bars; is a fixed rest before every arm enough or is another measure
     needed? Report the table and stop; no code changes, no push.
+30. 2026-11-23 (coordinator, via SendMessage): measurement method (a) + (b) + (c) from brief 29 adopted as the Metal prefill
+    standard. Levers 1 (prologue) and 3 (softmax) wait for the relbias-mma decision (retest #11812, ~11:00). **A. ConvMix row
+    kernel to its byte floor** (bitwise, independent of relbias), coding now: branch `ink/pf-convmix` off origin/main
+    bc03406d1, worktree `/opt/code/intarsiaml/.worktrees/ink-pf-convmix/` (the only folder for it); revert switch
+    `INTARSIA_INK_CONVMIX_V2=0`, default on only if bitwise, docs/tuning.md row. Gates: (1) build + kernels tests +
+    docs_env_vars; (2) md5 64 / 256 equal to main and Qwen3-8B `plan show` identical; (3) drift-proof kernel trace (ConvMix /
+    in_proj, ABBA) at 4k and 16k; (4) method (b) >= 7 adjacent pairs at 4k and 16k with a reference kernel before each arm.
+    Ship bar (bitwise): trace <= -30 % ConvMix time and e2e median pair ratio >= +1 % at 4k. No push; report branch, head,
+    numbers; the coordinator opens the PR. **B. Chunk 4096 for prompts >= 8k, measure on main first:** method (b), >= 7
+    pairs at 8k and 16k, chunk 2048 vs 4096 via the existing flag; record peak memory and whether self-goldens match. Book
+    with `fleetq when` for the first slot after #11812; never bump a reservation. 16k >= +2 % and 8k not negative -> report
+    and propose the switch design (coordinator says go); else close. Endor builds are `--load cpu` and wait for quiet jobs.
 
 ## Status
 
