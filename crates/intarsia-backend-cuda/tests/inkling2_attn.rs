@@ -303,3 +303,15 @@ fn op75_prefill_bitwise_pair() {
     }
     eprintln!("{n} op 75 prefill cases bitwise the pair");
 }
+
+/// INTARSIA_INK_ATTN_PDL (brief 50 gate 1): before griddepcontrol.wait a decode tile block prefetches only cache rows below
+/// the call's first position (rows earlier calls wrote), never the current call's K / V rows or their ring slots. The
+/// prefetch is an L2 hint, so a wrong range could not change a value and the bitwise tests cannot see it: this checks the
+/// range itself, through the kernels' own geometry functions, over a sweep of positions, rows 1..16, windows and tile sizes.
+#[test]
+fn pdl_prefetch_rows_stay_below_pos0() {
+    match intarsia_backend_cuda::inkattn::pdl_selftest() {
+        None => common::skip("inkling2_attn", "built without CUDA"),
+        Some(v) => assert_eq!(v, 0, "ik_ink_attn_pdl_selftest: {v} violations (-1: vacuous sweep)"),
+    }
+}
