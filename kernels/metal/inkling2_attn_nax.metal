@@ -101,7 +101,7 @@ METAL_FUNC ifrag_t<bfloat> inx_ld(device const ushort* r0, bool ok0, device cons
 
 // bind: 0 q [T,H,128], 1 k source [Hk,S,128], 2 v source, 3 rel [T,H,E], 4 pq, 5 out [T,H*128], 6 InkP.
 // Grid (ceil(T / BQ), Hk), NSG simdgroups = G heads x NSG / G slabs of 16 rows. q / out 8-byte, sources 16-byte aligned.
-template <int NSG>
+template <int NSG, bool PB>
 [[kernel, max_total_threads_per_threadgroup(NSG * 32)]] void ink_attn_nax(
     device const ushort* q [[buffer(0)]],
     device const ushort* ks [[buffer(1)]],
@@ -177,6 +177,19 @@ template <int NSG>
     const uint row0 = pos0 + r0i, row1 = pos0 + r1i;
     device const ushort* rel0 = rel + ((ulong)r0i * H + head) * E;
     device const ushort* rel1 = rel + ((ulong)r1i * H + head) * E;
+    // flags 64 (INTARSIA_INK_RELBIAS_MMA): rel holds r [T][H][16] and relproj transposed [E][16] (prologue); the bias of a
+    // tile is B = R [16 rows x 16] . P^T [16 x 64 distances] on the accelerators, rounded to bf16 like the materialised rel,
+    // staged per simdgroup in threadgroup memory and read back per score element.
+    constexpr bool packed = PB;  // the `_pb` instances (launcher: flags 64)
+    ifrag_t<bfloat> Rf;
+    {
+        device const ushort* rp0 = rel + ((ulong)r0i * H + head) * 16 + 4 * cq;
+        device const ushort* rp1 = rel + ((ulong)r1i * H + head) * 16 + 4 * cq;
+        Rf = inx_ld(rp0, packed && ok0, rp1, packed && ok1);
+    }
+    device const ushort* rpt = rel + (ulong)T * H * 16;
+    threadgroup ushort bsm[PB ? NSG : 1][PB ? 16 * 48 : 1];
+    threadgroup ushort* bs = bsm[PB ? sg : 0];
 
     for (uint kt = kt0; kt < kt1; ++kt) {
         const int key0 = (int)(kt * BK);  // source row of the tile
@@ -209,6 +222,35 @@ template <int NSG>
             }
         }
 
+        // packed: the tile's distances dist = row - key run from dlo = (first row of the slab) - (last key of the tile)
+        // over 47 values; column c of B is distance dlo + c, and element (row i, key 16f + 4cq + k) reads c = i - 16f - 4cq - k + 31
+        const int dlo = (int)(pos0 + qbase) - (int)(kbase + (uint)key0 + 31);
+        const bool pbias = packed && dlo < (int)E;
+        if (pbias) {
+            simdgroup_barrier(mem_flags::mem_threadgroup);  // the previous tile's reads of bs are done
+            ifrag_t<float> B[4];
+            IN_UNROLL
+            for (int j = 0; j < 4; ++j) B[j] = ifrag_t<float>(0.0f);
+            IN_UNROLL
+            for (int h2 = 0; h2 < 2; ++h2) {
+                const int ca = 32 * h2 + (int)fm, cb2 = ca + 16;
+                const int da = dlo + ca, db = dlo + ca + 8, dc = dlo + cb2, dd = dlo + cb2 + 8;
+                const ifrag_t<bfloat> b0 = inx_ld(rpt + (ulong)max(da, 0) * 16 + 4 * cq, da >= 0 && da < (int)E,
+                                                  rpt + (ulong)max(db, 0) * 16 + 4 * cq, db >= 0 && db < (int)E);
+                const ifrag_t<bfloat> b1 = inx_ld(rpt + (ulong)max(dc, 0) * 16 + 4 * cq, dc >= 0 && dc < (int)E,
+                                                  rpt + (ulong)max(dd, 0) * 16 + 4 * cq, dd >= 0 && dd < (int)E);
+                inx_mma<true>(B[2 * h2], B[2 * h2 + 1], Rf, b0, b1);
+            }
+            IN_UNROLL
+            for (int f = 0; f < 4; ++f) {
+                IN_UNROLL
+                for (int e = 0; e < 8; ++e) {
+                    const uint col = 16 * f + 4 * cq + (e & 3), rr = fm + ((e & 4) != 0 ? 8u : 0u);
+                    if (col < 48) bs[rr * 48 + col] = as_type<ushort>(bfloat(B[f][e]));
+                }
+            }
+            simdgroup_barrier(mem_flags::mem_threadgroup);
+        }
         float mx0 = -INFINITY, mx1 = -INFINITY;
         IN_UNROLL
         for (int f = 0; f < TK; ++f) {
@@ -223,7 +265,15 @@ template <int NSG>
                 float s = -INFINITY;
                 if (vis) {
                     s = Sf[f][e] * c;
-                    if (dist < E) s += bf2f((hi ? rel1 : rel0)[dist]) * INX_LOG2E;
+                    if (dist < E) {
+                        if (packed) {
+                            const uint rr = fm + (hi ? 8u : 0u);
+                            const uint col = rr + 31u - (uint)(16 * f) - 4 * cq - (uint)(e & 3);
+                            s += bf2f(bs[rr * 48 + col]) * INX_LOG2E;
+                        } else {
+                            s += bf2f((hi ? rel1 : rel0)[dist]) * INX_LOG2E;
+                        }
+                    }
                 }
                 Sf[f][e] = s;
                 if (hi) mx1 = max(mx1, s); else mx0 = max(mx0, s);
@@ -307,13 +357,16 @@ template <int NSG>
     }
 }
 
-#define INX_INST(NAME, NSG)                                                                                           \
-    template [[host_name(NAME)]] kernel void ink_attn_nax<NSG>(device const ushort*, device const ushort*,           \
+#define INX_INST(NAME, NSG, PB)                                                                                       \
+    template [[host_name(NAME)]] kernel void ink_attn_nax<NSG, PB>(device const ushort*, device const ushort*,       \
                                                                device const ushort*, device const ushort*,           \
                                                                device const ushort*, device ushort*, constant InkP&, \
                                                                uint2, uint2, uint, uint);
-INX_INST("ink_attn_nax_s6", 6)
-INX_INST("ink_attn_nax_s12", 12)
+INX_INST("ink_attn_nax_s6", 6, false)
+INX_INST("ink_attn_nax_s12", 12, false)
+// INTARSIA_INK_RELBIAS_MMA (opt-in): the bias per key tile from r and relproj (rel holds the packed form; flags 64)
+INX_INST("ink_attn_nax_s6_pb", 6, true)
+INX_INST("ink_attn_nax_s12_pb", 12, true)
 
 // staging of a ring prefill's keys: row r of [Hk, S, D] is absolute key kbase + r: zero below lo (the first row's window),
 // the ring row for lo <= j < pos0, the chunk row for j >= pos0. bind: 0 k chunk, 1 v chunk, 2 k cache, 3 v cache, 4 k stage,

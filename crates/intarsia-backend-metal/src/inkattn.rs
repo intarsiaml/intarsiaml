@@ -24,6 +24,30 @@ const DEC: [&str; 3] = ["ink_attn_dec_g1", "ink_attn_dec_g2", "ink_attn_dec_g3"]
 /// `RelSinkAttn` prefill (T > 16) on the neural accelerators (inkling2_attn_nax.metal, metal4.0 library).
 pub const REL_SINK_ATTN_BF16_NAX: &str = "rel_sink_attn_bf16_nax";
 const NAX: [&str; 2] = ["ink_attn_nax_s6", "ink_attn_nax_s12"];
+/// The `INTARSIA_INK_RELBIAS_MMA` forms of [`NAX`]: the rel bias built per key tile from r and relproj.
+const NAX_PB: [&str; 2] = ["ink_attn_nax_s6_pb", "ink_attn_nax_s12_pb"];
+
+static RELBIAS_MMA_SET: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+
+/// `INTARSIA_INK_RELBIAS_MMA` (default off; lane ink-metal brief 49, opt-in, NOT bitwise): prefill chunks skip the
+/// materialised rel bias. The prologue (op 70) writes r `[T, H, 16]` and relproj transposed `[E, 16]` into its rel output
+/// instead of rel `[T, H, E]`, and the NAX attention (op 71) builds each key tile's bias as one 16 x 16 x 64 product on the
+/// accelerators, rounded to bf16 like the materialised rel. Only the f32 order of the 16-term dot changes. Off: today's path.
+pub fn relbias_mma_on() -> bool {
+    match RELBIAS_MMA_SET.load(std::sync::atomic::Ordering::Relaxed) {
+        1 => true,
+        2 => false,
+        _ => {
+            static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+            *ON.get_or_init(|| std::env::var("INTARSIA_INK_RELBIAS_MMA").is_ok_and(|v| matches!(v.trim(), "1" | "on")))
+        }
+    }
+}
+
+/// Tests: force [`relbias_mma_on`] on or off, `None` = back to the environment.
+pub fn set_relbias_mma(on: Option<bool>) {
+    RELBIAS_MMA_SET.store(match on { None => 0, Some(true) => 1, Some(false) => 2 }, std::sync::atomic::Ordering::Relaxed);
+}
 const KV_STAGE: &str = "ink_kv_stage_bf16";
 static NAX_FALLBACKS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
@@ -37,7 +61,7 @@ const NAX_MAX_WINDOW: usize = 4096;
 
 /// The metal4.0 shaders of this module.
 pub fn metal4_shader_names() -> Vec<&'static str> {
-    vec![NAX[0], NAX[1], KV_STAGE]
+    vec![NAX[0], NAX[1], NAX_PB[0], NAX_PB[1], KV_STAGE]
 }
 
 /// Shapes `rel_sink_attn_bf16_nax` takes: prefill chunks (more rows than a verify call), head_dim 128, group 3.
@@ -238,6 +262,24 @@ impl MetalBackend {
         }
     }
 
+    /// Whether this prefill pair (op 70 -> op 71) uses the packed rel form (`INTARSIA_INK_RELBIAS_MMA`). Both launchers
+    /// evaluate it on the same facts: the rows, the host position, the shapes and the rel tensor's alignment; the NAX
+    /// launcher refuses a packed call it would have to send to the split-KV fallback.
+    fn relbias_packed(&self, call: &OpCall, rel: &intarsia_core::backend::TensorRef, t: usize, e: usize) -> Result<bool> {
+        let a = &call.attrs;
+        Ok(relbias_mma_on()
+            && t > intarsia_core::inkling2::ops::ATTN_DECODE_MAX_ROWS
+            && call.pos.is_none()
+            && a.ink.d_rel == 16
+            && a.head_dim == 128
+            && a.n_kv_heads > 0
+            && a.n_heads == 3 * a.n_kv_heads
+            && self.has_metal4()
+            && self.ink_pso(NAX_PB[1]).is_ok()
+            && t * a.n_heads * 16 + e * 16 <= rel.numel()
+            && (self.mbuf(&rel.buf)?.base + rel.offset) % 16 == 0)
+    }
+
     fn launch_ink_prologue(&self, call: &OpCall) -> Result<()> {
         let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
         let ink = &a.ink;
@@ -268,6 +310,7 @@ impl MetalBackend {
         let fused = t + k <= rr + 1;
         let a8 = |x: &intarsia_core::backend::TensorRef| self.mbuf(&x.buf).map(|m| (m.base + x.offset) % 8 == 0);
         let vec_rel = a8(&i[7])? && a8(&o[1])?;
+        let packed = self.relbias_packed(call, &o[1], t, e)?;
         let mut p = InkP {
             t: u(t, "T")?,
             h: u(h, "H")?,
@@ -279,7 +322,7 @@ impl MetalBackend {
             rr: u(rr, "Rr")?,
             pos0: u(a.pos0, "pos0")?,
             use_dev,
-            flags: u32::from(ink.dyn_conv) | if fused { 4 } else { 0 } | if vec_rel { 8 } else { 0 },
+            flags: u32::from(ink.dyn_conv) | if fused { 4 } else { 0 } | if vec_rel { 8 } else { 0 } | if packed { 64 } else { 0 },
             tau_floor: u(ink.tau_floor, "tau_floor")?,
             nq: u(i[0].shape[1], "Nq")?,
             pw: u(i[1].shape[1], "pk width")?,
@@ -313,6 +356,9 @@ impl MetalBackend {
         let (t, h, hk, d) = (i[0].shape[0], a.n_heads, a.n_kv_heads, a.head_dim);
         if t == 0 {
             return Ok(());
+        }
+        if self.relbias_packed(call, &i[5], t, i[5].shape[2])? {
+            return Err(Error::invalid("metal rel_sink_attn_bf16: INTARSIA_INK_RELBIAS_MMA packed rel reaches only the NAX prefill kernel"));
         }
         let g = h / hk;
         let cr = o[1].shape[1];
@@ -645,7 +691,11 @@ impl MetalBackend {
         } else {
             a.pos0 + t <= cr
         };
+        let packed = self.relbias_packed(call, &i[5], t, e)?;
         if call.pos.is_some() || !aligned || h != 3 * hk || d != 128 || !fits {
+            if packed {
+                return Err(Error::invalid("metal rel_sink_attn_bf16_nax: INTARSIA_INK_RELBIAS_MMA packed rel, but this call would take the split-KV fallback"));
+            }
             NAX_FALLBACKS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             return self.launch_rel_sink(call);
         }
@@ -683,7 +733,8 @@ impl MetalBackend {
             static SG: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
             *SG.get_or_init(|| std::env::var("INTARSIA_INK_NAX_SG").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(12))
         };
-        let (nax, nsg) = if static_sg == 6 { (NAX[0], 6) } else { (NAX[1], 12) };
+        let forms = if packed { NAX_PB } else { NAX };
+        let (nax, nsg) = if static_sg == 6 { (forms[0], 6) } else { (forms[1], 12) };
         let bq = 16 * (nsg / 3);
         let pso = self.ink_pso(nax)?;
         let wr = self.ink_pso(KV_WRITE)?;
@@ -691,6 +742,9 @@ impl MetalBackend {
         if ring {
             let sc = self.bind(call.scratch.as_ref().expect("checked"), DType::U8, true, "scratch")?;
             if sc.skip != 0 || (self.mbuf(&call.scratch.as_ref().unwrap().buf)?.base + call.scratch.as_ref().unwrap().offset) % 16 != 0 {
+                if packed {
+                    return Err(Error::invalid("metal rel_sink_attn_bf16_nax: INTARSIA_INK_RELBIAS_MMA packed rel, but the scratch is misaligned"));
+                }
                 return self.launch_rel_sink(call);
             }
             let ks = Bind { mtl: sc.mtl.clone(), off: sc.off, skip: 0 };

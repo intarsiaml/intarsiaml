@@ -203,11 +203,16 @@ kernel void ink_kv_prologue_bf16(device const ushort* pq_ [[buffer(0)]],
             qo[((ulong)t * H + h) * D + c] = f2bf(x);
         }
     }
+    // flags 64 (INTARSIA_INK_RELBIAS_MMA, prefill chunks only; launcher inkattn.rs `relbias_packed`): no materialised rel.
+    // The rel output instead holds r [T][H][16] (bf16; the values below are bf16-exact) and, at element T * H * 16, relproj
+    // transposed [E][16] (written by threadgroup (0, 0)); the NAX attention builds the bias per key tile from them.
+    const bool packed = (p.flags & 64u) != 0;
     if (c < dr) {
         for (uint g = 0; g < G; ++g) {
             float x = rA(rv[g] * ink_clipf(tot[2 + G + g], p.rel_clip));
             if (use_tau) x = rA(x * tau);
             rsh[g][c] = x;
+            if (packed) relo[((ulong)t * H + kvh * G + g) * 16 + c] = f2bf(x);
         }
     }
     // the conv rings: only when no other row of the call still reads the row written (launcher: T <= Rr - K + 1)
@@ -215,6 +220,13 @@ kernel void ink_kv_prologue_bf16(device const ushort* pq_ [[buffer(0)]],
         const ulong ro = (ulong)(pp % p.rr) * ckv + ch;
         kr[ro] = pk[(ulong)t * p.pw + ch];
         vr[ro] = pv[(ulong)t * p.pw + ch];
+    }
+    if (packed) {
+        if (kvh == 0 && t == 0) {
+            device ushort* rpt = relo + (ulong)p.t * H * 16;
+            for (uint x = tid; x < E * 16; x += tpg) rpt[x] = x % 16 < dr ? rp[(ulong)(x % 16) * E + x / 16] : (ushort)0;
+        }
+        return;
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
     // rel = r . relproj: 4 consecutive columns per thread, the d_rel = 16 rows of relproj loaded up front into registers
