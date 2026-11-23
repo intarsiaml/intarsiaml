@@ -488,11 +488,12 @@ int moe_pf_on() {
     return v;
 }
 
-// INTARSIA_INK_MOE_PDL=1: down launched as a programmatic dependent of gate_up (decode kernels, 16-bit activations)
+// down launched as a programmatic dependent of gate_up (decode kernels, 16-bit activations, T <= 2); default on since brief 45,
+// INTARSIA_INK_MOE_PDL=0 off
 int moe_pdl_on() {
     static const int v = [] {
         const char* e = getenv("INTARSIA_INK_MOE_PDL");
-        return e && e[0] == '1' ? 1 : 0;
+        return e && e[0] == '0' ? 0 : 1;
     }();
     return v;
 }

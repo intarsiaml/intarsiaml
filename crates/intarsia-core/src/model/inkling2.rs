@@ -195,13 +195,23 @@ pub const ATTN_QUANT_ENV: &str = "INTARSIA_INK_ATTN_QUANT";
 pub const ACT_QUANT_ENV: &str = "INTARSIA_INK_ACT_QUANT";
 
 /// The expert activation mode from its spelling (`w4a16` -> 0, `w4a4` -> 1).
-/// `INTARSIA_INK_MOE_REPACK=1` (CUDA, off by default; brief 36 stage A): the NVFP4 expert weights are repacked at load for the
-/// decode kernels' warp steps (`ink.moe_layout = 1`); the tensor-core prefill (`ink_moe_mma`) reads the repacked address map
-/// (brief 44), and W4A4 is refused.
+/// `INTARSIA_INK_MOE_REPACK` (CUDA; default on since brief 45): the NVFP4 expert weights are repacked in place at load for the
+/// decode kernels' warp steps (`ink.moe_layout = 1`); the decode kernels and the tensor-core prefill (`ink_moe_mma`) read that
+/// layout, the same bits as the checkpoint layout. Unset: on with 16-bit expert activations, off with W4A4 (which the repacked
+/// kernels do not run); `0`: off; `1`: on (an error with W4A4).
 pub const MOE_REPACK_ENV: &str = "INTARSIA_INK_MOE_REPACK";
 
-fn moe_repack_wanted(b: &dyn Backend) -> bool {
-    b.name() == "cuda" && std::env::var(MOE_REPACK_ENV).is_ok_and(|v| v.trim() == "1")
+/// Whether the repack is on for this backend and expert activation mode (`act_quant`: 1 = W4A4); `Err` for `1` with W4A4.
+fn moe_repack_wanted(b: &dyn Backend, act_quant: u8) -> Result<bool> {
+    if b.name() != "cuda" {
+        return Ok(false);
+    }
+    match std::env::var(MOE_REPACK_ENV).ok().map(|v| v.trim().to_string()).as_deref() {
+        Some("0") => Ok(false),
+        Some("1") if act_quant == 1 => Err(Error::model(format!("inkling2: {MOE_REPACK_ENV}=1 does not combine with W4A4 expert activations"))),
+        Some("1") => Ok(true),
+        _ => Ok(act_quant == 0),
+    }
 }
 
 pub fn parse_act_quant(v: &str) -> Result<u8> {
@@ -474,6 +484,7 @@ pub(super) fn load(
     act: DType,
     mt: usize,
     attn_quant: Option<crate::quant::head::HeadQuant>,
+    act_quant: u8,
     slot_specs: &mut Vec<SlotSpec>,
     bytes: &mut u64,
 ) -> Result<InkModel> {
@@ -489,9 +500,9 @@ pub(super) fn load(
     // projection
     let pack12 = crate::quant::p12::enabled(b) && attn_quant.is_none() && wdt_of(src, &names.root) == DType::Bf16;
     // the decode repack of the NVFP4 experts (MOE_REPACK_ENV, CUDA only)
-    let repack = moe_repack_wanted(b) && crate::inkling2::ops::moe_repack_fits(d, ink.inter);
+    let repack = moe_repack_wanted(b, act_quant)? && crate::inkling2::ops::moe_repack_fits(d, ink.inter);
     if repack {
-        eprintln!("inkling2: NVFP4 experts repacked for the decode kernels ({MOE_REPACK_ENV}=1)");
+        eprintln!("inkling2: NVFP4 experts repacked for the decode kernels ({MOE_REPACK_ENV}=0 turns it off)");
     }
     let mut p12_stats = P12Stats::default();
     let mut put = |data: &[u8], dt: DType, shape: &[usize]| -> Result<TensorRef> {
@@ -816,7 +827,7 @@ pub(super) fn load(
         *bytes += p12_stats.bytes as u64;
         eprintln!("{}", p12_stats.note("in_proj + wo"));
     }
-    Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, msg_q_all, ws, dims: ink, act_quant: 0, moe_layout: repack as u8 })
+    Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, msg_q_all, ws, dims: ink, act_quant, moe_layout: repack as u8 })
 }
 
 impl InkWs {

@@ -1777,15 +1777,13 @@ impl Model {
                 if let Some(k) = attn_quant {
                     eprintln!("inkling2: attention projections quantised to {} at load ({} = {}; changes outputs)", k.name(), inkling2::ATTN_QUANT_ENV, k.name());
                 }
-                let mut m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, &mut slot_specs, &mut nbytes)?;
-                // opt-in W4A4 expert activations: the variable wins over the recipe
-                m.act_quant = match std::env::var(inkling2::ACT_QUANT_ENV).ok().filter(|v| !v.is_empty()) {
+                // opt-in W4A4 expert activations: the variable wins over the recipe (resolved before the load: the CUDA expert
+                // repack, `inkling2::MOE_REPACK_ENV`, is on only with 16-bit activations)
+                let act_quant = match std::env::var(inkling2::ACT_QUANT_ENV).ok().filter(|v| !v.is_empty()) {
                     Some(v) => inkling2::parse_act_quant(&v)?,
                     None => recipe.ink_act_quant(backend.name()).map(inkling2::parse_act_quant).transpose()?.unwrap_or(0),
                 };
-                if m.act_quant == 1 && m.moe_layout != 0 {
-                    return Err(Error::model(format!("inkling2: {} does not combine with W4A4 expert activations", inkling2::MOE_REPACK_ENV)));
-                }
+                let m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, act_quant, &mut slot_specs, &mut nbytes)?;
                 if m.act_quant == 1 {
                     eprintln!("inkling2: W4A4 expert activations ({} / recipe act_quant; changes outputs)", inkling2::ACT_QUANT_ENV);
                 }
