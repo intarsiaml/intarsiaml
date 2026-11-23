@@ -289,6 +289,14 @@
 57. 2026-11-23 (coordinator, brief 56 rescoped): desk check first. If every full-row reader is unreachable with the screen
     on, add a cheap guard on `ink/cuda-p12dec` plus a doc note, re-run the build and tiny/batch tests on spark1; no separate PR,
     no Metal gates. A live path: stop and report it. Say whether the graph-key bug can trigger on main.
+58. 2026-11-23 (coordinator, brief 58): the CUDA default-on is a flip and needs the user's go. Branch `ink/cuda-screen` off
+    origin/main 0b8fab600 (worktree `.worktrees/ink-cuda-screen` only) with ink/cuda-p12dec's commits minus the default-on
+    (CUDA screen opt-in); the flip as one commit on local `ink/cuda-screen-flip`, not pushed. CUDA gates on spark1 in one slot
+    (build, tiny 17/17, batch 8/8, md5 64/256/1.2k == main default and with `INTARSIA_INK_HEAD_SCREEN=1`, spec off and
+    default, plan show identical for the 35B and 8B JSON, kernels test --quick). Metal no-op on endor in one slot (plan show
+    Qwen3-8B / Llama / Inkling-2, kernels test 0 FAIL, Metal tests, greedy md5 64/256 == main, cargo test of the touched
+    crates, separate target dir); endor reserved 09:00-14:25. Push inside a slot or --no-verify after docs_env_vars and
+    recipes_doc pass. Coordinator opens the PR and merges.
 
 ## Summary
 
@@ -1655,8 +1663,10 @@ rescored.
 - `73e0c8afb`: the kernels, opt-in.
 - `7bdb0e71f`: a test fix.
 - `24c3ed1a5`: the tuning row.
-- `ce492db75`: the **CUDA default on**, a separate commit with a LOG row whose go is PENDING. `INTARSIA_INK_HEAD_SCREEN=0`
-  reverts.
+- Landing (brief 58): branch `ink/cuda-screen` off main 0b8fab600 carries the kernels, the graph-key fix, the sampled-draft
+  guard and these notes; on CUDA the screen stays opt-in (`INTARSIA_INK_HEAD_SCREEN=1`). The **CUDA default on** is one
+  commit on the local branch `ink/cuda-screen-flip` (LOG row, go PENDING: a default flip needs the user's go);
+  `INTARSIA_INK_HEAD_SCREEN=0` reverts it.
 
 **What was built.**
 - `kernels/cuda/ink_screen.cu`: `head_screen_f32` and `screen_argmax_f32`, the contract's exact f32 operations, bitwise the
