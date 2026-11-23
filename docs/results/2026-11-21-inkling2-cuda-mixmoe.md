@@ -308,6 +308,12 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   a different harness? Confirm that #11716's main binary is main: md5 differs from the branch binary, own target dir, no
   branch-only string (guards against the git-archive stale-binary bug). The merge needs the user's go, relayed by the
   coordinator; then merge on green CI and send the merge commit.
+- (coordinator, 46th) **User go for #501: "Yes, flip and merge".** Merge on green CI once all of these hold: (1) the flip
+  commit (repack + PDL default-on, env opt-outs, tuning rows) is in; (2) main 08ae803e0 or newer is merged in, and the CUDA gates
+  pass on that final tree with no env set: g64 / g256 / g1.2k ids identical to a fresh main build (separate target dir,
+  binaries differ), spec off and default, plus ink_rows, tiny cuda and admission; (3) the hash question is answered (why this
+  lane's g64 / g1.2k differ from the CUDA lane's faf40cecb06b / dc28658094c0; if it is the harness, say which). If any gate
+  fails, stop and report, do not merge. Send the merge commit.
 - (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
   chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
   is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
