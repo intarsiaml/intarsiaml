@@ -546,6 +546,29 @@ Bitwise test tests/inkconvmix_v2.rs against `ink_mix_row_h_*` (main's default).
 trace, A B B A, 4k and 16k) must show ConvMix <= -30 % at R 2 or R 4. If it misses at both, stop and report: no
 end-to-end pairs. -30 % of ~57 ms per 4k is ~17 ms, about +1.1 % of 4k TTFT, just over the +1 % end-to-end bar.
 
+### Chunk 4096 vs 2048 result (#11822, binary ink/pf-convmix 3886acfeb, v2 off = main's code)
+
+**Contamination:** the coordinator's `git push` pre-push hook ran cargo tests on endor's CPU about 05:56:20-05:57:14, inside
+this quiet slot (not my doing). The runs inside that window are 8k pair 1 (sp 2048 ended 05:56:21, ref / sp 4096 up to
+05:56:41) and 8k pair 2 (all four runs, 05:56:41-05:57:18). The script cannot rerun a pair, so both are flagged and left
+out of the median. The rule's reference check had already dropped both independently: their p1k references differed by
+19.8 % and 18.8 %. No 16k run overlapped the window.
+
+- Bitwise: greedy md5 64 at chunk 2048 = chunk 4096 at 8k and at 16k (f367945f..., both lengths).
+- Peak memory footprint: 20.30 GB (chunk 2048) -> 20.76 GB (chunk 4096), +0.46 GB.
+- Box: degraded throughout (load1 ~9-14; chunk-2048 8k arm 1643-2460 tok/s vs ~2700 healthy), which is what the
+  per-pair reference is for.
+
+| prompt | pair ratios (4096 / 2048), kept | dropped | median | need |
+|---|---|---|---:|---|
+| 8k | 1.4439, 1.1960, 0.9159, 1.0359 (pairs 3, 4, 6, 7) | 1, 2 (push window + refs 19.8 / 18.8 %), 5 (refs 2.3 %) | 1.1159 | >= 1.00 PASS |
+| 16k | 1.0895, 1.0577, 1.1363, 1.0162, 1.1047, 1.0632, 1.0709 (all 7) | none | 1.0709 | >= 1.02 PASS |
+
+**Verdict per brief 30 B: the rule passes; report and propose the switch, no build without the coordinator's go.** Caveats:
+the 8k result rests on 4 kept pairs that spread from 0.92 to 1.44 (method (b) asked for >= 7), so 8k is "not negative" only
+weakly; 16k is solid (7 / 7 kept, every ratio > 1.0). The size (+7 % at 16k) is above brief 39's +2-4 %. A confirmation run in
+a clean window should come before any default flip.
+
 ### ConvMix v2 result (#11820, ink/pf-convmix 3886acfeb): bitwise, but SLOWER; kill rule fires, stopped
 
 First attempt #11814 measured nothing: the staged CLI lacked `--features metal` (the docs test rebuilt it); fixed in #11819,
