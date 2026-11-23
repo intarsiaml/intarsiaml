@@ -471,8 +471,9 @@ pub struct PrefillChunk {
 /// passes of [`INK_LONG_CHUNK_ROWS`] rows (lane ink-prefill: endor #11822, 16k +7 %, bitwise the 2048-row schedule).
 /// Opt-in (default off); `--prefill-chunk` overrides it.
 pub const INK_LONG_CHUNK_ENV: &str = "INTARSIA_INK_LONG_CHUNK";
-/// The long-prompt chunk's threshold in prompt tokens.
-pub const INK_LONG_CHUNK_MIN_PROMPT: usize = 8192;
+/// The long-prompt chunk's threshold in prompt tokens: a prompt that needs more than one 4096-row pass (lane ink-prefill
+/// brief 32; covers the 8k prompts #11822 measured).
+pub const INK_LONG_CHUNK_MIN_PROMPT: usize = 4097;
 /// The long-prompt chunk in rows.
 pub const INK_LONG_CHUNK_ROWS: usize = 4096;
 
@@ -487,7 +488,7 @@ impl PrefillChunk {
         format!("{} ({})", self.value, self.source)
     }
 
-    /// The long-prompt chunk's state for the startup log: `long-prompt chunk 4096 from 8192 tokens (INTARSIA_INK_LONG_CHUNK=1)`.
+    /// The long-prompt chunk's state for the startup log: `long-prompt chunk 4096 from 4097 tokens (INTARSIA_INK_LONG_CHUNK=1)`.
     pub fn describe_long(&self) -> String {
         match self.long {
             Some((min, c)) => format!("long-prompt chunk {c} from {min} tokens ({INK_LONG_CHUNK_ENV}=1)"),
