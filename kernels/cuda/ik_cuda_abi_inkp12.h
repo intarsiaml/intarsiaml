@@ -29,6 +29,10 @@ int ik_ink_in_proj_p12_mma_rows(const ik_tensor* x, const ik_tensor* codes, cons
 int ik_ink_in_proj_bf16_gemv(const ik_tensor* x, const ik_tensor* w, ik_tensor* pq, ik_tensor* pk, ik_tensor* pv, void* stream);
 int ik_ink_in_proj_p12_gemv(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* pq, ik_tensor* pk,
                             ik_tensor* pv, void* stream);
+/* the rows-exact registry names of the two (each row's sum order is the same whatever M): the same launchers */
+int ik_ink_in_proj_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* pq, ik_tensor* pk, ik_tensor* pv, void* stream);
+int ik_ink_in_proj_p12_gemv_rows(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* pq, ik_tensor* pk,
+                                 ik_tensor* pv, void* stream);
 
 #ifdef __cplusplus
 }

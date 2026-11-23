@@ -66,7 +66,7 @@ fn ink_debug_dispatches() -> usize {
 }
 
 /// `INTARSIA_INK_PREFILL_FUSED` (lane ink-cuda-attn, briefs 30a / 30b; default on, `=0` off): prefill chunks (more than 16 rows)
-/// take the fused `InkAttnDecode` where the backend admits it (CUDA `ink_attn_prefill_bf16`: the flash kernel forms the rel bias,
+/// take the fused `InkAttnDecode` where the backend admits it (CUDA `ink_attn_decode_prefill_bf16`: the flash kernel forms the rel bias,
 /// no `[T,H,E]` table), else the pair. Bitwise the pair either way; warm-serve prefill +2.7-4.1 % at 1k-16k on CUDA (#11632).
 /// Metal and cpu admit op 75 at 1..=16 rows only, so the pair runs there. Read once.
 fn ink_prefill_fused_env() -> bool {

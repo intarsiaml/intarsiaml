@@ -181,7 +181,7 @@ fn run_with(be: &dyn Backend, l: &Layer, inp: &Inputs, t: usize, pos0: usize, ro
                 a,
             );
             f.pos = pos;
-            let fk = if rows > 16 { "ink_attn_prefill_bf16" } else { "ink_attn_decode_bf16" };
+            let fk = if rows > 16 { "ink_attn_decode_prefill_bf16" } else { "ink_attn_decode_bf16" };
             f.scratch = Some(scratch_for(be, fk, &f));
             be.launch(fk, &f, 0).unwrap();
             be.synchronize(0).unwrap();
@@ -276,7 +276,7 @@ fn rows_exact_real_shapes() {
     eprintln!("{n} rows-exact cases bitwise");
 }
 
-/// Op 75 on prefill chunks (`ink_attn_prefill_bf16`, the rel bias formed in the flash kernel) is bitwise the pair the graph
+/// Op 75 on prefill chunks (`ink_attn_decode_prefill_bf16`, the rel bias formed in the flash kernel) is bitwise the pair the graph
 /// runs there (prologue + `rel_sink_attn_bf16_flash`): output, conv rings and K / V caches (brief 30a).
 #[test]
 fn op75_prefill_bitwise_pair() {

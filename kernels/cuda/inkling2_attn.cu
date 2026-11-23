@@ -2120,6 +2120,15 @@ static int ink_attn_prefill(InkP& p, const ik_ink_attrs* a, ik_tensor* o, ik_ten
     return ik_launch_status();
 }
 
+// ink_attn_decode_prefill_bf16: the registry name of op 75 above 16 rows; ik_ink_attn_decode_bf16 takes T > 16 itself
+extern "C" int ik_ink_attn_decode_prefill_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt,
+                                               const ik_tensor* vt, const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp,
+                                               const ik_tensor* kc_in, const ik_tensor* vc_in, const ik_ink_attrs* a, ik_tensor* o,
+                                               ik_tensor* kc, ik_tensor* vc, ik_tensor* kring, ik_tensor* vring,
+                                               const ik_scratch* scratch, const ik_tensor* pos, void* stream) {
+    return ik_ink_attn_decode_bf16(pq, pk, pv, kt, vt, qs, rs, rp, kc_in, vc_in, a, o, kc, vc, kring, vring, scratch, pos, stream);
+}
+
 extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,
                                        const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp, const ik_tensor* kc_in, const ik_tensor* vc_in,
                                        const ik_ink_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc, ik_tensor* kring, ik_tensor* vring,
