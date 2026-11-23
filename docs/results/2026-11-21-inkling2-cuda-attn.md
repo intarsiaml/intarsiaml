@@ -1549,8 +1549,8 @@ the same two griddepcontrol instructions as `ink_moe.cu`'s file-local helpers, w
 - **It can fail:** the same file with the range end moved to pos0 (one sed line) reports 231096 violations; unmodified, 0.
   It is a range test because a prefetch hint cannot change a value, so no bitwise test could see a wrong range.
 - **All intarsia-backend-cuda tests, `--no-fail-fast`, PDL on:** 44 result lines, 41 ok; 194 passed, 4 failed, 26 ignored.
-  The 4 failures do not involve this change (it touches no kernel table); I did not run main's suite to confirm they fail
-  there too:
+  The 4 failures are main's: this diff touches no kernel table or pin, and `git grep` finds no `ik_ink_attn_prefill_bf16` in
+  main's ABI headers (main's suite itself was not run). CI evidently does not run these host-side tests:
   - `kernels::tests::every_launcher_is_declared_in_the_abi_header`, `op_prefix_matches_launcher_name` and
     `quick_coverage::every_cuda_kernel_has_a_quick_case`, all three on `ink_attn_prefill_bf16`. That kernel came in with my
     86060ae6f (brief 30a): it is not in the ABI header, is not named after op 75, and has no quick case.
@@ -1587,18 +1587,28 @@ Graphed decode, nsys, spec off (wall and idle per token; idle = wall - busy):
 | idle ms / token | 0.36 | 0.39 | 0.37 | 0.38 |
 | kernels / token | 657 | 657 | 657 | 657 |
 
-**Result: under the ship bar at short context.** Spec off gains +0.75 % short and +1.19 % at 5k. That is above the 0.5 %
-park line and short of the +1 % bar at both lengths.
+**Result: in the band the brief left open.** Spec off: +0.75 % short, +1.19 % at 5k. That is above the +0.5 % park line
+and under the +1 % ship bar at short. P's and M's ranges do not overlap, and Z is within 0.12 % of M. The spec-default
+cells are noise-limited (Z vs M +0.50 % at 5k, M's range 1.8 %), so they are not evidence either way.
 
-**Why it stops there.** `cuobjdump -res-usage`: `ink_tile_staged_k<128, fused>` holds 162 registers x 384 threads and
-`ink_tile_k` 168, the whole 64K register file of an SM. Its 48 blocks (8 kv heads x 6) cover all 48 SMs of the GB10.
-- No combine or wo block can be resident while a tile block runs. Under PDL their kernel times stretch over the tile
-  instead: combine 1.0 -> 41.5 us, wo 48.8 -> 78.1 us a call at short.
-- What PDL can overlap is the tile's uneven tail and the launch gaps. At 5k the old-row prefetch adds most of the gain
-  (L alone is +0.04 %, P +1.19 %).
+**What limits it** (fleetq #11808 `cuobjdump -res-usage`, #11809 device properties).
+- The GB10 has 48 SMs, a 64K register file per SM and a 24 MB L2. `ink_tile_staged_k<128, fused>` holds 162 registers x
+  384 threads and `ink_tile_k` 168: one tile block fills an SM's register file.
+- **5k:** most of the 6 SWA tile slots per kv head have keys, and the full-layer tile runs 34 slots. Live tile blocks cover
+  the SMs, so wo and combine cannot be resident beside them. PDL overlaps the tile's uneven tail and the launch gaps, and the
+  old-row prefetch carries most of the gain (L alone is +0.04 %, P +1.19 %).
+- **Short (positions 15-270, tile 256):** only 1-2 of the 6 slots per kv head have keys, so 8-16 of 48 tile blocks are live
+  and the rest return after the wait.
+  - Combine and wo do become resident early and spin at the wait. Their kernel times stretch over the tile: combine 1.0 ->
+    41.5 us, wo 48.8 -> 78.1 us a call.
+  - wo's weight prefetch is issued about 33 us before its wait returns, yet wo still runs about 44 us after it, against
+    48.8 us plain.
+  - The 10.6 MB of wo weights fits the 24 MB L2, so capacity alone does not explain it. **Unexplained.** Candidates:
+    prefetch hints dropped or throttled, wo's 10.6 MB needing about 39 us of DRAM against the tile's 33 us, or L2
+    partition effects.
+  - Capping the tile's registers would therefore not move short context.
 
-**Two ways past it, both outside this brief:**
-- (a) Cap the tile's registers (`__maxnreg__` / launch bounds) so one wo block fits beside it. Bitwise, but a tile slowdown
-  risk.
-- (b) Have the tile blocks prefetch the following wo's weight rows. This needs the wo weight in op 75's inputs: a contract
-  change.
+**Follow-ups, outside this brief:**
+- (a) Find out why the wo prefetch does not pay at short context: a microbench of wo after a prefetch with an idle gap, and
+  `cp.async.bulk.prefetch.L2` instead of per-line hints.
+- (b) Only for 5k: cap the tile's registers so one wo block fits beside it. Bitwise, but a tile slowdown risk.
