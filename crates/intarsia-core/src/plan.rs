@@ -249,6 +249,7 @@ pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceStat
         clean: 0,
         passes: Vec::new(),
         prefill_snapshots: 0,
+        prefill_chunk_rows: 0,
         spec_rows: Default::default(),
         replay_from: 0,
         ring_snap_buf: None,

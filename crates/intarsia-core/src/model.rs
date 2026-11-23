@@ -3464,7 +3464,10 @@ impl Model {
         mode: HeadMode,
         on_row: Option<RowCallback<'_>>,
     ) -> Result<StepOut> {
-        let out = self.forward_prefill_inner(st, ids, mode, on_row)?;
+        let out = self.forward_prefill_inner(st, ids, mode, on_row);
+        // the engine's cut applies to this call only
+        st.prefill_chunk_rows = 0;
+        let out = out?;
         if self.ring_snapshots() > 0 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_) | HeadMode::LastTopK(_)) {
             st.ring_snapshot(&*self.backend)?;
         }
@@ -3819,8 +3822,13 @@ impl Model {
     /// are `1..=peel` runs those rows as their own pass ([`crate::scheduler::peel_tail`]).
     fn forward_chunks<'a>(&self, st: &SequenceState, ids: &'a [u32]) -> Vec<&'a [u32]> {
         let avoid = self.backend.avoid_single_row_prefill() && !st.has_recurrent();
-        // the long-prompt chunk applies to the prompt this pass belongs to (rows before it plus these); off: the workspace rows
-        let rows = if self.long_chunk.is_some() { self.prefill_chunk_for(st.len + ids.len()) } else { self.ws.max_tokens };
+        // the long-prompt chunk: the chunk the engine cut this call by (`SequenceState::prefill_chunk_rows`), else the chunk of
+        // the prompt this call belongs to (rows before it plus these: a whole-prompt caller); off: the workspace rows
+        let rows = match self.long_chunk {
+            Some(_) if st.prefill_chunk_rows > 0 => st.prefill_chunk_rows.min(self.ws.max_tokens),
+            Some(_) => self.prefill_chunk_for(st.len + ids.len()),
+            None => self.ws.max_tokens,
+        };
         let mut out = Vec::with_capacity(ids.len().div_ceil(rows));
         let mut pos = 0;
         while pos < ids.len() {

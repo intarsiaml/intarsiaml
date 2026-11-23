@@ -174,13 +174,16 @@ pub trait BatchModel {
     fn park_sync(&mut self) {}
     /// Deferred background work of the model (the prefix store's settle), called where the device is idle; see [`Housekeep`].
     fn housekeep(&mut self, _at: Housekeep) {}
-    /// Opt-in tail merge threshold in rows ([`next_prefill_chunk_tm`]); default 0 (off). The real adapter returns the
-    /// model's `INTARSIA_PREFILL_TAIL_MERGE`, whose workspace is sized for it.
     /// The opt-in long-prompt chunk for a prompt of `plen` tokens prefilling while nothing decodes
     /// ([`crate::model::Model::prefill_chunk_for`]); `None` (default): the scheduler's solo chunk.
     fn long_prefill_chunk(&self, _plen: usize) -> Option<usize> {
         None
     }
+    /// The chunk the scheduler cut slot `slot`'s next prefill call by (the real adapter hands it to the model, which must not
+    /// re-cut a long-prompt piece from the rows so far: `SequenceState::prefill_chunk_rows`); default: nothing.
+    fn set_prefill_chunk_rows(&mut self, _slot: usize, _chunk: usize) {}
+    /// Opt-in tail merge threshold in rows ([`next_prefill_chunk_tm`]); default 0 (off). The real adapter returns the
+    /// model's `INTARSIA_PREFILL_TAIL_MERGE`, whose workspace is sized for it.
     fn tail_merge(&self) -> usize {
         0
     }
@@ -1381,6 +1384,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             let id = c.id;
             let begun = {
                 let tokens = self.active[i].seq.prompt()[c.pos..c.pos + c.len].to_vec();
+                self.model.set_prefill_chunk_rows(slot, c.chunk);
                 self.model.prefill_begin(slot, &tokens, mode)
             };
             let res = match begun {
@@ -1893,6 +1897,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             let tokens = &self.active[i].seq.prompt()[c.pos..c.pos + c.len];
             let _prof = crate::hostprof::span(crate::hostprof::Cat::Prefill);
             crate::hostprof::prefilled();
+            self.model.set_prefill_chunk_rows(slot, c.chunk);
             self.model.prefill_chunk(slot, tokens, mode)
         };
         self.prefill_finish(i, c, res)
@@ -1906,6 +1911,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let begun = {
             let tokens = self.active[i].seq.prompt()[c.pos..c.pos + c.len].to_vec();
             crate::hostprof::prefilled();
+            self.model.set_prefill_chunk_rows(slot, c.chunk);
             self.model.prefill_begin_paused(slot, &tokens, mode)
         };
         let res = match begun {

@@ -508,6 +508,9 @@ impl BatchModel for SlotModel {
         let m = &self.model;
         m.long_prefill_chunk().map(|_| m.prefill_chunk_for(plen)).filter(|&c| c != m.prefill_chunk())
     }
+    fn set_prefill_chunk_rows(&mut self, slot: usize, chunk: usize) {
+        self.states[slot].prefill_chunk_rows = chunk;
+    }
     fn tail_merge(&self) -> usize {
         self.model.tail_merge()
     }
