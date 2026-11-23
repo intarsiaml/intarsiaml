@@ -286,6 +286,9 @@
     64/256/1.2k == main, screen on and off. CUDA gates on spark1 in one slot; Metal tests + greedy md5 64/256 on endor in
     one slot if shared core changed. Push inside a slot or --no-verify after docs_env_vars and recipes_doc pass. Report audit
     table, pre/post t=1.0, gates, branch + head; coordinator opens the PR; do not merge or push the flip branch.
+57. 2026-11-23 (coordinator, brief 56 rescoped): desk check first. If every full-row reader is unreachable with the screen
+    on, add a cheap guard on `ink/cuda-p12dec` plus a doc note, re-run the build and tiny/batch tests on spark1; no separate PR,
+    no Metal gates. A live path: stop and report it. Say whether the graph-key bug can trigger on main.
 
 ## Summary
 
@@ -1671,6 +1674,10 @@ rescored.
   Without this, default-on failed `inkling2_tiny_graph_decode_is_bitwise_the_eager_decode` (fleetq #11832). Regate
   #11838 on 53c4bd664: tiny inkling2 17/17, `inkling2_batch` 8/8, and md5 at 64 / 256 / 1.2k equal to main
   (`faf40cecb06b` / `029e44fede1d` / `dc28658094c0`) with screen on and off, spec off and default.
+- Brief 56 desk check: the screen loads for Inkling-2 only (`model.rs` load gate, `dims.ink`), which has no MTP head, so
+  the sampled-draft readers (`mtp.rs` `draft_logits_row`) are unreachable; they now run under `ScreenSuspend` as a guard.
+  Every other full-row reader (eager `LastLogits`, `LastGumbel`, `LastTopK`, `AllLogits`, verify, DSpark draft rows,
+  batched steps) runs the full head. The one live path was the graphed `LastLogits` replay fixed above.
 
 **Gate 1, the bound under CUDA's arithmetic.** The bound needs the screen values to come from a tree of correctly rounded
 f32 adds and fmas over exact products, of depth at most D + 1, plus one scale multiply. CUDA's CUDA-core fp8 GEMV is exactly

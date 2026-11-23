@@ -1095,6 +1095,10 @@ impl Model {
         link: DraftLink,
         mut pick: Option<&mut dyn FnMut(&[f32]) -> u32>,
     ) -> Result<Vec<u32>> {
+        // sampled drafts read the draft head's whole logits row (`draft_logits_row`): never the screened greedy head, which
+        // leaves only its candidates' logits in `ws.logits`. Unreachable today (the screen loads for Inkling-2 only, which has
+        // no MTP head; brief 56), kept as the guard.
+        let _full = super::ScreenSuspend::enter(pick.is_some());
         let head =
             self.mtp.as_ref().ok_or_else(|| Error::invalid("--spec mtp without the MTP head (LoadOptions::mtp)"))?;
         let m = st.mtp.as_ref().ok_or_else(|| Error::invalid("sequence without MTP state"))?;
