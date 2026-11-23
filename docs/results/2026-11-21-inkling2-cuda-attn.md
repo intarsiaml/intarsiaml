@@ -1771,3 +1771,21 @@ The ship bar (+1 % spec off, no regression) is met. Spec default gains less beca
 
 **Next:** HeadScreen in one block costs 166 µs a token. A multi-block form (per-block max and count, then an ordered write)
 would take about 15 µs: about -0.15 ms a token (+0.6 %), bitwise.
+
+## Parked 2026-11-23
+
+Weekly quota at its limit (coordinator); nothing pushed, no PR.
+
+- `ink/cuda-screen` (PR A, CUDA screen opt-in), head `f4a9e873d`, worktree `.worktrees/ink-cuda-screen`: kernels, graph-key fix,
+  sampled-draft `ScreenSuspend` guard, results. Gates: spark1 #11843 (`.worktrees/ink-cuda-screen/.scratch/gate58.log`,
+  remote `~/intarsiaml-ink-cuda-attn/out/g58`), endor Metal no-op #11844 (`.worktrees/ink-cuda-screen/.scratch/gate58m.log`,
+  outputs in `.scratch/g58m`; it also has the flip head as a second arm). Both were still running at park time.
+- `ink/cuda-screen-flip` (PR B, CUDA default on, go: user 2026-11-23), head = this commit's parent `79f33788f` plus this note,
+  worktree `.worktrees/ink-cuda-screen-flip`.
+- `ink/cuda-p12dec`, head `06310990b`: the lane branch these were taken from (superseded by A + B).
+- Not verified: gate58 provenance (which tree each spark1 binary was built from: compare remote `src` screen.rs / model.rs md5
+  with A's, and `bin/intarsia` vs `bin/intarsia-main` md5); gate59 (flip on spark1, `.worktrees/ink-cuda-screen-flip/.scratch/
+  gate59.sh`, own remote dir `~/intarsiaml-ink-cuda-attn/flip`) never ran.
+- Next: read #11843 / #11844 logs and the provenance; run gate59; push A, then B (docs_env_vars and recipes_doc passed locally
+  on A); the coordinator opens PR A then PR B.
+
