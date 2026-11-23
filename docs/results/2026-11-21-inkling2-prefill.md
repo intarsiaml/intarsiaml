@@ -583,12 +583,27 @@ prompts keep the recipe's 2048. Design:
 - PASS: docs_env_vars, recipes_doc, core lib, metal tests, builds, `kernels test` (88 kernels, 2919 cases ADMITTED),
   plan show main vs branch rule off (Qwen3-8B, Llama-3.1-8B, Inkling-2 json + txt byte-identical), rule-on probes to 4096
   rows, md5 rule off main = branch (64 a2ab7b3d..., 256 cbd62660...), md5 rule on = off = main at 8k and 16k (f367945f...),
-  16k fired (embedding passes 2048, 2048, 4096, 4096, 3780).
+  16k "fired" (embedding passes 2048, 2048, 4096, 4096, 3780: NOT the 4096-row schedule, see #11839 below; the gate's
+  `any(t == 4096)` check could not tell).
 - FAIL `rule-fired-8k`: p8k is 8034 tokens, below the 8192 threshold, so the code correctly kept 2048-row passes. The
   gate's expectation was wrong, not the code. But it also means the opt-in as written does not cover the 8k prompt class
   that #11822 measured (+11.6 %, weak). Threshold choice (8192, or e.g. > 2 x 2048 = 4097 so 8k prompts get 4096 passes)
   is a coordinator call; the Tue 03:00 confirmation (#11834) measures chunk 4096 on p8k either way.
 - Single on/off timings in this gate are not a speed result (one run each, no reference): 16k off 2251 / on 2099 tok/s.
+
+### Long-chunk gates #11839 (threshold 4097, aec972e5c): code bug found, not pushed
+
+- Same PASSes as #11837 (tests, kernels test, plan show identical, md5 off/on equal at 4k / 6k / 8k / 16k, 4k stays
+  [2048, 1902]). But the env-on schedules were 6k [2048, 2048, 1902], 8k [2048, 2048, 3938], 16k [2048, 2048, 4096, 4096,
+  3780]: the engine cut a 4096-row first piece and `Model::forward_chunks` re-cut it into 2 x 2048, because it decided the
+  long chunk from `st.len + ids.len()` (= 4096 on the first piece, under the threshold), not from the prompt length. 985c2f40a
+  had the same bug (16k above). #11822's +7 % used `--prefill-chunk 4096`, which never ran this path.
+- Fix 18d9d8853: `SequenceState::prefill_chunk_rows` = the chunk the engine cut the call by (single-sequence `prefill_step`;
+  batch scheduler through `BatchModel::set_prefill_chunk_rows`), cleared by `forward_prefill`; read only with the long chunk
+  on. Whole-prompt callers keep the prompt-length rule.
+- Gate tightened: env-on prefill pass list must EQUAL a `--prefill-chunk 4096` run's at 6k / 8k / 16k and the off run's at 4k.
+- The gate's on/off timings ran with `INTARSIA_METAL_PROFILE=kernel` on the on arm (4k: same schedule, 27 % slower): profiler
+  cost, not speed.
 
 ### Chunk 4096 vs 2048 result (#11822, binary ink/pf-convmix 3886acfeb, v2 off = main's code)
 
