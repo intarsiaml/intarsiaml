@@ -129,6 +129,23 @@ fn split_keys() -> i32 {
     *K.get_or_init(|| std::env::var("INTARSIA_INK_SPLIT_KEYS").ok().and_then(|v| v.trim().parse().ok()).filter(|&k: &i32| k >= 1).unwrap_or(0))
 }
 
+/// The INTARSIA_INK_ATTN_PDL self-test (kernels/cuda/inkling2_attn.cu `ik_ink_attn_pdl_selftest`): violations of the decode
+/// tile's pre-wait prefetch range over a shape sweep (0 = none, -1 = a vacuous sweep). Host only; `None` without CUDA.
+pub fn pdl_selftest() -> Option<i32> {
+    #[cfg(ik_cuda)]
+    {
+        extern "C" {
+            fn ik_ink_attn_pdl_selftest() -> std::ffi::c_int;
+        }
+        // SAFETY: a pure host function over integers.
+        Some(unsafe { ik_ink_attn_pdl_selftest() })
+    }
+    #[cfg(not(ik_cuda))]
+    {
+        None
+    }
+}
+
 #[cfg(ik_cuda)]
 mod launch {
     use super::IkInkAttrs;
