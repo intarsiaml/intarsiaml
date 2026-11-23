@@ -546,6 +546,15 @@ Bitwise test tests/inkconvmix_v2.rs against `ink_mix_row_h_*` (main's default).
 trace, A B B A, 4k and 16k) must show ConvMix <= -30 % at R 2 or R 4. If it misses at both, stop and report: no
 end-to-end pairs. -30 % of ~57 ms per 4k is ~17 ms, about +1.1 % of 4k TTFT, just over the +1 % end-to-end bar.
 
+### Chunk 4096 for prompts >= 8k, measured on main first (brief 30 B; `ink-pf-convmix/.scratch/ch1.sh`)
+
+Binary: ink/pf-convmix with ConvMix v2 off (= main bc03406d1's code paths). Method (b), fixed before the run: 7 adjacent
+pairs per length (8k, 16k), arm order alternating per pair, a reference run (p1k at chunk 2048) before every arm, a pair
+dropped when its two references differ by > 2 %; median of the kept pair ratios. Also greedy md5 64 at 8k / 16k per chunk
+size, and peak memory footprint per arm. **Rule (brief 30):** 16k median >= 1.02 and 8k >= 1.00 -> report and propose the
+switch design; else close. Self-goldens do not test this (G2 prompts stay under 2048 rows, one chunk at either size); the
+md5 at 8k / 16k does.
+
 ### Brief 29: top 3 open Metal prefill levers on main (desk work; no endor time)
 
 Basis: the Metal lane's latest prefill profile on main ca3b4e55b (brief 45 B, quiet #11757, `prof45/kt-4k-2048.jsonl.gz`:
