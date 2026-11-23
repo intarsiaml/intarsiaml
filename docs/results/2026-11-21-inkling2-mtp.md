@@ -377,6 +377,15 @@ cancelled #11653 before booking 07:05, and fleetq at once started the fp8 lane's
 behind it, so 07:05 was no longer free without stopping another lane's job. Booked instead: the rerun **#11828 at 11:15** (75 min,
 after #11812), the spec-k sweep **#11829 at 12:35** (110 min). Result of the bar around 12:30.
 
+**Coordinator heads-up (2026-11-23 ~06:10):** the CUDA lane found that sampled MTP drafts (`mtp.rs` ~1113, ~1157) may read a full
+logits row after a screened head, where only candidate logits are valid; fix on `ink/screen-full-logits`. Keep #11828 as booked;
+in the bar report give the t=1.0 acceptance rate separately and say whether the flip ran with the head screen on; if the fix lands
+before 11:15, the coordinator may say to merge main in first. Reading of the flip's own runs (#11620 gate logs, binary 34525d854):
+the head screen is on ("screened greedy head on", the Metal default since #489) and the device sampler is on; at t=1.0 the DSpark
+default proposes nothing (`spec: verify passes=0 proposed=0 accepted=0` at 150 and 5000 prompt tokens), since sampled requests
+take plain steps under the default. So the t=1.0 A/B is plain decode on both arms; there is no t=1.0 acceptance rate to report,
+and the counters will show it. Inkling-2 has no `[mtp]` head, so the `mtp.rs` sampled-draft path does not run for it.
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
