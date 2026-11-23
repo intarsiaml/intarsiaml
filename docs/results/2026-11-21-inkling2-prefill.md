@@ -572,6 +572,18 @@ prompts keep the recipe's 2048. Design:
 - Gates (#11837, one slot): see below. Confirmation run for the flip: #11834, reserved Tue 03:00 (`ch2.sh`: box check up
   to 20 min, then 7 pairs at 8k and 16k with reference runs).
 
+### Long-chunk gates (#11837, branch ink/long-chunk 985c2f40a): one FAIL, not pushed
+
+- PASS: docs_env_vars, recipes_doc, core lib, metal tests, builds, `kernels test` (88 kernels, 2919 cases ADMITTED),
+  plan show main vs branch rule off (Qwen3-8B, Llama-3.1-8B, Inkling-2 json + txt byte-identical), rule-on probes to 4096
+  rows, md5 rule off main = branch (64 a2ab7b3d..., 256 cbd62660...), md5 rule on = off = main at 8k and 16k (f367945f...),
+  16k fired (embedding passes 2048, 2048, 4096, 4096, 3780).
+- FAIL `rule-fired-8k`: p8k is 8034 tokens, below the 8192 threshold, so the code correctly kept 2048-row passes. The
+  gate's expectation was wrong, not the code. But it also means the opt-in as written does not cover the 8k prompt class
+  that #11822 measured (+11.6 %, weak). Threshold choice (8192, or e.g. > 2 x 2048 = 4097 so 8k prompts get 4096 passes)
+  is a coordinator call; the Tue 03:00 confirmation (#11834) measures chunk 4096 on p8k either way.
+- Single on/off timings in this gate are not a speed result (one run each, no reference): 16k off 2251 / on 2099 tok/s.
+
 ### Chunk 4096 vs 2048 result (#11822, binary ink/pf-convmix 3886acfeb, v2 off = main's code)
 
 **Contamination:** the coordinator's `git push` pre-push hook ran cargo tests on endor's CPU about 05:56:20-05:57:14, inside
