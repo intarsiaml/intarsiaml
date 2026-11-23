@@ -317,6 +317,21 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
 - (coordinator, 47th) rank4 (#504, Metal-only code plus one row each in `docs/tuning.md` and `docs/decisions/LOG.md`) may merge
   first. If GitHub then shows a conflict on #501: merge origin/main, keep both docs rows, re-push for CI. If it merges cleanly,
   the code is disjoint, so green CI on the merged head is enough (no endor / spark re-gate). Pin the merge to the head CI tested.
+- (coordinator, 48th) Size the CUDA prefill MoE and rows / blend gap, then build the best lever. The attention lane's profile of
+  main a4e281264 (#11797, section "Brief 49" of the cuda-attn doc on ink/cuda-attn 9a3780ce7) puts 8k prefill at 2887 ms busy:
+  MoE 1592 ms against a ~456 ms byte floor (~1.1 s gap), rows + blend 515 against ~64 (~450 ms); attention 492 and cuBLAS 279
+  are the attention lane's (leave them). Step 1 (spark2, ~2 h, no code): kernel trace of 8k prefill on main; MoE split into
+  gate/up, down, routing / permute, scatter / gather, padding waste, each with achieved vs peak BW / TFLOPs, tile shape and
+  occupancy; the same for rows + blend; up to 3 levers with ms saved at 4k / 8k, hours, bitwise yes / no, ranked by gain per
+  hour. Send the table, then start the top lever without waiting if it is bitwise and >= 3 % of 8k prefill; a non-bitwise top
+  lever waits for a go. Step 2: branch `ink/cuda-moepf` off a4e281264, worktree `.worktrees/ink-cuda-moepf/` only; revert
+  switch, default on only if bitwise, tuning row. Gates: CUDA tests; md5 vs main (faf40cecb06b / 029e44fede1d / dc28658094c0 +
+  the 1.2k ref) at default and switch off; quiet prefill A/B at 4k and 8k (alternated, `--quiet gpu,cpu`) plus a decode spot
+  check. Ship bar >= +3 % prefill at 8k. No push: report branch, head and numbers; the coordinator opens the PR. The attention
+  lane reuses the ink_moe.cu PDL helpers for its decode edges: ask before changing their signatures. Lever 2 (PDL on row /
+  blend / ctl / router for decode) is not this lane's; mention it if the trace says it beats the attention lane's +2-3 %
+  guess. Spark memory: 121 GB budget, MAX_JOBS=4, 10 GB free (15 without earlyoom). Carry e8e207b12 (brief 47) with the next
+  push.
 - (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
   chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
   is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
