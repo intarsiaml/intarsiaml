@@ -556,6 +556,22 @@ Bitwise test tests/inkconvmix_v2.rs against `ink_mix_row_h_*` (main's default).
 trace, A B B A, 4k and 16k) must show ConvMix <= -30 % at R 2 or R 4. If it misses at both, stop and report: no
 end-to-end pairs. -30 % of ~57 ms per 4k is ~17 ms, about +1.1 % of 4k TTFT, just over the +1 % end-to-end bar.
 
+### Long-prompt chunk, opt-in (brief 31; branch `ink/long-chunk` off origin/main 352acba93, worktree `.scratch/wt-longchunk`)
+
+`INTARSIA_INK_LONG_CHUNK=1` (default off): Inkling-2 on Metal prefills a prompt of >= 8192 tokens in 4096-row passes, shorter
+prompts keep the recipe's 2048. Design:
+- `PrefillChunk::long` (recipe.rs) is set only for family inkling2, backend metal, no `--prefill-chunk`, env on.
+- The model keeps two values. Capacity (`ws.max_tokens`, 4096 when on) sizes the workspace, scratch and plan probes.
+  `prefill_chunk()` stays the recipe's chunk, and `prefill_chunk_for(plen)` returns 4096 from the threshold. Off: every
+  path reads `ws.max_tokens` as on main.
+- Callers using `prefill_chunk_for(plen)` (whole prompt length, so a resumed prefix keeps its cold schedule): the
+  single-sequence split, the reuse schedules (recurrent cuts, ladder), `forward_chunks` (accuracy tooling). The batch
+  scheduler takes it for a request that starts prefilling while nothing decodes and is not on the prefix store's schedule.
+  Unchanged (recipe chunk): prefix store, busy chunk, macro step, plan JSON's `prefill_chunk`, row-exact pass rule.
+- Startup log: `prefill chunk: long-prompt chunk 4096 from 8192 tokens (INTARSIA_INK_LONG_CHUNK=1)` or `... off (...)`.
+- Gates (#11837, one slot): see below. Confirmation run for the flip: #11834, reserved Tue 03:00 (`ch2.sh`: box check up
+  to 20 min, then 7 pairs at 8k and 16k with reference runs).
+
 ### Chunk 4096 vs 2048 result (#11822, binary ink/pf-convmix 3886acfeb, v2 off = main's code)
 
 **Contamination:** the coordinator's `git push` pre-push hook ran cargo tests on endor's CPU about 05:56:20-05:57:14, inside
@@ -599,7 +615,7 @@ scripts now refuse a binary without Metal.
 - **Verdict: stop (rule fixed before the run).** More rows per threadgroup made the kernel slower, not faster. Likely cause
   (not measured): per-thread state grows R-fold (`xs[R][NS][3]`, `mix[R][QB][3]`) at 768 threads, cutting occupancy or
   spilling, which costs more than the shared loads save; the row kernel was not barrier- or launch-bound. Branch
-  ink/pf-convmix stays local, switch default off; no e2e pairs run.
+  ink/pf-convmix is archived on the remote as `archive/ink-pf-convmix-v2` (66c9d4887, brief 31), switch default off; no e2e pairs run.
 
 ### Chunk 4096 for prompts >= 8k, measured on main first (brief 30 B; `ink-pf-convmix/.scratch/ch1.sh`)
 
