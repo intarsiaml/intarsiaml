@@ -534,6 +534,18 @@ New file kernels/metal/inkling2_prologue_split.metal, flag `INTARSIA_INK_PROLOGU
 threadgroup shape changes. Expected: 1.0 -> ~0.35 ms per visit, ~30 ms per chunk (~4.5 % of 656 ms). If it is not bitwise in
 the Metal test, I stop and report rather than argue tolerance.
 
+### ConvMix v2 (brief 30 A; branch `ink/pf-convmix` off main bc03406d1, worktree `.worktrees/ink-pf-convmix`)
+
+`ink_mix_rows_r<R>e3n<NS>q<QB>` in kernels/metal/inkling2_mix.metal: R rows per threadgroup (R 2 / 4) for prefill ConvMix
+launches of at least 64 rows (no row table, NE 3). Each row keeps the row kernel's element map, fma order and sg-order sums.
+The taps of a step, the queries of a batch and the norm rows are loaded once per threadgroup instead of once per row, and the
+R rows share each reduction's barriers. Switch `INTARSIA_INK_CONVMIX_V2` (off while measured), `INTARSIA_INK_CONVMIX_V2_R`.
+Bitwise test tests/inkconvmix_v2.rs against `ink_mix_row_h_*` (main's default).
+
+**Kill rule (fixed before any measurement):** the drift-proof per-call ratio (ConvMix ms / in_proj ms in the same kernel
+trace, A B B A, 4k and 16k) must show ConvMix <= -30 % at R 2 or R 4. If it misses at both, stop and report: no
+end-to-end pairs. -30 % of ~57 ms per 4k is ~17 ms, about +1.1 % of 4k TTFT, just over the +1 % end-to-end bar.
+
 ### Brief 29: top 3 open Metal prefill levers on main (desk work; no endor time)
 
 Basis: the Metal lane's latest prefill profile on main ca3b4e55b (brief 45 B, quiet #11757, `prof45/kt-4k-2048.jsonl.gz`:
