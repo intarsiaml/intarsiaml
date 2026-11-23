@@ -832,6 +832,281 @@ MX_NS(2, 1) MX_NS(2, 4)
 MX_NS(3, 1) MX_NS(3, 4)
 MX_NS(4, 1) MX_NS(4, 4)
 
+// ---- ConvMix v2 (lane ink-prefill, `INTARSIA_INK_CONVMIX_V2`): R rows per threadgroup for prefill launches ----
+// ink_mix_row's plain path (no row table) with R rows in one threadgroup. Every row keeps ink_mix_row's element -> (thread,
+// j) map (c = tid + j * TPG at the same TPG), its fma chains in the same order, one simd_sum per value and the simdgroup
+// partials summed in sg order, so each row's bits equal ink_mix_row's (and ink_mix_row_h_'s, which match it). What changes:
+// the operands every row shares (the taps of a step l, the queries of a batch, the norm rows) are loaded once per
+// threadgroup instead of once per row, and the R rows share each reduction's threadgroup barriers. Rows past the launch's
+// `pad0` (nrows) compute on the last row and write nothing. The ring rows are written after every row of the group read
+// its taps (the launcher sets MX_RING only when no row of the launch reads a ring row a row of it writes).
+template <int NE, int NS, int QB, int R>
+kernel void ink_mix_rows(device const ushort* x [[buffer(0)]],
+                         device const ushort* taps [[buffer(1)]],
+                         device const ushort* res [[buffer(2)]],
+                         device const ushort* add [[buffer(3)]],
+                         device ushort* y [[buffer(4)]],
+                         device ushort* ring [[buffer(5)]],
+                         device ushort* sum [[buffer(6)]],
+                         device const ushort* src [[buffer(7)]],
+                         device const float* qry [[buffer(8)]],
+                         device const ushort* nrm [[buffer(9)]],
+                         device ushort* outb [[buffer(10)]],
+                         device float* outf [[buffer(11)]],
+                         device const int* posb [[buffer(12)]],
+                         device const float* msg [[buffer(13)]],
+                         device ushort* pair [[buffer(14)]],
+                         constant InkMixP& p [[buffer(15)]],
+                         uint grp [[threadgroup_position_in_grid]],
+                         uint tid [[thread_position_in_threadgroup]],
+                         uint tpg [[threads_per_threadgroup]],
+                         uint lane [[thread_index_in_simdgroup]],
+                         uint sg [[simdgroup_index_in_threadgroup]],
+                         uint nsg [[simdgroups_per_threadgroup]]) {
+    static_assert(NS <= MX_NMAX && QB <= MX_QB, "mix instance");
+    constexpr int NV = NS + QB * NS;
+    constexpr int PV = MX_NMAX + MX_QB * MX_NMAX;  // partial slots per row, as ink_mix_row's `part`
+    threadgroup float part[R * PV * 32];
+    threadgroup float red[R * 32];
+    const uint d = p.d;
+    const bool conv = (p.flags & MX_CONV) != 0;
+    const bool hres = (p.flags & MX_RES) != 0, hadd = (p.flags & MX_ADD) != 0, hsum = (p.flags & MX_SUM) != 0;
+    uint tt[R];
+    bool live[R];
+    for (int r = 0; r < R; ++r) {
+        const uint row = grp * uint(R) + uint(r);
+        live[r] = row < p.pad0;
+        tt[r] = p.t0 + min(row, p.pad0 - 1);
+    }
+    uint cc[NE];
+    bool on[NE];
+    for (int j = 0; j < NE; ++j) {
+        const uint c = tid + uint(j) * tpg;
+        on[j] = c < d;
+        cc[j] = min(c, d - 1);
+    }
+    float xs[R][NS][NE];
+    for (int r = 0; r < R; ++r)
+        for (int n = 0; n < NS - 1; ++n) {
+            device const ushort* sr = src + p.sk[7] + ((ulong)n * p.t + tt[r]) * d;
+            for (int j = 0; j < NE; ++j) xs[r][n][j] = on[j] ? bf2f(sr[cc[j]]) : 0.0f;
+        }
+    float last[R][NE];
+    if (conv) {
+        const int pos = p.use_dev ? posb[0] : int(p.pos0);
+        device const ushort* xr = x + p.sk[0];
+        device const ushort* tr = taps + p.sk[1];
+        device ushort* rg = ring + p.sk[5];
+        float acc[R][NE];
+        for (int r = 0; r < R; ++r)
+            for (int j = 0; j < NE; ++j) acc[r][j] = 0.0f;
+        for (uint l = 0; l < p.k; ++l) {
+            device const ushort* tl = tr + (ulong)l * d;
+            float tv[NE];
+            for (int j = 0; j < NE; ++j) tv[j] = bf2f(tl[cc[j]]);
+            for (int r = 0; r < R; ++r) {
+                const int qq = pos + int(tt[r]) - int(l);
+                device const ushort* bp = qq >= pos ? xr + (ulong)(qq - pos) * d : rg + (ulong)(uint(max(qq, 0)) % p.rr) * d;
+                for (int j = 0; j < NE; ++j) {
+                    const float xv = qq >= 0 ? bf2f(bp[cc[j]]) : 0.0f;
+                    acc[r][j] = fma(tv[j], xv, acc[r][j]);
+                }
+            }
+        }
+        for (int r = 0; r < R; ++r) {
+            for (int j = 0; j < NE; ++j) {
+                const ulong o = (ulong)tt[r] * d + cc[j];
+                const float xc = bf2f(xr[o]);
+                const float rv = hres ? bf2f(res[p.sk[2] + o]) : 0.0f;
+                const float av = hadd ? bf2f(add[p.sk[3] + o]) : 0.0f;
+                const float yv = rbf((acc[r][j] + xc) * p.cscale);
+                float lv = yv;
+                if (hres) lv = hsum ? rbf((rv + av) + yv) : rv + yv;
+                last[r][j] = on[j] ? lv : 0.0f;
+                if (on[j] && live[r]) {
+                    y[p.sk[4] + o] = f2bf(yv);
+                    if (hres && hsum) sum[p.sk[6] + o] = f2bf(lv);
+                }
+            }
+        }
+        if ((p.flags & MX_RING) != 0) {
+            for (int r = 0; r < R; ++r) {
+                if (!live[r] || int(tt[r]) < int(p.t) - int(p.rr)) continue;
+                device ushort* wr = rg + (ulong)(uint(pos + int(tt[r])) % p.rr) * d;
+                for (int j = 0; j < NE; ++j)
+                    if (on[j]) wr[cc[j]] = xr[(ulong)tt[r] * d + cc[j]];
+            }
+        }
+    } else {
+        for (int r = 0; r < R; ++r)
+            for (int j = 0; j < NE; ++j) {
+                float lv = bf2f(x[p.sk[0] + (ulong)tt[r] * d + cc[j]]);
+                if (hadd) lv = lv + bf2f(add[p.sk[3] + (ulong)tt[r] * d + cc[j]]);
+                last[r][j] = on[j] ? lv : 0.0f;
+            }
+    }
+    if (p.q == 0) return;
+    for (int r = 0; r < R; ++r)
+        for (int j = 0; j < NE; ++j) xs[r][NS - 1][j] = last[r][j];
+
+    const bool norm = (p.flags & MX_NORM) != 0;
+    for (uint q0 = 0; q0 < p.q; q0 += QB) {
+        const int nq = int(min(uint(QB), p.q - q0));
+        float qv[QB][NE];
+        for (int qi = 0; qi < QB; ++qi) {
+            device const float* qr = qry + (ulong)min(q0 + uint(qi), p.q - 1) * d;
+            for (int j = 0; j < NE; ++j) qv[qi][j] = (qi < nq && on[j]) ? qr[cc[j]] : 0.0f;
+        }
+        for (int r = 0; r < R; ++r) {
+            float v[NV];
+            for (int n = 0; n < NS; ++n) {
+                float a = 0.0f;
+                for (int j = 0; j < NE; ++j) a = fma(xs[r][n][j], xs[r][n][j], a);
+                v[n] = a;
+            }
+            for (int qi = 0; qi < QB; ++qi)
+                for (int n = 0; n < NS; ++n) {
+                    float a = 0.0f;
+                    for (int j = 0; j < NE; ++j) a = fma(qv[qi][j], xs[r][n][j], a);
+                    v[NS + qi * NS + n] = a;
+                }
+            for (int j = 0; j < NV; ++j) {
+                const float sj = simd_sum(v[j]);
+                if (lane == 0) part[(r * PV + j) * 32 + sg] = sj;
+            }
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (sg < uint(R)) {
+            // simdgroup r finishes row r as ink_mix_row's simdgroup 0 does
+            const int r = int(sg);
+            const int qi = int(lane) / MX_NMAX, n = int(lane) % MX_NMAX;
+            const bool ok = qi < nq && n < NS;
+            const int jd = ok ? NS + qi * NS + n : 0, js = n < NS ? n : 0;
+            float dt = 0.0f, sq = 0.0f;
+            for (uint k = 0; k < nsg; ++k) {
+                dt += part[(r * PV + jd) * 32 + k];
+                sq += part[(r * PV + js) * 32 + k];
+            }
+            const float wn = precise::rsqrt(sq / float(d) + SRC_EPS);
+            const float l = ok ? dt * wn : -INFINITY;
+            float m = max(l, simd_shuffle_xor(l, ushort(1)));
+            m = max(m, simd_shuffle_xor(m, ushort(2)));
+            m = max(m, simd_shuffle_xor(m, ushort(4)));
+            const float e = ok ? precise::exp(l - m) : 0.0f;
+            float se = e + simd_shuffle_xor(e, ushort(1));
+            se = se + simd_shuffle_xor(se, ushort(2));
+            se = se + simd_shuffle_xor(se, ushort(4));
+            red[r * 32 + lane] = ok ? e / se * wn : 0.0f;
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        float mix[R][QB][NE];
+        for (int r = 0; r < R; ++r)
+            for (int qi = 0; qi < QB; ++qi) {
+                float coef[NS];
+                for (int n = 0; n < NS; ++n) coef[n] = red[r * 32 + qi * MX_NMAX + n];
+                for (int j = 0; j < NE; ++j) {
+                    float a = 0.0f;
+                    for (int n = 0; n < NS; ++n) a = fma(coef[n], xs[r][n][j], a);
+                    mix[r][qi][j] = a;
+                }
+            }
+        threadgroup_barrier(mem_flags::mem_threadgroup);  // red is reused below
+        if (norm) {
+            for (int r = 0; r < R; ++r)
+                for (int qi = 0; qi < QB; ++qi) {
+                    float a = 0.0f;
+                    for (int j = 0; j < NE; ++j) a = fma(mix[r][qi][j], mix[r][qi][j], a);
+                    const float s = simd_sum(a);
+                    if (lane == 0) part[(r * PV + qi) * 32 + sg] = s;
+                }
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+            if (tid < uint(R * QB)) {
+                const uint r = tid / uint(QB), qi = tid % uint(QB);
+                float t = 0.0f;
+                for (uint s = 0; s < nsg; ++s) t += part[(r * PV + qi) * 32 + s];
+                red[r * 32 + qi] = t;
+            }
+            threadgroup_barrier(mem_flags::mem_threadgroup);
+            for (int qi = 0; qi < QB; ++qi) {
+                if (qi >= nq) continue;
+                const uint q = q0 + uint(qi);
+                device const ushort* nr = nrm + p.sk[8] + (ulong)q * d;
+                float nv[NE];
+                for (int j = 0; j < NE; ++j) nv[j] = bf2f(nr[cc[j]]);
+                for (int r = 0; r < R; ++r) {
+                    if (!live[r]) continue;
+                    const float inv = precise::rsqrt(red[r * 32 + qi] / float(d) + p.eps);
+                    device ushort* orow = outb + p.sk[9] + ((ulong)q * p.ocount + (tt[r] - p.orow0)) * d;
+                    for (int j = 0; j < NE; ++j)
+                        if (on[j]) orow[cc[j]] = f2bf(mix[r][qi][j] * inv * nv[j]);
+                }
+            }
+            threadgroup_barrier(mem_flags::mem_threadgroup);  // red is reused by the next batch
+        } else {
+            for (int r = 0; r < R; ++r) {
+                if (!live[r]) continue;
+                for (int qi = 0; qi < QB; ++qi) {
+                    if (qi >= nq) continue;
+                    device float* orow = outf + ((ulong)(q0 + uint(qi)) * p.ocount + (tt[r] - p.orow0)) * d;
+                    for (int j = 0; j < NE; ++j)
+                        if (on[j]) orow[cc[j]] = mix[r][qi][j];
+                }
+            }
+            if ((p.flags & MX_PAIR) != 0) {
+                constexpr int SB = MX_QB;
+                float mv[R][SB][NE];
+                for (int r = 0; r < R; ++r)
+                    for (int si = 0; si < SB; ++si) {
+                        device const float* mr = msg + ((ulong)min(uint(si), max(p.nstream, 1u) - 1) * p.t + tt[r]) * d;
+                        float a = 0.0f, b = 0.0f;
+                        const int qi = QB == 1 ? 0 : min(si, QB - 1);
+                        for (int j = 0; j < NE; ++j) {
+                            mv[r][si][j] = (uint(si) < p.nstream && on[j]) ? mr[cc[j]] : 0.0f;
+                            a = fma(mix[r][qi][j], mix[r][qi][j], a);
+                            b = fma(mv[r][si][j], mv[r][si][j], b);
+                        }
+                        const float sa = simd_sum(a), sb = simd_sum(b);
+                        if (lane == 0) {
+                            part[(r * PV + si) * 32 + sg] = sa;
+                            part[(r * PV + SB + si) * 32 + sg] = sb;
+                        }
+                    }
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+                if (tid < uint(R * 2 * SB)) {
+                    const uint r = tid / uint(2 * SB), jj = tid % uint(2 * SB);
+                    float t = 0.0f;
+                    for (uint s = 0; s < nsg; ++s) t += part[(r * PV + jj) * 32 + s];
+                    red[r * 32 + jj] = t;
+                }
+                threadgroup_barrier(mem_flags::mem_threadgroup);
+                for (int r = 0; r < R; ++r) {
+                    if (!live[r]) continue;
+                    for (int si = 0; si < SB; ++si) {
+                        if (uint(si) >= p.nstream) continue;
+                        const int qi = (QB == 1 || p.q == 1) ? 0 : min(si, QB - 1);
+                        const float wd = precise::rsqrt(red[r * 32 + (p.q == 1 ? 0 : si)] / float(d) + SRC_EPS);
+                        const float wm = precise::rsqrt(red[r * 32 + SB + si] / float(d) + SRC_EPS);
+                        device ushort* pr = pair + ((ulong)si * p.ocount + (tt[r] - p.orow0)) * 2 * d;
+                        for (int j = 0; j < NE; ++j) {
+                            if (!on[j]) continue;
+                            pr[cc[j]] = f2bf(mix[r][qi][j] * wd);
+                            pr[d + cc[j]] = f2bf(mv[r][si][j] * wm);
+                        }
+                    }
+                }
+                threadgroup_barrier(mem_flags::mem_threadgroup);  // red / part are reused by the next batch
+            }
+        }
+    }
+}
+
+#define MXR_INST(NE, NS, QB, R)                                                                                       \
+    template [[host_name("ink_mix_rows_r" #R "e" #NE "n" #NS "q" #QB)]] kernel void ink_mix_rows<NE, NS, QB, R>(MX_ARGS);
+#define MXR_NS(NE, QB, R) MXR_INST(NE, 1, QB, R) MXR_INST(NE, 2, QB, R) MXR_INST(NE, 3, QB, R) MXR_INST(NE, 4, QB, R)       \
+    MXR_INST(NE, 5, QB, R) MXR_INST(NE, 6, QB, R) MXR_INST(NE, 7, QB, R) MXR_INST(NE, 8, QB, R)
+MXR_NS(3, 1, 2) MXR_NS(3, 4, 2)
+MXR_NS(3, 1, 4) MXR_NS(3, 4, 4)
+
 // ---- deferred ring write: ring row (pos + t) % Rr = x[t] for the rows t in [max(t0, T - Rr), t0 + nrows) of a launch whose
 // rows also read the ring. bind: 0 x [T,C], 1 ring [Rr,C], 2 pos i32, 3 InkMixP (d, t, t0, pad0 = nrows, rr, pos0, use_dev,
 // sk[0] x, sk[5] ring). Grid: Threads(nrows * C).

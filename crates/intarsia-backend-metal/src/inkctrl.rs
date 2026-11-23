@@ -59,6 +59,25 @@ impl Switch {
 /// `INTARSIA_INK_MIX_HOIST` (default on: -0.17 ms per decode step, job E #11003): the row kernels' `ink_mix_row_h_*`
 /// instances (every operand load before its first use).
 pub static MIX_HOIST: Switch = Switch::new("INTARSIA_INK_MIX_HOIST", true);
+/// `INTARSIA_INK_CONVMIX_V2` (lane ink-prefill, default off while measured): prefill `ConvMix` launches of at least
+/// [`CONVMIX_V2_MIN_ROWS`] rows (no row table, NE 3) run `ink_mix_rows_r<R>*`, R rows per threadgroup with the shared
+/// operand loads and the reduction barriers done once per group; bitwise the row kernels.
+pub static CONVMIX_V2: Switch = Switch::new("INTARSIA_INK_CONVMIX_V2", false);
+/// Rows of a launch from which `CONVMIX_V2` applies.
+pub const CONVMIX_V2_MIN_ROWS: usize = 64;
+static CONVMIX_V2_R_FORCED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+/// Rows per threadgroup of `CONVMIX_V2`: `INTARSIA_INK_CONVMIX_V2_R` 2 or 4 (default 4); `set_convmix_v2_r` forces it (tests).
+pub fn convmix_v2_r() -> usize {
+    static V: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    match CONVMIX_V2_R_FORCED.load(std::sync::atomic::Ordering::Relaxed) {
+        0 => *V.get_or_init(|| std::env::var("INTARSIA_INK_CONVMIX_V2_R").ok().and_then(|v| v.trim().parse().ok()).filter(|r| [2, 4].contains(r)).unwrap_or(4)),
+        r => r,
+    }
+}
+/// Force `convmix_v2_r` (2 or 4); 0 = back to the environment.
+pub fn set_convmix_v2_r(r: usize) {
+    CONVMIX_V2_R_FORCED.store(r, std::sync::atomic::Ordering::Relaxed);
+}
 /// `INTARSIA_INK_ROUTE_RANK4` (default on; lane ink-batch brief 45, docs/results/2026-11-21-inkling2-batch.md section 45): the
 /// rank routing's compares on float4 reads (8.5 -> 5.8 us per `ink_route_bf16` call in the microbench). Same bits.
 pub static ROUTE_RANK4: Switch = Switch::new("INTARSIA_INK_ROUTE_RANK4", true);

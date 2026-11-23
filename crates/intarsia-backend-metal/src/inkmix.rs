@@ -781,9 +781,30 @@ fn row_names() -> Vec<&'static str> {
     v
 }
 
+/// `ink_mix_rows_r<R>e3n<NS>q<QB>` (`INTARSIA_INK_CONVMIX_V2`): R in 2 / 4, NE 3 only.
+fn rows_v2_names() -> &'static [&'static str] {
+    static T: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
+    T.get_or_init(|| {
+        let mut v = Vec::new();
+        for r in [2, 4] {
+            for qb in [1, 4] {
+                for ns in 1..=MIX_SOURCES_MAX {
+                    v.push(&*Box::leak(format!("ink_mix_rows_r{r}e3n{ns}q{qb}").into_boxed_str()));
+                }
+            }
+        }
+        v
+    })
+}
+
+fn rows_v2_shader(r: usize, ns: usize, qb: usize) -> &'static str {
+    rows_v2_names()[(usize::from(r == 4) * 2 + usize::from(qb > 1)) * MIX_SOURCES_MAX + ns - 1]
+}
+
 /// The row-kernel entry points of inkling2_mix.metal (`MX_NS`), and the ring / blend helpers.
 pub fn row_shaders() -> Vec<&'static str> {
     let mut v = row_names();
+    v.extend(rows_v2_names().iter().copied());
     v.extend(["ink_ring_write", "ink_blend_pair", "ink_blend_gate_g1", "ink_blend_gate_g8", "ink_blend_gate_g16", "ink_blend_norm", "ink_blend_norm_c"]);
     v
 }
@@ -983,7 +1004,13 @@ impl MetalBackend {
         let hname = mix_row_shader(ne, ns_i, qb, true);
         let hoist = crate::inkctrl::MIX_HOIST.on() && self.pso(hname).is_some_and(|ps| ps.maxTotalThreadsPerThreadgroup() >= tpg);
         let name = if hoist { hname } else { mix_row_shader(ne, ns_i, qb, false) };
-        if rt.is_some() {
+        // ConvMix v2: prefill launches, R rows per threadgroup (bitwise the row kernels)
+        let v2 = (op == Op::ConvMix && rt.is_none() && ne == 3 && nrows >= crate::inkctrl::CONVMIX_V2_MIN_ROWS && crate::inkctrl::CONVMIX_V2.on())
+            .then(|| (crate::inkctrl::convmix_v2_r(), rows_v2_shader(crate::inkctrl::convmix_v2_r(), ns_i, qb)))
+            .filter(|(_, n)| self.pso(n).is_some_and(|ps| ps.maxTotalThreadsPerThreadgroup() >= tpg));
+        if let Some((r, n2)) = v2 {
+            self.dispatch(n2, &binds, &p, crate::dense::Grid::Groups { x: nrows.div_ceil(r), y: 1, threads: tpg })?;
+        } else if rt.is_some() {
             self.dispatch_ind(name, &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
         } else {
             self.dispatch(name, &binds, &p, crate::dense::Grid::Groups { x: nrows, y: 1, threads: tpg })?;
