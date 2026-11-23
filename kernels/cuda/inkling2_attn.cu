@@ -1949,11 +1949,14 @@ bool flash_nobias() {
     return v;
 }
 
-// INTARSIA_INK_FLASH_BIAS=mma: the RIN prefill kernel forms the rel bias on tensor cores (KB 16 only; opt-in, not bitwise)
+// INTARSIA_INK_FLASH_BIAS: unset (or `mma` / `1`) = the RIN prefill kernel forms the rel bias on tensor cores (KB 16 only;
+// default-on, user decision 2026-11-22; not bitwise the CUDA-core form); `0` / `off` / `false` = the CUDA-core form, which
+// is bitwise the prologue + rel_sink_attn pair (the revert switch)
 bool flash_bias_mma() {
     static const bool v = [] {
         const char* e = getenv("INTARSIA_INK_FLASH_BIAS");
-        return e && strcmp(e, "mma") == 0;
+        if (!e || !e[0]) return true;
+        return !(strcmp(e, "0") == 0 || strcmp(e, "off") == 0 || strcmp(e, "false") == 0);
     }();
     return v;
 }
