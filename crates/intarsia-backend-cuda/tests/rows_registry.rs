@@ -175,7 +175,7 @@ matmul_nvfp4 k=2048 -> bf16: 1..=16 matmul_nvfp4_gemv_rows; 17..=4096 -;
 matmul_nvfp4 k=2048 -> f32 (head): 1..=16 matmul_nvfp4_gemv_rows; 17..=4096 -;
 matmul_mxfp4 w4a16 k=5120 -> bf16: 1..=1 matmul_mxfp4_gemv_rows; 2..=4 matmul_mxfp4_gemv_mr_rows; 5..=4096 matmul_mxfp4_gemv_rows;
 matmul_mxfp4 w4a16 k=5120 -> f32 (head): 1..=1 matmul_mxfp4_gemv_rows; 2..=4 matmul_mxfp4_gemv_mr_rows; 5..=4096 matmul_mxfp4_gemv_rows;
-matmul_mxfp4 w4a16 k=160 -> bf16: 1..=1 matmul_mxfp4_gemv_rows; 2..=4 matmul_mxfp4_gemv_mr_rows; 5..=4096 matmul_mxfp4_gemv_rows;
+matmul_mxfp4 w4a16 k=160 -> bf16: 1..=1 matmul_mxfp4_gemv_rows; 2..=4 matmul_mxfp4_gemv_mr_rows; 5..=8 matmul_mxfp4_gemv_ink_rows; 9..=4096 matmul_mxfp4_gemv_rows;
 matmul_mxfp4 w4a4 k=5120 -> bf16: 1..=4096 matmul_mxfp4_gemv_rows;
 moe_experts silu top8: 1..=16 moe_experts_decode_v2_rows_bf16; 17..=4096 -;
 moe_experts gelu top8: 1..=16 moe_experts_decode_v2_gelu_rows_bf16; 17..=4096 -;

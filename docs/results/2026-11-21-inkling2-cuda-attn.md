@@ -1612,3 +1612,22 @@ cells are noise-limited (Z vs M +0.50 % at 5k, M's range 1.8 %), so they are not
 - (a) Find out why the wo prefetch does not pay at short context: a microbench of wo after a prefetch with an idle gap, and
   `cp.async.bulk.prefetch.L2` instead of per-line hints.
 - (b) Only for 5k: cap the tile's registers so one wo block fits beside it. Bitwise, but a tile slowdown risk.
+## Main's CUDA host tests (brief 51, branch `ink/cuda-hosttests`)
+
+Main a4e281264 had 4 red intarsia-backend-cuda host tests (CI does not run them). Fixed on the test, registry and ABI side.
+No kernel code changes.
+- `ink_attn_prefill_bf16` (op 75 above 16 rows, 86060ae6f) is renamed `ink_attn_decode_prefill_bf16`, after its op like its
+  siblings, and declared in `ik_cuda_abi_ink.h`. Its launcher `ik_ink_attn_decode_prefill_bf16` is an alias of
+  `ik_ink_attn_decode_bf16`, which takes T > 16 itself.
+- The op 75 quick sweep gains a 40-row prefill chunk at G = 3 (window 64, ring 80), appended so the earlier cases keep
+  their data.
+- Once the first name was declared, the ABI test reached two more missing names, both from this lane's GEMV in_proj:
+  `ink_in_proj_bf16_gemv_rows` and `ink_in_proj_p12_gemv_rows`. Both are now declared in `ik_cuda_abi_inkp12.h` as aliases
+  of their launchers. A scan of every registry name against the headers finds none missing now.
+- `rows_registry` ROWS_PINS: at k = 160, 5..=8 rows now pick mixmoe's `matmul_mxfp4_gemv_ink_rows` (table entry only).
+
+Gate (fleetq #11810, spark1, 8f332fba1):
+- All intarsia-backend-cuda tests, `--no-fail-fast`: 44 of 44 result groups ok; 197 passed, 0 failed, 26 ignored.
+- Op 75 admission: quick, `ink_attn_decode_bf16` 16 cases and `ink_attn_decode_prefill_bf16` 1 case; full, 70 and 12
+  cases. All ADMITTED.
+- md5 64 / 256 / 1.2k: faf40cecb06b / 029e44fede1d / dc28658094c0, spec off and default, main's references.

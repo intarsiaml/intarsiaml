@@ -459,5 +459,12 @@ int ik_ink_in_proj_p12_gemv(const ik_tensor* x, const ik_tensor* codes, const ik
                             ik_tensor* pv, void* stream) {
     return in_proj_gemv<true>(x, nullptr, codes, aux, pq, pk, pv, stream);
 }
+int ik_ink_in_proj_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* pq, ik_tensor* pk, ik_tensor* pv, void* stream) {
+    return ik_ink_in_proj_bf16_gemv(x, w, pq, pk, pv, stream);
+}
+int ik_ink_in_proj_p12_gemv_rows(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* pq, ik_tensor* pk,
+                                 ik_tensor* pv, void* stream) {
+    return ik_ink_in_proj_p12_gemv(x, codes, aux, pq, pk, pv, stream);
+}
 
 }  // extern "C"

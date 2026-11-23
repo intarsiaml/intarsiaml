@@ -45,6 +45,11 @@ int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_t
                             const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp, const ik_tensor* kc_in, const ik_tensor* vc_in,
                             const ik_ink_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc, ik_tensor* kring, ik_tensor* vring,
                             const ik_scratch* scratch, const ik_tensor* pos, void* stream);
+/* ink_attn_decode_prefill_bf16 (op 75 above 16 rows): the same launcher, which takes T > 16 to the prologue + flash path */
+int ik_ink_attn_decode_prefill_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,
+                                    const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp, const ik_tensor* kc_in,
+                                    const ik_tensor* vc_in, const ik_ink_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc,
+                                    ik_tensor* kring, ik_tensor* vring, const ik_scratch* scratch, const ik_tensor* pos, void* stream);
 
 /* INTARSIA_INK_ATTN_PDL self-test: violations of the pre-wait prefetch range over a shape sweep (0 = none; -1 = vacuous) */
 int ik_ink_attn_pdl_selftest(void);
