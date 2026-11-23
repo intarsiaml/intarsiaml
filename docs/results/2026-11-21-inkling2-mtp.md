@@ -234,6 +234,31 @@ Report before building any default.
 
 Before merging: merge main in, rerun md5 and the affected tests, and ask the coordinator for the go.
 
+## #496 on a batching server (coordinator, 2026-11-22 ~19:05), lane ink-spec-land
+
+Question: what does `serve --max-batch 16` do with #496 applied? (a) refuse to start, (b) fall back to one sequence, or (c) leave
+spec off and batch.
+
+**Code path, 34525d854: (c).**
+- `load_engine_group` (`crates/intarsia-models/src/load.rs`) first resolves `max_batch` (16 with `--max-batch 16`; 1 without the
+  flag). `dspark_default` then returns `Off` when `opts.max_batch > 1`, so no draft is opened and no line is printed.
+- The batching engine starts as on main.
+- An explicit `--spec dflash` with `--max-batch > 1` still fails before any weights load: "--spec dflash with the batching engine
+  (use --max-batch 1)".
+- `serve.rs` `refuse_spec_with_store` only acts on an explicit `--spec` with a prefix store.
+- Unit test `dspark_default_only_where_measured` covers `max_batch: Some(4)` -> `Off` (and `Some(1)` -> `On(3)`).
+- The real-model gate F4 (#11634) ran `--max-batch 4`: no draft, the same kernels and cases as main, and the same greedy reply.
+- No guard needed. Added for the record: a `Some(16)` case in that test, committed with the post-night merge of main so that the
+  night job's code hash (34525d854) stays put.
+
+**Conc check rules (written before the run; `.scratch/flip_conc.sh`, endor `--quiet gpu,cpu`).** Flip binary 34525d854 vs main
+22303d704, `serve --max-batch 16`, A B B A (main, flip, flip, main). PASS when all of these hold:
+1. Every server starts and prints `continuous batching: up to 16`, and no server prints the DSpark default line.
+2. The spec steps counter is 0 after every arm.
+3. 4 concurrent greedy completions (1021 / 1021 / 1021 / 1500 prompt tokens, 64 out) give main's texts.
+4. localeval `suite --cells conc-plain-1k --max-num-seqs 4` (4 closed-loop streams): the flip's aggregate tok/s is within noise of
+   main's (`localeval compare`: under 10%, both reps of each arm shown).
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
