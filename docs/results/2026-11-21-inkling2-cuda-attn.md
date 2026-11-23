@@ -1656,6 +1656,11 @@ rescored.
   - On CUDA the screen GEMV must be `matmul_fp8_gemv[_rows]` and runs with `exact_rows`.
   - The first-use probe is skipped inside a graph capture, because CUDA's decode graph records the first head.
 - `INTARSIA_INK_HEAD_SCREEN_STATS=1` counts fallbacks on the device, graph replays included.
+- `graph_step.rs`: the solo decode recording is keyed by (state, head, full logits). A `LastLogits` step records its head
+  under `ScreenSuspend`, so it never replays the screened head, which leaves only its candidates' logits in `ws.logits`.
+  Without this, default-on failed `inkling2_tiny_graph_decode_is_bitwise_the_eager_decode` (fleetq #11832). Regate
+  #11838 on 53c4bd664: tiny inkling2 17/17, `inkling2_batch` 8/8, and md5 at 64 / 256 / 1.2k equal to main
+  (`faf40cecb06b` / `029e44fede1d` / `dc28658094c0`) with screen on and off, spec off and default.
 
 **Gate 1, the bound under CUDA's arithmetic.** The bound needs the screen values to come from a tree of correctly rounded
 f32 adds and fmas over exact products, of depth at most D + 1, plus one scale multiply. CUDA's CUDA-core fp8 GEMV is exactly
