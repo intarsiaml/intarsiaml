@@ -1914,7 +1914,8 @@ impl Seq {
                 decode: Duration::ZERO,
             }));
         }
-        let chunk = model.prefill_chunk().max(1);
+        // the opt-in long-prompt chunk (from the whole prompt's length); the prefix store keeps its own schedule (`ps.chunk`)
+        let chunk = if self.ps.is_some() { model.prefill_chunk() } else { model.prefill_chunk_for(self.plen) }.max(1);
         if self.cancelled() {
             return Ok(PrefillStep::Finished(self.cancel_outcome()));
         }
@@ -1956,6 +1957,7 @@ impl Seq {
             let start = self.pos;
             // a macro step holds several chunks: keep the snapshots of the chunk ends inside it too (lane a4k-restore)
             st.prefill_snapshots = crate::state::RECURRENT_SNAPSHOTS;
+            st.prefill_chunk_rows = chunk;
             let ran = model.forward_prefill(st, &self.req.prompt[self.pos..self.pos + n], HeadMode::None, None);
             st.prefill_snapshots = 0;
             match ran? {
@@ -1978,6 +1980,7 @@ impl Seq {
             // snapshot one token before the end of the prompt: a repeated or regenerated request reuses everything
             // but its last token, as with an attention-only cache
             let start = self.pos;
+            st.prefill_chunk_rows = chunk;
             model.forward_prefill(st, &self.req.prompt[self.pos..self.plen - 1], HeadMode::None, None)?;
             self.pos = self.plen - 1;
             st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
@@ -1987,6 +1990,7 @@ impl Seq {
         }
         let start = self.pos;
         let mode = self.head_mode(1);
+        st.prefill_chunk_rows = chunk;
         let out = model.forward_prefill(st, &self.req.prompt[self.pos..], mode, None)?;
         if st.clean == start {
             st.clean = st.len;
