@@ -1358,3 +1358,28 @@ coordinator, who takes it to the user.
 tokens: default == `--spec off` == main (`65cde8f3...` / `61fd59fe...`), the default run speculated (57 verify passes, acceptance 80.7 %) and `--spec off`
 and main did not; MG6: dspark_default 1, models-recipe 17, recipes_doc 3, recipe_gumbel 1, mtp 69, docs_env_vars 2, Metal inkling2_dspark 4, dspark_cut 1,
 verify_softcap 1, chat_reuse 6, inkling2 17, inkling2_batch 8, all passed. Marker `.scratch/flipm_post_pass_0ad399998`.
+
+## Brief L6 step 2 result, 2026-11-25: where the default's prefill cost sits (fleetq #11890, #11893, #11895, #11897, endor, `--quiet gpu,cpu`)
+
+Binary: merge tip `04ca79d1d` (code `0ad399998`) plus two diagnostic hacks kept out of the tree (`ink-spec-flip/.scratch/l6/diag_hacks.patch`:
+`INTARSIA_DIAG_NO_INGEST` skips the DSpark ingest's device work, `INTARSIA_DIAG_BALLAST_MB` holds N MB of touched device memory). `generate`, greedy,
+`--max-tokens 1`, prefill ms as the engine prints it; the box check passed at 76-78 tok/s in each slot.
+
+1. **The ingest is cheap.** `INTARSIA_DSPARK_PROFILE=1` at 16455 tokens: 8 chunks of 2048 rows at 2.2-2.3 ms each (the first 11.8 ms, a cold
+   pipeline) and the 71-row tail 0.56 ms, 28 ms in all, **0.44 % of the 6.3 s prefill**. So deferring the last chunk's ingest saves 0.6 ms, and
+   cutting the unread rows (local-layer rows older than the window, f_rnn's HcPre over rows the ring drops) saves a fraction of 28 ms. Neither is
+   worth the risk.
+2. **The lost macro pass is not a share.** Macro prefill needs `st.has_recurrent()` (`engine.rs`), false for Inkling-2; with
+   `INTARSIA_PREFILL_MACRO=16384` the default arm is unchanged and the off arm no faster (1k +25 % in one run, 4k -1.1 %, 16k +4.0 %, noise).
+3. **No kernel differs.** `plan show` off vs default differs only by extra entries for the draft's own ops; with `--profile-every 1 --op-table` at
+   16k the per-op times of `--spec off` and a draft-loaded sampled request agree within noise (total 6.54-7.12 s vs 6.55-7.04 s; `moe_experts`
+   2897 vs 2868 ms).
+4. **The wall-clock difference is box state, not the draft.** Over four slots the 16k prefill (ms) came out: slot 1 (4 reps) off 6763 mean, default
+   +1.4 %, default with the ingest skipped -0.6 %, draft loaded + inactive (sampled) +3.1 %; slot 2 (8 reps) off 5858 median in a fast mode
+   (5 of 8 runs 5.76-5.86 s, the others 6.39-6.49 s), every draft-loaded arm 6.3-6.6 s (default +10 % on medians); slot 4 (8 reps): the other way
+   round, default 5944 and sampled 5920 ms medians (fast mode in 6 of 8 and 5 of 8 runs) against off 6148 (1 of 8) and off with 1.1 GB of ballast
+   6166 (0 of 8). The sign of the gap flips between slots; the process-to-process swing (5.76-7.15 s) is larger than any default-vs-off gap.
+   What these runs support: a default request pays about 28 ms (0.44 %) of ingest at 16k and nothing else that survives the box noise. They do not
+   say the localeval bar's +3.2 % was zero; they say a single ABBA of 4 runs per arm cannot resolve 2 %, so the bar rerun below uses 8 per arm.
+
+No prefill code change was made: the share the attribution can support (the ingest) is 28 ms at 16k, and nothing larger was found to fix.
