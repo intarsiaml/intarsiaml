@@ -1465,3 +1465,15 @@ the prefix store). Untested candidates, in cost order: (a) `generate --max-token
 serve-only prefill gap (+41 / +140 / +151 ms at 1k / 4k / 16k), in order: (1) `generate --max-tokens 256`; (2) the draft's tap staging size during prefill; (3) GPU-side per-op
 timestamps of the last chunk. Stop at the first test that clearly localises the extra time. Fix it if the fix is small (under about 2 h) and bitwise; otherwise report the
 cause and a fix sketch. New time box 3 h from now (to about 19:10). Report once, when the cause is found or the box ends. The 23:00 sweep #11871 stays booked; push nothing.
+
+## Brief L7 test 1 and 2 results, 2026-11-25 (fleetq #11904 retry; test 2 by code)
+
+**Test 1: `generate --max-tokens 256 --ignore-eos` vs `--max-tokens 1` (prefill ms, longp.json prompts, greedy, off vs default, palindromic order x 3 = 6 runs per arm; box check 77.6 tok/s).**
+`--max-tokens` does not matter: default / off is the same at 1 and at 256 tokens (medians 4k +23 % vs +28 %, 16k +11 % vs +14 %, 1k -1 % vs +0.4 %). It does show that a gap
+reproduces in `generate` in this slot, larger than in `serve` or the L6 `generate` slots: 4k off 1322-1328 ms in every undisturbed run (1324 median), default 1581-1729 in 11 of 12
+runs (1355-1434 in the others); 16k off 5.6-5.9 s, default 6.4-6.55 s in 8 of 12 runs. 1k: no gap (off 634, default 638). The sign and size of the gap changes between slots (L6: default
++1.4 % / 0 / -3 %), so a single `generate` slot does not settle it, and this one is a slot where the 4k cell shows it cleanly.
+
+**Test 2: the draft's tap staging during prefill, by code: not it.** `DflashHead.feat` (the four tap rows) is allocated with `mt` rows, the workspace's max tokens (>= the 2048-row prefill chunk);
+`inkling2.rs:993` captures taps for every chunk (`t <= feat_rows` always holds), the capture is one `ink_copy` per tap layer (4 x 2048 x 2304 bf16 = 9.4 MB per copy), and the flush after
+each chunk is the ingest already measured at 28 ms for 16k tokens. So neither the staging size nor the copies can account for 140-300 ms.
