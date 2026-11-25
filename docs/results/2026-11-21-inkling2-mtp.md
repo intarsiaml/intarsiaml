@@ -1332,6 +1332,6 @@ TTFT ratio is 1.033 (means) / 1.018 (medians) and the prefill ratio 0.969 / 0.98
 cost of the default is about 2-3 %, consistently above the 2 % bar and above the same-arm noise on the means, but not on the median. The 4k
 (+7.6 % TTFT) and 1k (+9.9 %) cells are noisier (same-arm spread 12-16 %, and the 1k cell was rejected by localeval's spread rule in runs
 02, 04 and 07) and read larger than the first bar did; the first bar had 4k at +1.2 % (blocks 2+3) and the two runs together do not
-separate 4k / 1k from noise. What the greedy default arm pays that `--spec off` does not at prefill is the DSpark ingest of the prompt's rows
+separate 4k / 1k from noise. By the code (not separately measured), what the greedy default arm pays that `--spec off` does not at prefill is the DSpark ingest of the prompt's rows
 (a draft pass over every prompt row) and, for every request with a draft loaded, no macro prefill pass (`model.rs:1783`); a sampled request
 pays only the second (5k t=1.0 prefill 1927 ms off vs 1958 ms fix, +1.6 %, one run each).
