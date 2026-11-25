@@ -572,6 +572,52 @@ fn ink_experts_mma_chunk_invariant() {
     }
 }
 
+/// The NVFP4 tensor-core prefill shape switches (brief 50: WM 4 at BM 64, BM 128, the padding-warp skip, and the skip with
+/// either) are BITWISE the default shape: real shape (128 experts, H 2304, I 1152, top-8), T 600 and 1100 (mu 37.5 / 68.75:
+/// BM 64 picked), plain and repacked layouts, and W4A4 (plain only: the repack refuses it).
+#[test]
+fn ink_experts_mma_shapes_bitwise() {
+    use intarsia_core::inkling2::ops::moe_repack_rows;
+    let _knob = MMA_MIN_KNOB.lock().unwrap_or_else(|e| e.into_inner());
+    let Some(rig) = Rig::new("ink_experts_mma_shapes_bitwise") else { return };
+    intarsia_backend_cuda::inkmoe::set_mma_min(512);
+    let mut rng = SplitMix64::new(0x50b4);
+    let (e, k, h, i) = (128usize, 8usize, 2304usize, 1152usize);
+    let ex = random_experts(&mut rng, e, h, i);
+    let plain = vec![ex.gate_up_w.clone(), ex.gate_up_s.clone(), ex.down_w.clone(), ex.down_s.clone(), ex.gscales.clone()];
+    let mut rp = plain.clone();
+    moe_repack_rows(&mut rp[0].data, h / 2, 4, 8, 16);
+    moe_repack_rows(&mut rp[1].data, h / 16, 4, 8, 2);
+    moe_repack_rows(&mut rp[2].data, i / 2, 8, 4, 16);
+    moe_repack_rows(&mut rp[3].data, i / 16, 8, 4, 2);
+    for t in [600usize, 1100] {
+        let (ids, ws) = random_routing(&mut rng, t, e, k);
+        let ws = HostTensor::from_f32(&[t, k], &ws.to_f32().iter().map(|v| v * 8.0).collect::<Vec<_>>());
+        let x = rnd(&mut rng, DType::Bf16, &[t, h], 1.0);
+        for (layout, aq) in [(0u8, 0u8), (1, 0), (0, 1)] {
+            let mut a = OpAttrs { top_k: k, ..OpAttrs::default() };
+            (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
+            a.ink.moe_layout = layout;
+            a.ink.act_quant = aq;
+            let w = if layout == 1 { &rp } else { &plain };
+            let run = || {
+                let mut v: Vec<HostTensor> = vec![x.clone(), ids.clone(), ws.clone()];
+                v.extend(w.iter().cloned());
+                rig.run("moe_experts_situ_bf16", Op::MoeExperts, &v, &[(DType::Bf16, vec![t, h], None)], &a).remove(0)
+            };
+            intarsia_backend_cuda::inkmoe::set_mma_shape(0, 0, 0);
+            let base = run();
+            assert!(base.to_f32().iter().all(|v| v.is_finite()), "T {t} layout {layout} aq {aq}: non-finite");
+            for (wm4, bm128, skip) in [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 0, 1), (0, 1, 1)] {
+                intarsia_backend_cuda::inkmoe::set_mma_shape(wm4, bm128, skip);
+                let o = run();
+                assert_eq!(base.data, o.data, "T {t} layout {layout} aq {aq}: wm4 {wm4} bm128 {bm128} skip {skip} differs from the default");
+            }
+        }
+    }
+    intarsia_backend_cuda::inkmoe::set_mma_shape(-1, -1, -1);
+}
+
 /// The DSpark draft head's MXFP4 GEMV (`matmul_mxfp4_gemv_ink_rows`, 5..=8 rows, 4 output rows per warp): BITWISE
 /// `matmul_mxfp4_gemv_rows` (the generic row-exact GEMV it replaces) at every element, both output dtypes; N tails (not a
 /// multiple of 4, 1, 3), K of 1, 33, 72 and 96 groups.

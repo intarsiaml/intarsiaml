@@ -339,6 +339,13 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   inkling2 on spark2; greedy md5 at 64 / 256 / 1.2k equal to main, switch on and off; quiet A/B at 8k and 3.6k prefill, 3
   rotated reps, plus short decode; bar +3 % at 8k and no decode loss. Report numbers and job ids, then stop for the PR call.
   BM itself is not a lever (`pick_bm_ink` already picks 64 at mu ~128). ncu stays blocked on spark2; do not change that.
+- (coordinator, 50th) Go on the proposed order. (1) Lever 1, WM 4 at BM 64 (NVFP4 gate/up + down) behind an env switch,
+  default off; first count the padding fraction from the tile list (it decides lever 2), then `ink_bench moe 2048` against
+  7.81 ms in a quiet spark2 slot; under 2 % on the bench: report and stop before lever 2. (2) Then levers 2 (BM 128) and 3
+  (skip all-padding warps), each measured on its own behind the switch. (3) Full gate for the best combination: rows-exact /
+  admission, tiny inkling2, md5 64 / 256 / 1.2k equal to main switch on and off, quiet A/B of 8k and 3.6k prefill plus short
+  decode; bar +3 % at 8k prefill, no decode loss. Report, then stop for the PR call. Levers 7b / 8 (row kernel, blend) out of
+  scope; the block-scaled MoE GEMM (brief 37) is not bitwise: a user decision, do not start it.
 - (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
   chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
   is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
@@ -1284,3 +1291,46 @@ hypothesis (occupancy) alone. Measure it on `ink_bench moe 2048` first. If it ga
 dequant) and lever 3, each behind the env switch and each measured separately. Then run the full gate (rows-exact /
 admission, tiny, md5 64 / 256 / 1.2k vs main with the switch on and off, quiet 8k / 3.6k A/B with 3 rotated reps, and a decode
 spot check). Lever 1 alone may land under 3 %. Levers 1 + 2 together are the 3 % candidate.
+
+## Brief 50: WM 4, BM 128 and the padding skip (spark2 #11861 build + tests + tile stats, #11862 quiet bench)
+
+Code (all NVFP4 `ink_moe_mma`, env switches default off, `inkmoe::set_mma_shape` for tests):
+- `INTARSIA_INK_MOE_WM4=1`: lever 1. BM 64 runs as MT 1 WM 4 (512 threads), same 84992 B of smem.
+- `INTARSIA_INK_MOE_BM128=1`: lever 2. Where the pick is 64, BM 128 runs as MT 2 WM 4, with a 2-slot A ring (A(s+1) issued at
+  step s in its own commit group, ahead of the raw group), 94208 B.
+- `INTARSIA_INK_MOE_SKIP=1`: lever 3. A warp skips the ldmatrix / mma of m16 tiles that hold only padding rows.
+- `INTARSIA_INK_MOE_TILESTAT=1`: diagnostic only (one stderr line per call, eager streams only).
+
+**Bitwise:** the new `ink_experts_mma_shapes_bitwise` test passes: wm4, bm128, skip, wm4+skip and bm128+skip each equal the
+default output exactly. It covers 128 experts at the real shape, T 600 / 1100, the plain and repacked layouts, and W4A4.
+`ink_rows` 10/10 (#11861).
+
+**Padding (tile list, 8k prompt, 192 calls, 3.13 M pairs, #11861):**
+
+| | BM 32 | BM 64 | BM 128 | m16 skip | 32-row skip |
+|---|---|---|---|---|---|
+| padded share of computed rows | 11.2 % | 21.2 % | 36.9 % | 5.6 % | 11.2 % |
+| tiles | 109966 | 61983 | 38713 | | |
+
+**ink_bench `moe 2048` (NVFP4 gu + dn, us; rotated forward / reverse / forward, 3 reps an arm, `--quiet gpu,cpu`, #11862):**
+
+| arm | repack on (the in-model layout) | vs def | repack off | vs def |
+|---|---|---|---|---|
+| def | 7886.2 (7881.5 / 7888.5 / 7888.6) | | 7808.6 (7807.8 / 7806.0 / 7811.9) | |
+| wm4 (lever 1) | 7798.7 (7796.4 / 7795.7 / 7804.1) | **-1.1 %** | 7558.7 | -3.2 % |
+| bm128 (lever 2) | 7324.0 (7318.0 / 7318.8 / 7335.2) | -7.1 % | 7025.6 | -10.0 % |
+| skip (lever 3) | 8412.8 | +6.7 % (slower) | 8204.9 | +5.1 % (slower) |
+| wm4+skip | 8022.6 | +1.7 % | 7577.2 | -3.0 % |
+| bm128+skip | 6806.8 (6851.5 / 6713.3 / 6855.6) | **-13.7 %** | 6918.4 | -11.4 % |
+
+**Reading:**
+- Lever 1 gains 1.1 % on the in-model layout, under the 2 % stop line of brief 50. Doubling the warps per SM is not the main
+  lever.
+- BM 128 (fewer tiles: 38713 vs 61983) is.
+- Skip alone is slower at BM 64. A likely cause is that the warp-uniform `continue` inside the unrolled MT loop changes the
+  schedule; unverified without counters. With BM 128 it pays, because a third of the computed rows are padding there.
+- Rough 8k effect of bm128+skip: NVFP4 gu + dn are ~1394 ms of the nsys 8k. At -13.7 % that is ~190 ms, ~6 % of the ~3210 ms
+  wall. This is not measured end to end.
+- Per brief 50's rule the lane stops here (lever 1 < 2 %). The bm128+skip numbers were measured in the same quiet job, since
+  both levers were built together. The full gate (md5 64 / 256 / 1.2k, tiny, admission, 8k / 3.6k A/B, decode) has not been
+  run.

@@ -84,6 +84,9 @@ void ik_ink_moe_probe(int v);
 /* Tests / benchmarks: an ordinary experts call takes the tensor-core path above this many pairs (default 512, env
  * INTARSIA_INK_MOE_MMA_MIN; INT_MAX: never). */
 void ik_ink_moe_set_mma_min(int pairs);
+/* Tests / benchmarks: the NVFP4 tensor-core prefill shape switches (brief 50; -1 = the env: INTARSIA_INK_MOE_WM4, _BM128,
+ * _SKIP, all default off). All bitwise the default. */
+void ik_ink_moe_set_mma_shape(int wm4, int bm128, int skip);
 
 #ifdef __cplusplus
 }

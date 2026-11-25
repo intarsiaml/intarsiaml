@@ -149,6 +149,21 @@ pub fn set_mma_min(pairs: i32) {
     let _ = pairs;
 }
 
+/// Tests / benchmarks: the NVFP4 tensor-core prefill shape switches (brief 50): `wm4` BM 64 as MT 1 WM 4, `bm128` BM 128 where
+/// the pick is 64, `skip` warps skip padding m16 tiles. 0 / 1 set, -1 = the env (INTARSIA_INK_MOE_WM4 / _BM128 / _SKIP).
+pub fn set_mma_shape(wm4: i32, bm128: i32, skip: i32) {
+    #[cfg(ik_cuda)]
+    {
+        extern "C" {
+            fn ik_ink_moe_set_mma_shape(wm4: std::ffi::c_int, bm128: std::ffi::c_int, skip: std::ffi::c_int);
+        }
+        // SAFETY: sets plain ints of the kernel library.
+        unsafe { ik_ink_moe_set_mma_shape(wm4, bm128, skip) }
+    }
+    #[cfg(not(ik_cuda))]
+    let _ = (wm4, bm128, skip);
+}
+
 /// Benchmarks only: 1 launches only the gate+up kernel of an experts call, 2 only the down kernel (the output is garbage).
 pub fn set_probe(v: i32) {
     #[cfg(ik_cuda)]
