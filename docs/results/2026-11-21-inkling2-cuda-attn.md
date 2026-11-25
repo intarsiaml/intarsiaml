@@ -304,6 +304,12 @@
     Qwen3-8B / Llama / Inkling-2, kernels test 0 FAIL, Metal tests, greedy md5 64/256 == main, cargo test of the touched
     crates, separate target dir); endor reserved 09:00-14:25. Push inside a slot or --no-verify after docs_env_vars and
     recipes_doc pass. Coordinator opens the PR and merges.
+59. 2026-11-23 (coordinator): the user approved the CUDA screen flip ("Yes, flip CUDA screen"). The flip's LOG row reads
+    "go: user 2026-11-23". Two PRs back to back: A `ink/cuda-screen` (opt-in, brief 58 gates), B `ink/cuda-screen-flip` (one
+    commit on A) with its own checks: CUDA md5 64/256/1.2k == main with defaults (spec off and default) and with
+    `INTARSIA_INK_HEAD_SCREEN=0`, plan show 35B / 8B identical, tiny 17/17; Metal plan show Qwen3-8B / Llama / Inkling-2
+    identical, Inkling-2 md5 64/256 == main. One slot per box for both heads where possible. Push both inside a slot or
+    --no-verify after docs_env_vars and recipes_doc pass.
 60. 2026-11-25 (coordinator, after PR B; user decision 2026-11-25 "Flip to default" for `INTARSIA_INK_FLASH_BIAS=mma` on CUDA):
     PR C flips the CUDA mma relative-bias path to default-on. It is not bitwise: prefill is 4.3-5.6 % faster, KL vs the vLLM /
     oracle goldens moves -9.8 %..+4.4 %, every golden passes. Branch `ink/cuda-flashbias-on` @ 900230f6a, worktree
@@ -1893,7 +1899,7 @@ rescored.
 - `24c3ed1a5`: the tuning row.
 - Landing (brief 58): branch `ink/cuda-screen` off main 0b8fab600 carries the kernels, the graph-key fix, the sampled-draft
   guard and these notes; on CUDA the screen stays opt-in (`INTARSIA_INK_HEAD_SCREEN=1`). The **CUDA default on** is one
-  commit on the local branch `ink/cuda-screen-flip` (LOG row, go PENDING: a default flip needs the user's go);
+  commit on the branch `ink/cuda-screen-flip` (LOG row; go: user 2026-11-23, brief 59);
   `INTARSIA_INK_HEAD_SCREEN=0` reverts it.
 
 **What was built.**
@@ -1993,3 +1999,21 @@ The ship bar (+1 % spec off, no regression) is met. Spec default gains less beca
 
 **Next:** HeadScreen in one block costs 166 µs a token. A multi-block form (per-block max and count, then an ordered write)
 would take about 15 µs: about -0.15 ms a token (+0.6 %), bitwise.
+
+## Parked 2026-11-23
+
+Weekly quota at its limit (coordinator); nothing pushed, no PR.
+
+- `ink/cuda-screen` (PR A, CUDA screen opt-in), head `f4a9e873d`, worktree `.worktrees/ink-cuda-screen`: kernels, graph-key fix,
+  sampled-draft `ScreenSuspend` guard, results. Gates: spark1 #11843 (`.worktrees/ink-cuda-screen/.scratch/gate58.log`,
+  remote `~/intarsiaml-ink-cuda-attn/out/g58`), endor Metal no-op #11844 (`.worktrees/ink-cuda-screen/.scratch/gate58m.log`,
+  outputs in `.scratch/g58m`; it also has the flip head as a second arm). Both were still running at park time.
+- `ink/cuda-screen-flip` (PR B, CUDA default on, go: user 2026-11-23), head = this commit's parent `79f33788f` plus this note,
+  worktree `.worktrees/ink-cuda-screen-flip`.
+- `ink/cuda-p12dec`, head `06310990b`: the lane branch these were taken from (superseded by A + B).
+- Not verified: gate58 provenance (which tree each spark1 binary was built from: compare remote `src` screen.rs / model.rs md5
+  with A's, and `bin/intarsia` vs `bin/intarsia-main` md5); gate59 (flip on spark1, `.worktrees/ink-cuda-screen-flip/.scratch/
+  gate59.sh`, own remote dir `~/intarsiaml-ink-cuda-attn/flip`) never ran.
+- Next: read #11843 / #11844 logs and the provenance; run gate59; push A, then B (docs_env_vars and recipes_doc passed locally
+  on A); the coordinator opens PR A then PR B.
+
