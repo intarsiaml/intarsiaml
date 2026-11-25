@@ -174,6 +174,14 @@ pub trait BatchModel {
     fn park_sync(&mut self) {}
     /// Deferred background work of the model (the prefix store's settle), called where the device is idle; see [`Housekeep`].
     fn housekeep(&mut self, _at: Housekeep) {}
+    /// The opt-in long-prompt chunk for a prompt of `plen` tokens prefilling while nothing decodes
+    /// ([`crate::model::Model::prefill_chunk_for`]); `None` (default): the scheduler's solo chunk.
+    fn long_prefill_chunk(&self, _plen: usize) -> Option<usize> {
+        None
+    }
+    /// The chunk the scheduler cut slot `slot`'s next prefill call by (the real adapter hands it to the model, which must not
+    /// re-cut a long-prompt piece from the rows so far: `SequenceState::prefill_chunk_rows`); default: nothing.
+    fn set_prefill_chunk_rows(&mut self, _slot: usize, _chunk: usize) {}
     /// Opt-in tail merge threshold in rows ([`next_prefill_chunk_tm`]); default 0 (off). The real adapter returns the
     /// model's `INTARSIA_PREFILL_TAIL_MERGE`, whose workspace is sized for it.
     fn tail_merge(&self) -> usize {
@@ -701,6 +709,16 @@ pub fn chunk_schedule_tm(
         pos += n;
     }
     out
+}
+
+/// The longest `cut' <= cut` from which the remainder `cut'..plen` runs no pass below `n` rows under any of the `chunks`
+/// schedules ([`chunk_schedule_tm`]): exact prefix reuse on a backend whose short passes are not row-exact
+/// (`Backend::prefix_reuse_min_pass_rows`) backs off to it.
+pub fn min_rows_back_off(mut cut: usize, plen: usize, chunks: &[usize], n: usize, avoid: bool, tail_merge: usize) -> usize {
+    while cut > 0 && chunks.iter().any(|&c| chunk_schedule_tm(cut, plen, c, avoid, tail_merge).iter().any(|&(_, len)| len < n)) {
+        cut -= 1;
+    }
+    cut
 }
 
 /// Where a cold prefill of a `prompt_len`-token prompt leaves a model with recurrent state (no prefix store): the end of every
@@ -1376,6 +1394,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             let id = c.id;
             let begun = {
                 let tokens = self.active[i].seq.prompt()[c.pos..c.pos + c.len].to_vec();
+                self.model.set_prefill_chunk_rows(slot, self.active[i].seq.own_chunk().unwrap_or(c.chunk));
                 self.model.prefill_begin(slot, &tokens, mode)
             };
             let res = match begun {
@@ -1888,6 +1907,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             let tokens = &self.active[i].seq.prompt()[c.pos..c.pos + c.len];
             let _prof = crate::hostprof::span(crate::hostprof::Cat::Prefill);
             crate::hostprof::prefilled();
+            self.model.set_prefill_chunk_rows(slot, self.active[i].seq.own_chunk().unwrap_or(c.chunk));
             self.model.prefill_chunk(slot, tokens, mode)
         };
         self.prefill_finish(i, c, res)
@@ -1901,6 +1921,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let begun = {
             let tokens = self.active[i].seq.prompt()[c.pos..c.pos + c.len].to_vec();
             crate::hostprof::prefilled();
+            self.model.set_prefill_chunk_rows(slot, self.active[i].seq.own_chunk().unwrap_or(c.chunk));
             self.model.prefill_begin_paused(slot, &tokens, mode)
         };
         let res = match begun {
@@ -1936,6 +1957,9 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
     /// body is what a packed pass runs for it; the final token of a last chunk runs alone afterwards.
     fn pack_body_rows(&self, i: usize, n_decoding: usize) -> Option<usize> {
         let Phase::Prefilling { pos, chunk } = self.active[i].phase else { return None };
+        // note: a request that has not started takes `solo_chunk` here, not the opt-in long-prompt chunk `prefill_plan` may pick
+        // (`BatchModel::long_prefill_chunk`); unreachable today (`Model::pack_capable` excludes Inkling-2, the only model with
+        // the long chunk), revisit if both ever meet
         let chunk = chunk.unwrap_or(if n_decoding > 0 { self.cfg.busy_chunk } else { self.cfg.solo_chunk });
         let plen = self.active[i].seq.prompt().len();
         if self.active[i].seq.chunk_len(pos, plen - pos).is_some() {
@@ -2038,7 +2062,13 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let chunk = match chunk {
             Some(c) => c,
             None => {
-                let c = if n_decoding > 0 { self.cfg.busy_chunk } else { self.cfg.solo_chunk };
+                let plen = self.active[i].seq.prompt().len();
+                let c = if n_decoding > 0 {
+                    self.cfg.busy_chunk
+                } else {
+                    // a request on its own (prefix store) schedule runs that whatever this picks
+                    self.model.long_prefill_chunk(plen).filter(|_| self.active[i].seq.own_chunk().is_none()).unwrap_or(self.cfg.solo_chunk)
+                };
                 let id = self.active[i].id;
                 // a request on its own schedule runs that chunk, not the one the scheduler picked
                 let used = self.active[i].seq.own_chunk().unwrap_or(c);
