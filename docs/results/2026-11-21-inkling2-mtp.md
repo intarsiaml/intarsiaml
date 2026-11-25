@@ -1444,3 +1444,17 @@ Client TTFT minus engine prefill is 20-48 ms in both arms and does not differ be
 run the same prefill code with a different result. Differences between the two paths that reach the engine's prefill loop: `serve` runs the engine on its own
 thread under the supervisor with keep-warm on (tested in `generate`: no gap), the request arrives through the scheduler and `Seq::new`, and the sequence state is
 created once per request by the server (the default arm also allocates the draft's state there). A per-chunk log (`#11903`) splits the prefill into setup and chunk times.
+
+**Per-chunk split (fleetq #11903, same harness, a per-chunk log, patch `ink-spec-flip/.scratch/l6/diag_ttftlog.patch`, kept out of the tree).** Medians, ms: setup before the
+prefill loop 0.0 in both arms; the loop's own steps sum to the first-token time to within 0.7 ms. Engine prefill off vs default: 1k (one chunk) 364.4 vs 405.6 (+11.3 %),
+4k (3 chunks) 1455.9 vs 1595.6 (+9.6 %), 16k (9 chunks) 6160.7 vs 6312.1 (+2.5 %), 143 tokens 123.9 vs 124.4 (+0.4 %). Every step but the last returns in 3.6-3.9 ms (the chunk is queued
+asynchronously) and the last one absorbs the GPU wait (922.5 vs 931.9 ms at 16k), so the log cannot place the extra time inside a chunk. The extra is +41 ms (1k), +140 ms (4k),
++151 ms (16k): it grows with length up to 4k and then flattens, which an ingest proportional to prompt length (28 ms at 16k) does not explain either.
+
+## Stop point (Brief L6 step 5, 2026-11-25 ~16:00)
+
+Attribution is done; the fix is not: the one measured per-request cost of the default (the DSpark ingest, 28 ms at 16k) is far smaller than the TTFT gap the bar shows
+(+31 / +103 / +207 ms), `generate` reproduces no gap (0 to -4 %), and `serve` reproduces +3 to +11 %. The gap is inside the engine prefill as `serve` runs it (not setup, streaming or
+the prefix store). Untested candidates, in cost order: (a) `generate --max-tokens 256` instead of 1 (does a longer request change the prefill path for a speculating request); (b) the
+`serve` request's prefill with the draft's tap staging sized for a decode batch rather than a chunk (`dflash_pend_max`, `ws.max_tokens`); (c) a GPU-side per-op timestamp of the last chunk
+(`--profile-every 1` at the server, or Metal counters) instead of host clocks. Estimate: 2-3 h to find the cause, fix size unknown. Per the brief I stop here.
