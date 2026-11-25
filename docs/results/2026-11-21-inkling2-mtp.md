@@ -1383,3 +1383,11 @@ Binary: merge tip `04ca79d1d` (code `0ad399998`) plus two diagnostic hacks kept 
    say the localeval bar's +3.2 % was zero; they say a single ABBA of 4 runs per arm cannot resolve 2 %, so the bar rerun below uses 8 per arm.
 
 No prefill code change was made: the share the attribution can support (the ingest) is 28 ms at 16k, and nothing larger was found to fix.
+
+**Ballast test (fleetq #11897, 16k prefill, `generate`, 8 runs per arm, ABBA; the slot where the draft arms came out about 3 % faster):** medians /
+ranges / spread (max / min - 1) / runs under 6.0 s: `--spec off` 6148 ms, 5799-6263, 8.0 %, 1 of 8; `--spec off` with 1.1 GB of touched ballast 6166
+ms, 6054-6438, 6.3 %, 0 of 8; default greedy 5944 ms, 5865-7147, 21.9 %, 6 of 8; default sampled 5920 ms, 5819-7145, 22.8 %, 5 of 8. The draft arms'
+spread comes from their first slow runs (7.1 s at runs 02-07; from run 10 on they sit at 5.84-6.03 s); off was in its fast mode in only 1 of 8
+runs here. Off with the ballast did not move (+0.3 % on the median) and showed no fast mode either, so extra resident memory alone does not
+reproduce the draft-loaded gap in either direction; because off itself rarely ran fast in this slot, the test cannot say the ballast removes the
+fast mode.
