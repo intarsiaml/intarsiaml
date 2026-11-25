@@ -1311,3 +1311,15 @@ with that scratch in place.**
   `.scratch/lc-gate.sh` (Metal: tests, plan show, md5, pass lists; it pushes on all-pass); `.scratch/ms-smoke.sh` (Metal serve,
   switch on, 6k) and `.scratch/cn/cuda-noop.sh` on spark1 (set `BR` to the new head); report to #508; rebook #11834
   (`.worktrees/ink-pf-convmix/.scratch/ch2.sh`, now with the 6k arm, `--expect 45 --mem 30 --quiet gpu,cpu`, a clean 03:00 window).
+
+## PR #508 review-fix gates 2026-11-25 (ink/long-chunk 12c13713a, pushed)
+
+- Unit tests #11858: scheduler back-off test and the batched store busy-start test PASS; the both-sites negative control (hint used
+  whatever its size AND the scheduler passes `c.chunk`, 17 NEGCTRL markers) FAILS the store test (step-0 logits differ). Reverting
+  only `forward_chunks` still passes (#11852): the scheduler's `own_chunk()` hint alone keeps the store's cut, so the two fixes are
+  redundant defences and the control must revert both.
+- Metal gate #11868: all PASS (tests, kernels test, plan show x3 byte-identical, rule-off md5 64/256 == main, rule-on md5 at
+  4k/6k/8k/16k, pass lists 4k [2048,1902] == off, 6k [4096,1902], 8k [4096,3938], 16k [4096,4096,4096,3780]); pushed.
+- Metal serve smoke #11877 (switch on, 6k): passes [4096,1902] vs off [2048,2048,1902], 64 ids equal.
+- CUDA no-op #11869 (spark1): plan show 8B/35B identical, kernels --quick 1605 cases, 35B serve short + ~9k ids identical; fails=0.
+- Booked overnight (Thu 11-26): #11856 chunk-4096 confirmation 03:00, #11857 relbias-mma re-A/B 04:00 (ship bar +4 % 16k / +2 % 4k, no flip).
