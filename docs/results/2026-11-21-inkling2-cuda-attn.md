@@ -1724,16 +1724,56 @@ Calibration of the variant 2 self-golden numbers (fleetq #11772, the same self-g
   and about 2.3 % top-1 flips against the bitwise default. `mma` is at that level, not above it.
 - **Against the goldens:** every one passes; the largest KL increase is +4.4 % (vLLM short), and vLLM 4k improves 1.5 %.
 
-**Default-flip case (the user's call; not bitwise):**
+**Default-flip case (flipped 2026-11-25; not bitwise):**
 - Gain: prefill -4.3 % at 4k and -5.6 % at 8k. Decode is unchanged; the kernel runs only in prefill chunks of more than 16
   rows.
 - Quality: all 5 goldens pass, the largest KL increase is +4.4 % (vLLM short, under the 5 % limit), and the 8k greedy run
   matches 128 of 128 tokens. The 1.2k greedy output diverges at token 13 (the prefill logits move by a reorder-sized amount).
 - Same-weights distance: KL 4.0e-3 / 3.6e-3 at 4k / 8k, top-1 97.9 / 97.6 %, equal to the KB 32 reorder.
-- Flipping would need: a new default in `flash_bias_mma` and new md5 references (64 / 256 / 1.2k change, since prefill feeds
-  decode). `op75_prefill_bitwise_pair` would need its pair to run under the same setting.
-- Revert after a flip: `INTARSIA_INK_FLASH_BIAS=0` (or any value other than `mma`, the way the code reads it today) gives
-  today's bits back.
+- Flipped (brief 60, PR C, user decision 2026-11-25 "Flip to default"): `flash_bias_mma` is on when `INTARSIA_INK_FLASH_BIAS` is
+  unset, empty, `mma` or `1`. The new md5 references and the gates are in the next section.
+- Revert: `INTARSIA_INK_FLASH_BIAS=0` (or `off` / `false`) gives the CUDA-core form, bitwise the prologue + rel_sink_attn pair
+  and main's md5 references. An empty value is on, not a revert.
+
+**Default-on gates (brief 60, PR C, branch `ink/cuda-flashbias-on`, tree `3038abf62` on origin/main `26088ff89`).**
+Test, A/B and KL arms are the same binary (md5 `b6c29176ca3d`), the default against `INTARSIA_INK_FLASH_BIAS=0`.
+- **Tests (fleetq #11865, spark1):**
+  - `inkling2_attn` 3/3, `ink_rows` 9/9, `p12` 5/5, `inkling2_screen` 2/2.
+  - Tiny inkling2 on CUDA 17/17 and `inkling2_batch` 8/8, with the new default.
+  - `op75_prefill_bitwise_pair` passes: `inkling2_attn.rs::device()` sets `INTARSIA_INK_FLASH_BIAS=0` before the first launch (the
+    flag is read once per process), so every test of that binary runs the bitwise CUDA-core form and the pair test keeps
+    its full coverage (18 cases). The mma form has no kernel-level bitwise test, by construction (it is not bitwise); its
+    quality evidence is the model-level KL below.
+- **New md5 references (CUDA greedy, spec off = spec default):** 64 `faf40cecb06b` and 256 `029e44fede1d` unchanged, 1.2k
+  **`b0a5ff60797b`** (was `dc28658094c0`). With `INTARSIA_INK_FLASH_BIAS=0` all three equal main's, spec off and default.
+- **G2 / G3 KL (fleetq #11874), `intarsia accuracy --mode prefill`, KL(21-way), default against `=0`; every golden gate PASS in
+  both arms:**
+
+| golden | positions | default (mma) | `=0` | change |
+|---|---:|---:|---:|---:|
+| vLLM short | 569 | 6.923e-3 | 6.630e-3 | +4.4 % |
+| vLLM long | 1569 | 1.182e-2 | 1.173e-2 | +0.8 % |
+| vLLM 4k | 13096 | 9.524e-3 | 9.671e-3 | -1.5 % |
+| oracle short | 569 | 2.142e-3 | 2.376e-3 | -9.8 % |
+| oracle long | 1569 | 3.222e-3 | 3.124e-3 | +3.1 % |
+
+- **Quiet A/B (fleetq #11880, 3 rounds, order alternated; prefill ms of the 4116- and 8139-token prompts, decode tok/s):**
+
+| measure | default (mma) | `=0` | change |
+|---|---:|---:|---:|
+| prefill 4116 tokens | 1760 (1756-1763) | 1835 (1827-1844) | **-4.1 %** |
+| prefill 8139 tokens | 3037 (3034-3041) | 3204 (3185-3220) | **-5.2 %** |
+| decode short, spec off | 40.07 | 39.99 | +0.2 % |
+| decode short, spec default | 49.43 | 49.14 | +0.6 % |
+| decode 1.2k, spec off | 39.49 | 39.24 | +0.7 % |
+
+  No decode regression (the kernel runs only in prefill chunks of more than 16 rows; the differences are inside the noise).
+  The greedy ids of the 16-token prefill runs and of the short decode are equal in both arms; only the 1.2k text differs.
+- **Metal no-op (endor, fleetq #11876):** docs_env_vars, recipes_doc, core lib 265, tiny inkling2 on Metal 17/17, metal tests,
+  `kernels test` (2930 cases, 0 FAIL), `plan show` json and txt for Qwen3-8B / Llama / Inkling-2 identical to main, Inkling-2
+  greedy md5 64 / 256 equal to main (`fa9f4b4a5701` / `550cd932b33f`).
+- The prompt of the "3.6k" prefill in brief 60 was taken to be the 4116-token prompt of the earlier A/B (#11755), so the numbers
+  compare with it (-4.3 % / -5.6 % then).
 
 ## PDL on the attention decode edges (brief 50, branch `ink/cuda-pdlattn` off main a4e281264)
 
