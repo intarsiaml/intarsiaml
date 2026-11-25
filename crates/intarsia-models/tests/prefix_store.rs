@@ -547,6 +547,11 @@ fn hybrid_dir() -> PathBuf {
 }
 
 fn hybrid(chunk: usize) -> Model {
+    hybrid_long(chunk, None)
+}
+
+/// [`hybrid`] with the opt-in long-prompt chunk `(threshold, rows)` ([`LoadOptions::long_prefill_chunk`]).
+fn hybrid_long(chunk: usize, long: Option<(usize, usize)>) -> Model {
     let dir = hybrid_dir();
     let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5.toml")).unwrap();
     let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
@@ -562,6 +567,7 @@ fn hybrid(chunk: usize) -> Model {
             prefill_chunk: chunk,
             act_dtype: Some(DType::F32),
             kv_dtype: Some(DType::F32),
+            long_prefill_chunk: long,
             ..Default::default()
         },
         Arc::new(Telemetry::new()),
@@ -1027,9 +1033,17 @@ fn hybrid_cpu_prefill_chunk_sensitivity() {
 /// The test model for the batched engine (batching enabled for `rows` slots; the hybrid with the cpu opt-in) and its
 /// single-sequence twin (`rows` 1): both planned the same way.
 fn planned(kind: Kind, chunk: usize, rows: usize) -> Model {
+    planned_long(kind, chunk, rows, None)
+}
+
+/// [`planned`] with the opt-in long-prompt chunk (the hybrid only).
+fn planned_long(kind: Kind, chunk: usize, rows: usize, long: Option<(usize, usize)>) -> Model {
     let mut m = match kind {
-        Kind::Hybrid => hybrid(chunk),
-        Kind::Dense => dense(chunk),
+        Kind::Hybrid => hybrid_long(chunk, long),
+        Kind::Dense => {
+            assert!(long.is_none(), "the long-prompt chunk test model is the hybrid");
+            dense(chunk)
+        }
     };
     if rows > 1 {
         if kind == Kind::Hybrid {
@@ -1073,10 +1087,22 @@ fn batched_store_slots(
     cfg: Option<PrefixStoreConfig>,
     f: impl FnOnce(&mut BatchedOptions),
 ) -> intarsia_core::Result<BatchedEngine> {
+    batched_store_long(kind, chunk, slots, None, cfg, f)
+}
+
+/// [`batched_store_slots`] with the opt-in long-prompt chunk on the batched engine's model.
+fn batched_store_long(
+    kind: Kind,
+    chunk: usize,
+    slots: usize,
+    long: Option<(usize, usize)>,
+    cfg: Option<PrefixStoreConfig>,
+    f: impl FnOnce(&mut BatchedOptions),
+) -> intarsia_core::Result<BatchedEngine> {
     let mut o = BatchedOptions::new(slots, 64);
     o.busy_chunk = (chunk / 2).max(1);
     f(&mut o);
-    BatchedEngine::new(planned(kind, chunk, slots), Arc::new(kind.codec()), store_meta(cfg), Arc::new(Telemetry::new()), o)
+    BatchedEngine::new(planned_long(kind, chunk, slots, long), Arc::new(kind.codec()), store_meta(cfg), Arc::new(Telemetry::new()), o)
 }
 
 fn traced(prompt: &[u32], n: usize) -> (GenRequest, Arc<Mutex<Vec<Vec<f32>>>>) {
@@ -1132,10 +1158,16 @@ fn batched_multi_turn(kind: Kind, chunk: usize, reuse: bool) {
 
 /// [`batched_multi_turn`] with the batched engine's options set by `f`; returns the engine (idle) for its metrics.
 fn batched_multi_turn_opts(kind: Kind, chunk: usize, f: impl FnOnce(&mut BatchedOptions)) -> BatchedEngine {
+    batched_multi_turn_long(kind, chunk, None, f)
+}
+
+/// [`batched_multi_turn_opts`] with the opt-in long-prompt chunk on the batched engine's model only (the single-sequence
+/// reference keeps it off).
+fn batched_multi_turn_long(kind: Kind, chunk: usize, long: Option<(usize, usize)>, f: impl FnOnce(&mut BatchedOptions)) -> BatchedEngine {
     let cfg = store_cfg();
     let solo = LocalEngine::new(planned(kind, chunk, 1), Arc::new(kind.codec()), store_meta(Some(cfg.clone())), Arc::new(Telemetry::new()))
         .unwrap();
-    let eng = batched_store_opts(kind, chunk, Some(cfg), f).unwrap();
+    let eng = batched_store_long(kind, chunk, 2, long, Some(cfg), f).unwrap();
     let mut chats: Vec<Chat> = (0..3u32)
         .map(|c| {
             let mut ch = Chat::new(kind);
@@ -1171,6 +1203,15 @@ fn batched_multi_turn_opts(kind: Kind, chunk: usize, f: impl FnOnce(&mut Batched
 #[test]
 fn batched_hybrid_multi_turn_is_the_single_engine_store_on() {
     batched_multi_turn(Kind::Hybrid, 8, true);
+}
+
+/// Lane ink-prefill (PR #508 review): the opt-in long-prompt chunk on (`(17, 16)` over the 8-row chunk), the prefix store on,
+/// requests that start while the other slot decodes (busy chunk 4): a store request keeps its own 8-row schedule, so every
+/// reply is bitwise the single-sequence engine's with the store on and the long chunk off (the hybrid's cpu prefill is
+/// chunk-sensitive: a store chunk cut into busy-chunk passes changes its bits).
+#[test]
+fn batched_hybrid_long_chunk_store_busy_start_is_the_switch_off_schedule() {
+    batched_multi_turn_long(Kind::Hybrid, 8, Some((17, 16)), |o| o.prefix_reuse = true);
 }
 
 #[test]
