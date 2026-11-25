@@ -1458,3 +1458,10 @@ Attribution is done; the fix is not: the one measured per-request cost of the de
 the prefix store). Untested candidates, in cost order: (a) `generate --max-tokens 256` instead of 1 (does a longer request change the prefill path for a speculating request); (b) the
 `serve` request's prefill with the draft's tap staging sized for a decode batch rather than a chunk (`dflash_pend_max`, `ws.max_tokens`); (c) a GPU-side per-op timestamp of the last chunk
 (`--profile-every 1` at the server, or Metal counters) instead of host clocks. Estimate: 2-3 h to find the cause, fix size unknown. Per the brief I stop here.
+
+## Brief L7 (coordinator, 2026-11-25 ~16:10), lane ink-spec
+
+#496 stays held; the user's decision is still "Wait for the fix" and the coordinator puts the waiver option to the user separately. Keep searching for the cause of the
+serve-only prefill gap (+41 / +140 / +151 ms at 1k / 4k / 16k), in order: (1) `generate --max-tokens 256`; (2) the draft's tap staging size during prefill; (3) GPU-side per-op
+timestamps of the last chunk. Stop at the first test that clearly localises the extra time. Fix it if the fix is small (under about 2 h) and bitwise; otherwise report the
+cause and a fix sketch. New time box 3 h from now (to about 19:10). Report once, when the cause is found or the box ends. The 23:00 sweep #11871 stays booked; push nothing.
