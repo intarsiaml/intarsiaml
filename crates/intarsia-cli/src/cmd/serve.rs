@@ -32,7 +32,7 @@ pub struct ServeArgs {
     /// With `--max-batch`: prefill chunk (tokens) of a prompt that starts prefilling while other sequences decode
     /// (16..=2048, capped at the model's `--prefill-chunk`). A prompt that starts while nothing decodes uses the model
     /// chunk. Smaller chunks stall the decoding streams less per iteration; larger ones finish the prompt in fewer
-    /// iterations. No effect without `--max-batch`. Default 256; for the hybrid mixture-of-experts models on CUDA the solo
+    /// iterations. No effect without `--max-batch`. Default 256 (Inkling-2 on Metal: 2048, its recipe's `busy_chunk`); for the hybrid mixture-of-experts models on CUDA the solo
     /// prefill chunk (2048 for the 35B), so that batched output is bitwise the solo output for every prompt length; a smaller
     /// value is faster but not bitwise (1024: mean 21-way KL 7.87e-3, 2.5x the ref-noise floor; docs/results/2026-10-23-rb2-cuda-batching.md).
     #[arg(long, value_parser = clap::value_parser!(u16).range(16..=2048))]
