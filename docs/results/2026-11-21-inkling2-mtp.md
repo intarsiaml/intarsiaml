@@ -1291,3 +1291,47 @@ default with the suspected work disabled, A B B A, >= 3 reps per arm; fix it so 
 256 unchanged. (2) Rerun the 16k cell, off vs default, >= 6 alternated reps on a warm box, with a spread. (3) Sweep: rebooked with
 `fleetq run --at 23:00` (same command, `--quiet gpu,cpu --expect 110`) as **#11871**, run from this session with `run_in_background` so its
 runner stays alive (it survives only while the session does). (4) Then report the cause, the fix and the numbers; no push, #496 untouched.
+
+## Brief L5 result, 2026-11-25: the t=1.0 loss, its cause and the fix (code `0ad399998`, fleetq #11878 and #11884, endor, `--quiet gpu,cpu`)
+
+**Cause.** `Model::feedback_ok` (`crates/intarsia-core/src/model/feedback.rs`) refused any sequence state that carried a draft state
+(`st.dflash.is_none()`). With the DSpark default loaded every state carries one, so a request that does not speculate (a sampled one on the
+device sampler, which the recipe turns on for Inkling-2, or a greedy one that cannot draft) lost the device-side token feedback steps that
+`--spec off` takes, and ran host round-trip steps instead. The draft's tap capture was not it: `inkling2.rs` already copies the taps only for
+`active && synced` states. **Fix.** `feedback_ok` now refuses only an *active* draft (`st.dflash.as_ref().map_or(true, |d| !d.active)`), and
+`feedback_step` leaves the draft unsynced so its rows never reach it. Greedy requests that speculate are untouched.
+
+t=1.0 decode (`generate`, seed 7, 256 tokens, A B B A palindromes x 3, 6 runs per arm, mean tok/s; arms `--spec off` / default before the
+fix `a6e3cc43a` / default after the fix `0ad399998` / `--spec off` with `INTARSIA_TOKEN_FEEDBACK=0`):
+
+| prompt | off | default before | default after fix | off, feedback off |
+|---|---|---|---|---|
+| short (150) | 72.76 | 69.09 (-5.0 %) | 72.19 (-0.8 %) | 71.00 (-2.4 %) |
+| 5k | 64.29 | 61.67 (-4.1 %) | 62.38 (-3.0 %) | 61.19 (-4.8 %) |
+
+The arm with feedback forced off under `--spec off` reproduces most of the loss, which is the attribution. The 5k "after the fix" gap of
+-3.0 % did not reproduce in a second slot (#11884, the box in a faster state, `generate` A B B A x 4 plus the host profile): off 69.97 and
+fix 70.01 tok/s over runs 1-12 (+0.05 %, medians +0.3 %), and the last four runs of both arms dipped (65-68 tok/s, a disturbance on the box),
+which makes all 16 runs -0.6 %. The host profile of one 5k run agrees: decode-only step wall 14.30 ms (off) vs 14.27 ms (fix), launch 0.67 vs
+0.70 ms, sync 13.61 vs 13.55 ms. So the residual is noise between slots, not a cost; the first slot's off arm was in a different state.
+Greedy md5 (64 / 256 tokens): default == `--spec off` with the fix (`65cde8f3...` / `61fd59fe...`). The merged-tip MG1 / MG6 recheck
+(`flipm_post.sh`) is recorded below once it has run.
+
+**16k cell rerun (#11884, localeval `speed-plain` through `serve`, default vs `--spec off`, runs A B B A at 8 runs = 4 per arm, 3 valid reps per
+length per run, the box in its fast state: spec-off box check 77 tok/s).** Means of per-run medians, spread = max / min - 1 over the 4 runs:
+
+| prompt | decode off | decode default | ratio | TTFT off s | TTFT default s | ratio | prefill off | prefill default | ratio |
+|---|---|---|---|---|---|---|---|---|---|
+| 142 | 77.3 | 89.8 | 1.161 | 0.147 | 0.146 | 0.995 | - | - | - |
+| 1k (1021) | 74.9 | 82.6 | 1.103 | 0.415 | 0.456 | 1.099 | 2473 | 2247 | 0.909 |
+| 4k (4111) | 72.5 | 96.5 | 1.330 | 1.561 | 1.680 | 1.076 | 2640 | 2455 | 0.930 |
+| 16k (16456) | 68.0 | 83.1 | 1.222 | 6.241 | 6.442 | 1.032 | 2637 | 2556 | 0.969 |
+
+16k: TTFT spread 6.7 % (default) / 4.3 % (off) over the 4 runs, ranges 6.26-6.68 s vs 6.10-6.36 s; pooled over the 12 valid reps per arm the
+TTFT ratio is 1.033 (means) / 1.018 (medians) and the prefill ratio 0.969 / 0.983 (sd 0.165 s default, 0.121 s off). So the 16k TTFT / prefill
+cost of the default is about 2-3 %, consistently above the 2 % bar and above the same-arm noise on the means, but not on the median. The 4k
+(+7.6 % TTFT) and 1k (+9.9 %) cells are noisier (same-arm spread 12-16 %, and the 1k cell was rejected by localeval's spread rule in runs
+02, 04 and 07) and read larger than the first bar did; the first bar had 4k at +1.2 % (blocks 2+3) and the two runs together do not
+separate 4k / 1k from noise. What the greedy default arm pays that `--spec off` does not at prefill is the DSpark ingest of the prompt's rows
+(a draft pass over every prompt row) and, for every request with a draft loaded, no macro prefill pass (`model.rs:1783`); a sampled request
+pays only the second (5k t=1.0 prefill 1927 ms off vs 1958 ms fix, +1.6 %, one run each).
