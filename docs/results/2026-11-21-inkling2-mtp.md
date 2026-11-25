@@ -1391,3 +1391,25 @@ spread comes from their first slow runs (7.1 s at runs 02-07; from run 10 on the
 runs here. Off with the ballast did not move (+0.3 % on the median) and showed no fast mode either, so extra resident memory alone does not
 reproduce the draft-loaded gap in either direction; because off itself rarely ran fast in this slot, the test cannot say the ballast removes the
 fast mode.
+
+## Brief L6 step 4: the bar rerun, 2026-11-25 (fleetq #11898, code `0ad399998`, default vs `--spec off`, localeval `speed-plain` through `serve`)
+
+Warm-up then (on off off on) x 4 = 16 runs, 8 per arm, 3-5 reps per length per run; box check 75.4 tok/s; 15 of 16 runs fully accepted by localeval
+(run 09-on rejected its 1k cell on the prefill spread). Means of per-run medians (table script `.scratch/l6/bar_summary.py`); spread = max / min - 1
+over the 8 runs of the arm:
+
+| prompt | decode off | decode default | ratio (spread off / default) | TTFT off s | TTFT default s | TTFT ratio | prefill off | prefill default | prefill ratio |
+|---|---|---|---|---|---|---|---|---|---|
+| 143 | 76.98 | 89.49 | 1.163 (2.5 % / 9.1 %) | 0.147 | 0.143 | 0.969 | n/a | n/a | n/a |
+| 1k (1022) | 74.65 | 85.70 | 1.148 (2.7 % / 22.6 %) | 0.400 | 0.431 | 1.078 | 2556 | 2391 | 0.935 |
+| 4k (4109) | 72.38 | 92.25 | 1.275 (2.2 % / 14.5 %) | 1.470 | 1.573 | 1.070 | 2802 | 2625 | 0.937 |
+| 16k (16455) | 67.80 | 84.60 | 1.248 (1.5 % / 14.3 %) | 6.015 | 6.222 | 1.034 | 2738 | 2649 | 0.967 |
+
+TTFT spread within an arm: 1k 11.7 % off / 38.9 % default, 4k 15.9 % / 24.7 %, 16k 12.2 % / 15.0 %. Per ABBA block (4 runs each) the TTFT ratio is
+1k 1.155 / 1.119 / 1.049 / 0.986, 4k 1.069 / 1.067 / 1.110 / 1.032, 16k 1.045 / 1.026 / 1.036 / 1.030; pooled reps at 16k: ratio 1.035 (medians),
+1.043 (means), prefill 0.966 / 0.959.
+
+**Result: the decode gain holds at every length (+15 % to +27 %), the TTFT / prefill bar fails at 1k (+7.8 %), 4k (+7.0 %) and 16k (+3.4 %).** The 16k ratio
+is steady across all four blocks (1.026-1.045), so it is a real +3 % (about +0.2 s), not noise; 4k is +3 to +11 % per block. The absolute extra TTFT is
++31 ms at 1k, +103 ms at 4k, +207 ms at 16k (and -4 ms at 143 tokens). The DSpark ingest accounts for 28 ms of the 16k figure, so most of it is not the
+ingest (attribution above).
