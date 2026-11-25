@@ -1277,3 +1277,17 @@ t=1.0 sampled decode (seed 7, `generate`, 256 tokens, A B B A, `.scratch/night/t
 64.9 / 64.0 (5k) against `--spec off` 70.8 / 70.9 and 66.0 / 65.9: the default arm is 3.9 % / 2.4 % slower on sampled requests, and its
 spec counters read 0 verify passes (the default applies to greedy requests only), so the loss is not speculation itself; its cause (drafter resident state, a
 per-step check) is not isolated.
+
+**Correction to the speed-bar table above (2026-11-25):** localeval's spread rule rejected the 1k cell (`speed-plain:1024`, prefill spread, decode
+not) in 10 of the 12 runs, in both arms alike (runs 02-05, 07-12; runs 06 and 13 are fully accepted), and 4k in runs 04-05 and 16k in run 03.
+The rows are in the result files and are what the table averages, but the 1k TTFT / prefill ratio is not a harness-valid figure (its same-arm
+spread is 23-27 %), so the 1k "pass" is not evidence. Runs 06 and 13 (both default arm) are the only runs with every cell accepted.
+
+## Brief L5 (coordinator, 2026-11-25 ~09:00), lane ink-spec
+
+#496 stays held; the t=1.0 finding (default arm 2.4-3.9 % slower than `--spec off` with 0 verify passes) is the blocker, since most chat
+traffic is sampled. (1) Find the t=1.0 loss from the code, then measure in ONE quiet endor slot: t=1.0 short and 5k, `--spec off` vs default vs
+default with the suspected work disabled, A B B A, >= 3 reps per arm; fix it so a request that does not speculate pays nothing, greedy md5 64 /
+256 unchanged. (2) Rerun the 16k cell, off vs default, >= 6 alternated reps on a warm box, with a spread. (3) Sweep: rebooked with
+`fleetq run --at 23:00` (same command, `--quiet gpu,cpu --expect 110`) as **#11871**, run from this session with `run_in_background` so its
+runner stays alive (it survives only while the session does). (4) Then report the cause, the fix and the numbers; no push, #496 untouched.
