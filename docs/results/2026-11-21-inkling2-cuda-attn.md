@@ -264,6 +264,39 @@
     variants, stop and report.
 42. 2026-11-22 (coordinator): #499 is on main as 08ae803e0. The p12 test-fix PR merges on green CI; merge main in first if
     GitHub shows it behind or conflicting. Send the merge commit. Brief 48 continues.
+47. 2026-11-23 (coordinator, brief 50; items 43-46 are on branch `ink/cuda-attn`): build lever 1, PDL on the attention decode edges. Branch `ink/cuda-pdlattn` off
+    origin/main a4e281264, worktree `.worktrees/ink-cuda-pdlattn/` only, spark1 only. Edges: in_proj -> tile (the tile prefetches
+    only old K / V rows and weights before `griddepcontrol.wait`) and tile -> comb -> wo. Reuse the `ink_moe.cu` helpers
+    unchanged (ask before changing them; mixmoe may touch them). `INTARSIA_INK_ATTN_PDL=0` reverts; default on (must be
+    bitwise); a docs/tuning.md row. The PDL rule (before the wait, read only data from kernels already known finished), with
+    each edge's reasoning in a code comment. Do not touch flip branches A / B or lever 3. Gates: (1) all CUDA tests plus a test
+    that fails if a pre-wait read touches the current token's K / V row (or why it cannot be tested); (2) bitwise: default and
+    `=0` give main's md5s faf40cecb06b / 029e44fede1d / dc28658094c0 and the default 1.2k ref, spec off and on; (3) quiet
+    decode A/B vs main, short and 5k, spec off and default, alternated, `--quiet gpu,cpu`; ship bar >= +1 % at both lengths
+    spec off; report graphed ms / token and the new idle; (4) under +0.5 %: park with the numbers; no lever 2 (separate
+    brief). Report branch, head, numbers; no push (the coordinator opens the PR). Spark memory: 121 GB budget, MAX_JOBS=4,
+    10 GB free (15 without earlyoom).
+56. 2026-11-23 (coordinator, brief 56): the sampled-MTP-draft risk blocks the CUDA screen flip and Metal spec (#496); fix it
+    first as its own small PR. Branch `ink/screen-full-logits` off origin/main 0b8fab600, worktree
+    `.worktrees/ink-screen-full-logits` only; include the graph-key fix 523586de1 if it applies on its own. Audit every reader
+    of `ws.logits` / per-step logits rows after a screened head (sampled drafts, t>0 sampling, logprobs/top-k, penalties,
+    structured-output masks, verify/acceptance) with file:line; fix each that can see a screened row (full head whenever the
+    full row is read; greedy keeps the screen). Test: t=1.0, fixed seed, spec default, screen on vs off identical tokens
+    (md5 64/256), also on pre-fix code (live vs latent); a tiny test for the sampled-draft path if feasible; greedy md5
+    64/256/1.2k == main, screen on and off. CUDA gates on spark1 in one slot; Metal tests + greedy md5 64/256 on endor in
+    one slot if shared core changed. Push inside a slot or --no-verify after docs_env_vars and recipes_doc pass. Report audit
+    table, pre/post t=1.0, gates, branch + head; coordinator opens the PR; do not merge or push the flip branch.
+57. 2026-11-23 (coordinator, brief 56 rescoped): desk check first. If every full-row reader is unreachable with the screen
+    on, add a cheap guard on `ink/cuda-p12dec` plus a doc note, re-run the build and tiny/batch tests on spark1; no separate PR,
+    no Metal gates. A live path: stop and report it. Say whether the graph-key bug can trigger on main.
+58. 2026-11-23 (coordinator, brief 58): the CUDA default-on is a flip and needs the user's go. Branch `ink/cuda-screen` off
+    origin/main 0b8fab600 (worktree `.worktrees/ink-cuda-screen` only) with ink/cuda-p12dec's commits minus the default-on
+    (CUDA screen opt-in); the flip as one commit on local `ink/cuda-screen-flip`, not pushed. CUDA gates on spark1 in one slot
+    (build, tiny 17/17, batch 8/8, md5 64/256/1.2k == main default and with `INTARSIA_INK_HEAD_SCREEN=1`, spec off and
+    default, plan show identical for the 35B and 8B JSON, kernels test --quick). Metal no-op on endor in one slot (plan show
+    Qwen3-8B / Llama / Inkling-2, kernels test 0 FAIL, Metal tests, greedy md5 64/256 == main, cargo test of the touched
+    crates, separate target dir); endor reserved 09:00-14:25. Push inside a slot or --no-verify after docs_env_vars and
+    recipes_doc pass. Coordinator opens the PR and merges.
 
 ## Summary
 
@@ -1513,3 +1546,222 @@ nsys `-t cuda,cublas` of the 8139-token prefill, one output token (fleetq #11726
 - **Correction:** the earlier class table put this kernel at 3 TF/s; that figure was wrong.
 - **Ceiling:** at the 110 TFLOP/s cuBLAS reaches on in_proj at 2048 rows, wo would take about 264 us. The most it can save
   is about 27 ms per 8k (0.8 %).
+
+## PDL on the attention decode edges (brief 50, branch `ink/cuda-pdlattn` off main a4e281264)
+
+**What it does** (`INTARSIA_INK_ATTN_PDL`, default on; `0` / `off` / `false` gives the old plain launches; `launch` gives PDL
+without the prefetches, a diagnostic). Op 75 decode (1..16 rows), graphed or eager. New header `kernels/cuda/ink_pdl.cuh`:
+the same two griddepcontrol instructions as `ink_moe.cu`'s file-local helpers, which stay unchanged.
+- **in_proj -> tile:** the in_proj GEMV triggers its dependents at block start. The tile, launched as a programmatic
+  dependent, issues `prefetch.global.L2` of its block's old K / V cache rows (positions below the call's first), then
+  `griddepcontrol.wait`.
+- **tile -> combine -> wo:** combine waits at once and triggers wo. wo (`matmul_p12_gemv[_rows]` only; the logits path
+  stays a plain launch) prefetches its own P12 weight row into L2, then waits.
+- **The rule:** before the wait, a kernel reads only data finished before the step's kernels started (the position word,
+  old cache rows, weights). The cache rows and weights are read through L2 prefetch hints, which return no data. Every block
+  waits before it returns, so completion stays transitive along the chain. The reasoning per edge is in the comments at
+  `tile_pdl_prelude`, `ink_tile_comb_k` and `p12_gemv_kernel`.
+
+**Gate 1, tests** (fleetq #11803, #11807; spark1; build db49be53e):
+- `pdl_prefetch_rows_stay_below_pos0` (new, in `inkling2_attn.rs`) passes. It runs `ik_ink_attn_pdl_selftest`, which drives
+  the kernels' own `tile_geo` / `tile_blk` / `tile_pdl_rows` over 3 windows, 4 tile floors, 3 tile caps, rows 1..16 and 400
+  positions up to 40k. A violation is a prefetched row at or past pos0, outside the block's keys, or (ring) sharing a slot
+  with the call's rows.
+- **It can fail:** the same file with the range end moved to pos0 (one sed line) reports 231096 violations; unmodified, 0.
+  It is a range test because a prefetch hint cannot change a value, so no bitwise test could see a wrong range.
+- **All intarsia-backend-cuda tests, `--no-fail-fast`, PDL on:** 44 result lines, 41 ok; 194 passed, 4 failed, 26 ignored.
+  The 4 failures are main's: this diff touches no kernel table or pin, and `git grep` finds no `ik_ink_attn_prefill_bf16` in
+  main's ABI headers (main's suite itself was not run). CI evidently does not run these host-side tests:
+  - `kernels::tests::every_launcher_is_declared_in_the_abi_header`, `op_prefix_matches_launcher_name` and
+    `quick_coverage::every_cuda_kernel_has_a_quick_case`, all three on `ink_attn_prefill_bf16`. That kernel came in with my
+    86060ae6f (brief 30a): it is not in the ABI header, is not named after op 75, and has no quick case.
+  - `rows_registry::exact_rows_calls_pick_the_rows_kernels_only`: the pin table lacks mixmoe's `matmul_mxfp4_gemv_ink_rows`
+    (5..=8 rows at k = 160).
+- **With `INTARSIA_INK_ATTN_PDL=0`:** `inkling2_attn` 3/3, `ink_rows` 9/9, `p12` 5/5, `rows_exact` 12/12, `verify_attn_rows`
+  3/3, `graph_pos` 5/5.
+- **Tiny inkling2 on CUDA, default and `=0`:** 15/15 (the 2 screened-head tests are skipped: no CUDA kernels by design);
+  `inkling2_batch` 8/8.
+
+**Gate 2, bits** (#11803). The md5 of 64 / 256 / 1.2k is faf40cecb06b / 029e44fede1d / dc28658094c0, main's references,
+under the default and `=0`, spec off and spec default. The A/B runs below also give one token md5 per length across all
+arms and reps: short 029e44fede1d, 5k 34e3b3e6cebb.
+
+**Gate 3, quiet decode A/B** (#11806, `--quiet gpu,cpu`; 3 reps; the arm order rotates per cell).
+- M = main's decode code: the B build 900230f6a (main a4e281264 + the prefill-only flash bias) with
+  `INTARSIA_INK_FLASH_BIAS=0`, which gives main's bits.
+- P = this branch, default. Z = this branch with `=0`. L = `launch` (PDL without the prefetches).
+
+Decode tok/s, mean (min-max), change vs M:
+
+| length | spec | M | P | Z | L |
+|---|---|---:|---:|---:|---:|
+| short (15 + 256) | off | 39.87 (39.82-39.89) | **40.17 (+0.75 %)** | 39.82 (-0.12 %) | 40.01 (+0.36 %) |
+| short | default | 49.34 | 49.48 (+0.28 %) | 49.28 (-0.13 %) | 49.49 (+0.29 %) |
+| 5k (5039 + 128) | off | 37.74 (37.67-37.77) | **38.19 (+1.19 %)** | 37.70 (-0.10 %) | 37.75 (+0.04 %) |
+| 5k | default | 50.19 (49.64-50.56) | 50.79 (+1.20 %) | 50.44 (+0.50 %) | 50.16 (-0.06 %) |
+
+Graphed decode, nsys, spec off (wall and idle per token; idle = wall - busy):
+
+| | short P | short Z | 5k P | 5k Z |
+|---|---:|---:|---:|---:|
+| wall ms / token | 25.27 | 25.52 | 26.39 | 26.91 |
+| idle ms / token | 0.36 | 0.39 | 0.37 | 0.38 |
+| kernels / token | 657 | 657 | 657 | 657 |
+
+**Result: in the band the brief left open.** Spec off: +0.75 % short, +1.19 % at 5k. That is above the +0.5 % park line
+and under the +1 % ship bar at short. P's and M's ranges do not overlap, and Z is within 0.12 % of M. The spec-default
+cells are noise-limited (Z vs M +0.50 % at 5k, M's range 1.8 %), so they are not evidence either way.
+
+**What limits it** (fleetq #11808 `cuobjdump -res-usage`, #11809 device properties).
+- The GB10 has 48 SMs, a 64K register file per SM and a 24 MB L2. `ink_tile_staged_k<128, fused>` holds 162 registers x
+  384 threads and `ink_tile_k` 168: one tile block fills an SM's register file.
+- **5k:** most of the 6 SWA tile slots per kv head have keys, and the full-layer tile runs 34 slots. Live tile blocks cover
+  the SMs, so wo and combine cannot be resident beside them. PDL overlaps the tile's uneven tail and the launch gaps, and the
+  old-row prefetch carries most of the gain (L alone is +0.04 %, P +1.19 %).
+- **Short (positions 15-270, tile 256):** only 1-2 of the 6 slots per kv head have keys, so 8-16 of 48 tile blocks are live
+  and the rest return after the wait.
+  - Combine and wo do become resident early and spin at the wait. Their kernel times stretch over the tile: combine 1.0 ->
+    41.5 us, wo 48.8 -> 78.1 us a call.
+  - wo's weight prefetch is issued about 33 us before its wait returns, yet wo still runs about 44 us after it, against
+    48.8 us plain.
+  - The 10.6 MB of wo weights fits the 24 MB L2, so capacity alone does not explain it. **Unexplained.** Candidates:
+    prefetch hints dropped or throttled, wo's 10.6 MB needing about 39 us of DRAM against the tile's 33 us, or L2
+    partition effects.
+  - Capping the tile's registers would therefore not move short context.
+
+**Follow-ups, outside this brief:**
+- (a) Find out why the wo prefetch does not pay at short context: a microbench of wo after a prefetch with an idle gap, and
+  `cp.async.bulk.prefetch.L2` instead of per-line hints.
+- (b) Only for 5k: cap the tile's registers so one wo block fits beside it. Bitwise, but a tile slowdown risk.
+## Main's CUDA host tests (brief 51, branch `ink/cuda-hosttests`)
+
+Main a4e281264 had 4 red intarsia-backend-cuda host tests (CI does not run them). Fixed on the test, registry and ABI side.
+No kernel code changes.
+- `ink_attn_prefill_bf16` (op 75 above 16 rows, 86060ae6f) is renamed `ink_attn_decode_prefill_bf16`, after its op like its
+  siblings, and declared in `ik_cuda_abi_ink.h`. Its launcher `ik_ink_attn_decode_prefill_bf16` is an alias of
+  `ik_ink_attn_decode_bf16`, which takes T > 16 itself.
+- The op 75 quick sweep gains a 40-row prefill chunk at G = 3 (window 64, ring 80), appended so the earlier cases keep
+  their data.
+- Once the first name was declared, the ABI test reached two more missing names, both from this lane's GEMV in_proj:
+  `ink_in_proj_bf16_gemv_rows` and `ink_in_proj_p12_gemv_rows`. Both are now declared in `ik_cuda_abi_inkp12.h` as aliases
+  of their launchers. A scan of every registry name against the headers finds none missing now.
+- `rows_registry` ROWS_PINS: at k = 160, 5..=8 rows now pick mixmoe's `matmul_mxfp4_gemv_ink_rows` (table entry only).
+
+Gate (fleetq #11810, spark1, 8f332fba1):
+- All intarsia-backend-cuda tests, `--no-fail-fast`: 44 of 44 result groups ok; 197 passed, 0 failed, 26 ignored.
+- Op 75 admission: quick, `ink_attn_decode_bf16` 16 cases and `ink_attn_decode_prefill_bf16` 1 case; full, 70 and 12
+  cases. All ADMITTED.
+- md5 64 / 256 / 1.2k: faf40cecb06b / 029e44fede1d / dc28658094c0, spec off and default, main's references.
+
+## The screened greedy head on CUDA (brief 54 part 2, branch `ink/cuda-p12dec` off main 352acba93)
+
+Sizing and choice: brief 54 part 1 (on `ink/cuda-attn`). The unembed P12 GEMV already runs at the streaming peak, so the
+lever moves fewer bytes. An fp8 screen copy of 0.46 GB replaces reading the 0.69 GB P12 head, and only candidate rows get
+rescored.
+
+**Commits.**
+- `73e0c8afb`: the kernels, opt-in.
+- `7bdb0e71f`: a test fix.
+- `24c3ed1a5`: the tuning row.
+- Landing (brief 58): branch `ink/cuda-screen` off main 0b8fab600 carries the kernels, the graph-key fix, the sampled-draft
+  guard and these notes; on CUDA the screen stays opt-in (`INTARSIA_INK_HEAD_SCREEN=1`). The **CUDA default on** is one
+  commit on the local branch `ink/cuda-screen-flip` (LOG row, go PENDING: a default flip needs the user's go);
+  `INTARSIA_INK_HEAD_SCREEN=0` reverts it.
+
+**What was built.**
+- `kernels/cuda/ink_screen.cu`: `head_screen_f32` and `screen_argmax_f32`, the contract's exact f32 operations, bitwise the
+  cpu reference. One 1024-thread block per row.
+- `logits_gather_p12`: the serving P12 head kernel instance `p12_gemv_kernel<1, float>` in an index mode. The pointer is
+  null in every serving call, and the gather launches on the head's grid, so a gathered logit is the head's.
+- `crates/intarsia-backend-cuda/src/inkscreen.rs`: registration and dispatch.
+- Changes in `model.rs::screened_argmax`:
+  - The CUDA head names are accepted.
+  - On CUDA the screen GEMV must be `matmul_fp8_gemv[_rows]` and runs with `exact_rows`.
+  - The first-use probe is skipped inside a graph capture, because CUDA's decode graph records the first head.
+- `INTARSIA_INK_HEAD_SCREEN_STATS=1` counts fallbacks on the device, graph replays included.
+- `graph_step.rs`: the solo decode recording is keyed by (state, head, full logits). A `LastLogits` step records its head
+  under `ScreenSuspend`, so it never replays the screened head, which leaves only its candidates' logits in `ws.logits`.
+  Without this, default-on failed `inkling2_tiny_graph_decode_is_bitwise_the_eager_decode` (fleetq #11832). Regate
+  #11838 on 53c4bd664: tiny inkling2 17/17, `inkling2_batch` 8/8, and md5 at 64 / 256 / 1.2k equal to main
+  (`faf40cecb06b` / `029e44fede1d` / `dc28658094c0`) with screen on and off, spec off and default.
+- Brief 56 desk check: the screen loads for Inkling-2 only (`model.rs` load gate, `dims.ink`), which has no MTP head, so
+  the sampled-draft readers (`mtp.rs` `draft_logits_row`) are unreachable; they now run under `ScreenSuspend` as a guard.
+  Every other full-row reader (eager `LastLogits`, `LastGumbel`, `LastTopK`, `AllLogits`, verify, DSpark draft rows,
+  batched steps) runs the full head. The one live path was the graphed `LastLogits` replay fixed above.
+
+**Gate 1, the bound under CUDA's arithmetic.** The bound needs the screen values to come from a tree of correctly rounded
+f32 adds and fmas over exact products, of depth at most D + 1, plus one scale multiply. CUDA's CUDA-core fp8 GEMV is exactly
+that, so the bound was not widened:
+- e4m3 decodes exactly (e4m3 to half to f32);
+- in W8A16 the bf16 activations are staged unchanged, so each e4m3 × bf16 product is exact in f32;
+- each lane runs 16-term fmaf chains, `acc += s`, then a 5-level warp tree: depth 16 + K/512 + 5;
+- no fast math.
+
+The tensor-core forms are refused, because their accumulation is not correctly rounded. The argument is written in the
+header of `ink_screen.cu`.
+
+**Gate 2, near ties** (`tests/inkling2_screen.rs`; both tests pass, #11827):
+- 40 near-tied top rows (exact copies and one-ulp variants) against a cap of 8: the count exceeds the cap, the fallback
+  gather writes all 4096 logits bitwise the serving head's, and the token is the full head's argmax.
+- +inf bounds give a non-finite row and the full head's token.
+- 3 near-tied rows within the cap take the candidate path. Every gathered slot is bitwise the head's logit for that row,
+  every maximiser is a candidate, and the token matches.
+- HeadScreen is bitwise `screen_row` in every case.
+
+**Gate 3, fallbacks and cost on real prompts** (#11825, #11827):
+
+| run | screened rows | fallbacks | mean candidates (path) | max |
+|---|---:|---:|---:|---:|
+| 5k prompt, 256 tokens | 256 | 0 | 2.02 | 33 |
+| hash map, 2048 tokens | 2048 | 5 | 1.26 | 1398 |
+| 1.2k prompt, 2048 tokens | 2048 | 0 | 1.18 | 32 |
+| story, 2048 tokens | 2048 | 4 | 1.55 | 881 |
+
+Screen cost per token from nsys (graphed, spec off; the same at short and 5k):
+
+| kernel | µs / token |
+|---|---:|
+| fp8 GEMV (`fp8_gemv_rows_full_kernel`) | 1951 |
+| `head_screen_kernel` (single block) | 166 |
+| gather | 31.5 |
+| ScreenArgmax | ~2 |
+| **total** | **~2150** |
+
+Against 2965 µs for the full head, about 0.8 ms per token is saved. A fallback step costs one full head on top (about 3 ms);
+at 9 in 6144 steps that averages about 4 µs a token. nsys wall per token: 25.23 ms (screen off, #11823) against 24.54 ms
+(screen on) at short.
+
+**Gate 4, token identity.**
+- md5 64 / 256 / 1.2k = faf40cecb06b / 029e44fede1d / dc28658094c0 (main's). That holds with the screen off, on, and on with
+  cap 1 (which forces fallbacks), spec off and default.
+- 3 × 2048-token greedy runs, screen on against off: identical ids (919ca9aaabc7, f0404a7b8833, 9b06e86d3aad).
+
+**Gate 5, full head elsewhere.** The tiny `inkling2_tiny_screened_head_one_row_only` test now runs on CUDA and passes. It
+checks:
+- screen on equals off;
+- forced fallbacks are counted;
+- a 5-row verify does not call the screen;
+- `LastLogits` (sampled) steps do not call the screen (assertion added).
+
+`inkling2_tiny_screen_keeps_batching` also runs on CUDA and passes.
+
+**Gate 6, tests.**
+- All intarsia-backend-cuda tests: 199 passed. The one failure was my test's wrong assumption that the maximum is row 1000
+  (a one-ulp-up row can win), fixed in `7bdb0e71f` and passing.
+- The 3 ops are ADMITTED: head_screen 18 cases, logits_gather 6, screen_argmax 18.
+- Tiny inkling2 on CUDA 17/17, batch 8/8, p12 5/5 (the head kernel's signature changed, its bits did not).
+- Core screen tests 6/6 and `docs_env_vars` 2/2 (local).
+
+**Speed, quiet A/B** (#11827, 3 reps, order alternated; decode tok/s, mean (min-max)):
+
+| length | spec | screen off | screen on | change |
+|---|---|---:|---:|---:|
+| short (15 + 256) | off | 40.12 (40.06-40.16) | 41.42 (41.31-41.50) | **+3.23 %** |
+| 5k (5039 + 128) | off | 38.33 (38.30-38.37) | 39.38 (38.81-39.69) | **+2.74 %** |
+| short | default | 49.44 | 50.11 | +1.36 % |
+| 5k | default | 50.86 | 51.23 | +0.73 % |
+
+The ship bar (+1 % spec off, no regression) is met. Spec default gains less because verify steps keep the full head.
+
+**Next:** HeadScreen in one block costs 166 µs a token. A multi-block form (per-block max and count, then an ordered write)
+would take about 15 µs: about -0.15 ms a token (+0.6 %), bitwise.

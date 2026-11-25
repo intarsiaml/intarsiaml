@@ -9,6 +9,7 @@
 //! | `ink_in_proj_bf16_nax` | `InkInProj` | >= 2 | NAX GEMM over the three segments in one grid (prefill) |
 //! | `ink_in_proj_f8_gemv` | `InkInProj` e4m3 + scales | 1 | the GEMV over e4m3 weights, one scale per segment (lane ink-fp8, opt-in) |
 //! | `ink_in_proj_f8_gemv_rows` | `InkInProj` e4m3 + scales | 1..=16, `rows_exact` | its R-row twin, row r bitwise the 1-row launch |
+//! | `ink_in_proj_f8_nax` | `InkInProj` e4m3 + scales | > 8 (`fp8::nax_ok`) | e4m3 stack decoded once, one NAX grid over the three segments, per-segment scale: bitwise the three `matmul_fp8_nax` packs (prefill) |
 //!
 //! The GEMV shaders mirror `gemv_multirow.metal`'s `rt` kernels but with a lane count fitted to D = 2304 (see
 //! [`ProjCfg`]); R only adds accumulators and P only shares an x load between P weight rows, so neither changes a bit.
@@ -23,6 +24,9 @@ pub const INK_IN_PROJ_BF16_GEMV_ROWS: &str = "ink_in_proj_bf16_gemv_rows";
 pub const INK_IN_PROJ_BF16_NAX: &str = "ink_in_proj_bf16_nax";
 pub const INK_IN_PROJ_F8_GEMV: &str = "ink_in_proj_f8_gemv";
 pub const INK_IN_PROJ_F8_GEMV_ROWS: &str = "ink_in_proj_f8_gemv_rows";
+/// e4m3 prefill (lane ink-fp8, brief 22): the stack decoded to bf16 once, then one NAX grid over the three segments, each
+/// bitwise a `matmul_fp8_nax` launch on that segment (the model's pack path; tests/inkmix_f8_nax.rs).
+pub const INK_IN_PROJ_F8_NAX: &str = "ink_in_proj_f8_nax";
 /// Ordinary calls above `PROJ_GEMV_ORDINARY_MAX` rows without the NAX GEMM (no metal4.0 library, or operands it refuses):
 /// the multi-row GEMV in 16-row chunks (`in_proj_rows`), every row bitwise its 1-row launch, so bitwise the GEMV forms the
 /// neighbouring row counts take (lane ink-prefill, brief 7: m > 16 had no kernel without metal4).
@@ -37,6 +41,15 @@ pub const NAX_SHADERS: [&str; 5] = [
     "ink_in_proj_nax_t64x64w2",
 ];
 
+/// gemm_nax_fp8.metal entry points of `ink_in_proj_f8_nax` (metal4.0 library), one per `gemm_nax::NAX_VARIANTS` tile.
+pub const F8_NAX_SHADERS: [&str; 5] = [
+    "ink_in_proj_f8_nax_t64x64w4",
+    "ink_in_proj_f8_nax_t128x64w4",
+    "ink_in_proj_f8_nax_t32x32w1",
+    "ink_in_proj_f8_nax_t32x128w2",
+    "ink_in_proj_f8_nax_t64x64w2",
+];
+
 /// Every kernel of this module, with its op (the `kernels::TABLE` rows).
 pub const KERNELS: &[(&str, Op)] = &[
     (INK_IN_PROJ_BF16_GEMV, Op::InkInProj),
@@ -44,6 +57,7 @@ pub const KERNELS: &[(&str, Op)] = &[
     (INK_IN_PROJ_BF16_NAX, Op::InkInProj),
     (INK_IN_PROJ_F8_GEMV, Op::InkInProj),
     (INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj),
+    (INK_IN_PROJ_F8_NAX, Op::InkInProj),
     (INK_IN_PROJ_BF16_GEMV_CHUNKS, Op::InkInProj),
     (CONV_MIX_BF16, Op::ConvMix),
     (CONV_MIX_BF16_ROWS, Op::ConvMix),
@@ -79,8 +93,9 @@ pub fn register(k: KernelImpl) -> KernelImpl {
             .tol(BF16_TOL)
             .priority(-1)
             .rows_exact(),
-        // e4m3 weights (scales [3] third input, lane ink-fp8): decode / verify rows only; prefill chunks take the model's
-        // three `MatmulFp8` packs (the NAX fp8 GEMM)
+        // e4m3 weights (scales [3] third input, lane ink-fp8): the GEMVs serve decode / verify rows (1..=16); prefill
+        // chunks (M > 8 outside verify) take `ink_in_proj_f8_nax` below, or the model's three `MatmulFp8` packs where it is
+        // not registered (no metal4.0 library, INTARSIA_METAL_FP8_NAX=0). INTARSIA_INK_FP8_PROJ=0 sends every T to the packs.
         INK_IN_PROJ_F8_GEMV => k.acts(bf).weights([DType::Fp8E4m3]).when(|s| s.m == 1).exact(Exactness::Deterministic).tol(BF16_TOL),
         INK_IN_PROJ_F8_GEMV_ROWS => k
             .acts(bf)
@@ -90,6 +105,17 @@ pub fn register(k: KernelImpl) -> KernelImpl {
             .tol(BF16_TOL)
             .priority(-1)
             .rows_exact(),
+        // e4m3 prefill: the calls where the packs would take `matmul_fp8_nax` (its `fp8::nax_ok` rule on the stacked shape;
+        // INTARSIA_METAL_FP8_NAX=0 hides both), and each segment is bitwise that pack launch, so the model's choice between
+        // this and the packs never changes bits
+        INK_IN_PROJ_F8_NAX => k
+            .acts(bf)
+            .weights([DType::Fp8E4m3])
+            .when(|s| crate::fp8::nax_ok(s))
+            .exact(Exactness::Deterministic)
+            .tol(BF16_TOL)
+            .scratch(f8_nax_scratch)
+            .priority(5),
         // below the NAX GEMM (priority 5): taken only where it is not, e.g. without the metal4.0 library
         INK_IN_PROJ_BF16_GEMV_CHUNKS => k
             .acts(bf)
@@ -393,6 +419,7 @@ impl MetalBackend {
             }
             (INK_IN_PROJ_BF16_NAX, Op::InkInProj) => self.launch_in_proj_nax(call),
             (INK_IN_PROJ_F8_GEMV | INK_IN_PROJ_F8_GEMV_ROWS, Op::InkInProj) => self.launch_in_proj_f8(call),
+            (INK_IN_PROJ_F8_NAX, Op::InkInProj) => self.launch_in_proj_f8_nax(call),
             (CONV_MIX_BF16 | CONV_MIX_BF16_ROWS | ATTN_RES_MIX_BF16 | SCONV_RES_BF16 | LOOP_BLEND_BF16, _) => self.launch_mix(kernel, call),
             _ => Err(Error::invalid(format!("metal: {kernel} does not run {}", call.op))),
         }
@@ -520,6 +547,97 @@ impl MetalBackend {
                 MTLSize { width: v.threads() as usize, height: 1, depth: 1 },
             );
         })
+    }
+
+    /// `ink_in_proj_f8_nax`: `fp8_w_to_bf16` over the whole e4m3 stack into the scratch (16-byte aligned), then one
+    /// `ink_in_proj_f8_nax_t*` grid over the three segments (tile by `gemm_nax::pick_variant` on the stacked N, or the
+    /// `fp8::with_nax_tile` override); x read in place.
+    fn launch_in_proj_f8_nax(&self, call: &OpCall) -> Result<()> {
+        let (i, o) = (&call.inputs, &call.outputs);
+        let bf = DType::Bf16;
+        if i.len() != 3 || i[0].dtype != bf || i[1].dtype != DType::Fp8E4m3 || o.iter().any(|y| y.dtype != bf) {
+            return Err(Error::invalid("ink_in_proj_f8_nax: bf16 x / outputs, e4m3 w and scales [3]"));
+        }
+        let (s, t, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+        if t == 0 {
+            return Ok(());
+        }
+        let ns = [o[0].shape[1], o[1].shape[1], o[2].shape[1]];
+        let ntot: usize = ns.iter().sum();
+        if d % 16 != 0 || i[1].shape[0] != ntot {
+            return Err(Error::invalid(format!("ink_in_proj_f8_nax: needs D % 16 == 0 and W rows = n0+n1+n2 (D {d})")));
+        }
+        let wb = self.mbuf(&i[1].buf)?;
+        if (wb.base + i[1].offset) % 8 != 0 {
+            return Err(Error::invalid("ink_in_proj_f8_nax: w must be 8-byte aligned"));
+        }
+        let scratch = call.scratch.as_ref().ok_or_else(|| Error::invalid("ink_in_proj_f8_nax: the scratch workspace is missing"))?;
+        let sbind = self.bind(scratch, DType::U8, true, "scratch")?;
+        let pad = sbind.off.next_multiple_of(16) - sbind.off;
+        let wbytes = ntot * d * 2;
+        if sbind.skip != 0 || scratch.numel() * scratch.dtype.size_bytes() < pad + wbytes {
+            return Err(Error::invalid(format!("ink_in_proj_f8_nax: scratch of {} bytes, need {}", scratch.numel() * scratch.dtype.size_bytes(), pad + wbytes)));
+        }
+        let wbf = crate::dense::Bind { mtl: sbind.mtl.clone(), off: sbind.off + pad, skip: 0 };
+        let w = self.bind(&i[1], DType::Fp8E4m3, false, "w")?;
+        let x = self.bind(&i[0], bf, false, "x")?;
+        let sc = self.bind(&i[2], DType::F32, false, "scales")?;
+        let ys: Vec<_> = o.iter().enumerate().map(|(j, y)| self.bind(y, bf, true, ["pq", "pk", "pv"][j])).collect::<Result<_>>()?;
+        let v = crate::fp8::nax_tile_override().map(|i| &crate::gemm_nax::NAX_VARIANTS[i]).unwrap_or_else(|| crate::gemm_nax::pick_variant(t, ntot));
+        let vi = crate::gemm_nax::NAX_VARIANTS.iter().position(|q| q.shader == v.shader).expect("NAX tile");
+        let name = F8_NAX_SHADERS[vi];
+        let pso_g = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}' (metal4.0 library not loaded)")))?;
+        let pso_w = self.pso("fp8_w_to_bf16").ok_or_else(|| Error::backend("metal: no pipeline 'fp8_w_to_bf16'"))?;
+        let xoff = |j: usize| -> Result<u32> { dim(j.min(s - 1) * t * d, "x offset") };
+        let p: [u32; 12] = [
+            dim(t, "T")?,
+            dim(d, "D")?,
+            dim(ns[0], "Nq")?,
+            dim(ns[1], "Nk")?,
+            dim(ns[2], "Nv")?,
+            xoff(1)?,
+            xoff(2)?,
+            x.skip,
+            ys[0].skip,
+            ys[1].skip,
+            ys[2].skip,
+            0,
+        ];
+        let pw = crate::dense::OpP { dims: [0, dim(ntot, "N")?, dim(d, "K")?, 0, 0, 0, 0, 0], ..Default::default() };
+        let tiles_n: usize = ns.iter().map(|n| n.div_ceil(v.bn as usize)).sum();
+        let tiles_m = t.div_ceil(v.bm as usize);
+        let tw = pso_w.maxTotalThreadsPerThreadgroup().min(256);
+        let d0 = |enc: &objc2::runtime::ProtocolObject<dyn MTLComputeCommandEncoder>| {
+            // SAFETY: offsets inside the buffers (OpCall::check, the scratch size above).
+            unsafe {
+                enc.setComputePipelineState(pso_w);
+                enc.setBuffer_offset_atIndex(Some(&w.mtl), w.off, 0);
+                enc.setBuffer_offset_atIndex(Some(&wbf.mtl), wbf.off, 1);
+            }
+            crate::set_bytes(enc, &pw, 2);
+            enc.dispatchThreads_threadsPerThreadgroup(
+                MTLSize { width: (ntot * d).div_ceil(16), height: 1, depth: 1 },
+                MTLSize { width: tw, height: 1, depth: 1 },
+            );
+        };
+        let d1 = |enc: &objc2::runtime::ProtocolObject<dyn MTLComputeCommandEncoder>| {
+            // SAFETY: as above; x, y 4-byte aligned with the skips in `p`.
+            unsafe {
+                enc.setComputePipelineState(pso_g);
+                enc.setBuffer_offset_atIndex(Some(&x.mtl), x.off, 0);
+                enc.setBuffer_offset_atIndex(Some(&wbf.mtl), wbf.off, 1);
+                enc.setBuffer_offset_atIndex(Some(&sc.mtl), sc.off, 2);
+                for (j, y) in ys.iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&y.mtl), y.off, 3 + j);
+                }
+            }
+            crate::set_bytes(enc, &p, 6);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: tiles_n, height: tiles_m, depth: 1 },
+                MTLSize { width: v.threads() as usize, height: 1, depth: 1 },
+            );
+        };
+        self.with_encoder_parts(&[&d0, &d1])
     }
 
     /// `y_j = x[min(j, s-1)] . W_j^T` (x `[s, T, D]`, W the three segments stacked, y_j `[T, n_j]`), T <= 16, one dispatch.
@@ -800,6 +918,11 @@ fn blend_layout(d: usize, rows: usize) -> [usize; 6] {
     let y = r(s * rows * d * 4);
     let part = r(s * rows * d.div_ceil(1024).max(1) * 32 * 4);
     [0, dest, dest + pair, dest + pair + h, dest + pair + h + y, dest + pair + h + y + part]
+}
+
+/// `ink_in_proj_f8_nax` scratch: the e4m3 stack decoded to bf16 (`[N, K]`, N the stacked rows), 16 bytes of alignment slack.
+pub fn f8_nax_scratch(s: &intarsia_core::ShapeInfo) -> usize {
+    s.n * s.k * 2 + 16
 }
 
 pub fn blend_scratch(s: &intarsia_core::ShapeInfo) -> usize {
