@@ -1244,3 +1244,36 @@ then the #496 call.
   prefill unit tests, #11859 busy2048 gate A, about 70 min together) were stuck behind it and they unblock two PRs. Resubmitted the sweep
   as #11860 (same command and flags, `--quiet gpu,cpu --expect 110`); it queues behind #11858 / #11859. The bar #11853 runs as it is.
   #496 stays HELD.
+
+## #496 speed bar, run 2026-11-25 (fleetq #11853, endor, `--quiet gpu,cpu`, binary `.worktrees/ink-spec-flip/.scratch/bin/intarsia-34525d854`)
+
+Flip binary only, `localeval suite --cells speed-plain` against `intarsia serve` (default, DSpark k3 tau 0.8) vs `serve --spec off`;
+warm-up (discarded) then (A B B A) x 3 = 12 runs, 5 reps per length per run, medians; each run's rows are in
+`/opt/code/deepeval/results/20261125-08*-adhoc-endor-intarsia-metal-ink-spec-flip-34525d854-NN-{on,off}/` and the raw log in
+`.worktrees/ink-spec-flip/.scratch/night/` (`fleetq_bar.out`; table script `.scratch/night_summary.py`). Box check passed on try 2
+(try 1 read 55.7 tok/s, try 2 71.5 against the 65 floor). Block 1 (runs 02-05) ran with the box still slow after that (run 02 on: 61.7-65.5
+decode and 2.5 s / 10.1 s TTFT at 4k / 16k, and runs 03-04 off also low); blocks 2 and 3 (runs 06-13) are the clean ones. Both shown.
+
+Blocks 2+3 (runs 06-13, n = 4 on, 4 off), mean of per-run medians:
+
+| prompt | decode off | decode default | ratio | TTFT off | TTFT default | ratio | prefill off | prefill default | ratio |
+|---|---|---|---|---|---|---|---|---|---|
+| 144 | 72.8 | 83.2 | 1.144 | 0.150 | 0.160 | 1.062 | - | - | - |
+| 1k (1022) | 70.6 | 77.0 | 1.091 | 0.547 | 0.543 | 0.993 | 1870 | 1881 | 1.006 |
+| 4k (4110) | 69.8 | 90.1 | 1.292 | 1.802 | 1.823 | 1.012 | 2285 | 2257 | 0.988 |
+| 16k (16458) | 65.8 | 77.9 | 1.184 | 6.959 | 7.108 | 1.021 | 2365 | 2316 | 0.979 |
+
+All 12 runs (n = 6 + 6): decode ratio 1.122 / 1.085 / 1.241 / 1.153 (144 / 1k / 4k / 16k); TTFT ratio 1.040 / 0.995 / 1.042 / 1.054;
+prefill ratio - / 1.008 / 0.972 / 0.962. Per-block decode ratios are above 1.06 at every length in all three blocks. A-to-A (same arm,
+blocks 2+3): decode off 1.2-2.5 % spread, default 7.0-17.2 % (the default arm's decode varies with the draft acceptance of each run's
+prompts); TTFT within-arm spread 2.6 % (off, 16k) to 3.9 % (default, 16k). Acceptance in the default arm 0.74-0.75 (2679/3571 .. 3233/4287).
+
+Verdict against the bar: decode gain at every length passes (+9 % to +29 %). TTFT / prefill within 2 % passes at 1k and (blocks 2+3)
+4k, and misses at 16k by 0.1 points on blocks 2+3 (TTFT +2.1 %, prefill -2.1 %) and by 3.4-3.8 points over all runs; the 144-token
+TTFT is +6.2 % (+0.010 s, a 144-token prompt, under the 1024-token prefill-meaningful limit). The 16k miss is inside the same-arm
+TTFT noise (2.6-3.9 %), so the cell is a marginal fail, not a clear one.
+
+t=1.0 sampled decode (seed 7, `generate`, 256 tokens, A B B A, `.scratch/night/t1*.err`): default arm tok/s 66.8 / 68.7 (short) and
+64.9 / 64.0 (5k) against `--spec off` 70.8 / 70.9 and 66.0 / 65.9: the default arm is 3.9 % / 2.4 % slower on sampled requests, and its
+spec counters read 0 verify passes (the default applies to greedy requests only), so the loss is not speculation itself; its cause (drafter resident state, a
+per-step check) is not isolated.
