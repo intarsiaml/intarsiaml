@@ -272,6 +272,19 @@
 44. 2026-11-22 (coordinator, rule): never edit a job script while its job runs (bash reads scripts as it goes); copy it to
     a new name for the next job. The #11767 data stands: all 24 runs finished before the re-read.
 
+60. 2026-11-25 (coordinator, after PR B; user decision 2026-11-25 "Flip to default" for `INTARSIA_INK_FLASH_BIAS=mma` on CUDA):
+    PR C flips the CUDA mma relative-bias path to default-on. It is not bitwise: prefill is 4.3-5.6 % faster, KL vs the vLLM /
+    oracle goldens moves -9.8 %..+4.4 %, every golden passes. Branch `ink/cuda-flashbias-on` @ 900230f6a, worktree
+    `.worktrees/ink-cuda-flashbias`; its tuning-row commit says "pending the user decision": change that text to cite the
+    2026-11-25 decision. Base on origin/main after PR B merges (after A if B is pending). Keep `INTARSIA_INK_FLASH_BIAS=` (the
+    old value) as the revert switch and document it. Gates on spark1, each in its own fleetq slot, reusing gate58/59 scripts and
+    recording the tree as gate59 does: tiny inkling2 / batch tests (`op75_prefill_bitwise_pair` is expected to change with mma:
+    update or gate it as the mma section describes, never delete coverage); G2 / G3 KL vs the vLLM short / long / 4k goldens and
+    the oracle, each within its gate; md5 at 64 / 256 / 1.2k may differ from main, record them as the new references; quiet A/B
+    prefill at 3.6k / 8k and short decode (no decode regression beyond noise); endor Metal no-op (md5 and `plan show` equal
+    main). Push the branch and open PR C; do not merge it. Order: PR A, gate59, PR B, PR C. No PR C spark1 job while gate59 is
+    queued or running.
+
 ## Summary
 
 CUDA kernels for the three Inkling-2-Mini attention ops on the DGX Spark GB10 (sm_121), branch `ink/cuda-attn`. All three
