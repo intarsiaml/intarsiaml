@@ -25,6 +25,10 @@ const K: usize = 4;
 const RR: usize = K - 1 + 16;
 
 fn device() -> Option<Arc<dyn Backend>> {
+    // The prefill flash kernel's CUDA-core rel bias (INTARSIA_INK_FLASH_BIAS=0) is the form that is bitwise the prologue +
+    // rel_sink_attn pair; the default tensor-core form (lever 5) only reorders the f32 sums of that dot, which the accuracy
+    // gates cover. Read once per process, before any launch: every test of this binary runs the bitwise form.
+    std::env::set_var("INTARSIA_INK_FLASH_BIAS", "0");
     let ord = std::env::var("INTARSIA_CUDA_DEVICE").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
     match intarsia_backend_cuda::create(ord) {
         Ok(b) => Some(b),
