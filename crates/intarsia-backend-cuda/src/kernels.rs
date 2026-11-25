@@ -617,12 +617,13 @@ pub fn all() -> Vec<KernelImpl> {
     v.extend(crate::inkmix::all());
     v.extend(crate::inkmoe::all());
     v.extend(crate::inkp12::all());
+    v.extend(crate::inkscreen::all());
     v
 }
 
 /// (launcher name, op) of every launcher: this file's table plus the quantised/MoE table.
 pub fn full_table() -> Vec<(&'static str, Op)> {
-    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).chain(crate::exl3::TABLE.iter()).chain(crate::dsv41::TABLE.iter()).chain(crate::inkattn::TABLE.iter()).chain(crate::inkmix::TABLE.iter()).chain(crate::inkmoe::TABLE.iter()).chain(crate::inkp12::TABLE.iter()).copied().collect()
+    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).chain(crate::exl3::TABLE.iter()).chain(crate::dsv41::TABLE.iter()).chain(crate::inkattn::TABLE.iter()).chain(crate::inkmix::TABLE.iter()).chain(crate::inkmoe::TABLE.iter()).chain(crate::inkp12::TABLE.iter()).chain(crate::inkscreen::TABLE.iter()).copied().collect()
 }
 
 #[cfg(test)]
@@ -1067,10 +1068,6 @@ mod tests {
             Op::BridgeCode,
             Op::BridgeGate,
             Op::BridgeWrite,
-            // the screened greedy head (lane ink-fp8): cpu and Metal only
-            Op::HeadScreen,
-            Op::LogitsGather,
-            Op::ScreenArgmax,
             // the fused router (lane ink-dfuse, op 76): Metal only; CUDA runs the router matmul + `MoeRoute`
             Op::InkRoute,
             // the device sampler (lane ink-hostgap, slot 77): cpu and Metal only, CUDA keeps the host sampler (`Model::gumbel_ok`)
@@ -1270,6 +1267,8 @@ mod tests {
             .filter(|k| !k.situ)
             // the P12 GEMVs (inkp12.rs, lane ink-cuda-p12) serve only `MatmulP12`, which no earlier model's plan contains
             .filter(|k| k.op != Op::MatmulP12)
+            // the screened greedy head (inkscreen.rs) serves only its own ops, which no earlier model's plan contains
+            .filter(|k| !matches!(k.op, Op::HeadScreen | Op::LogitsGather | Op::ScreenArgmax))
             .map(|k| format!("{}:{}", k.name, k.op))
             .collect();
         got.sort();

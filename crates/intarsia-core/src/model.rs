@@ -106,6 +106,24 @@ thread_local! {
     /// thread that runs its body).
     pub(crate) static CAPTURES_ACTIVE: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
+thread_local! {
+    /// The screened greedy head is suspended in this scope ([`ScreenSuspend`]): a decode graph recorded for a `LastLogits`
+    /// step runs the full head, whose whole row the step reads back.
+    pub(crate) static SCREEN_SUSPENDED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+/// Suspends the screened greedy head for its scope when `on` (restores the previous state on drop).
+pub(crate) struct ScreenSuspend(bool);
+impl ScreenSuspend {
+    pub(crate) fn enter(on: bool) -> ScreenSuspend {
+        ScreenSuspend(SCREEN_SUSPENDED.with(|c| c.replace(c.get() || on)))
+    }
+}
+impl Drop for ScreenSuspend {
+    fn drop(&mut self) {
+        SCREEN_SUSPENDED.with(|c| c.set(self.0));
+    }
+}
+
 /// Lane postchain2: counts a graph capture in [`CAPTURES_ACTIVE`] for its scope.
 pub(crate) struct CaptureGuard;
 impl CaptureGuard {
@@ -5837,6 +5855,9 @@ impl Model {
     /// or the head's `Logits` kernel is not one the gather reproduces (then the caller runs the full head).
     fn screened_argmax(&self, x: &TensorRef, c: usize, tok: &TensorRef, profile: bool) -> Result<bool> {
         let Some(hs) = self.head_screen.as_ref() else { return Ok(false) };
+        if SCREEN_SUSPENDED.with(|c| c.get()) {
+            return Ok(false); // a recording whose step reads the whole logits row (graph_step.rs `full_logits`)
+        }
         // brief 14 option B: 1-row heads only (verify and every multi-row head run the full head); bf16 activations (the
         // screen ops' contract), 16-byte aligned (the head kernels' vector form)
         if c != 1 || self.vocab_par || x.dtype != DType::Bf16 || x.offset % 16 != 0 || hs.disabled.load(std::sync::atomic::Ordering::Relaxed) {
@@ -5864,8 +5885,13 @@ impl Model {
             let k = self.registry.select(&head.call(xr.clone(), logits.clone())).map(|k| k.name.clone()).unwrap_or_default();
             Ok((k, OpCall::new(Op::LogitsGather, vec![xr.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![logits.clone()], OpAttrs::default())))
         };
-        // head kernels whose index mode the gathers are (Metal), and the cpu dot both cpu heads use
-        let good = |n: &str| matches!(n, "logits_bf16_gemv" | "matmul_p12_logits_gemv" | "cpu_f32_logits" | "cpu_f32_matmul_p12");
+        // head kernels whose index mode the gathers are (Metal; CUDA's P12 head, whose one-row `_rows` call launches the same
+        // kernel instance, inkscreen.rs), and the cpu dot both cpu heads use
+        let cuda = self.backend.name() == "cuda";
+        let good = |n: &str| {
+            matches!(n, "logits_bf16_gemv" | "matmul_p12_logits_gemv" | "cpu_f32_logits" | "cpu_f32_matmul_p12")
+                || (cuda && n == "matmul_p12_logits_gemv_rows")
+        };
         let ok = recording
             || *hs.ok.get_or_init(|| {
                 let xs = self.view(&self.ws.n, self.act, &[1, d]);
@@ -5873,8 +5899,15 @@ impl Model {
                     Ok(v) => v,
                     Err(_) => return false,
                 };
-                let kernels_ok = good(&hk);
                 let a = TensorRef::new(hs.a.clone(), DType::F32, &[1, v]);
+                // CUDA: the screen GEMV must be a CUDA-core fp8 GEMV, whose f32 sums are the correctly rounded adds / fmas
+                // the selection bound assumes (kernels/cuda/ink_screen.cu header); it runs with `exact_rows` set below
+                let gemv_ok = !cuda || {
+                    let mut c = hs.q.call(xs.clone(), a.clone());
+                    c.exact_rows = true;
+                    self.registry.select(&c).is_ok_and(|k| matches!(k.name.as_str(), "matmul_fp8_gemv" | "matmul_fp8_gemv_rows"))
+                };
+                let kernels_ok = good(&hk) && gemv_ok;
                 // the screen calls run with `exact_rows` set (Metal registers them rows-exact)
                 let screen_ok = [
                     OpCall::new(Op::HeadScreen, vec![a, xs.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default()),
@@ -5887,8 +5920,12 @@ impl Model {
                     self.registry.select(&c).is_ok()
                 });
                 // one real gather (row 0 as the only candidate): a backend whose gather cannot take this head (Metal: a
-                // weight that is not 16-byte aligned, where the head runs another GEMV) refuses it here
-                let probe_ok = kernels_ok && screen_ok && (|| -> Result<()> {
+                // weight that is not 16-byte aligned, where the head runs another GEMV) refuses it here. Not inside a graph
+                // capture (CUDA's decode graph records the first head: the probe's upload and synchronize cannot run there);
+                // CUDA's gather checks the head's own operand preconditions (inkling2_p12.cu), so the head running implies the
+                // gather can
+                let capturing = CAPTURES_ACTIVE.with(|c| c.get()) > 0;
+                let probe_ok = kernels_ok && screen_ok && (capturing || (|| -> Result<()> {
                     self.backend.upload(&hs.cand, 0, &0i32.to_le_bytes(), self.stream)?;
                     self.backend.upload(&hs.cnt, 0, &1i32.to_le_bytes(), self.stream)?;
                     let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);
@@ -5897,7 +5934,7 @@ impl Model {
                     r?;
                     self.backend.synchronize(self.stream)
                 })()
-                .is_ok();
+                .is_ok());
                 if kernels_ok && screen_ok && !probe_ok {
                     eprintln!("{}: off (the backend's gather refuses this head, e.g. a weight that is not 16-byte aligned)", crate::screen::ENV);
                 }
@@ -5926,7 +5963,13 @@ impl Model {
         let forced = !recording && hs.force_fallback.load(std::sync::atomic::Ordering::Relaxed) & 1 == 1;
         let r = (|| -> Result<()> {
             let sc = hs.q.call(x.clone(), a.clone());
-            self.exec(sc.op, sc.inputs, sc.outputs, sc.attrs, profile)?;
+            // CUDA: with `exact_rows` set, the CUDA-core GEMV the probe checked (`gemv_ok`)
+            let prev = if self.backend.name() == "cuda" { Some(self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed)) } else { None };
+            let r = self.exec(sc.op, sc.inputs, sc.outputs, sc.attrs, profile);
+            if let Some(p) = prev {
+                self.exact_rows.store(p, std::sync::atomic::Ordering::Relaxed);
+            }
+            r?;
             // the screen ops are per-row by contract; their Metal kernels are registered rows-exact, which a call selects
             // only with `exact_rows` set (Registry::select)
             let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);

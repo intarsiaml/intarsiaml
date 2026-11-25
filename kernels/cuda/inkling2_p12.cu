@@ -89,15 +89,31 @@ IK_DEVI uint4 p12_load(P12Row& w, int64_t c) { return p12_dec(w, p12_raw(w, c), 
 // weight row (ON: prefetch.global.L2 of the row's codes), written at load, long before the step; x (the attention output)
 // and aux come after the wait. Every warp waits before it returns. wo triggers nothing: the kernel after it is a plain
 // launch.
+//
+// Index mode (gcand != null: `LogitsGather` of the screened greedy head, intarsia_core::screen; M = 1, f32 out, launched with
+// the head's own grid): when 1 <= *gcnt <= gcap, warp slot j < *gcnt computes weight row gcand[j] into out[j] and every other
+// warp returns; otherwise (the fallback) every row n into out[n], as the head does. Either way the row's arithmetic is this
+// very function's (the same instance p12_gemv_kernel<1, float> the serving P12 head `matmul_p12_logits_gemv[_rows]` launches),
+// so a gathered logit is the head's logit bit for bit. The serving calls pass gcand = null.
 template <int M, typename OutT, int PM = 0>
 __global__ void __launch_bounds__(kWarpsPerBlock * IK_WARP)
 p12_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ codes, const uint32_t* __restrict__ aux,
-                OutT* __restrict__ out, int64_t N, int64_t K) {
+                OutT* __restrict__ out, int64_t N, int64_t K, const int* __restrict__ gcand, const int* __restrict__ gcnt,
+                int gcap) {
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
-    const int64_t n = (int64_t)blockIdx.x * kWarpsPerBlock + warp;
+    int64_t n = (int64_t)blockIdx.x * kWarpsPerBlock + warp;
     if constexpr (PM != 0) {
         if (PM == inkpdl::ON && n < N) inkpdl::l2_lines(codes + n * (3 * K / 2), 3 * K / 2, lane, IK_WARP);
         inkpdl::wait();
+    }
+    int64_t slot = n;  // the output column (index mode: the candidate slot)
+    if (gcand != nullptr) {
+        const int ct = *gcnt;
+        if (ct >= 1 && ct <= gcap) {
+            if (n >= ct) return;
+            n = gcand[n];
+            if (n < 0) return;  // (a -1 slot: never below cnt by the contract)
+        }
     }
     if (n >= N) return;
     P12Row wr = p12_row(codes, aux, N, n, K);
@@ -121,7 +137,7 @@ p12_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ codes
 #pragma unroll
     for (int m = 0; m < M; ++m) {
         const float s = ik_warp_sum(acc[m]);
-        if (lane == 0) store_out(out + m * N + n, s);
+        if (lane == 0) store_out(out + m * N + slot, s);
     }
 }
 
@@ -132,11 +148,11 @@ int p12_gemv(const ik_bf16* x, const uint8_t* codes, const uint32_t* aux, OutT* 
 #define IK_P12_CASE(R)                                                                                                         \
     case R:                                                                                                                    \
         if (PM != 0) {                                                                                                         \
-            if (inkpdl::launch(p12_gemv_kernel<R, OutT, PM>, dim3(grid), dim3(block), 0, s, x, codes, aux, out, N, K) !=       \
-                cudaSuccess)                                                                                                   \
+            if (inkpdl::launch(p12_gemv_kernel<R, OutT, PM>, dim3(grid), dim3(block), 0, s, x, codes, aux, out, N, K,          \
+                               (const int*)nullptr, (const int*)nullptr, 0) != cudaSuccess)                                    \
                 return IK_ERR_LAUNCH;                                                                                          \
         } else {                                                                                                               \
-            p12_gemv_kernel<R, OutT><<<grid, block, 0, s>>>(x, codes, aux, out, N, K);                                         \
+            p12_gemv_kernel<R, OutT><<<grid, block, 0, s>>>(x, codes, aux, out, N, K, nullptr, nullptr, 0);                    \
         }                                                                                                                      \
         break;
     switch (M) {
@@ -395,12 +411,40 @@ int matmul_p12_gemv(const ik_tensor* x, const ik_tensor* codes, const ik_tensor*
     if (pm == inkpdl::LAUNCH) return p12_gemv<ik_bf16, inkpdl::LAUNCH>(xp, cp, ap, op, M, N, K, s);
     return p12_gemv<ik_bf16>(xp, cp, ap, op, M, N, K, s);
 }
+
+// LogitsGather over a P12 head (the screened greedy head, intarsia_core::screen): h [1, K] bf16, codes [V, 3K/2], cand [1, C]
+// i32, cnt [1] i32, aux, y [1, V] f32. The serving head's own kernel instance (p12_gemv_kernel<1, float>, the M = 1 call of
+// matmul_p12_logits_gemv[_rows]) on the head's grid, in its index mode: y[j] = logit of row cand[j] for j < cnt when
+// 1 <= cnt <= C, else every y[n] (the fallback). One activation row, as the screen serves.
+int logits_gather_p12(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* cand, const ik_tensor* cnt, const ik_tensor* aux,
+                      ik_tensor* y, void* stream) {
+    IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(cand, IK_DTYPE_I32, 2));
+    IK_TRY(ik_check(cnt, IK_DTYPE_I32, 1));
+    IK_TRY(ik_check(y, IK_DTYPE_F32, 2));
+    const int64_t K = x->shape[0] == 1 ? x->shape[1] : -1, N = codes->ndim == 2 ? codes->shape[0] : -1, C = cand->shape[1];
+    if (K < 0 || K % 16 != 0 || K > 65536 || cand->shape[0] != 1 || cnt->shape[0] != 1 || C < 1 || C > 0x7fffffff) return IK_ERR_SHAPE;
+    if (N < 0 || y->shape[0] != 1 || y->shape[1] != N) return IK_ERR_SHAPE;
+    IK_TRY(check_p12(codes, aux, N, K));
+    if (!ik_aligned16(x->data)) return IK_ERR_INVALID_ARG;
+    if (N == 0) return IK_OK;
+    if (N > 0x7fffffffLL * kWarpsPerBlock / 2) return IK_ERR_SHAPE;
+    const unsigned grid = (unsigned)((N + kWarpsPerBlock - 1) / kWarpsPerBlock);  // p12_gemv's grid
+    p12_gemv_kernel<1, float><<<grid, kWarpsPerBlock * IK_WARP, 0, IK_STREAM(stream)>>>(
+        (const ik_bf16*)x->data, (const uint8_t*)codes->data, (const uint32_t*)aux->data, (float*)y->data, N, K,
+        (const int*)cand->data, (const int*)cnt->data, (int)C);
+    return ik_launch_status();
+}
 }  // namespace
 
 extern "C" {
 
 int ik_matmul_p12_gemv(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* out, void* stream) {
     return matmul_p12_gemv(x, codes, aux, out, stream, true);
+}
+int ik_logits_gather_p12(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* cand, const ik_tensor* cnt,
+                         const ik_tensor* aux, ik_tensor* y, void* stream) {
+    return logits_gather_p12(x, codes, cand, cnt, aux, y, stream);
 }
 int ik_matmul_p12_gemv_rows(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* out, void* stream) {
     return matmul_p12_gemv(x, codes, aux, out, stream, true);
