@@ -1344,3 +1344,31 @@ default output exactly. It covers 128 experts at the real shape, T 600 / 1100, t
 - Per brief 50's rule the lane stops here (lever 1 < 2 %). The bm128+skip numbers were measured in the same quiet job, since
   both levers were built together. The full gate (md5 64 / 256 / 1.2k, tiny, admission, 8k / 3.6k A/B, decode) has not been
   run.
+
+## Brief 51: BM 128 + skip default on, gate (tree `75b503c2b` = main 26088ff89 merged; spark2 #11867, #11882, #11883)
+
+Code: the WM 4 path at BM 64 is dropped. NVFP4 `ink_moe_mma` runs BM 128 (MT 2 WM 4, 2-slot A ring) with the padding-warp skip
+wherever `pick_bm_ink` picks 64. `INTARSIA_INK_MOE_BM128=0` reverts to BM 64. `INTARSIA_INK_MOE_TILESTAT` stays as a
+diagnostic (default off; when on it reads its env once and syncs the stream). Rows added to `docs/tuning.md` and
+`docs/decisions/LOG.md` (defaults table and dated log).
+
+| check | result |
+|---|---|
+| cuda `--lib` / `ink_rows` (incl. `ink_experts_mma_shapes_bitwise`: default vs `=0`) | 35/35, 10/10 (#11867) |
+| tiny inkling2 on CUDA | 17/17 (#11867) |
+| inkling2_batch | 8/8 with gate58's invocation (`CI=1`, cpu backend) (#11883). With `INTARSIA_INKLING2_BACKEND=cuda` it panics by design at `inkling2_batch.rs:44` ("cpu or metal (CUDA registers no row-table kernels for Inkling-2)"), the same 7/8 at the default and at `=0`: my invocation error, not this change. |
+| admission `kernels test --op moe_experts` | 16 kernels / 121 cases, none rejected, at the default and `=0` (#11867) |
+| md5 vs fresh main 26088ff89 (5 prompts: d64 / d256 / d1k / m64 / m36) | identical for main, branch default and branch `=0`, spec off and default: faf40cecb06b / 029e44fede1d / dc28658094c0 / 95ed05f4d023 / e0d669c198dd (#11867) |
+| `plan show` 35B / 8B (json + txt) | byte-identical to main (#11867) |
+| footprint | `git diff --name-only origin/main` only in docs/, crates/intarsia-backend-cuda/, kernels/cuda/: no Metal no-op needed |
+
+**Quiet ABBA (#11882, `--quiet gpu,cpu`, order A B B A A B; A = default, B = `=0`):**
+
+| | A | B | delta |
+|---|---|---|---|
+| 8k prefill, ms | 3062 / 3043 / 3050, mean 3052 | 3200 / 3221 / 3209, mean 3210 | **-4.9 % time (+5.2 % speed)** |
+| 3.6k prefill, ms | 757 / 754 / 748, mean 753 | 759 / 763 / 750, mean 757 | -0.6 % (noise) |
+| g256 decode spec off, tok/s | 40.82 / 40.79 / 40.84 | 40.82 / 40.73 / 40.73 | no change |
+| g256 decode default spec, tok/s | 50.43 / 50.43 / 50.44 | 50.41 / 50.35 / 50.37 | no change |
+
+The 8k bar (>= +3 %) holds; decode is unchanged.
