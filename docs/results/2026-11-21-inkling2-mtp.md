@@ -1335,3 +1335,15 @@ cost of the default is about 2-3 %, consistently above the 2 % bar and above the
 separate 4k / 1k from noise. By the code (not separately measured), what the greedy default arm pays that `--spec off` does not at prefill is the DSpark ingest of the prompt's rows
 (a draft pass over every prompt row) and, for every request with a draft loaded, no macro prefill pass (`model.rs:1783`); a sampled request
 pays only the second (5k t=1.0 prefill 1927 ms off vs 1958 ms fix, +1.6 %, one run each).
+
+## Brief L6 (coordinator, 2026-11-25 ~12:20), lane ink-spec
+
+#496 stays held; the coordinator asks the user whether to waive the 16k TTFT / prefill miss, and meanwhile this lane removes the prefill cost.
+(1) Finish `flipm_post.sh` and report its md5 / MG results. (2) Attribute the prefill cost in ONE quiet endor slot: prefill tok/s and TTFT via
+`generate` at 1k / 4k / 16k, greedy, >= 4 alternated reps per arm: (a) `--spec off`, (b) default, (c) default with the DSpark prompt-row ingest
+disabled, (d) default with the macro prefill pass allowed (diagnostic hack only; a wrong draft state is fine, only prefill time is measured).
+(3) Fix the bigger share (let the macro pass run with the draft loaded by capturing the taps inside it, or overlap / defer the ingest off the TTFT
+path); output unchanged (greedy default md5 == `--spec off` md5 at 64 / 256), MG tests pass, pass lists of spec-off requests unchanged.
+(4) Rerun the bar at 1k / 4k / 16k, >= 6 alternated reps per arm, localeval, warm box; decode, TTFT and prefill ratios with spread. (5) Time box
+about 3 hours; if the fix is bigger, stop after step 2 with the attribution and a design sketch and the fix's estimated length. No push, #496
+untouched. The 23:00 sweep #11871 stays booked: queue jobs to fit before it or after 06:30.
