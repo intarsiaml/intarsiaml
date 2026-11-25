@@ -73,13 +73,15 @@ impl Model {
 
     /// Whether a greedy decode on `st` may take feedback steps: switched on, one device (no tensor-parallel peers), no
     /// captured graph replay (CUDA / HIP keep their path), attention-only state (a discarded step must leave nothing
-    /// that truncation cannot roll back), not a dry run.
+    /// that truncation cannot roll back), not a dry run, and no draft that follows this request: a loaded draft whose state is
+    /// inactive (a request that does not speculate, e.g. a sampled one under the DSpark default) pays nothing for it, so such a
+    /// request keeps the feedback steps `--spec off` takes ([`Model::feedback_step`] keeps its rows out of the draft).
     pub(crate) fn feedback_ok(&self, st: &SequenceState) -> bool {
         self.token_feedback()
             && self.peers.is_empty()
             && st.peers.is_empty()
             && st.id != 0
-            && st.dflash.is_none()
+            && st.dflash.as_ref().map_or(true, |d| !d.active)
             && !st.has_recurrent()
             && !self.graphs.usable(self)
             && self.recorder.lock().unwrap().is_none()
@@ -99,6 +101,11 @@ impl Model {
             return Err(Error::invalid(format!("token feedback: head {head:?} leaves no token on the device")));
         }
         Self::check_forward(st, &[0], head, false)?;
+        // only an inactive draft gets here ([`Model::feedback_ok`]): this step's row is not ingested, so the draft no longer covers the
+        // sequence (the prefill's `dflash_after_forward` already left it unsynced; this keeps it so whatever came before)
+        if let Some(d) = st.dflash.as_mut() {
+            d.synced = false;
+        }
         if let HeadMode::LastGumbel(h) = head {
             self.gumbel_cover(h, st.len + 1, false)?; // before anything of the step is encoded
         }
