@@ -1,0 +1,80 @@
+fleetq: #11879 waiting (#3 in line): in line behind #11877 "intarsiaml inkling prefill: PR #508 Metal serve smoke v2 (12c13713a, switch off\/on, 6k greedy, pass list)" (claude-57ee98d5) on endor
+fleetq:   #11877 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11877 set, or it will wait for #11877 to be released.
+fleetq: #11879 waiting (#2 in line): in line behind #11878 "intarsiaml inkling spec: L5 t=1.0 feedback fix A/B + 16k rerun (retry: script var bug)" (claude-57ee98d5) on endor
+fleetq:   #11878 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11878 set, or it will wait for #11878 to be released.
+fleetq: #11879 waiting (#1 in line): needs gpu quiet on endor, but #11878 "intarsiaml inkling spec: L5 t=1.0 feedback fix A/B + 16k rerun (retry: script var bug)" (claude-57ee98d5) loads it
+fleetq:   #11878 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11878 set, or it will wait for #11878 to be released.
+fleetq: #11879 running on endor: bash /opt/code/intarsiaml/.worktrees/ink-batch/.scratch/b2048/gC.sh
+fleetq: #11879 went ahead of the line and must end within 13h02m (by Wed 23:00); it is stopped then
+tree 8f4c64105; binary md5 0a9e9ed2fd675b2679c3bc37d79e1dd2
+  GPUPS residency (no MHz table, 15 active states): OFF=0.2% P1=0.0% P12=5.4% P13=94.3%
+  GPUCLIENTS wall 34015 ms: 59311 BambuStudio 142 ms (0%); 750 Herdr 17 ms (0%); 1896 Google Chrome He 6 ms (0%); 46999 com.apple.WebKit 4 ms (0%); 894 com.apple.WebKit 3 ms (0%); 59400 com.apple.WebKit 2 ms (0%)
+== arm 0 busy chunk 2048 (default, no flag) port 8171 09:57:55
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+localeval exit 3
+[localeval]  conc  4 streams: 101.6 tok/s over 60.0s, 24 requests, errors 0
+[localeval]  conc  4 streams: 101.6 tok/s over 60.0s, 24 requests, errors 0
+- result file: `results/20261125-095804-adhoc-endor-intarsia-metal-busy2048-arm0-2048/result.json`
+- REJECTED conc-plain-1k 4 streams: spread
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+[localeval] saved /opt/code/deepeval/results/20261125-095804-adhoc-endor-intarsia-metal-busy2048-arm0-2048/result.json
+server group 39145 stopped, port 8171 closed
+peak rss arm 0: 25284944 KiB over 610 samples
+== arm 1 busy chunk 256 (flag --busy-chunk 256) port 8171 10:18:33
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 256
+localeval exit 0
+[localeval]  conc 16 streams: 122.2 tok/s over 166.3s, 80 requests, errors 0
+[localeval]  conc  1 streams: 55.0 tok/s over 60.0s, 13 requests, errors 0
+[localeval]  conc  4 streams: 88.9 tok/s over 60.0s, 21 requests, errors 0
+- result file: `results/20261125-101842-adhoc-endor-intarsia-metal-busy2048-arm1-256/result.json`
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+[localeval] saved /opt/code/deepeval/results/20261125-101842-adhoc-endor-intarsia-metal-busy2048-arm1-256/result.json
+server group 76360 stopped, port 8171 closed
+peak rss arm 1: 25286864 KiB over 556 samples
+== arm 2 busy chunk 2048 (default, no flag) port 8171 10:37:19
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+localeval exit 0
+[localeval]  conc 16 streams: 169.8 tok/s over 119.6s, 80 requests, errors 0
+[localeval]  conc  1 streams: 59.2 tok/s over 60.0s, 14 requests, errors 0
+[localeval]  conc  4 streams: 101.6 tok/s over 60.0s, 24 requests, errors 0
+- result file: `results/20261125-103728-adhoc-endor-intarsia-metal-busy2048-arm2-2048/result.json`
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+[localeval] saved /opt/code/deepeval/results/20261125-103728-adhoc-endor-intarsia-metal-busy2048-arm2-2048/result.json
+server group 9257 stopped, port 8171 closed
+peak rss arm 2: 25284480 KiB over 480 samples
+== arm 3 busy chunk 2048 (default, no flag) port 8171 10:53:31
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+localeval exit 3
+[localeval]  conc  4 streams: 118.5 tok/s over 60.0s, 28 requests, errors 0
+[localeval]  conc  4 streams: 118.5 tok/s over 60.0s, 28 requests, errors 0
+- result file: `results/20261125-105339-adhoc-endor-intarsia-metal-busy2048-arm3-2048/result.json`
+- REJECTED conc-plain-1k 4 streams: spread
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+[localeval] saved /opt/code/deepeval/results/20261125-105339-adhoc-endor-intarsia-metal-busy2048-arm3-2048/result.json
+server group 36759 stopped, port 8171 closed
+peak rss arm 3: 25290320 KiB over 541 samples
+== arm 4 busy chunk 256 (flag --busy-chunk 256) port 8171 11:11:46
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 256
+localeval exit 0
+[localeval]  conc 16 streams: 145.0 tok/s over 140.1s, 80 requests, errors 0
+[localeval]  conc  1 streams: 59.3 tok/s over 60.0s, 14 requests, errors 0
+[localeval]  conc  4 streams: 101.6 tok/s over 60.0s, 24 requests, errors 0
+- result file: `results/20261125-111154-adhoc-endor-intarsia-metal-busy2048-arm4-256/result.json`
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+[localeval] saved /opt/code/deepeval/results/20261125-111154-adhoc-endor-intarsia-metal-busy2048-arm4-256/result.json
+server group 68085 stopped, port 8171 closed
+peak rss arm 4: 25289680 KiB over 500 samples
+  GPUPS residency (no MHz table, 15 active states): OFF=0.2% P1=0.0% P12=5.4% P13=94.4%
+  GPUCLIENTS wall 28814 ms: 59311 BambuStudio 108 ms (0%); 750 Herdr 14 ms (0%); 439 loginwindow 3 ms (0%); 59400 com.apple.WebKit 1 ms (0%)
+gate C done
+fleetq: #11879 done (exit 0)
