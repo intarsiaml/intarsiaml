@@ -328,6 +328,15 @@ Brief 14 ABAB, first attempt (#11221, binary 61980c882):
     the new head: core lib, Metal tests, switch-off md5 / plan show, switch-on pass lists; point the serve smoke and CUDA no-op
     at the new head (both were still queued: cancelled #11846 / #11847). Push inside a slot (or --no-verify after
     docs_env_vars + recipes_doc passed there); report head and results.
+35. 2026-11-25 (coordinator, via SendMessage): **book the two overnight jobs now and tighten the #508 store test.** (1) Step 4: chunk-4096
+    confirmation (`ink-pf-convmix/.scratch/ch2.sh`, 6k arm) at 03:00 and step 5: relbias-mma thermal-fair re-A/B (`ink-relbias-mma`
+    `sh .scratch/jobwrap.sh .scratch/ab51.sh`, `--expect 140`) at 04:00, endor, `--mem 30 --quiet gpu,cpu`; no dependency on #508;
+    report median, pairs kept and A-to-A drift in the morning; ship bar +4 % at 16k / +2 % at 4k, no default flip. (2) The store test
+    must FAIL under the negative control: (a) first prove the control applied (grep the patched line, add a behaviour marker);
+    (b) if applied and the test still passes, add a case where old and new rule cut differently (hint nonzero at or below the
+    recipe chunk, a prompt whose pass list differs; assert the exact pass list); (c) rerun ut.sh: pass on the fix, FAIL under the
+    control; then go on with lc-gate, ms-smoke, cuda-noop, the PR comment. After one honest attempt, if the bug cannot show on the
+    tiny model, stop and name the wrong assumption. Running ut.sh on endor (not a Spark) was the right call.
 
 ## Status
 
