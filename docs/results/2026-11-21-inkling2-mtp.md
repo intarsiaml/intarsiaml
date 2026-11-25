@@ -1236,3 +1236,11 @@ without the user's go). Next: (1) rebook #11828 (75 min, `--quiet gpu,cpu`, from
 (2) then #11829 (spec-k sweep, 110 min, from `.worktrees/ink-spec-k`, `bash .scratch/sweep.sh`); (3) if the bar passes, merge the
 then-current origin/main into `ink/spec-flip-merge`, run `.scratch/flipm_post.sh` (md5 64 / 256 + full MG6), report TTFT on vs off,
 then the #496 call.
+
+## Brief L4 (coordinator, 2026-11-25 ~08:30), lane ink-spec
+
+- Run order for #496's evidence: speed bar #11853 (rebooked #11828, `--quiet gpu,cpu --expect 75`) first, then the spec-k sweep, then
+  the post-merge `flipm_post.sh` check. The coordinator released my queued sweep #11854 on purpose: two cpu correctness gates (#11858
+  prefill unit tests, #11859 busy2048 gate A, about 70 min together) were stuck behind it and they unblock two PRs. Resubmitted the sweep
+  as #11860 (same command and flags, `--quiet gpu,cpu --expect 110`); it queues behind #11858 / #11859. The bar #11853 runs as it is.
+  #496 stays HELD.
