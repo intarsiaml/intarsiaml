@@ -332,6 +332,13 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   blend / ctl / router for decode) is not this lane's; mention it if the trace says it beats the attention lane's +2-3 %
   guess. Spark memory: 121 GB budget, MAX_JOBS=4, 10 GB free (15 without earlyoom). Carry e8e207b12 (brief 47) with the next
   push.
+- (coordinator, 49th, resume 2026-11-25) Resume brief 48 from the park: read `bmsweep.log` (#11849), write the lever table
+  (per candidate: ms saved at 8k with reasoning, bitwise yes / no, effort; mma tile / occupancy retune or a deeper / wider-k
+  pipeline for NVFP4 gate/up, per-expert tail padding, row kernel several rows per block, anything else), commit it and stop for
+  a go / no-go. Then the top bitwise lever >= 3 % of 8k behind an env switch, default off. Gates: rows-exact / admission + tiny
+  inkling2 on spark2; greedy md5 at 64 / 256 / 1.2k equal to main, switch on and off; quiet A/B at 8k and 3.6k prefill, 3
+  rotated reps, plus short decode; bar +3 % at 8k and no decode loss. Report numbers and job ids, then stop for the PR call.
+  BM itself is not a lever (`pick_bm_ink` already picks 64 at mu ~128). ncu stays blocked on spark2; do not change that.
 - (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
   chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
   is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
@@ -1222,3 +1229,58 @@ was still running at the stop. Its log: `.worktrees/ink-cuda-moepf/.scratch/bmsw
 Next on resume: read that log, write the lever table (candidates: mma tile / occupancy retune or a wider-k pipeline for gate/up;
 per-expert tail padding; row kernel several rows per block), send it to the coordinator, then start the top bitwise lever if it is
 >= 3 % of 8k prefill. Brief 47 commit e7c3c49b1 is on this branch and goes with its first push.
+
+## Lever table (brief 48 step 1, 2026-11-25; sources `.scratch/prof48.log` #11801 and `.scratch/bmsweep.log` #11849)
+
+**Inputs.**
+- Denominator: 8k prefill on main without nsys is 3204-3218 ms (#11849, BM 64), so **3 % is about 96 ms**. The per-kernel ms
+  below come from the nsys run (#11801, 3441 ms wall / 2906 ms busy), so they run a little high.
+- Shapes: H 2304, I 1152, E 128, top-8. A 2048-token chunk gives P = 16384 pairs, mu = P / E = 128.
+  - NVFP4 gate/up: 174 GFLOP a call, 5.34 ms (32.6 TF/s).
+  - NVFP4 down: 87 GFLOP, 2.58 ms (33.7 TF/s).
+  - cuBLAS reaches about 110 TF/s here.
+- spark2 device limits (`docs/results/2026-11-03-dsv41-attn-2blk.md`): 48 SMs, 102400 B shared memory per SM, 1024 B reserved
+  per block, 101376 B opt-in per block, 1536 threads per SM, 65536 registers per SM.
+- `ink_moe_mma` dynamic shared memory (`launch_one`), registers from cuobjdump:
+
+| config | dynamic smem | threads | regs | blocks / SM | warps / SM |
+|---|---|---|---|---|---|
+| BM 16 = MT1 WM1 (NVFP4) | 64 KB | 128 | 63-72 | 1 (smem) | 4 |
+| BM 32 = MT1 WM2 (NVFP4) | 71 KB | 256 | 61-64 | 1 (smem) | 8 |
+| **BM 64 = MT2 WM2 (NVFP4, the 8k path)** | **85 KB** | 256 | 79-89 | **1 (smem)** | **8** |
+| BM 64 MXFP8 | 101376 B | 256 | 76-80 | 1 | 8 |
+
+  Every config runs one block per SM, so the tensor cores of a scheduler are fed by two warps.
+- The kernel runs every phase in lockstep across the block. Each 64-k step is a barrier, then copy issue, then dequant into the bf16
+  tile, then the scale load, then 32 mma per warp. The `memory` clobbers on the cp.async / ldmatrix asm stop the compiler from
+  overlapping the dequant of step s+1 with the mma of step s.
+- At 32.6 TF/s a 64 x 128 tile step takes about 1.5 us, against about 0.4 us of tensor work at peak. The remaining time is
+  latency and barrier wait with 8 warps per SM, not bytes. The gate/up weights are about 191 MB a call (~36 GB/s), and the A
+  tiles are L2 hits.
+- BM sweep (ink_bench `moe 2048`, NVFP4 gu+dn): BM 16 15.78 ms, BM 32 9.50, BM 64 7.81.
+  - BM 16 -> 32 doubled the warps per SM (4 -> 8) and the rows per tile: -40 %.
+  - BM 32 -> 64 doubled MT only (same 8 warps): -18 %.
+  - Occupancy is the larger effect.
+- Bitwise evidence for M-tiling changes: BM 32 and BM 64 give the same 8k ids `10414a78c812` (2 runs each). Each output
+  element's k16 products and their fp32 add order do not depend on the tiling.
+- Proxy for step 2: `ink_bench moe 2048` at 7.81 ms equals in-model gu + dn per layer (5.34 + 2.58 ms). A/B it first, then
+  the full gate.
+
+| # | lever | 8k ms saved (estimate) | % of 8k | bitwise | effort | notes |
+|---|---|---|---|---|---|---|
+| 1 | **WM 4 at BM 64 (MT1 WM4, 512 threads)** for NVFP4 gu + dn | 70-280 | 2-9 % | yes (M split only; the k16 products and their add order are unchanged) | 4-6 h incl. gates | Same 84992 B smem: the 3-slot A ring and raw schedule are unchanged. Warps per SM go 8 -> 16, regs 512 x ~89 = 46 K (fits). One A row and one raw chunk per thread; the dequant is split 4 ways (16 k a thread: one `uint2` and one scale byte; the RP scale read picks byte `kq & 1` of chunk `2 st + (kq >> 1)`). Cost: MT 1 doubles the B ldmatrix per mma. Smem traffic is then about 125 KB a step against ~1000 clk of tensor time, so it can bind before the tensor core does, which caps the gain. Range: the BM 16 -> 32 step (-40 %, warps doubled together with BM) is the upper bound; 5-20 % of the 1394 ms NVFP4 gu + dn is the honest range. |
+| 2 | **BM 128 (MT2 WM4, 512 threads)** for NVFP4 gu + dn | 140-420 | 4-13 % | yes (same argument) | +4 h on top of 1 (reuses its WM 4 dequant) | Halves the per-tile fixed work per row (dequant, weight L2 reads, barriers) and keeps today's ldmatrix-per-mma ratio. Smem: a 3-slot A ring needs 112.6 KB > 99 KB, so the A ring goes to 2 slots (one step ahead) = 94208 B. **Risk:** that halves the raw prefetch distance (wait for all at the top of each step), although a BM 128 step is about twice as long in time. Tail waste grows: with remainders uniform, BM 64 computes ~25 % padded rows and BM 128 ~50 % (to be measured from the tile list), so it needs lever 3 with it. NVFP4 only (MXFP8 does not fit). Expose it as `INTARSIA_INK_MOE_BM=128`, default off. |
+| 3 | **Skip an all-padding warp M range** in the tail tile (warp-uniform `wm * 16 * MT >= rows`: no ldmatrix A / mma for that warp) | 15-55 alone at BM 64; more with lever 2 | 0.5-1.7 % alone | yes (those rows are never stored) | 1-2 h | Saves tensor issue on tails only; dequant and barriers stay. Below 3 % on its own, so it is an add-on to 1 / 2, measured separately. |
+| 4 | Interleave the dequant of step s+1 into the kk loop of step s (by hand; the asm clobbers block the compiler) | 40-140 | 1-4 % | yes (same tile values) | 3-4 h | Overlaps ALU with the tensor core inside a warp. Worth less once lever 1 doubles the warps per SM; rank it after 1 / 2. |
+| 5 | Deeper / wider-k raw pipeline (NVFP4 has ~15 KB headroom at BM 64) | ~0-30 | < 1 % | yes | 3 h | The kernel is not byte-bound (36 GB/s of weights), and two earlier bitwise latency fixes (prefetch one ahead, persistent grid) moved nothing. Wider k (BK 128) does not fit: the bf16 tile doubles. Low. |
+| 6 | `ink_mma_sum` (69 ms) | ~0 | 0 | — | — | ~85 MB a call in 360 us = 236 GB/s, at the DRAM roof. Fusing it into the down epilogue changes the slot-order sum unless done in slot order. Not a bitwise lever. |
+| 7 | `ink_row_kernel` (301 ms, 1840 x 164 us): several rows per block | ~0 | 0 | yes | 2 h | One 768-thread block x 63 regs (48 K regs) per SM; looping rows in a block keeps one block per SM, so nothing gains. |
+| 7b | `ink_row_kernel`: a second resident block (`__launch_bounds__(768, 2)` for NE 3: regs <= 40, 2 x 768 = 1536 threads) | 0-105 | 0-3.3 % | yes (same thread-to-element map and reduction order; the md5 gate confirms) | 1-2 h | Risk: spills at 40 regs (now 63, stack 0). Whether the row kernel is byte-bound is unknown (rows per call not counted). **Owner question:** brief 37 routed the mix row kernels (lever 3, "spread over D") to cuda-attn. Not proposed for this lane without a go. |
+| 8 | `ink_blend_gate` 115 ms, ctl GEMV 73 ms | not sized | — | — | — | Same files as 7 (`ink_mix.cu`), same owner question. Not sized here (no counters). |
+| — | Block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, brief 37 design note) | brief 37 est. +30-50 % prefill | — | **no** (another k order) | days | Listed only for scale. Needs its own go and the G3 quality plan. |
+
+**Recommendation.** Start lever 1 (WM 4 at BM 64): it is bitwise, keeps the pipeline and smem as they are, and tests the main
+hypothesis (occupancy) alone. Measure it on `ink_bench moe 2048` first. If it gains, add lever 2 (BM 128 on the same WM 4
+dequant) and lever 3, each behind the env switch and each measured separately. Then run the full gate (rows-exact /
+admission, tiny, md5 64 / 256 / 1.2k vs main with the switch on and off, quiet 8k / 3.6k A/B with 3 rotated reps, and a decode
+spot check). Lever 1 alone may land under 3 %. Levers 1 + 2 together are the 3 % candidate.
