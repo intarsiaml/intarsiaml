@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::scheduler::{
-    chunk_schedule, chunk_schedule_tm, effective_tail_merge, next_prefill_chunk, next_prefill_chunk_tm, parse_peel,
+    chunk_schedule, chunk_schedule_tm, effective_tail_merge, min_rows_back_off, next_prefill_chunk, next_prefill_chunk_tm, parse_peel,
     parse_peel_period, parse_prefill_order, parse_tail_merge, peel_tail, BatchEngine, BatchModel, BatchSeq, EndKind, Housekeep, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
     PrefillOrder, TraceEvent, Verified, VerifyRows,
 };
@@ -1087,6 +1087,24 @@ fn random_reqs(rng: &mut SplitMix64, n: usize, cap: usize) -> Vec<Req> {
         out.push(Req { p, arrive, cancel_at, drop_rx_at, fail_row_n, fail_prefill });
     }
     out
+}
+
+/// Lane ink-prefill (PR #508 review): exact prefix reuse with the opt-in long-prompt chunk backs off for the recipe's
+/// schedule too (a start while others decode runs it). A 2053-row remainder is one 4096-row pass, but 2048 + 5 rows in the
+/// 2048-row schedule: the 17-row rule backs off to a 2065-row remainder (2048 + 17), as with the switch off.
+#[test]
+fn min_rows_back_off_covers_every_schedule() {
+    let (cut, plen) = (8192, 8192 + 2053);
+    assert_eq!(min_rows_back_off(cut, plen, &[4096], 17, true, 0), cut, "the long schedule alone sees no short pass");
+    assert_eq!(min_rows_back_off(cut, plen, &[2048], 17, true, 0), cut - 12, "switch off");
+    assert_eq!(min_rows_back_off(cut, plen, &[4096, 2048], 17, true, 0), cut - 12, "switch on: the conservative cut");
+    // the back-off lands where every schedule's passes are at least 17 rows
+    for c in [4096, 2048] {
+        assert!(chunk_schedule_tm(cut - 12, plen, c, true, 0).iter().all(|&(_, l)| l >= 17), "{c}");
+    }
+    // nothing to back off: the remainder fits both schedules
+    assert_eq!(min_rows_back_off(4096, 4096 + 2048, &[4096, 2048], 17, true, 0), 4096);
+    assert_eq!(min_rows_back_off(0, 100, &[4096, 2048], 17, true, 0), 0);
 }
 
 #[test]

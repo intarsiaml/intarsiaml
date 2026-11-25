@@ -333,6 +333,11 @@ pub struct SequenceState {
     /// chunks (the macro prefill step), so a later prompt that shares only part of it resumes at a chunk end inside it, as
     /// with the plain chunk-by-chunk schedule; other callers of `Model::forward` take no snapshots.
     pub prefill_snapshots: usize,
+    /// The chunk an engine cut this prefill call by (0, the default: [`crate::model::Model::forward_chunks`] decides from the
+    /// rows so far plus these). Only the opt-in long-prompt chunk reads it: an engine's piece of a long prompt is decided from
+    /// the whole prompt, which the model does not see, so the model must not re-cut it from the rows so far. The engines set it
+    /// before each prefill call; [`crate::model::Model::forward_prefill`] clears it.
+    pub prefill_chunk_rows: usize,
     /// The MTP drafter's state (`--spec mtp` only).
     pub mtp: Option<Box<MtpState>>,
     /// The DFlash drafter's state (`--spec dflash` only).
@@ -410,6 +415,7 @@ impl SequenceState {
             clean: 0,
             passes: Vec::new(),
             prefill_snapshots: 0,
+            prefill_chunk_rows: 0,
             mtp: None,
             dflash: None,
             spec_rows: SpecRows::default(),

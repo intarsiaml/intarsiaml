@@ -461,12 +461,39 @@ pub struct PrefillChunk {
     pub value: usize,
     /// `--prefill-chunk`, `recipe <family>, <backend>`, `recipe <family>, base` or `default`.
     pub source: String,
+    /// The opt-in long-prompt chunk `(min prompt tokens, chunk)` ([`INK_LONG_CHUNK_ENV`]): prompts of at least that many tokens
+    /// prefill in passes of `chunk` rows. Inkling-2 on Metal only, never with `--prefill-chunk`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub long: Option<(usize, usize)>,
+}
+
+/// `INTARSIA_INK_LONG_CHUNK=1`: Inkling-2 on Metal prefills prompts of at least [`INK_LONG_CHUNK_MIN_PROMPT`] tokens in
+/// passes of [`INK_LONG_CHUNK_ROWS`] rows (lane ink-prefill: endor #11822, 16k +7 %, bitwise the 2048-row schedule).
+/// Opt-in (default off); `--prefill-chunk` overrides it.
+pub const INK_LONG_CHUNK_ENV: &str = "INTARSIA_INK_LONG_CHUNK";
+/// The long-prompt chunk's threshold in prompt tokens: a prompt that needs more than one 4096-row pass (lane ink-prefill
+/// brief 32; covers the 8k prompts #11822 measured).
+pub const INK_LONG_CHUNK_MIN_PROMPT: usize = 4097;
+/// The long-prompt chunk in rows.
+pub const INK_LONG_CHUNK_ROWS: usize = 4096;
+
+/// Whether [`INK_LONG_CHUNK_ENV`] turns the long-prompt chunk on (`1` / `on`; default off).
+pub fn ink_long_chunk_on() -> bool {
+    matches!(std::env::var(INK_LONG_CHUNK_ENV).ok().as_deref().map(str::trim), Some("1") | Some("on"))
 }
 
 impl PrefillChunk {
     /// `2048 (recipe qwen3_5_moe, cuda)`.
     pub fn describe(&self) -> String {
         format!("{} ({})", self.value, self.source)
+    }
+
+    /// The long-prompt chunk's state for the startup log: `long-prompt chunk 4096 from 4097 tokens (INTARSIA_INK_LONG_CHUNK=1)`.
+    pub fn describe_long(&self) -> String {
+        match self.long {
+            Some((min, c)) => format!("long-prompt chunk {c} from {min} tokens ({INK_LONG_CHUNK_ENV}=1)"),
+            None => format!("long-prompt chunk off ({INK_LONG_CHUNK_ENV}=1 turns it on: {INK_LONG_CHUNK_ROWS} rows from {INK_LONG_CHUNK_MIN_PROMPT} tokens)"),
+        }
     }
 }
 
@@ -476,15 +503,17 @@ impl Recipe {
     pub fn resolve_prefill_chunk(&self, flag: Option<usize>, backend: &str) -> PrefillChunk {
         let family = &self.model.family;
         if let Some(value) = flag {
-            return PrefillChunk { value, source: "--prefill-chunk".into() };
+            return PrefillChunk { value, source: "--prefill-chunk".into(), long: None };
         }
+        let long = (family == "inkling2" && backend == "metal" && ink_long_chunk_on()).then_some((INK_LONG_CHUNK_MIN_PROMPT, INK_LONG_CHUNK_ROWS));
+        let long = |value: usize| long.filter(|&(_, c)| c > value);
         if let Some(value) = self.tuning.backends.get(backend).and_then(|b| b.prefill_chunk) {
-            return PrefillChunk { value, source: format!("recipe {family}, {backend}") };
+            return PrefillChunk { value, source: format!("recipe {family}, {backend}"), long: long(value) };
         }
         if let Some(value) = self.tuning.prefill_chunk {
-            return PrefillChunk { value, source: format!("recipe {family}, base") };
+            return PrefillChunk { value, source: format!("recipe {family}, base"), long: long(value) };
         }
-        PrefillChunk { value: DEFAULT_PREFILL_CHUNK, source: "default".into() }
+        PrefillChunk { value: DEFAULT_PREFILL_CHUNK, source: "default".into(), long: long(DEFAULT_PREFILL_CHUNK) }
     }
 }
 
