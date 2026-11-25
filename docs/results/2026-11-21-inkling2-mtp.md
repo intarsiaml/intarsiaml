@@ -1353,3 +1353,8 @@ untouched. The 23:00 sweep #11871 stays booked: queue jobs to fit before it or a
 The user decided "Wait for the fix": #496 does not flip until the prefill cost is removed and the bar passes (TTFT and prefill within 2 % at
 1k / 4k / 16k, decode gain at every length). Brief L6 continues as planned; when the bar rerun is in, this lane reports the table to the
 coordinator, who takes it to the user.
+
+**Fix check (fleetq #11888, `flipm_post.sh`, code `0ad399998` on main `08ae803e0`, 2026-11-25 13:39-13:47): 0 failed checks.** MG1 greedy md5 at 64 / 256
+tokens: default == `--spec off` == main (`65cde8f3...` / `61fd59fe...`), the default run speculated (57 verify passes, acceptance 80.7 %) and `--spec off`
+and main did not; MG6: dspark_default 1, models-recipe 17, recipes_doc 3, recipe_gumbel 1, mtp 69, docs_env_vars 2, Metal inkling2_dspark 4, dspark_cut 1,
+verify_softcap 1, chat_reuse 6, inkling2 17, inkling2_batch 8, all passed. Marker `.scratch/flipm_post_pass_0ad399998`.
