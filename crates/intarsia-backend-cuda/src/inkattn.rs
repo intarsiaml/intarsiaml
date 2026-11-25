@@ -12,7 +12,7 @@
 //! * `rel_sink_attn_bf16_flash` (T > 16, priority 5): flash attention for prefill chunks, then the cache-write pass. Not
 //!   bitwise the rows-exact kernel (like Metal's `rel_sink_attn_bf16_nax`).
 //! * `ink_attn_decode_bf16` (op 75, 1..=16 rows): the two in one stage-1 kernel, bitwise the pair.
-//! * `ink_attn_prefill_bf16` (op 75, more than 16 rows): the prologue writes r instead of the rel table, the flash kernel forms
+//! * `ink_attn_decode_prefill_bf16` (op 75, more than 16 rows): the prologue writes r instead of the rel table, the flash kernel forms
 //!   the bias; bitwise the pair with `rel_sink_attn_bf16_flash`.
 
 use crate::kernels::ARCH;
@@ -23,7 +23,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("rel_sink_attn_bf16", Op::RelSinkAttn),
     ("rel_sink_attn_bf16_flash", Op::RelSinkAttn),
     ("ink_attn_decode_bf16", Op::InkAttnDecode),
-    ("ink_attn_prefill_bf16", Op::InkAttnDecode),
+    ("ink_attn_decode_prefill_bf16", Op::InkAttnDecode),
 ];
 
 /// bf16-rounded outputs: a one-ulp flip is allowed (the backend's shared budget).
@@ -94,7 +94,7 @@ pub fn all() -> Vec<KernelImpl> {
                 "rel_sink_attn_bf16_flash" => k.weights(bf).when(flash_ok).priority(5),
                 "ink_attn_decode_bf16" => k.weights(bf).when(decode_ok).scratch(decode_scratch),
                 // prefill chunks: bitwise the pair (prologue + rel_sink_attn_bf16_flash)
-                "ink_attn_prefill_bf16" => k.weights(bf).when(prefill_ok).scratch(prefill_scratch),
+                "ink_attn_decode_prefill_bf16" => k.weights(bf).when(prefill_ok).scratch(prefill_scratch),
                 other => unreachable!("inkling2 attention kernel {other} has no registration"),
             }
         })
@@ -127,6 +127,23 @@ pub struct IkInkAttrs {
 fn split_keys() -> i32 {
     static K: std::sync::OnceLock<i32> = std::sync::OnceLock::new();
     *K.get_or_init(|| std::env::var("INTARSIA_INK_SPLIT_KEYS").ok().and_then(|v| v.trim().parse().ok()).filter(|&k: &i32| k >= 1).unwrap_or(0))
+}
+
+/// The INTARSIA_INK_ATTN_PDL self-test (kernels/cuda/inkling2_attn.cu `ik_ink_attn_pdl_selftest`): violations of the decode
+/// tile's pre-wait prefetch range over a shape sweep (0 = none, -1 = a vacuous sweep). Host only; `None` without CUDA.
+pub fn pdl_selftest() -> Option<i32> {
+    #[cfg(ik_cuda)]
+    {
+        extern "C" {
+            fn ik_ink_attn_pdl_selftest() -> std::ffi::c_int;
+        }
+        // SAFETY: a pure host function over integers.
+        Some(unsafe { ik_ink_attn_pdl_selftest() })
+    }
+    #[cfg(not(ik_cuda))]
+    {
+        None
+    }
 }
 
 #[cfg(ik_cuda)]
@@ -227,7 +244,7 @@ mod launch {
                     }
                     "rel_sink_attn_bf16" => ik_rel_sink_attn_bf16(i(0), i(1), i(2), i(3), i(4), i(5), i(6), ap, on(0), on(1), on(2), sc, pos, s),
                     "rel_sink_attn_bf16_flash" => ik_rel_sink_attn_bf16_flash(i(0), i(1), i(2), i(3), i(4), i(5), i(6), ap, on(0), on(1), on(2), sc, pos, s),
-                    "ink_attn_decode_bf16" | "ink_attn_prefill_bf16" => ik_ink_attn_decode_bf16(
+                    "ink_attn_decode_bf16" | "ink_attn_decode_prefill_bf16" => ik_ink_attn_decode_bf16(
                         i(0),
                         i(1),
                         i(2),

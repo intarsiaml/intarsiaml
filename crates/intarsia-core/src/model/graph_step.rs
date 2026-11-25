@@ -47,7 +47,8 @@ pub(super) struct GraphState {
     /// Solo decode steps: one recording per (sequence state, head) because a solo recording names that state's own buffers.
     /// Several states alternating (a batched server with one running row at a time) keep one recording each instead of
     /// re-recording at every switch (Fable review m3); the table is cleared at `SOLO_GRAPHS_MAX` entries.
-    captured: Mutex<std::collections::HashMap<(u64, bool), Captured>>,
+    /// keyed by (state, head recorded, full head: a `LastLogits` step must not replay a screened head)
+    captured: Mutex<std::collections::HashMap<(u64, bool, bool), Captured>>,
     /// Batched decode steps (R3c): one recording per row count, valid for any set of sequences because every state buffer a
     /// batched step touches is named by the row table the host rewrites before each replay (`Model::row_tab`).
     batched: Mutex<std::collections::HashMap<usize, Captured>>,
@@ -201,7 +202,7 @@ impl Model {
     /// One decode step through the captured graph. `Ok(None)`: not applicable now (capture failed and graphs
     /// were switched off); the caller runs the step eagerly. `st.len + 1 <= st.cap` was checked by the caller.
     pub(super) fn graph_decode_step(&self, st: &SequenceState, id: u32, want_logits: bool) -> Result<Option<StepOut>> {
-        if !self.graph_step(st, id, true)? {
+        if !self.graph_step(st, id, true, want_logits)? {
             return Ok(None);
         }
         let v = self.dims.vocab;
@@ -229,7 +230,7 @@ impl Model {
                 self.tp.rank
             )));
         }
-        if self.graph_step(st, id, false)? {
+        if self.graph_step(st, id, false, false)? {
             Ok(())
         } else {
             Err(Error::backend(format!("tensor-parallel rank {}: decode graph unavailable", self.tp.rank)))
@@ -237,8 +238,11 @@ impl Model {
     }
 
     /// Upload the step's inputs, capture on first use for this state, replay. `head`: record the head (rank 0) or the
-    /// layers only. `Ok(false)`: not applicable (a state without an id, or a tp=1 capture failure: graphs are now off).
-    fn graph_step(&self, st: &SequenceState, id: u32, head: bool) -> Result<bool> {
+    /// layers only. `full_logits`: the step reads the whole logits row (`LastLogits`), so the recording runs the full head,
+    /// never the screened greedy head (which leaves only its candidates' logits in `ws.logits`); the two kinds of step are
+    /// recorded and replayed separately. `Ok(false)`: not applicable (a state without an id, or a tp=1 capture failure: graphs
+    /// are now off).
+    fn graph_step(&self, st: &SequenceState, id: u32, head: bool, full_logits: bool) -> Result<bool> {
         if st.id == 0 || self.recorder.lock().unwrap().is_some() {
             if self.tp.world > 1 {
                 return Err(Error::invalid("tensor-parallel decode graph: no replay possible for this state"));
@@ -252,12 +256,12 @@ impl Model {
         self.backend.upload(&self.ws.ids, 0, &(id as i32).to_le_bytes(), self.stream)?;
         self.backend.upload(&self.ws.pos, 0, &(st.len as i32).to_le_bytes(), self.stream)?;
         let mut cache = self.graphs.captured.lock().unwrap();
-        let key = (st.id, head);
+        let key = (st.id, head, full_logits);
         if !cache.contains_key(&key) {
             if cache.len() >= SOLO_GRAPHS_MAX {
                 cache.clear(); // recordings of states that are gone, or too many alternating ones
             }
-            match self.capture_decode(st, head) {
+            match self.capture_decode(st, head, full_logits) {
                 Ok(c) => {
                     cache.insert(key, c);
                     self.graphs.captures.fetch_add(1, Ordering::Relaxed);
@@ -401,7 +405,7 @@ impl Model {
         self.batch_graph_replay(ids.len())
     }
 
-    fn capture_decode(&self, st: &SequenceState, head: bool) -> Result<Captured> {
+    fn capture_decode(&self, st: &SequenceState, head: bool, full_logits: bool) -> Result<Captured> {
         let pos = self.view(&self.ws.pos, DType::I32, &[1]);
         *self.capture_ops.lock().unwrap() = Some(Vec::new());
         self.capture_comms.store(0, Ordering::Relaxed);
@@ -411,6 +415,7 @@ impl Model {
             let hn = self.run_chunk_at(st, &[0], false, Some(&pos), false)?;
             // a vocab-parallel peer records its slice of the head and the gather (no argmax): rank 0 replays the same collective
             if head || self.vocab_par {
+                let _full = crate::model::ScreenSuspend::enter(full_logits);
                 self.head_to_device(&hn, 0, false)
             } else {
                 Ok(())
