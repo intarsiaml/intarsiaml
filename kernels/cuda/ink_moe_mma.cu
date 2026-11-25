@@ -50,10 +50,11 @@ IK_DEVI int64_t rp_piece(int64_t row, int j, int R, int L, int64_t row_bytes, in
     return (row / R) * R * row_bytes + ((int64_t)(j / L) * 32 + (row % R) * L + j % L) * c;
 }
 
-// (lane ink-cuda-moepf, brief 50; all three are bitwise: every output element keeps its k16 products and their fp32 add order)
-// WM 4 (NVFP4 only): 16 warps, four threads dequantise a weight row (16 k each). BM 128 (MT 2 WM 4) does not fit a 3-slot A
-// ring (112.6 KB > 99 KB), so it runs AR = 2: A(s+1) is issued at step s, in its own commit group ahead of the raw group.
-// SK: a warp skips the ldmatrix / mma of its m16 tiles that hold only padding rows (rows past the tile's count are never stored).
+// BM 128 (lane ink-cuda-moepf, briefs 50-51; NVFP4 only, bitwise the BM 64 tile: every output element keeps its k16 products
+// and their fp32 add order): MT 2 WM 4, 16 warps, four threads dequantise a weight row (16 k each). A 3-slot A ring does not fit
+// (112.6 KB > 99 KB), so it runs AR = 2: A(s+1) is issued at step s, in its own commit group ahead of the raw group.
+// SK: a warp skips the ldmatrix / mma of its m16 tiles that hold only padding rows (rows past the tile's count are never stored);
+// BM 128 computes ~37 % padding rows at 8k without it, ~6 % with it.
 template <int MT, int WM>
 constexpr int a_ring() { return 16 * MT * WM >= 128 ? 2 : 3; }
 
@@ -347,15 +348,15 @@ ink_moe_mma_kernel(const ik_bf16* __restrict__ a_src, const uint8_t* __restrict_
 
 
 
-// brief 50 switches, all default off: INTARSIA_INK_MOE_WM4=1 (BM 64 as MT 1 WM 4), INTARSIA_INK_MOE_BM128=1 (BM 128 = MT 2 WM 4
-// where the pick is 64), INTARSIA_INK_MOE_SKIP=1 (warps skip padding m16 tiles); NVFP4 only. ik_ink_moe_set_mma_shape overrides.
-int g_wm4 = -1, g_bm128 = -1, g_skip = -1;
-int env_flag(int& v, const char* name) {
-    if (v < 0) {
-        const char* e = getenv(name);
-        v = e && e[0] == '1' ? 1 : 0;
+// NVFP4 where the pick is 64: BM 128 with the padding-warp skip (default on since brief 51; INTARSIA_INK_MOE_BM128=0 reverts to
+// BM 64; ik_ink_moe_set_bm128 overrides for tests)
+int g_bm128 = -1;
+int bm128_on() {
+    if (g_bm128 < 0) {
+        const char* e = getenv("INTARSIA_INK_MOE_BM128");
+        g_bm128 = e && e[0] == '0' ? 0 : 1;
     }
-    return v;
+    return g_bm128;
 }
 
 int pick_bm_ink(int64_t P, int64_t E, int fmt) {
@@ -365,7 +366,7 @@ int pick_bm_ink(int64_t P, int64_t E, int fmt) {
     }
     const double mu = (double)P / (double)E;
     const int bm = mu <= 10.0 ? 16 : (mu <= 21.0 ? 32 : 64);
-    return bm == 64 && fmt == 0 && env_flag(g_bm128, "INTARSIA_INK_MOE_BM128") ? 128 : bm;
+    return bm == 64 && fmt == 0 && bm128_on() ? 128 : bm;
 }
 
 // INTARSIA_INK_MOE_TILESTAT=1 (diagnostic, eager streams only): rows computed vs routed pairs at BM 32 / 64 / 128, and what a
@@ -452,16 +453,7 @@ template <int FMT, int ACT, bool RP = false>
 int run_fa(const InkMmaArgs& a, int BM, const int* pairs, const int* offsets, const int2* tiles, const int* ntiles, ik_bf16* h,
            ik_bf16* y, unsigned tiles_ub, cudaStream_t s) {
     if constexpr (FMT == 0) {
-        const bool sk = env_flag(g_skip, "INTARSIA_INK_MOE_SKIP");
-        if (BM == 128) {
-            if (sk) return gemms<2, 4, FMT, ACT, RP, true>(a, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
-            return gemms<2, 4, FMT, ACT, RP>(a, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
-        }
-        if (BM == 64 && env_flag(g_wm4, "INTARSIA_INK_MOE_WM4")) {
-            if (sk) return gemms<1, 4, FMT, ACT, RP, true>(a, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
-            return gemms<1, 4, FMT, ACT, RP>(a, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
-        }
-        if (BM == 64 && sk) return gemms<2, 2, FMT, ACT, RP, true>(a, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
+        if (BM == 128) return gemms<2, 4, FMT, ACT, RP, true>(a, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
     }
     switch (BM) {
         case 16: return gemms<1, 1, FMT, ACT, RP>(a, pairs, offsets, tiles, ntiles, h, y, tiles_ub, s);
@@ -472,11 +464,7 @@ int run_fa(const InkMmaArgs& a, int BM, const int* pairs, const int* offsets, co
 
 }  // namespace
 
-extern "C" void ik_ink_moe_set_mma_shape(int wm4, int bm128, int skip) {
-    g_wm4 = wm4;
-    g_bm128 = bm128;
-    g_skip = skip;
-}
+extern "C" void ik_ink_moe_set_bm128(int v) { g_bm128 = v; }
 
 int64_t ink_moe_mma_scratch_bytes(int64_t P, int64_t E, int64_t H, int64_t I) {
     const int64_t max_tiles = (P + 15) / 16 + (P < E ? P : E);

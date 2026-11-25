@@ -572,9 +572,9 @@ fn ink_experts_mma_chunk_invariant() {
     }
 }
 
-/// The NVFP4 tensor-core prefill shape switches (brief 50: WM 4 at BM 64, BM 128, the padding-warp skip, and the skip with
-/// either) are BITWISE the default shape: real shape (128 experts, H 2304, I 1152, top-8), T 600 and 1100 (mu 37.5 / 68.75:
-/// BM 64 picked), plain and repacked layouts, and W4A4 (plain only: the repack refuses it).
+/// The NVFP4 tensor-core prefill at BM 128 with the padding-warp skip (the default since brief 51) is BITWISE its revert, BM 64
+/// (`INTARSIA_INK_MOE_BM128=0`): real shape (128 experts, H 2304, I 1152, top-8), T 600 and 1100 (mu 37.5 / 68.75: the pick is
+/// 64), plain and repacked layouts, and W4A4 (plain only: the repack refuses it).
 #[test]
 fn ink_experts_mma_shapes_bitwise() {
     use intarsia_core::inkling2::ops::moe_repack_rows;
@@ -605,17 +605,15 @@ fn ink_experts_mma_shapes_bitwise() {
                 v.extend(w.iter().cloned());
                 rig.run("moe_experts_situ_bf16", Op::MoeExperts, &v, &[(DType::Bf16, vec![t, h], None)], &a).remove(0)
             };
-            intarsia_backend_cuda::inkmoe::set_mma_shape(0, 0, 0);
+            intarsia_backend_cuda::inkmoe::set_bm128(0);
             let base = run();
             assert!(base.to_f32().iter().all(|v| v.is_finite()), "T {t} layout {layout} aq {aq}: non-finite");
-            for (wm4, bm128, skip) in [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 0, 1), (0, 1, 1)] {
-                intarsia_backend_cuda::inkmoe::set_mma_shape(wm4, bm128, skip);
-                let o = run();
-                assert_eq!(base.data, o.data, "T {t} layout {layout} aq {aq}: wm4 {wm4} bm128 {bm128} skip {skip} differs from the default");
-            }
+            intarsia_backend_cuda::inkmoe::set_bm128(1);
+            let o = run();
+            assert_eq!(base.data, o.data, "T {t} layout {layout} aq {aq}: BM 128 + skip differs from BM 64");
         }
     }
-    intarsia_backend_cuda::inkmoe::set_mma_shape(-1, -1, -1);
+    intarsia_backend_cuda::inkmoe::set_bm128(-1);
 }
 
 /// The DSpark draft head's MXFP4 GEMV (`matmul_mxfp4_gemv_ink_rows`, 5..=8 rows, 4 output rows per warp): BITWISE

@@ -346,6 +346,16 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
   admission, tiny inkling2, md5 64 / 256 / 1.2k equal to main switch on and off, quiet A/B of 8k and 3.6k prefill plus short
   decode; bar +3 % at 8k prefill, no decode loss. Report, then stop for the PR call. Levers 7b / 8 (row kernel, blend) out of
   scope; the block-scaled MoE GEMM (brief 37) is not bitwise: a user decision, do not start it.
+- (coordinator, 51st) Go on BM 128 + skip. (1) Simplify: drop the WM 4 path (lever 1 missed its bar) unless risky; keep
+  `INTARSIA_INK_MOE_TILESTAT` only if cheap; fold BM 128 and skip into one rule, **default on** for NVFP4 where the pick is
+  64 (bitwise); one revert switch (`INTARSIA_INK_MOE_BM128=0`) in docs/tuning + LOG rows as #504 rank4 did; keep
+  `ink_experts_mma_shapes_bitwise` covering default vs revert. (2) Merge origin/main (26088ff89) first. (3) Full gate on
+  spark2, every job in a slot: rows-exact / admission, CUDA host tests, tiny inkling2 / batch; md5 64 / 256 / 1.2k equal to
+  main at the default and at `=0`, spec off and default; `plan show` 35B / 8B unchanged; quiet ABBA 3 reps of 8k and 3.6k
+  prefill plus short decode, new default vs `=0`; bar >= +3 % at 8k, no decode loss beyond noise. CUDA-only footprint, so no
+  Metal no-op unless `git diff --name-only origin/main | grep -vE '^(docs/|crates/intarsia-backend-cuda/|kernels/cuda/|scripts/)'`
+  prints anything. (4) If it passes: push, open the PR (body ends with the Claude Code line), do not merge; report URL and
+  numbers.
 - (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
   chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
   is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
