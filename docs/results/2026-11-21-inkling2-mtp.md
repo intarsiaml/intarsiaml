@@ -1347,3 +1347,9 @@ path); output unchanged (greedy default md5 == `--spec off` md5 at 64 / 256), MG
 (4) Rerun the bar at 1k / 4k / 16k, >= 6 alternated reps per arm, localeval, warm box; decode, TTFT and prefill ratios with spread. (5) Time box
 about 3 hours; if the fix is bigger, stop after step 2 with the attribution and a design sketch and the fix's estimated length. No push, #496
 untouched. The 23:00 sweep #11871 stays booked: queue jobs to fit before it or after 06:30.
+
+## Decision (user, via the coordinator, 2026-11-25)
+
+The user decided "Wait for the fix": #496 does not flip until the prefill cost is removed and the bar passes (TTFT and prefill within 2 % at
+1k / 4k / 16k, decode gain at every length). Brief L6 continues as planned; when the bar rerun is in, this lane reports the table to the
+coordinator, who takes it to the user.
