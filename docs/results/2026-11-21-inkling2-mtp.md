@@ -1427,3 +1427,20 @@ scheduler. Untested next steps, in order of cost: (1) `serve` with the prefix st
 off arm's store path is faster for a cold prompt than the bypass; (2) a server-side timestamp of the first token against the engine's prefill end for
 both arms, to see whether the extra time is in or after the engine prefill; (3) only then a code change. About 1.5 h to find the cause, and the fix size
 is unknown until then.
+
+**Serve-side timestamps (fleetq #11901, binary = merge tip `8ec68e6ae` + an env-gated log in `engine.rs` kept out of the tree; `serve` + localeval, 4 runs per
+arm, ABBA, medians over the requests the log saw; prefix store off in both arms, as in every bar run, so the store bypass is not the gap).** The first-token
+event leaves the engine at the same instant the engine's own prefill clock stops (delta 0.0 ms at every length), so the extra TTFT is inside the engine's prefill
+as `serve` runs it, not in tokenization, streaming or the HTTP layer:
+
+| prompt | engine prefill off (ms) | engine prefill default (ms) | ratio | client TTFT off | client TTFT default | ratio |
+|---|---|---|---|---|---|---|
+| 143 | 124.5 | 125.2 | 1.006 | 146.8 | 144.8 | 0.986 |
+| 1k | 364.5 | 405.4 | 1.112 | 398.0 | 453.4 | 1.139 |
+| 4k | 1492.4 | 1639.5 | 1.099 | 1540.3 | 1680.6 | 1.091 |
+| 16k | 6159.1 | 6350.9 | 1.031 | 6208.9 | 6362.1 | 1.025 |
+
+Client TTFT minus engine prefill is 20-48 ms in both arms and does not differ between them. So `generate` (no gap) and `serve` (+3 % at 16k, +10 % at 1k / 4k)
+run the same prefill code with a different result. Differences between the two paths that reach the engine's prefill loop: `serve` runs the engine on its own
+thread under the supervisor with keep-warm on (tested in `generate`: no gap), the request arrives through the scheduler and `Seq::new`, and the sequence state is
+created once per request by the server (the default arm also allocates the draft's state there). A per-chunk log (`#11903`) splits the prefill into setup and chunk times.
