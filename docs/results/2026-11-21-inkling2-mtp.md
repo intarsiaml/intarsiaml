@@ -1413,3 +1413,17 @@ TTFT spread within an arm: 1k 11.7 % off / 38.9 % default, 4k 15.9 % / 24.7 %, 1
 is steady across all four blocks (1.026-1.045), so it is a real +3 % (about +0.2 s), not noise; 4k is +3 to +11 % per block. The absolute extra TTFT is
 +31 ms at 1k, +103 ms at 4k, +207 ms at 16k (and -4 ms at 143 tokens). The DSpark ingest accounts for 28 ms of the 16k figure, so most of it is not the
 ingest (attribution above).
+
+**Keep-warm check (fleetq #11899, `generate` 16k prefill with `INTARSIA_METAL_KEEPWARM=1`, which is what `serve` turns on; 6 runs per arm):** medians off
+6276 ms (range 5593-6717, spread 20.1 %), default greedy 6030 (5685-6233, 9.6 %), sampled 5988 (5865-6164, 5.1 %); without keep-warm off 6426 (6222-6555),
+sampled 6208 (6035-6385). So the serve keep-warm thread (a residency set that also takes the draft's 0.64 GB file) does not make a draft-loaded process
+slower in `generate`; the draft arms are 3.9 % and 4.6 % faster than off here. `generate` has now shown the draft-loaded prefill at 0 to -4 % of off in
+three of four slots, while `serve` / localeval shows TTFT +3.4 % at 16k in all four blocks of #11898 (and +3.3 % in #11884, +3.2 % in the L5 bar).
+
+**Open: the serve-only gap.** Engine prefill in `generate` does not show the +31 / +103 / +207 ms (1k / 4k / 16k) that localeval's TTFT shows. What `serve`
+does differently for a drafting request and not for an off one: with a DFlash draft a drafting request bypasses the prefix store (`engine.rs`, the
+`ps` filter: "the store stays off for it, prefill runs exactly as without it"), the server tokenizes and streams, and the engine runs in the server's
+scheduler. Untested next steps, in order of cost: (1) `serve` with the prefix store off in both arms (flag or env), 8 reps at 16k: if the gap closes, the
+off arm's store path is faster for a cold prompt than the bypass; (2) a server-side timestamp of the first token against the engine's prefill end for
+both arms, to see whether the extra time is in or after the engine prefill; (3) only then a code change. About 1.5 h to find the cause, and the fix size
+is unknown until then.
