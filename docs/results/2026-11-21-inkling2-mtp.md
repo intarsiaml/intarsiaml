@@ -1477,3 +1477,18 @@ runs (1355-1434 in the others); 16k off 5.6-5.9 s, default 6.4-6.55 s in 8 of 12
 **Test 2: the draft's tap staging during prefill, by code: not it.** `DflashHead.feat` (the four tap rows) is allocated with `mt` rows, the workspace's max tokens (>= the 2048-row prefill chunk);
 `inkling2.rs:993` captures taps for every chunk (`t <= feat_rows` always holds), the capture is one `ink_copy` per tap layer (4 x 2048 x 2304 bf16 = 9.4 MB per copy), and the flush after
 each chunk is the ingest already measured at 28 ms for 16k tokens. So neither the staging size nor the copies can account for 140-300 ms.
+
+**Test 3: per-op table of the 4k prefill, off vs default (fleetq #11905, `generate --profile-every 1 --op-table`, 10 profiled runs per arm plus 10 unprofiled, ABBA; box check 77.4 tok/s).** In this slot
+there was no gap to localise: unprofiled 4k prefill off 1666 ms (1588-1887) vs default 1685 (1588-2091), +1.1 %; profiled 2028 vs 1954. Per-op (median over the 10 runs) no op differs by more than
+noise: `moe_experts` 750.7 vs 745.1 ms, `ink_in_proj` 166.8 vs 165.9, `matmul` 74.9 vs 80.0, `moe_experts_mxfp8` 84.2 vs 83.8; the only large delta is the first op (`embedding` 281 vs 198, which absorbs the
+queue wait). The 4k prefill itself ran 1.59-1.67 s here against 1.32 s for `--spec off` in test 1's slot an hour earlier: the box's own slot-to-slot swing (25 %) is bigger than the 41-300 ms the lane is chasing.
+
+**Fast / slow process mode (pooled over every `generate` 16k run of L6 and L7, 1 process per run, slow = prefill >= 6.15 s, fast = 5.6-5.9 s):** off 24 of 44 runs slow, default greedy 24 of 38, default sampled
+19 of 32. Within one slot the arms split hard (L7: off 2 of 12 slow, default 10 of 12; L6 ballast slot: off 4 of 8, default 1 of 8; L6 keep-warm slot: off 11 of 12, default 2 of 6), but the sign flips between
+slots, so pooled the arms agree (55 % / 63 % / 59 %). A slow process costs about +10 % at 16k (6.4 vs 5.8 s), larger than any default-vs-off gap seen.
+
+## L7 conclusion, 2026-11-25 ~16:30
+
+No test localised the extra prefill time to a code path: (1) `--max-tokens` is irrelevant; (2) the tap staging and copies cost about the 28 ms already measured; (3) per-op times of default and off are equal where
+they were measured, and the 41-300 ms gap appears in some slots (L7 test 1, the serve bar at 16k: +2.1 / +3.2 / +3.3 / +3.4 % in four separate bar runs) and not in others. What the data supports: a per-process fast / slow
+GPU mode (about 10 % at 16k) whose arm assignment is slot-dependent, plus a small stable serve-side cost at 16k of about 3 % that no profile has placed. No code change was made.
