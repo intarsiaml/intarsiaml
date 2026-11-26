@@ -14,7 +14,7 @@
 //! shards are rows of the quantised tensor.
 
 use crate::backend::Backend;
-use crate::dtype::{f32_to_fp8_e4m3, DType};
+use crate::dtype::{f32_to_fp8_e4m3, fp8_e4m3_to_f32, DType};
 use crate::error::{Error, Result};
 use crate::quant::{fp8, mxfp4, HostQTensor, Mxfp4Act, QTensor, FP8_E4M3, MXFP4};
 use crate::tensor::HostTensor;
@@ -29,6 +29,19 @@ pub const MTP_ENV: &str = "INTARSIA_MTP_QUANT";
 pub enum HeadQuant {
     Fp8,
     Mxfp4,
+    /// Lane ink-q8 (accuracy study, cpu reference only): e4m3 with one f32 scale per output row (`amax / 448`).
+    Fp8Row,
+    /// Lane ink-q8 (accuracy study, cpu reference only): int8 with one f32 scale per output row, the scale from an MSE-optimal clip
+    /// search per row (symmetric, round to nearest).
+    Int8Row,
+    /// Lane ink-q8 controls (cpu reference only): int8 per row with the plain `amax / 127` scale (no clip search), and the identity
+    /// (the checkpoint's weights as exact f32: the emulation path with no quantisation).
+    Int8AmaxRow,
+    IdRow,
+    /// Lane ink-q8 noise control (cpu reference only): every weight times `1 + eps * u`, `u` uniform in [-1, 1) from a hash of
+    /// (seed, position), `eps = INTARSIA_Q8_NOISE_EPS` (default 2^-10), `seed = INTARSIA_Q8_NOISE_SEED` (default 1). Not a format: it
+    /// measures how much KL a weight perturbation of a given size makes against our own bf16 (the numerics floor).
+    NoiseRow,
 }
 
 impl HeadQuant {
@@ -36,7 +49,18 @@ impl HeadQuant {
         match self {
             HeadQuant::Fp8 => "fp8",
             HeadQuant::Mxfp4 => "mxfp4",
+            HeadQuant::Fp8Row => "fp8_row",
+            HeadQuant::Int8Row => "int8_row",
+            HeadQuant::Int8AmaxRow => "int8a_row",
+            HeadQuant::IdRow => "id_row",
+            HeadQuant::NoiseRow => "noise_row",
         }
+    }
+
+    /// The per-row 8-bit study formats: quantised on the host, then dequantised back to exact f32 weights (the cpu reference's
+    /// result for `scale_row * sum(x * q)`, up to the accumulation order), so only the cpu backend takes them (no GPU kernel).
+    pub fn is_row_emulated(self) -> bool {
+        matches!(self, HeadQuant::Fp8Row | HeadQuant::Int8Row | HeadQuant::Int8AmaxRow | HeadQuant::IdRow | HeadQuant::NoiseRow)
     }
 
     /// `Ok(None)` for the off spellings.
@@ -44,8 +68,13 @@ impl HeadQuant {
         match s.trim().to_ascii_lowercase().as_str() {
             "fp8" | "fp8_e4m3" | "e4m3" => Ok(Some(HeadQuant::Fp8)),
             "mxfp4" => Ok(Some(HeadQuant::Mxfp4)),
+            "fp8_row" | "fp8row" | "e4m3_row" => Ok(Some(HeadQuant::Fp8Row)),
+            "int8_row" | "int8row" | "int8" => Ok(Some(HeadQuant::Int8Row)),
+            "int8a_row" => Ok(Some(HeadQuant::Int8AmaxRow)),
+            "id_row" => Ok(Some(HeadQuant::IdRow)),
+            "noise_row" => Ok(Some(HeadQuant::NoiseRow)),
             "" | "off" | "0" | "none" | "bf16" => Ok(None),
-            other => Err(Error::model(format!("{ENV} / lm_head_quant = '{other}' (fp8 | mxfp4 | off)"))),
+            other => Err(Error::model(format!("{ENV} / lm_head_quant = '{other}' (fp8 | mxfp4 | fp8_row | int8_row | int8a_row | id_row | noise_row | off)"))),
         }
     }
 
@@ -117,6 +146,78 @@ fn par_rows<T: Send>(n: usize, chunk: usize, f: impl Fn(usize, usize) -> T + Syn
 
 const CHUNK_ROWS: usize = 512;
 
+/// The per-row study formats exist only as host emulation (no GPU kernel): refuse them on any backend but the cpu reference.
+pub fn emulation_guard(kind: HeadQuant, backend: &dyn Backend) -> Result<()> {
+    if kind.is_row_emulated() && backend.name() != "cpu" {
+        return Err(Error::model(format!("{} is a cpu-reference accuracy study format (no {} kernel)", kind.name(), backend.name())));
+    }
+    Ok(())
+}
+
+/// e4m3 with one scale per row: `scale = amax / 448` (f32), `out = e4m3(x / scale) * scale` (the dequantised row, in f32).
+pub fn fp8_row_dequant(x: &[f32], out: &mut [f32]) {
+    let amax = x.iter().fold(0f32, |m, v| m.max(v.abs()));
+    if !(amax > 0.0) {
+        out.iter_mut().for_each(|o| *o = 0.0);
+        return;
+    }
+    let ws = amax / fp8::MAX;
+    for (o, v) in out.iter_mut().zip(x) {
+        *o = fp8_e4m3_to_f32(f32_to_fp8_e4m3(v / ws)) * ws;
+    }
+}
+
+fn int8_err(x: &[f32], clip: f32) -> f64 {
+    let s = clip / 127.0;
+    let inv = 1.0 / s;
+    let mut e = 0f64;
+    for v in x {
+        let q = (v * inv).round_ties_even().clamp(-127.0, 127.0);
+        let d = (v - q * s) as f64;
+        e += d * d;
+    }
+    e
+}
+
+/// The MSE-optimal symmetric clip of a row for int8 (round to nearest, levels -127..=127): a coarse grid of clip / amax from 1.0 down to
+/// 0.325, then a fine grid around the best coarse point.
+pub fn int8_best_clip(x: &[f32], amax: f32) -> f32 {
+    let mut best = (f64::INFINITY, 1.0f32);
+    for i in 0..28 {
+        let r = 1.0 - 0.025 * i as f32;
+        let e = int8_err(x, amax * r);
+        if e < best.0 {
+            best = (e, r);
+        }
+    }
+    let r0 = best.1;
+    for j in -8i32..=8 {
+        let r = (r0 + 0.003125 * j as f32).min(1.0);
+        if r <= 0.0 {
+            continue;
+        }
+        let e = int8_err(x, amax * r);
+        if e < best.0 {
+            best = (e, r);
+        }
+    }
+    amax * best.1
+}
+
+/// int8 with one scale per row (`scale = clip / 127`, f32; clip from [`int8_best_clip`]): the dequantised row, in f32.
+pub fn int8_row_dequant(x: &[f32], out: &mut [f32], clip_search: bool) {
+    let amax = x.iter().fold(0f32, |m, v| m.max(v.abs()));
+    if !(amax > 0.0) {
+        out.iter_mut().for_each(|o| *o = 0.0);
+        return;
+    }
+    let s = if clip_search { int8_best_clip(x, amax) } else { amax } / 127.0;
+    let inv = 1.0 / s;
+    for (o, v) in out.iter_mut().zip(x) {
+        *o = (v * inv).round_ties_even().clamp(-127.0, 127.0) * s;
+    }
+}
+
 fn rows_f32(dtype: DType, bytes: &[u8], k: usize, start: usize, rows: usize) -> Vec<f32> {
     let es = dtype.size_bytes();
     let mut v = vec![0f32; rows * k];
@@ -160,6 +261,46 @@ pub fn quantize_host(kind: HeadQuant, dtype: DType, all: &[u8], n_all: usize, k:
                 act_quant: false,
             })
         }
+        HeadQuant::Fp8Row | HeadQuant::Int8Row | HeadQuant::Int8AmaxRow | HeadQuant::IdRow | HeadQuant::NoiseRow => {
+            let env_f = |n: &str, d: f64| std::env::var(n).ok().and_then(|v| v.trim().parse::<f64>().ok()).unwrap_or(d);
+            let (eps, seed) = (env_f("INTARSIA_Q8_NOISE_EPS", 1.0 / 1024.0) as f32, env_f("INTARSIA_Q8_NOISE_SEED", 1.0) as u64);
+            let parts = par_rows(n, CHUNK_ROWS, |s, r| {
+                let v = rows_f32(dtype, all, k, row0 + s, r);
+                let mut out = Vec::with_capacity(r * k * 4);
+                let mut row = vec![0f32; k];
+                for (ri, x) in v.chunks(k).enumerate() {
+                    match kind {
+                        HeadQuant::Fp8Row => fp8_row_dequant(x, &mut row),
+                        HeadQuant::Int8Row => int8_row_dequant(x, &mut row, true),
+                        HeadQuant::Int8AmaxRow => int8_row_dequant(x, &mut row, false),
+                        HeadQuant::NoiseRow => {
+                            for (ci, (o, v)) in row.iter_mut().zip(x).enumerate() {
+                                let mut z = seed ^ (((row0 + s + ri) as u64) << 24 | ci as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+                                z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+                                z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+                                z ^= z >> 31;
+                                let u = (z >> 40) as f32 / (1u64 << 23) as f32 - 1.0;
+                                *o = v * (1.0 + eps * u);
+                            }
+                        }
+                        _ => row.copy_from_slice(x),
+                    }
+                    for y in &row {
+                        out.extend_from_slice(&y.to_le_bytes());
+                    }
+                }
+                out
+            });
+            let mut data = Vec::with_capacity(n * k * 4);
+            for p in parts {
+                data.extend_from_slice(&p);
+            }
+            if data.chunks_exact(4).any(|c| !f32::from_le_bytes([c[0], c[1], c[2], c[3]]).is_finite()) {
+                return Err(Error::model(format!("lm_head quantiser: {} produced a non-finite value (a non-finite weight?)", kind.name())));
+            }
+            // the dequantised weights as a dense f32 tensor: the cpu `Matmul` / `Logits` / `InkInProj` float path reads them as is
+            Ok(HostQTensor { format: crate::quant::BF16, n, k, parts: vec![HostTensor { dtype: DType::F32, shape: vec![n, k], data }], act_quant: false })
+        }
         HeadQuant::Mxfp4 => {
             if k % 32 != 0 {
                 return Err(Error::model(format!("lm_head quantiser: mxfp4 needs K % 32 == 0, K = {k}")));
@@ -187,6 +328,7 @@ pub fn quantize_host(kind: HeadQuant, dtype: DType, all: &[u8], n_all: usize, k:
 
 /// Quantise and upload rows `[row0, row0 + n)` of the `[n_all, k]` float tensor whose raw bytes are `all` (see [`quantize_host`]).
 pub fn load_rows(kind: HeadQuant, backend: &dyn Backend, dtype: DType, all: &[u8], n_all: usize, row0: usize, n: usize, k: usize) -> Result<QTensor> {
+    emulation_guard(kind, backend)?;
     quantize_host(kind, dtype, all, n_all, k, row0, n)?.upload(backend)
 }
 
@@ -268,6 +410,60 @@ mod tests {
                 assert_eq!(half.parts[1].data[..], whole.parts[1].data[whole.parts[1].data.len() / 2..]);
             }
         }
+    }
+
+    #[test]
+    fn row_formats_parse_and_are_cpu_only() {
+        assert_eq!(HeadQuant::parse("fp8_row").unwrap(), Some(HeadQuant::Fp8Row));
+        assert_eq!(HeadQuant::parse("INT8_ROW").unwrap(), Some(HeadQuant::Int8Row));
+        assert!(HeadQuant::Fp8Row.is_row_emulated() && HeadQuant::Int8Row.is_row_emulated());
+        assert!(!HeadQuant::Fp8.is_row_emulated() && !HeadQuant::Mxfp4.is_row_emulated());
+    }
+
+    #[test]
+    fn per_row_formats_beat_the_per_tensor_fp8_and_stay_on_the_grid() {
+        // rows spread over two binades (bf16_rows): a per-row scale tracks each row's own range
+        let (n, k) = (130, 192);
+        let (vals, bytes) = bf16_rows(n, k, 11);
+        let rel = |d: &[f32]| {
+            let (mut num, mut den) = (0f64, 0f64);
+            for (a, b) in vals.iter().zip(d) {
+                num += ((a - b) as f64).powi(2);
+                den += (*a as f64).powi(2);
+            }
+            (num / den).sqrt()
+        };
+        let per_tensor = rel(&quantize_host(HeadQuant::Fp8, DType::Bf16, &bytes, n, k, 0, n).unwrap().dequant());
+        let row8 = quantize_host(HeadQuant::Fp8Row, DType::Bf16, &bytes, n, k, 0, n).unwrap();
+        assert_eq!(row8.parts[0].dtype, DType::F32);
+        let e8 = rel(&row8.dequant());
+        let i8q = quantize_host(HeadQuant::Int8Row, DType::Bf16, &bytes, n, k, 0, n).unwrap();
+        let ei = rel(&i8q.dequant());
+        assert!(e8 <= per_tensor, "fp8_row {e8} vs per-tensor {per_tensor}");
+        assert!(e8 < 0.04 && ei < 0.02, "fp8_row {e8}, int8_row {ei}");
+        // every int8 row has at most 255 distinct values: q * scale with |q| <= 127
+        for row in i8q.dequant().chunks(k) {
+            let amax = row.iter().fold(0f32, |m, v| m.max(v.abs()));
+            let s = row.iter().filter(|v| **v != 0.0).map(|v| v.abs()).fold(f32::INFINITY, f32::min);
+            assert!(amax / s <= 127.5, "|q| <= 127: amax {amax} min nonzero {s}");
+        }
+        // a zero row stays zero
+        let z = vec![0u8; 2 * k * 2];
+        assert!(quantize_host(HeadQuant::Int8Row, DType::Bf16, &z, 2, k, 0, 2).unwrap().dequant().iter().all(|v| *v == 0.0));
+        // a row shard is the rows of the whole
+        let whole = quantize_host(HeadQuant::Int8Row, DType::Bf16, &bytes, n, k, 0, n).unwrap();
+        let half = quantize_host(HeadQuant::Int8Row, DType::Bf16, &bytes, n, k, n / 2, n / 2).unwrap();
+        assert_eq!(half.parts[0].data[..], whole.parts[0].data[whole.parts[0].data.len() / 2..]);
+    }
+
+    #[test]
+    fn int8_clip_search_never_loses_to_the_amax_scale() {
+        let mut rng = crate::rng::SplitMix64::new(3);
+        // heavy-tailed row: a clip below amax wins
+        let x: Vec<f32> = (0..2048).map(|i| ((rng.next_u64() >> 40) as f32 / (1u64 << 24) as f32 - 0.5) * if i % 256 == 0 { 20.0 } else { 1.0 }).collect();
+        let amax = x.iter().fold(0f32, |m, v| m.max(v.abs()));
+        let c = int8_best_clip(&x, amax);
+        assert!(c < amax && int8_err(&x, c) < int8_err(&x, amax));
     }
 
     #[test]

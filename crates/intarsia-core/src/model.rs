@@ -1255,6 +1255,12 @@ impl Model {
                     let all = &src.bytes(&nm)?[..dims.vocab * dims.hidden * i.dtype.size_bytes()];
                     let q = crate::quant::head::load_rows(kind, b, i.dtype, all, dims.vocab, 0, dims.vocab, dims.hidden)?;
                     weights_bytes.set(weights_bytes.get() + q.weight_bytes() as u64);
+                    if kind.is_row_emulated() {
+                        eprintln!(
+                            "inkling2: unembed row-quant nominal bytes per token: {:.4} GB (8-bit weights + one f32 scale per row; held as dequantised f32 here)",
+                            (dims.vocab * dims.hidden + 4 * dims.vocab) as f64 / 1e9
+                        );
+                    }
                     let note = format!(
                         "lm_head quantised to {} ({} of {} unembed rows x {}, {:.2} GB; {} = {}, {:.1} s)",
                         kind.name(),
