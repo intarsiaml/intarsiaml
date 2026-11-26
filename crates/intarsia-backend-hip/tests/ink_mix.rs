@@ -89,10 +89,19 @@ impl Rig {
             intarsia_backend_hip::inkmix::set_mix_dec(0);
             let old_tail = self.run_once(kernel, op, inputs, outs, attrs);
             intarsia_backend_hip::inkmix::set_mix_dec(-1);
+            // the default forms with main's butterflies (INTARSIA_HIP_INK_DEC3 = 0: ds_bpermute), and the first forms with them
+            intarsia_backend_hip::set_dec3(0);
+            let no_dpp = self.run_once(kernel, op, inputs, outs, attrs);
+            intarsia_backend_hip::inkmix::set_mix_mode(0);
+            let first_no_dpp = self.run_once(kernel, op, inputs, outs, attrs);
+            intarsia_backend_hip::inkmix::set_mix_mode(3);
+            intarsia_backend_hip::set_dec3(-1);
             for (j, ((a, b), c)) in fast.iter().zip(&first).zip(&all).enumerate() {
                 assert_eq!(a.data, b.data, "{kernel}: output {j} of the default forms differs from the first forms");
                 assert_eq!(c.data, b.data, "{kernel}: output {j} of the fast forms (mask 15) differs from the first forms");
                 assert_eq!(old_tail[j].data, b.data, "{kernel}: output {j} with the first fused-norm tail differs from the first forms");
+                assert_eq!(no_dpp[j].data, b.data, "{kernel}: output {j} with INTARSIA_HIP_INK_DEC3=0 differs from the first forms");
+                assert_eq!(first_no_dpp[j].data, b.data, "{kernel}: output {j} of the first forms with INTARSIA_HIP_INK_DEC3=0 differs");
             }
         }
         fast
@@ -560,9 +569,20 @@ fn moe_route_fast_tail_bitwise() {
                     intarsia_backend_hip::inkroute::set_route_dec(1);
                     let new = rig.run("moe_route", Op::MoeRoute, &[lg.clone(), bias.clone()], &outs, &a);
                     intarsia_backend_hip::inkroute::set_route_dec(-1);
+                    // main's butterflies (INTARSIA_HIP_INK_DEC3 = 0) against the DPP ones (default), both tails
+                    intarsia_backend_hip::set_dec3(0);
+                    let no_dpp = rig.run("moe_route", Op::MoeRoute, &[lg.clone(), bias.clone()], &outs, &a);
+                    intarsia_backend_hip::inkroute::set_route_dec(0);
+                    let no_dpp_old = rig.run("moe_route", Op::MoeRoute, &[lg.clone(), bias.clone()], &outs, &a);
+                    intarsia_backend_hip::inkroute::set_route_dec(-1);
+                    intarsia_backend_hip::set_dec3(-1);
                     let what = format!("E={e} K={k} T={t} sf={sf} norm={norm} {tag}");
                     assert_eq!(old[0].data, new[0].data, "{what}: weights differ");
                     assert_eq!(old[1].data, new[1].data, "{what}: ids differ");
+                    assert_eq!(no_dpp[0].data, new[0].data, "{what}: weights differ with INTARSIA_HIP_INK_DEC3=0");
+                    assert_eq!(no_dpp[1].data, new[1].data, "{what}: ids differ with INTARSIA_HIP_INK_DEC3=0");
+                    assert_eq!(no_dpp_old[0].data, new[0].data, "{what}: weights differ (first tail, INTARSIA_HIP_INK_DEC3=0)");
+                    assert_eq!(no_dpp_old[1].data, new[1].data, "{what}: ids differ (first tail, INTARSIA_HIP_INK_DEC3=0)");
                     n += 1;
                 }
             }
@@ -619,4 +639,78 @@ fn ink_route_bitwise_pair() {
             }
         }
     }
+}
+
+/// argmax (lane ink-hip-dec3): every INTARSIA_HIP_INK_DEC3 mask (0 = main's form, 1 = DPP butterfly, 2 = 8 loads per thread up front,
+/// 3 = both) gives the same index, f32 and bf16, rows of V 1 .. 200064 (not multiples of the block or of 8 x the block), with ties
+/// (the lowest index wins), NaN (never wins), all -inf / all NaN rows (index 0), the maximum at the first and the last element.
+#[test]
+fn argmax_dec3_bitwise() {
+    let Some(rig) = Rig::new("argmax_dec3_bitwise") else { return };
+    let _g = MIX_MODE.lock().unwrap_or_else(|e| e.into_inner());
+    let mut rng = SplitMix64::new(0xa7);
+    let mut n = 0;
+    for &v in &[1usize, 7, 31, 32, 33, 1000, 1024, 1025, 8191, 8193, 50_000, 151_936, 200_064] {
+        let r = 3usize;
+        let base = rnd(&mut rng, DType::F32, &[r, v], 4.0).to_f32();
+        let ties: Vec<f32> = base.iter().map(|x| x.round()).collect();
+        let odd: Vec<f32> = base.iter().enumerate().map(|(j, x)| if j % 5 == 1 { f32::NAN } else { *x }).collect();
+        let mut edge = vec![f32::NEG_INFINITY; r * v];
+        edge[0] = 1.0; // row 0: the first element
+        edge[v + v - 1] = 1.0; // row 1: the last element; row 2 all -inf
+        let nan_row: Vec<f32> = (0..r * v).map(|j| if j / v == 2 { f32::NAN } else { base[j] }).collect();
+        for (tag, data) in [("random", base.clone()), ("ties", ties), ("nan", odd), ("edges / -inf row", edge), ("nan row", nan_row)] {
+            for kernel in ["argmax_f32", "argmax_bf16"] {
+                let x = HostTensor::from_f32_as(if kernel == "argmax_f32" { DType::F32 } else { DType::Bf16 }, &[r, v], &data);
+                let outs: Vec<Out> = vec![(DType::I32, vec![r], None)];
+                let mut got = vec![];
+                for m in [0, 1, 2, 3] {
+                    intarsia_backend_hip::set_dec3(m);
+                    got.push(rig.run_once(kernel, Op::Argmax, &[&x], &outs, &OpAttrs::default()));
+                }
+                intarsia_backend_hip::set_dec3(-1);
+                for m in 1..4 {
+                    assert_eq!(got[m][0].data, got[0][0].data, "{kernel} V={v} {tag}: mask {m} differs from mask 0");
+                }
+                n += 1;
+            }
+        }
+    }
+    eprintln!("argmax_dec3_bitwise: {n} cases bitwise");
+}
+
+/// The one-row GEMV in pieces (INTARSIA_HIP_INK_DEC3 bit 4, lane ink-hip-dec3): `logits_bf16_gemv` (f32 out, the lm_head) and
+/// `matmul_bf16_gemv` (bf16 out) at one row, with the split forced to many pieces (INTARSIA_HIP_SPLIT_US / _MIN_US = 1, so pieces
+/// of 32 rows up to every block boundary) and at Inkling-2's real unembed shape (200058 x 2304: 3 pieces at the default budget),
+/// against the single launch (bit 4 off): the same bits.
+#[test]
+fn gemv_split_bitwise() {
+    let Some(rig) = Rig::new("gemv_split_bitwise") else { return };
+    let _g = MIX_MODE.lock().unwrap_or_else(|e| e.into_inner());
+    let mut rng = SplitMix64::new(0x5b);
+    let mut n = 0;
+    for &(nr, k, forced) in &[(5000usize, 2304usize, true), (4099, 128, true), (33, 64, true), (200_058, 2304, false)] {
+        let x = rnd(&mut rng, DType::Bf16, &[1, k], 1.0);
+        let w = rnd(&mut rng, DType::Bf16, &[nr, k], 0.05);
+        for (kernel, op, dt) in [("logits_bf16_gemv", Op::Logits, DType::F32), ("matmul_bf16_gemv", Op::Matmul, DType::Bf16)] {
+            if !forced && kernel != "logits_bf16_gemv" {
+                continue;
+            }
+            let outs: Vec<Out> = vec![(dt, vec![1, nr], None)];
+            if forced {
+                std::env::set_var("INTARSIA_HIP_SPLIT_US", "1");
+                std::env::set_var("INTARSIA_HIP_SPLIT_MIN_US", "1");
+            }
+            intarsia_backend_hip::set_dec3(7);
+            let split = rig.run_once(kernel, op, &[&x, &w], &outs, &OpAttrs::default());
+            intarsia_backend_hip::set_dec3(3);
+            let one = rig.run_once(kernel, op, &[&x, &w], &outs, &OpAttrs::default());
+            intarsia_backend_hip::set_dec3(-1);
+            std::env::remove_var("INTARSIA_HIP_SPLIT_US");
+            std::env::remove_var("INTARSIA_HIP_SPLIT_MIN_US");
+            assert_eq!(split[0].data, one[0].data, "{kernel} N={nr} K={k} forced={forced}: the pieces differ from one launch");
+            n += 1;
+        }
+    }
+    eprintln!("gemv_split_bitwise: {n} cases bitwise");
 }

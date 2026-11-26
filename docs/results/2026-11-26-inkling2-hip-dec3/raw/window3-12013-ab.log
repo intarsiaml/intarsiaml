@@ -1,0 +1,56 @@
+fleetq: #12013 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=280 bash ~/intarsiaml-ink-hip-dec3/.scratch/window.sh ~/intarsiaml-ink-hip-dec3/.scratch/stage_ab.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-dec3/.scratch/stage_ab.sh; cap 280s; stopping radiance 2026-11-26 04:15:38
+[window] radiance stopped 2026-11-26 04:15:41 (inactive)
+[stage] ink_mix tests 2026-11-26 04:15:41
+test argmax_dec3_bitwise ... argmax_dec3_bitwise: 130 cases bitwise
+test gemv_split_bitwise ... gemv_split_bitwise: 7 cases bitwise
+test ink_attn_res_mix_and_blend_rows_exact ... ok
+test ink_conv_mix_rows_exact ... ok
+test ink_in_proj_rows_exact ... ok
+test ink_mix_ops_match_the_reference ... candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+test ink_route_bitwise_pair ... ok
+test moe_route_fast_tail_bitwise ... moe_route_fast_tail_bitwise: 256 cases bitwise
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 61.74s
+[stage] ink_attn rows_exact_real_shapes 2026-11-26 04:16:43
+test rows_exact_real_shapes ... 63 rows-exact cases bitwise
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 7.71s
+[stage] rows_exact: bf16 matmul / logits rows vs the one-row GEMV (now in pieces at the big heads), row-parallel ops (argmax) 2026-11-26 04:16:51
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... G-B bf16 logits_bf16_gemv_rows: M:cases/rows/bytes 1:26/26/1942832 2:26/52/3885664 3:26/78/5828496 4:26/104/7771328 5:26/130/9714160 6:26/156/11656992 7:26/182/13599824 8:26/208/15542656 9:26/234/17485488 10:26/260/19428320 11:26/286/21371152 12:26/312/23313984 13:26/338/25256816 14:26/364/27199648 15:26/390/29142480 16:26/416/31085312
+test row_parallel_ops_are_row_independent ... G-B row-parallel add_bf16: M:cases/rows/bytes 16:1/16/0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 15.92s
+[stage] rocprof short 2026-11-26 04:17:08
+finish=length prompt=31 (cached 0) completion=24 | prefill 101 ms (307.8 tok/s) | decode 323 ms (71.15 tok/s)
+steps=24 graph replays=23 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+steady decode: 8 steps, 538 dispatches / step, wall 13954 us / step (71.7 tok/s), kernel time 12268 us / step (88 %), gaps 1686 us
+kernel                                                                  n/step   us/step  us/call  %wall
+in_proj_gemv_kernel<1>                                                    48.0    3063.0     63.8   22.0
+ink_moe_gu_kernel<0, 2, 6, 4, true, 0>                                    44.0    2207.3     50.2   15.8
+gemv_kernel<1, 1, 8, float>                                               51.0    1568.6     30.8   11.2
+ink_moe_dn_kernel<0, 2, ik_bf16, 9, 4, true, 0>                           44.0    1314.0     29.9    9.4
+gemv_kernel<1, 1, 8, ik_bf16>                                             48.0    1139.6     23.7    8.2
+ink_row_kernel<3, true, true>                                            124.0     961.4      7.8    6.9
+ink_attn_dec_k<3>                                                         40.0     656.0     16.4    4.7
+ink_blend_gate_kernel<false, true>                                        48.0     351.9      7.3    2.5
+moe_route_kernel<true>                                                    48.0     339.2      7.1    2.4
+ink_moe_gu_kernel<1, 2, 1, 4, true, 0>                                     4.0     292.5     73.1    2.1
+ink_moe_dn_kernel<1, 2, ik_bf16, 9, 4, true, 0>                            4.0     180.8     45.2    1.3
+ink_attn_s1_k<3>                                                           8.0      97.9     12.2    0.7
+[stage] short main rep 1 2026-11-26 04:17:13 decode 1714 ms (74.09 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=0 rep 1 2026-11-26 04:17:19 decode 1722 ms (73.77 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=7 rep 1 2026-11-26 04:17:26 decode 1655 ms (76.76 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=3 rep 1 2026-11-26 04:17:33 decode 1686 ms (75.34 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k main rep 1 2026-11-26 04:17:39 decode 1778 ms (71.44 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k f=0 rep 1 2026-11-26 04:17:52 decode 1784 ms (71.18 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k f=7 rep 1 2026-11-26 04:18:06 decode 1722 ms (73.76 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short main rep 2 2026-11-26 04:18:19 decode 1713 ms (74.12 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=0 rep 2 2026-11-26 04:18:26 decode 1719 ms (73.87 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=7 rep 2 2026-11-26 04:18:32 decode 1656 ms (76.68 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=3 rep 2 2026-11-26 04:18:39 decode 1688 ms (75.25 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k main rep 2 2026-11-26 04:18:45 decode 1778 ms (71.41 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k f=0 rep 2 2026-11-26 04:18:59 decode 1785 ms (71.16 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k f=7 rep 2 2026-11-26 04:19:12 decode 1724 ms (73.66 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] done 2026-11-26 04:19:26
+[window] stage done 2026-11-26 04:19:27 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 04:19:27
+[window] radiance answers 2026-11-26 04:19:37 (after 15 s)
+fleetq: #12013 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

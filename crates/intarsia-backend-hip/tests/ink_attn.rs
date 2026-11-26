@@ -296,6 +296,11 @@ fn rows_exact_real_shapes() {
                         let f = run(be, l, &inp, t, pos0, rows, dev, true);
                         same(&multi, &f, &format!("{what} (InkAttnDecode, {rows}-row calls, device position {dev})"));
                     }
+                    // op 75 with main's butterflies (INTARSIA_HIP_INK_DEC3 = 0; the default takes DPP / permlanex16): the same bits
+                    intarsia_backend_hip::set_dec3(0);
+                    let f0 = run(be, l, &inp, t, pos0, 1, true, true);
+                    intarsia_backend_hip::set_dec3(-1);
+                    same(&multi, &f0, &format!("{what} (InkAttnDecode, 1-row calls, INTARSIA_HIP_INK_DEC3=0)"));
                 }
                 // the attention output is not trivially zero
                 assert!(multi.outs[4].iter().any(|&x| x & 0x7fff != 0), "{what}: zero output");

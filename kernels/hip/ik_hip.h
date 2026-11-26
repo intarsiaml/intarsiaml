@@ -92,6 +92,44 @@ IK_DEVI float ik_warp_max(float v) {
     return v;
 }
 
+/* The value of lane ^ O (O in 1, 2, 4, 8, 16) without the LDS crossbar: DPP row_xmask for O < 16 (within the 16-lane row),
+ * v_permlanex16 for O = 16 (the other row, same position). The same value __shfl_xor(v, O, 32) returns (gdn.hip's v2 helpers;
+ * lane ink-hip-dec3). A butterfly `v op= ik_xor<O>(v)` in ik_warp_sum's order then gives the same bits on every lane as the
+ * __shfl_xor form for any commutative op (+, fmaxf). */
+template <int O>
+IK_DEVI int ik_xor_i(int v) {
+    static_assert(O == 1 || O == 2 || O == 4 || O == 8 || O == 16, "lane xor of 1, 2, 4, 8 or 16");
+    if constexpr (O == 16)
+        return (int)__builtin_amdgcn_permlanex16((unsigned)v, (unsigned)v, 0x76543210u, 0xfedcba98u, false, false);
+    else
+        return __builtin_amdgcn_update_dpp(0, v, 0x160 + O, 0xf, 0xf, false);
+}
+template <int O>
+IK_DEVI float ik_xor_f(float v) { return __int_as_float(ik_xor_i<O>(__float_as_int(v))); }
+/* ik_warp_sum / ik_warp_max with the DPP partners: the same bits */
+IK_DEVI float ik_warp_sum_dpp(float v) {
+    v += ik_xor_f<16>(v);
+    v += ik_xor_f<8>(v);
+    v += ik_xor_f<4>(v);
+    v += ik_xor_f<2>(v);
+    v += ik_xor_f<1>(v);
+    return v;
+}
+IK_DEVI float ik_warp_max_dpp(float v) {
+    v = fmaxf(v, ik_xor_f<16>(v));
+    v = fmaxf(v, ik_xor_f<8>(v));
+    v = fmaxf(v, ik_xor_f<4>(v));
+    v = fmaxf(v, ik_xor_f<2>(v));
+    v = fmaxf(v, ik_xor_f<1>(v));
+    return v;
+}
+/* INTARSIA_HIP_INK_DEC3 (lane ink-hip-dec3): bit mask of decode latency forms, default 7 (all on), 0 = main's forms. Read once per
+ * process (host side); ik_hip_dec3_set(v >= 0) overrides it for tests, v < 0 goes back to the env / default. 1 = the DPP / permlanex16
+ * butterflies in the Inkling decode kernels (moe_route, the mix row / gate / controller kernels, the decode attention, argmax);
+ * 2 = argmax issues 8 loads per thread before their compares; 4 = a one-row GEMV over the dispatch stall line (the lm_head) runs
+ * in pieces of output rows (matmul.hip gemv_vec_split). Every mask gives the same bits. Defined in argmax.hip. */
+extern "C" int ik_hip_dec3_mask(void);
+
 /* Block-wide sum / max, result broadcast to every thread. `red` is a shared array of at least
  * blockDim.x / IK_WARP floats. Every thread must call it. */
 IK_DEVI float ik_block_sum(float v, float* red) {

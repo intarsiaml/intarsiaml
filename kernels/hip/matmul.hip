@@ -322,8 +322,28 @@ bool gemv_vec(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int64_t 
     return false;
 }
 
+// INTARSIA_HIP_INK_DEC3 bit 4 (lane ink-hip-dec3): a one-row GEMV estimated over the dispatch stall line (ik_split_pieces, ik_hip.h:
+// a launch of >= ~1 ms is followed by ~260 us in which the GPU starts nothing) runs as consecutive pieces of output rows. Inkling-2's
+// unembed (200058 x 2304 bf16, 0.92 GB, 1.44 ms) was one such launch per decode token. Each piece is the same kernel on rows [a, b)
+// (w + a K, out + a, N = b - a): a row's loads, fma chain and warp sum do not depend on N or on the block, so the same bits.
+// One row only (with M > 1 the kernel's output stride is N). Estimate: the weight bytes at 627 GB/s.
+template <typename OutT>
+bool gemv_vec_split(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int64_t K, hipStream_t s) {
+    const double est_us = (double)N * (double)K * 2.0 / 627000.0;
+    const int64_t unit = (int64_t)kGemvWarps * 4;  // whole blocks of every instantiated R
+    const int pieces = (ik_hip_dec3_mask() & 4) ? ik_split_pieces(est_us, N / unit) : 1;
+    if (pieces <= 1) return gemv_vec<1, OutT>(x, w, out, N, K, s);
+    const int64_t per = ((N + pieces - 1) / pieces + unit - 1) / unit * unit;
+    for (int64_t a = 0; a < N; a += per) {
+        const int64_t n = N - a < per ? N - a : per;
+        if (!gemv_vec<1, OutT>(x, w + a * K, out + a, n, K, s)) return false;
+    }
+    return true;
+}
+
 template <int M, typename OutT>
 bool gemv_dispatch(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int64_t K, bool vec, hipStream_t s) {
+    if (vec && M == 1) return gemv_vec_split<OutT>(x, w, out, N, K, s);
     if (vec) return gemv_vec<M, OutT>(x, w, out, N, K, s);
     const unsigned grid = (unsigned)((N + kGemvWarps - 1) / kGemvWarps);
     gemv_scalar_kernel<M, OutT><<<grid, kGemvWarps * IK_WARP, 0, s>>>(x, w, out, N, K);

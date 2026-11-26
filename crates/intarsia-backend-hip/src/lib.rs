@@ -77,6 +77,23 @@ pub fn prequant_hits() -> u64 {
     device::PQ_HITS.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+/// Tests: the `INTARSIA_HIP_INK_DEC3` decode forms (lane ink-hip-dec3; bit 1 the DPP / permlanex16 butterflies of the Inkling
+/// decode kernels and argmax, bit 2 argmax's 8 loads per thread up front, bit 4 the one-row GEMV in pieces under the dispatch stall
+/// line): `v >= 0` sets the mask for this process, `-1` goes back to the env / the default (7). Every mask gives the same bits
+/// (tests/ink_mix.rs `run_r`, `moe_route_fast_tail_bitwise`, `argmax_dec3_bitwise`, `gemv_split_bitwise`; tests/ink_attn.rs).
+pub fn set_dec3(v: i32) {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_hip_dec3_set(v: std::ffi::c_int);
+        }
+        // SAFETY: sets a plain int of the kernel library.
+        unsafe { ik_hip_dec3_set(v) }
+    }
+    #[cfg(not(ik_hip))]
+    let _ = v;
+}
+
 /// Open HIP device `ordinal`.
 #[cfg(ik_hip)]
 pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {

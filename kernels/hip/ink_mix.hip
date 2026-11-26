@@ -55,15 +55,20 @@ constexpr int kFuseD = 2304;                     // widest row of the fused blen
 // tickets of the gate kernel's fused norm: [stream][row group], zero between launches (the last block of a group resets its own)
 __device__ unsigned int g_gate_ctr[3 * 16];
 
+// DPP (INTARSIA_HIP_INK_DEC3 bit 1, lane ink-hip-dec3): the partners from DPP / v_permlanex16 instead of ds_bpermute; the same
+// partners in the same order (ik_warp_sum_dpp), so the same bits
+template <bool DPP>
 IK_DEVI float bsum(float v) {
+    if constexpr (DPP) return ik_warp_sum_dpp(v);
 #pragma unroll
     for (int o = 16; o > 0; o >>= 1) v += __shfl_xor(v, o, IK_WARP);
     return v;
 }
 
 // red: [32][kNvMax] warp partials; fin: [kNvMax]. Every thread must call with the same nv. Adds value i of the warp into slot i.
+template <bool DPP>
 IK_DEVI void warp_put(float* red, int i, float v) {
-    v = bsum(v);
+    v = bsum<DPP>(v);
     if ((threadIdx.x & 31) == 0) red[(threadIdx.x >> 5) * kNvMax + i] = v;
 }
 template <bool FAST>
@@ -132,7 +137,7 @@ struct RowArgs {
 // Blend with `a.fuse` (rows <= kFuseRowsMax, D <= kFuseD): np = S * G / 8 blocks per row; every block of a row computes the row
 // redundantly, the block (s, gq) forms the pair of stream s in shared memory and the controller rows g = 8 gq .. 8 gq + 7 of that
 // stream (one wave per g, the wave GEMV of ink_ctl_gemv_kernel, same lane order), block part 0 writes y / ring / sum.
-template <int NE, bool FAST>
+template <int NE, bool FAST, bool DPP>
 __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
     __shared__ float red[32 * kNvMax];
     __shared__ float fin[kNvMax];
@@ -326,7 +331,7 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
             float s = 0.f;
 #pragma unroll
             for (int j = 0; j < NE; ++j) s = fmaf(xs[n][j], xs[n][j], s);
-            warp_put(red, n, s);
+            warp_put<DPP>(red, n, s);
         }
         INK_MARK(9);
 #pragma unroll
@@ -344,7 +349,7 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
                 float s = 0.f;
 #pragma unroll
                 for (int j = 0; j < NE; ++j) s = fmaf(qq[j], xs[n][j], s);
-                warp_put(red, kNsMax + qi * kNsMax + n, s);
+                warp_put<DPP>(red, kNsMax + qi * kNsMax + n, s);
             }
         }
         INK_MARK(2);
@@ -388,7 +393,7 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
                 float s = 0.f;
 #pragma unroll
                 for (int j = 0; j < NE; ++j) s = fmaf(mix[qi][j], mix[qi][j], s);
-                warp_put(red, qi, s);
+                warp_put<DPP>(red, qi, s);
             }
             INK_MARK(5);
             block_fin<FAST>(red, fin, Q);
@@ -444,8 +449,8 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
             sd = fmaf(dvs[j], dvs[j], sd);
             sm = fmaf(mvs[j], mvs[j], sm);
         }
-        warp_put(red, 0, sd);
-        warp_put(red, 1, sm);
+        warp_put<DPP>(red, 0, sd);
+        warp_put<DPP>(red, 1, sm);
         block_fin<FAST>(red, fin, 2);
         const float wd = 1.f / sqrtf(fin[0] / (float)D + kSrcEps);
         const float wm = 1.f / sqrtf(fin[1] / (float)D + kSrcEps);
@@ -472,7 +477,7 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
 #pragma unroll
                 for (int e = 0; e < 8; ++e) acc = fmaf(wf[e], xf[e], acc);
             }
-            const float v = ik_warp_sum(acc);
+            const float v = DPP ? ik_warp_sum_dpp(acc) : ik_warp_sum(acc);
             if (lane == 0) a.hbuf[((int64_t)s * rows + tl) * a.G + g] = ik_f2b(v);
         }
         return;
@@ -497,8 +502,8 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
             sd = fmaf(dv[s][j], dv[s][j], sd);
             sm = fmaf(mv[s][j], mv[s][j], sm);
         }
-        warp_put(red, 2 * s, sd);
-        warp_put(red, 2 * s + 1, sm);
+        warp_put<DPP>(red, 2 * s, sd);
+        warp_put<DPP>(red, 2 * s + 1, sm);
     }
     block_fin<FAST>(red, fin, 2 * S);
 #pragma unroll
@@ -542,7 +547,7 @@ constexpr int kTailPs = 256;  // slice partials of a group the fast tail stages 
 
 // gate: y = (1 - tanh(fg)) d + tanh(gn) m for one stream, 128 channels x 16 rows of a chunk; writes y and the block's slice
 // partial of sum(y^2) per row. FAST unrolls the loads of the controller rows (the same fmaf chain per output).
-template <bool FAST>
+template <bool FAST, bool DPP>
 __global__ void __launch_bounds__(kGateCh) ink_blend_gate_kernel(const ik_bf16* __restrict__ h, const ik_bf16* __restrict__ gain,
                                                                  const ik_bf16* __restrict__ forget, const float* __restrict__ dbuf,
                                                                  const float* __restrict__ msg, float* __restrict__ ybuf,
@@ -611,7 +616,7 @@ __global__ void __launch_bounds__(kGateCh) ink_blend_gate_kernel(const ik_bf16* 
             yv = (1.f - tanhf(fg[r])) * d + tanhf(gn[r]) * m;
             ybuf[o] = yv;
         }
-        const float q = bsum(yv * yv);
+        const float q = bsum<DPP>(yv * yv);
         if (lane == 0) red[r][warp] = q;
     }
     __syncthreads();
@@ -810,10 +815,13 @@ int launch_rows(const RowArgs& a, int blocks, hipStream_t st) {
     const int th = row_threads(a.D, &ne);
     const int rows = a.fuse ? blocks / a.np : blocks;
     const bool fast = ((mix_mask() & 1) != 0 && rows <= kFastRowsMax) || (mix_mask() & 8) != 0;
-#define IK_ROW_CASE(N)                                                      \
-    case N:                                                                 \
-        if (fast) ink_row_kernel<N, true><<<blocks, th, 0, st>>>(a);        \
-        else ink_row_kernel<N, false><<<blocks, th, 0, st>>>(a);            \
+    const bool dpp = (ik_hip_dec3_mask() & 1) != 0;
+#define IK_ROW_CASE(N)                                                                \
+    case N:                                                                           \
+        if (fast && dpp) ink_row_kernel<N, true, true><<<blocks, th, 0, st>>>(a);     \
+        else if (fast) ink_row_kernel<N, true, false><<<blocks, th, 0, st>>>(a);      \
+        else if (dpp) ink_row_kernel<N, false, true><<<blocks, th, 0, st>>>(a);       \
+        else ink_row_kernel<N, false, false><<<blocks, th, 0, st>>>(a);               \
         break;
     switch (ne) {
         IK_ROW_CASE(1) IK_ROW_CASE(2) IK_ROW_CASE(3) IK_ROW_CASE(4) IK_ROW_CASE(5) IK_ROW_CASE(6)
@@ -866,12 +874,18 @@ int run_blend(RowArgs a, const ik_tensor* down, const ik_tensor* gain, const ik_
         const bool fnorm = (mix_mask() & 2) != 0 && rc <= kFuseRowsMax;
         const GateNorm gnorm{(const ik_bf16*)norm->data, (ik_bf16*)out->data, a.eps, fnorm ? 1 : 0, mix_dec_tail() ? 1 : 0};
         const dim3 gg((unsigned)nsl, (unsigned)S, (unsigned)((rc + kGateRows - 1) / kGateRows));
-        if (mix_mask() & 4)
-            ink_blend_gate_kernel<true><<<gg, kGateCh, 0, st>>>(b.h, (const ik_bf16*)gain->data, (const ik_bf16*)forget->data, b.dbuf, a.msg,
-                                                                b.ybuf, b.part, rc, T, t0, D, G, gnorm);
-        else
-            ink_blend_gate_kernel<false><<<gg, kGateCh, 0, st>>>(b.h, (const ik_bf16*)gain->data, (const ik_bf16*)forget->data, b.dbuf, a.msg,
-                                                                 b.ybuf, b.part, rc, T, t0, D, G, gnorm);
+        const bool gdpp = (ik_hip_dec3_mask() & 1) != 0;
+#define IK_GATE(F, P)                                                                                                                   \
+    ink_blend_gate_kernel<F, P><<<gg, kGateCh, 0, st>>>(b.h, (const ik_bf16*)gain->data, (const ik_bf16*)forget->data, b.dbuf, a.msg, \
+                                                        b.ybuf, b.part, rc, T, t0, D, G, gnorm)
+        if (mix_mask() & 4) {
+            if (gdpp) IK_GATE(true, true);
+            else IK_GATE(true, false);
+        } else {
+            if (gdpp) IK_GATE(false, true);
+            else IK_GATE(false, false);
+        }
+#undef IK_GATE
         IK_TRY(ik_launch_status());
         if (!fnorm) {
             ink_blend_norm_kernel<<<dim3((unsigned)rc, (unsigned)S), 256, 0, st>>>(b.ybuf, b.part, (const ik_bf16*)norm->data,
