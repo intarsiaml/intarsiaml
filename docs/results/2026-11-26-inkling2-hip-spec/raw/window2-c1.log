@@ -1,0 +1,25 @@
+IDS base greedy.json rc 0 md5 24b7ad602ac6 | decode overall: 1505 tokens after the first, 19426 ms (77.47 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) [12:14:03]
+IDS off greedy.json rc 0 md5 24b7ad602ac6 | decode overall: 1505 tokens after the first, 19408 ms (77.54 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) [12:14:29]
+IDS gate greedy.json rc 0 md5 24b7ad602ac6 | decode overall: 1505 tokens after the first, 14948 ms (100.68 tok/s) | spec: verify passes=468 proposed=1020 accepted=723 (acceptance 70.9%, 2.54 tokens per pass) [12:14:52]
+IDS cut greedy.json rc 0 md5 24b7ad602ac6 | decode overall: 1505 tokens after the first, 14747 ms (102.06 tok/s) | spec: verify passes=584 proposed=1381 accepted=794 (acceptance 57.5%, 2.36 tokens per pass) [12:15:15]
+IDS base prose.json rc 0 md5 c849c8651696 | decode overall: 254 tokens after the first, 3338 ms (76.09 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) [12:15:24]
+IDS off prose.json rc 0 md5 c849c8651696 | decode overall: 254 tokens after the first, 3337 ms (76.13 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) [12:15:33]
+IDS gate prose.json rc 0 md5 c849c8651696 | decode overall: 254 tokens after the first, 2889 ms (87.93 tok/s) | spec: verify passes=58 proposed=127 accepted=96 (acceptance 75.6%, 2.66 tokens per pass) [12:15:43]
+IDS cut prose.json rc 0 md5 c849c8651696 | decode overall: 254 tokens after the first, 2745 ms (92.52 tok/s) | spec: verify passes=91 proposed=195 accepted=116 (acceptance 59.5%, 2.27 tokens per pass) [12:15:54]
+MD5 base short-0 rc 0 n 256 ids64 c5c42d88a312 ids256 5f925d5600dd
+
+MD5 off short-0 rc 0 n 256 ids64 c5c42d88a312 ids256 5f925d5600dd
+
+MD5 gate short-0 rc 0 n 256 ids64 c5c42d88a312 ids256 5f925d5600dd
+spec: verify passes=69 proposed=145 accepted=99 (acceptance 68.3%, 2.43 tokens per pass) 
+MD5 cut short-0 rc 0 n 256 ids64 c5c42d88a312 ids256 5f925d5600dd
+spec: verify passes=106 proposed=232 accepted=119 (acceptance 51.3%, 2.12 tokens per pass) 
+MD5 base 4k-0 rc 0 n 256 ids64 d1fc97618ce8 ids256 36298f752c7a
+
+MD5 off 4k-0 rc 0 n 256 ids64 d1fc97618ce8 ids256 36298f752c7a
+
+MD5 gate 4k-0 rc 0 n 256 ids64 d1fc97618ce8 ids256 36298f752c7a
+spec: verify passes=79 proposed=177 accepted=131 (acceptance 74.0%, 2.66 tokens per pass) 
+MD5 cut 4k-0 rc 0 n 256 ids64 d1fc97618ce8 ids256 36298f752c7a
+spec: verify passes=92 proposed=216 accepted=143 (acceptance 66.2%, 2.55 tokens per pass) 
+[c1] done 12:17:13

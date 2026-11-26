@@ -1,0 +1,44 @@
+fleetq: #12040 running on endor: bash .scratch/hostcheck.sh
+[host] hip type-check (cfg ik_hip, tests) 11:51:21
+exit 0
+warning: unused import: `Backend`
+  --> crates/intarsia-backend-hip/tests/gdn_verify_snap.rs:11:30
+   |
+11 | use intarsia_core::backend::{Backend, MemKind};
+   |                              ^^^^^^^
+   |
+--
+warning: unused import: `Backend`
+   --> crates/intarsia-backend-hip/tests/admission.rs:143:25
+    |
+143 |     use intarsia_core::{Backend as _, DType, HostTensor, Op, OpAttrs};
+    |                         ^^^^^^^
+    |
+[host] hip lib tests (stub) 11:51:30
+exit 0
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+[host] core lib tests (dspark rule, spec_graph, inkling2) 11:51:45
+exit 0
+test result: ok. 266 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 19.81s
+[host] models lib tests (load: dspark_default) 11:52:13
+exit 0
+dsv41: the tensor-parallel group failed (backend error: dsv41 engine worker panicked: scripted panic); aborting the communicator and marking the engine failed
+dsv41: the tensor-parallel group failed (backend error: dsv41 engine worker panicked: scripted panic); aborting the communicator and marking the engine failed
+test result: ok. 80 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.49s
+[host] cpu test inkling2 11:52:42
+exit 0
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.35s
+[host] cpu test inkling2_dspark 11:52:46
+exit 0
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 78.16s
+[host] cpu test inkling2_dspark_cut 11:54:05
+exit 0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.92s
+[host] cpu test inkling2_verify_softcap 11:54:17
+exit 0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+[host] docs_env_vars 11:54:18
+exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+[host] done 11:54:46
+fleetq: #12040 done (exit 0)

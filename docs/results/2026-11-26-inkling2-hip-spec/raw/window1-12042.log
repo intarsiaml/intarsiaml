@@ -1,0 +1,90 @@
+fleetq: #12042 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=290 bash ~/intarsiaml-ink-hip-spec/.scratch/window.sh ~/intarsiaml-ink-hip-spec/.scratch/stage_w1.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-spec/.scratch/stage_w1.sh; cap 290s; stopping radiance 2026-11-26 11:57:10
+[window] radiance stopped 2026-11-26 11:57:13 (inactive)
+[stage] tiny inkling2 tests on hip 2026-11-26 11:57:13
+test inkling2_tiny_chunk_scan ... ok
+test inkling2_tiny_chunked_and_decode_match_prefill_bitwise ... ok
+test inkling2_tiny_failed_pass_resets_the_sequence ... ok
+test inkling2_tiny_g1a_f32_vs_f64 ... ok
+test inkling2_tiny_g1b_teacher_forced_bf16 ... ok
+test inkling2_tiny_graph_decode_is_bitwise_the_eager_decode ... ok
+test inkling2_tiny_interleaved_sequences_equal_solo ... ok
+test inkling2_tiny_launch_diff ... ok
+test inkling2_tiny_loads ... ok
+test inkling2_tiny_logits_dump ... ok
+test inkling2_tiny_no_kernel_refusal_names_the_op ... ok
+test inkling2_tiny_p12_forced_on ... ok
+test inkling2_tiny_rollback_by_length ... ok
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+test inkling2_tiny_verify_graph_replays_equal_decode_bitwise ... ok
+test inkling2_tiny_verify_rows_equal_decode_bitwise ... ok
+thread 'inkling2_tiny_screen_keeps_batching' panicked at crates/intarsia-models/tests/inkling2.rs:91:38:
+thread 'inkling2_tiny_screened_head_one_row_only' panicked at crates/intarsia-models/tests/inkling2.rs:91:38:
+test result: FAILED. 15 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+[stage] tiny dspark tests on hip 2026-11-26 11:57:16
+test dspark_greedy_ids_equal_spec_off ... ok
+test dspark_partial_acceptance_keeps_ids_identical ... ok
+test dspark_runs_with_admitted_kernels_only ... ok
+test dspark_unsynced_draft_keeps_the_prefix_and_skips_drafting ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.13s
+test dspark_cumulative_cut_keeps_ids_and_shortens_drafts ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.03s
+[stage] hip topk 2026-11-26 11:58:25
+test device_topk_bf16_rows_are_the_host_order ... G-B topk bf16 rows (hip): 1105 (id, value) pairs equal to the host order (V 200058 / 201024 / 1000 / 70 / 300), NaN row flagged
+test device_topk_edge_k_and_special_values ... G-B topk_f32 (hip) edges: 2764 pairs equal to the host order (k = 1 / 64 / V, ties, +-0, +-inf, subnormals, extremes)
+test device_topk_finds_planted_values_on_every_slice_edge ... G-B topk_f32 (hip) planted: 1032 pairs equal to the host order (maxima on every slice edge, last slice, last element)
+test device_topk_flags_nan_rows_and_only_those ... G-B topk_f32 (hip) NaN: rows flagged at every slice edge and the last element, neighbours exact, all-NaN row flagged
+test device_topk_is_the_host_candidate_order ... G-B topk_f32 (hip): 16392 (id, value) pairs equal to the host order (V 248320 / 151936 / 1000 / 70, R <= 16, k <= 64), sampler draws equal
+test device_topk_rejects_bad_arguments ... G-B topk_f32 (hip) rejections: k 0 / 65 / > V, wrong output shape, short scratch
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s
+[stage] kernels test hc_pre 2026-11-26 11:58:27
+hc_pre         hc_pre_bf16                     6      0    8.879e-8    5.433e-8  ADMITTED
+[stage] verify probe rows 4 2026-11-26 11:58:28
+PROBE_CONFIG dir=/models/Inkling-2-Mini rows=4 lens=17,1024,4000 backend=hip INTARSIA_VERIFY_GRAPH=unset profile_every=0
+plan notes: []
+DIFF len=17 q=2: max|dlogit|=1.4937353e1 argmax mismatches=0
+DIFF len=17 q=3: max|dlogit|=1.2082914e1 argmax mismatches=0
+DIFF len=17 q=4: max|dlogit|=1.2456627e1 argmax mismatches=0
+len=17: q=2..=4 checked
+DIFF len=1024 q=2: max|dlogit|=7.3987713e0 argmax mismatches=0
+DIFF len=1024 q=3: max|dlogit|=7.909811e0 argmax mismatches=0
+DIFF len=1024 q=4: max|dlogit|=8.18475e0 argmax mismatches=0
+len=1024: q=2..=4 checked
+DIFF len=4000 q=2: max|dlogit|=8.561514e0 argmax mismatches=0
+DIFF len=4000 q=3: max|dlogit|=7.3675423e0 argmax mismatches=0
+DIFF len=4000 q=4: max|dlogit|=9.489445e0 argmax mismatches=0
+len=4000: q=2..=4 checked
+DIFF greedy window 0 at 37 q=4: max|dlogit|=2.1049654e1 argmax mismatches=0
+DIFF greedy window 1 at 41 q=4: max|dlogit|=2.2151514e1 argmax mismatches=0
+DIFF greedy window 2 at 45 q=4: max|dlogit|=2.560731e1 argmax mismatches=0
+DIFF greedy window 3 at 49 q=4: max|dlogit|=3.027721e1 argmax mismatches=0
+DIFF greedy window 4 at 53 q=4: max|dlogit|=3.7516727e1 argmax mismatches=0
+DIFF greedy window 5 at 57 q=4: max|dlogit|=3.3707996e1 argmax mismatches=0
+DIFF greedy window 6 at 61 q=4: max|dlogit|=2.9663511e1 argmax mismatches=0
+DIFF greedy window 7 at 65 q=4: max|dlogit|=2.4636e1 argmax mismatches=0
+DIFF greedy window 8 at 69 q=4: max|dlogit|=2.1174227e1 argmax mismatches=0
+DIFF greedy window 9 at 73 q=4: max|dlogit|=2.3230858e1 argmax mismatches=0
+DIFF greedy window 10 at 77 q=4: max|dlogit|=2.1213585e1 argmax mismatches=0
+DIFF greedy window 11 at 81 q=4: max|dlogit|=2.2083633e1 argmax mismatches=0
+DIFF greedy window 12 at 85 q=4: max|dlogit|=2.4992174e1 argmax mismatches=0
+DIFF greedy window 13 at 89 q=4: max|dlogit|=2.1567558e1 argmax mismatches=0
+DIFF greedy window 14 at 93 q=4: max|dlogit|=2.2340328e1 argmax mismatches=0
+DIFF greedy window 15 at 97 q=4: max|dlogit|=1.8978933e1 argmax mismatches=0
+[stage] 1k spec off vs dspark k3 2026-11-26 11:58:45
+off rc 0
+on rc 0
+decode[0]: 128 tokens, 1699 ms (74.75 tok/s)
+prefill overall: 1021 tokens, 1540 ms (662.8 tok/s)
+spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+dspark: Markov fold [200058 x 256] in 2.1 s
+dspark: draft head mxfp4 [200058 x 2304] in 0.2 s
+decode[0]: 128 tokens, 1598 ms (79.46 tok/s)
+prefill overall: 1021 tokens, 1546 ms (660.5 tok/s)
+spec: verify passes=31 proposed=62 accepted=44 (acceptance 71.0%, 2.42 tokens per pass)
+IDS 1k: identical
+[stage] done 2026-11-26 11:59:04
+[window] stage done 2026-11-26 11:59:05 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 11:59:05
+[window] radiance answers 2026-11-26 11:59:15 (after 15 s)
+fleetq: #12042 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

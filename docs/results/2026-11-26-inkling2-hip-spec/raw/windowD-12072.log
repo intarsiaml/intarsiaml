@@ -1,0 +1,51 @@
+fleetq: #12072 waiting (#2 in line): in line behind #12071 "ink-hip-pf2: window 4 prefill A/B main2 vs pf2d (bits, zp)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12071 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12071 set, or it will wait for #12071 to be released.
+fleetq: #12072 waiting (#1 in line): radiance-rank0 is also taken down by #12071 "ink-hip-pf2: window 4 prefill A/B main2 vs pf2d (bits, zp)" (claude-04c0e1cd)
+fleetq:   #12071 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12071 set, or it will wait for #12071 to be released.
+fleetq: #12072 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 57% busy with work fleetq does not track
+fleetq: #12072 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12072 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=170 bash ~/intarsiaml-ink-hip-spec/.scratch/window.sh ~/intarsiaml-ink-hip-spec/.scratch/stage_w4.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-spec/.scratch/stage_w4.sh; cap 170s; stopping radiance 2026-11-26 12:56:34
+[window] radiance stopped 2026-11-26 12:56:38 (inactive)
+[stage] tiny inkling2 + verify_softcap on hip 2026-11-26 12:56:38
+test inkling2_tiny_chunk_scan ... ok
+test inkling2_tiny_chunked_and_decode_match_prefill_bitwise ... ok
+test inkling2_tiny_failed_pass_resets_the_sequence ... ok
+test inkling2_tiny_g1a_f32_vs_f64 ... ok
+test inkling2_tiny_g1b_teacher_forced_bf16 ... ok
+test inkling2_tiny_graph_decode_is_bitwise_the_eager_decode ... ok
+test inkling2_tiny_interleaved_sequences_equal_solo ... ok
+test inkling2_tiny_launch_diff ... ok
+test inkling2_tiny_loads ... ok
+test inkling2_tiny_logits_dump ... ok
+test inkling2_tiny_no_kernel_refusal_names_the_op ... ok
+test inkling2_tiny_p12_forced_on ... ok
+test inkling2_tiny_rollback_by_length ... ok
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+test inkling2_tiny_verify_graph_replays_equal_decode_bitwise ... ok
+test inkling2_tiny_verify_rows_equal_decode_bitwise ... ok
+thread 'inkling2_tiny_screen_keeps_batching' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+thread 'inkling2_tiny_screened_head_one_row_only' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+test result: FAILED. 15 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.77s
+[stage] tiny dspark on hip 2026-11-26 12:56:40
+test dspark_greedy_ids_equal_spec_off ... ok
+test dspark_partial_acceptance_keeps_ids_identical ... ok
+test dspark_runs_with_admitted_kernels_only ... ok
+test dspark_unsynced_draft_keeps_the_prefix_and_skips_drafting ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.02s
+test dspark_cumulative_cut_keeps_ids_and_shortens_drafts ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.02s
+[stage] hip topk 2026-11-26 12:57:49
+test device_topk_bf16_rows_are_the_host_order ... ok
+test device_topk_edge_k_and_special_values ... ok
+test device_topk_finds_planted_values_on_every_slice_edge ... ok
+test device_topk_flags_nan_rows_and_only_those ... ok
+test device_topk_is_the_host_candidate_order ... ok
+test device_topk_rejects_bad_arguments ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.51s
+[stage] done 2026-11-26 12:57:51
+[window] stage done 2026-11-26 12:57:52 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 12:57:52
+[window] radiance answers 2026-11-26 12:58:02 (after 15 s)
+fleetq: #12072 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
