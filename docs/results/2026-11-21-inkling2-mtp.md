@@ -181,6 +181,211 @@ main, in a new worktree `.worktrees/ink-spec-flip`, removed after merge.
 - Bar: decode gain kept at every length; serve TTFT and prefill within 2% at every length. Otherwise stop and report.
 - Endor rules unchanged: cargo and git push only inside `--load cpu` slots.
 
+## Brief L2a (coordinator, 2026-11-22 ~15:20), lane ink-spec-land
+
+The flip plan is approved as written, prefix-store skip included (consistent with the MTP default). One change: the re-prefill
+cost is not acceptable as a known cost. A greedy turn after a sampled turn would re-prefill the whole context: at 4k a re-prefill
+costs ~2.1 s while spec saves ~0.85 s over a 256-token reply (65 -> 83 tok/s); at 1k 0.68 s lost against 0.42 s saved, so prefix
+reuse wins at every length.
+- Rule: when the draft is unsynced and a reusable KV prefix exists, run that request without drafting and keep the prefix. Draft
+  again once a request starts with the draft synced, e.g. a fresh conversation.
+- Output is identical either way (spec on == off): this only changes the schedule. Gate: a multi-turn serve test with a sampled
+  turn, then a greedy turn, at ~4k; the greedy turn's TTFT stays at prefix-reuse level and its ids equal `--spec off`.
+- If the rule takes more than half a day in engine.rs, stop and report instead of shipping the cliff.
+- Then run the gate job, and queue the night job at 05:45 as planned.
+
+## Brief L2c (coordinator, 2026-11-22 ~16:00), lane ink-spec-land
+
+- Rerun approved with both fixes, as written; get the slot so it ends well before #11621 at 05:45. F4: kernels checked, total
+  cases and the full greedy reply (reasoning_content + content); the run / cached split depends on run order and was never a fair
+  bar. F8 v2: bars as proposed; keep the void rule (`--spec off` reusing fewer than 4000 rows fails, never passes). F6: the 2%
+  sampled gap counts only if the A B B A night run shows it; report it either way.
+- Merge freeze: merge nothing to main until the coordinator says PR #491 (CUDA mixmoe) has landed. Draft #496 may stay open with
+  CI running. After #491 lands: merge main into the branch, rerun F1, F7 and the md5 checks before landing.
+- Write the chat-reuse finding (Inkling-2 serve re-prefills every normal chat turn: 16-row ring margin + template re-render) as
+  its own section with numbers (prompt rows, re-prefill time, TTFT at turn 2). A TTFT lever, separate from the flip; build
+  nothing for it.
+
+## Brief L3 (coordinator, 2026-11-22 ~16:00), lane ink-spec-land; queued after the F4/F8 rerun and #11621
+
+Measurement only, no default change. Work folder `.worktrees/ink-spec-k/`, new branch; no merge to main while the #491 freeze is on.
+Report before building any default.
+
+- Reference: mlx-serve v26.11.4 runs the same DSpark head (mtp.safetensors, block 8) with another verify rule. Source to read (not
+  copy): `.worktrees/mlx-serve-src/src/plugins/inkling2/plugin.zig:290-435`. They draft 7 per round; verify a variable-length
+  prefix: draft while the running product of drafter confidences >= `cut`, never past a stop id; `cut = clamp(1.34*sqrt(r), 0.3,
+  0.8)`, r = marginal cost of one more verified row over a plain step (running linear fit of verify ms vs rows), cut 0.5 until
+  measured; verify appends nothing, then commits accepted rows (no rollback). Headline 116 tok/s single stream, M4 Max, greedy,
+  best scenario. Ours on endor (M5 Max): 1.12-1.28x over spec off at k3, gate 0.8.
+1. If k or the gate were swept before, show those numbers first.
+2. Metal, greedy, quiet slot, A B B A: k 3 / 5 / 7 x three rules: today's gate 0.8; cumulative-product cut fixed 0.5; cumulative
+   with cut from our measured r.
+3. Contexts short, 1k, 4k, 16k. Prompts: the usual set plus one (predictable) code prompt.
+4. Measure verify ms for 1..7 rows (gives r), acceptance, tokens per round, decode tok/s, output identical to `--spec off`.
+- A rule that needs a code change goes behind a measurement-only env on the new branch.
+
+## Coordinator ruling (2026-11-22 ~17:15), lane ink-spec-land: merge order after the #491 freeze
+
+#491 merged as main 8c7bb7cb1. Merge order on main:
+1. #497
+2. the CUDA flips PR
+3. #496, after the 05:45 night speed run (#11621) passes
+4. chat-reuse, after all its gates pass
+
+Before merging: merge main in, rerun md5 and the affected tests, and ask the coordinator for the go.
+
+## #496 on a batching server (coordinator, 2026-11-22 ~19:05), lane ink-spec-land
+
+Question: what does `serve --max-batch 16` do with #496 applied? (a) refuse to start, (b) fall back to one sequence, or (c) leave
+spec off and batch.
+
+**Code path, 34525d854: (c).**
+- `load_engine_group` (`crates/intarsia-models/src/load.rs`) first resolves `max_batch` (16 with `--max-batch 16`; 1 without the
+  flag). `dspark_default` then returns `Off` when `opts.max_batch > 1`, so no draft is opened and no line is printed.
+- The batching engine starts as on main.
+- An explicit `--spec dflash` with `--max-batch > 1` still fails before any weights load: "--spec dflash with the batching engine
+  (use --max-batch 1)".
+- `serve.rs` `refuse_spec_with_store` only acts on an explicit `--spec` with a prefix store.
+- Unit test `dspark_default_only_where_measured` covers `max_batch: Some(4)` -> `Off` (and `Some(1)` -> `On(3)`).
+- The real-model gate F4 (#11634) ran `--max-batch 4`: no draft, the same kernels and cases as main, and the same greedy reply.
+- No guard needed. Added for the record: a `Some(16)` case in that test, committed with the post-night merge of main so that the
+  night job's code hash (34525d854) stays put.
+
+**Conc check rules (written before the run; `.scratch/flip_conc.sh`, endor `--quiet gpu,cpu`).** Flip binary 34525d854 vs main
+22303d704, `serve --max-batch 16`, A B B A (main, flip, flip, main). PASS when all of these hold:
+1. Every server starts and prints `continuous batching: up to 16`, and no server prints the DSpark default line.
+2. The spec steps counter is 0 after every arm.
+3. 4 concurrent greedy completions (1021 / 1021 / 1021 / 1500 prompt tokens, 64 out) give main's texts.
+4. localeval `suite --cells conc-plain-1k --max-num-seqs 4` (4 closed-loop streams): the flip's aggregate tok/s is within noise of
+   main's (`localeval compare`: under 10%, both reps of each arm shown).
+
+**Conc check result: PASS (#11695, endor quiet, 19:15-20:34, A B B A).**
+1. All four servers printed `continuous batching: up to 16`, and none printed the DSpark default line.
+2. The spec steps counter was 0 after every arm.
+3. The 4 concurrent greedy completions on the flip equal main's: [True, True, True, True].
+4. localeval `conc-plain-1k`, aggregate tok/s, median per run, arms in run order (main, flip, flip, main):
+
+| streams | main (A1, A2) | flip (B1, B2) | flip vs main (medians of both reps) |
+|---:|---|---|---:|
+| 1 | 55.0, 50.8 | 55.0, 55.0 | +4% (one 50.8 rep on main; ITL steps, noise) |
+| 4 | 84.6, 84.6 | 84.6, 84.6 | 0% |
+| 16 | 121.5, 118.4 | 121.9, 122.7 | +2% |
+
+TTFT p99 at 16 streams: main 11.12 / 11.54 s, flip 11.11 / 11.35 s. Runs: `20261122-191557-…-conc4-main`, `20261122-193455-…-conc4-flip`,
+`20261122-195626-…-conc4-flip`, `20261122-201518-…-conc4-main` (localeval results dir). Under `--max-batch 16` the flip
+behaves as main: spec off, the batching engine unchanged.
+
+## #496 merge of main 08ae803e0 (coordinator brief, 2026-11-22 ~21:15), lane ink-spec-land
+
+Brief (condensed): prepare #496's merge without touching `ink/spec-flip`, so #11621's code-hash marker stays valid. (1) New
+worktree `.worktrees/ink-spec-flip-merge`, branch `ink/spec-flip-merge` from `ink/spec-flip` 9c78ba5e0, merge main 08ae803e0.
+(2) Resolve `tests/mtp.rs`; check `load.rs`, `recipe.rs` and `recipes/inkling2.toml` against #498's CUDA DSpark default: Metal's
+default k=3 and CUDA's must both survive, and `--max-batch` > 1 must still turn the Metal default off. (3) Non-timing gates on endor
+via fleetq: md5 64 / 256 spec default == `--spec off`, the Metal spec / mtp tests, the unit test with the `Some(16)` case, the conc
+behaviour check (4 concurrent greedy identical, no DSpark line at `--max-batch 16`); skip timing. (4) After #11621 passes (Mon 05:45):
+fast-forward `ink/spec-flip` to the prepared merge, push, wait for green CI, report. Merging #496 still needs the user's go (the
+coordinator asks in the morning). If #11621 fails the bar: stop and report.
+
+**Resolution.** #498 brought a second implementation of the same default for CUDA: `[tuning.cuda] mtp_default_k = 3`, which on a
+recipe without `[mtp]` is the DSpark draft's default (`Recipe::resolve_draft_default`, `load.rs` `dspark_default` /
+`dspark_draft_present`). This branch had its own key, `[tuning.metal] dspark_default_k = 3` (`resolve_dspark_default_k`, a
+`DsparkDefault` enum). One key for one behaviour: the merge keeps main's code (`recipe.rs`, `load.rs`, `tests/mtp.rs` as on main)
+and moves Metal onto it, `[tuning.metal] mtp_default_k = 3`; the branch's `dspark_default_k` field and function are gone.
+- Same as before on Metal: no `--spec`, one rank in process, `--max-batch` unset or 1, no `--spec-draft` / `--dcoco`, `--spec-k 0`
+  off, a lone `--spec-k N` sets k, `INTARSIA_SPEC_DEFAULT=0` / `--spec off` opt out, greedy requests draft and sampled ones take plain
+  steps (engine unchanged), the startup line ("the DSpark default of recipe inkling2 on metal ([tuning.metal] mtp_default_k ...").
+- Changed on Metal, from main's code: a configured prefix store turns the default off silently (the branch printed one "not applied"
+  line); a checkpoint without the draft prints main's line ("not applied: no DSpark draft in this checkpoint").
+- The branch's other code is unchanged by the merge: `engine.rs` (an out-of-sync draft keeps the KV prefix, Brief L2a) and its test
+  in `inkling2_dspark.rs`.
+- The unit test is main's `dspark_default_only_where_the_recipe_sets_it`, extended: Metal `Some(3)`; CUDA and Metal off at tp 2, on
+  a remote rank, at `--max-batch` 2 / 4 / 16 and with a prefix store; on at `--max-batch 1`; an explicit `--spec`, `--spec-k 2 / 0`
+  and `--spec-draft` on both; no other recipe has a draft default on any backend.
+- Docs: `docs/recipes.md` and `docs/tuning.md` take main's rows plus "and Metal"; the decision-log rows name the new key.
+- Interaction with #499 (ring snapshot, now on main): a chat's turn 2 resumes at turn 1's prompt end. The DSpark draft's cache is a
+  plain attention cache (no ring) and `DflashState::cut` truncates it to the resume point, so the draft stays in sync; the `f_rnn`
+  ring row a draft reads is the last committed position's, which the remainder prefill writes. Greedy ids cannot change either way
+  (verify is row-exact). Gate MG4 checks it.
+
+**Gate rules (written before the run; `.scratch/flipm_gate.sh` in this worktree, endor, default load, not timing).** Merged tip vs
+main 08ae803e0 (both built fresh: own target dirs, main from `git archive` with touched files; the merged binary must carry the new
+recipe text and main's must not). PASS when all hold:
+- MG1: Inkling greedy md5 at 64 / 256 (the A1 prompt): default (no `--spec`) == `--spec off` == main; the default run prints the
+  DSpark default line naming `mtp_default_k` and has verify passes > 0; `--spec off` prints no default line.
+- MG2: `serve --max-batch 16`, main then merged: each prints `continuous batching: up to 16` and no DSpark default line, the spec
+  steps counter is 0 after the arm, and the 4 concurrent greedy completions (1021 / 1021 / 1021 / 1500 prompt tokens, 64 out) on the
+  merged server equal main's.
+- MG3: default server (no `--spec`, no `--max-batch`): the ~1.4k greedy chat request HTTP 200 with verify passes rising; a t1.0
+  request HTTP 200 with the steps counter unchanged.
+- MG4: two-turn chat at ~4.6k (`chat_gate.py flow 130`, greedy), default server vs `--spec off` server: turn 1 and turn 2 replies
+  equal, turn 2's cached tokens equal on both and > 0. Info: the default server's spec steps over the flow.
+- MG5: a model dir without `mtp.safetensors`: rc 0, exactly one "not applied: no DSpark draft" line, no speculation, md5 = main's.
+- MG6 tests pass (none skipped where the fixture is present): `intarsia-models --lib dspark_default` (the extended unit test),
+  `--lib recipe`, `--test recipes_doc`, `--test recipe_gumbel`, `--test mtp`, `intarsia-cli --test docs_env_vars`; on Metal
+  (`INTARSIA_INKLING2_BACKEND=metal`) `inkling2_dspark`, `inkling2_dspark_cut`, `inkling2_verify_softcap`, `inkling2_chat_reuse`,
+  `inkling2`, `inkling2_batch`.
+
+**Gate results, #11738 (endor, default load, 21:22-21:41; code a6e3cc43a vs main 08ae803e0, both built fresh; binaries differ:
+merged 26d1ad1a…, main 2324bd77…): all pass; MG4 after a script fix, evaluated on the job's saved replies.**
+- MG1 PASS: md5 default == `--spec off` == main at 64 (65cde8f3…) and 256 (61fd59fe…); the default run printed the line naming
+  `[tuning.metal] mtp_default_k` and speculated (57 verify passes, acceptance 80.7 %, 2.61 tokens per pass); `--spec off` and main
+  printed no default line.
+- MG2 PASS: `--max-batch 16`, main and merged: no default line, batching up to 16, spec steps 0; the 4 concurrent greedy
+  completions equal main's [True, True, True, True].
+- MG3 PASS: default server, ~1.4k greedy HTTP 200 with verify passes 0 -> 13; t1.0 HTTP 200, steps unchanged (13).
+- MG4 PASS (re-evaluated): the job printed "FAIL ... t2 reply differs", but the replies are byte-identical. The script's
+  non-empty check read only `content`; turn 2 hit `max_tokens` 128 inside the reasoning (content "" on both servers, reasoning 547
+  chars). Fixed check: reasoning and content both equal, and the reply (reasoning or content) non-empty. On the saved replies: turn 1
+  (189 tokens) and turn 2 (128 tokens) equal, turn 2 cached 4575 of 4633 on both, TTFT 0.136 s on both. The default server
+  speculated over the flow (spec steps 0 -> 75), so the draft stays in use when a chat turn resumes at the prompt end (#499).
+- MG5 PASS: no `mtp.safetensors`: rc 0, one "not applied: no DSpark draft" line, no speculation, md5 = main's.
+- MG6 PASS: dspark_default (1, the extended unit test), recipe (17), recipes_doc (3), recipe_gumbel (1), mtp (69), docs_env_vars
+  (2); on Metal inkling2_dspark (4), inkling2_dspark_cut (1), inkling2_verify_softcap (1), inkling2_chat_reuse (6), inkling2 (17),
+  inkling2_batch (8).
+
+**Coordinator on #496 (2026-11-22 ~21:50): gates accepted; HOLD on publishing.**
+1. Rerun MG4 clean with the fixed check (fleetq, endor, `--quiet gpu,cpu`, `--expect 30`, behind #11739); record it here.
+2. Main moved to dabd0d448 (#502: tests and docs only). After #11621 passes: merge origin/main in, rerun md5 64 / 256 and the Metal
+   test set of MG6 on the merged tree before any push.
+3. **HOLD: no push, no PR, no merge until the coordinator relays the user's own go.** The repo is public; pushing to it is
+   publishing. This replaces step 4 of the brief above (fast-forward and push after #11621). If #11621 fails the bar: stop and
+   report.
+
+**MG4 clean rerun, #11751 (endor `--quiet gpu,cpu`, 23:34; binary a6e3cc43a from #11738, md5 26d1ad1a…): PASS.** Turn 1 (prompt 4575,
+189 tokens) and turn 2 (prompt 4633, 128 tokens, reasoning only: content "" on both, finish length) equal on the default and the
+`--spec off` server; turn 2 cached 4575 on both. The default server printed its line and speculated over the flow (spec steps
+0 -> 75); `--spec off` did not (0). Info, one cold request per server, no warm-up (not a speed measurement): turn-1 TTFT on 2.073 s
+vs off 1.617 s here (the default arm ran first in the slot), 1.636 vs 1.652 s in #11738; turn-2 TTFT 0.153 vs 0.135 s here, 0.136
+vs 0.136 s in #11738. #11621 measures TTFT with a warm-up and A B B A.
+
+**Coordinator (2026-11-22 ~23:45): MG4 accepted; correction to step 2.** After #11621 passes, merge in whatever origin/main is at
+that point, not dabd0d448 (main is now ca3b4e55b, #503 the Metal prefill blend in `inkmix.rs`; rank4, the Metal router in
+`inkctrl.rs` and `inkling2_ctrl.metal`, is about to merge). Both touch the Metal path, so on the merged tree rerun md5 64 / 256
+(default == `--spec off` == that main) and the full MG6 Metal set. The report includes #11621's TTFT spec on vs off (the cold 2.07 vs
+1.62 s of #11751 needs a proper reading). The hold stays: no push, PR or merge until the user's go is relayed.
+
+**#11621 (Mon 05:45) did not measure: aborted in its box check on a parse bug, not on the box.** All three box-check runs decoded
+at 76.69 / 76.56 / 76.69 tok/s (bar 65), but the script read the rate only from a `decode overall:` line, which `generate` prints
+for long prompts; the 19-token box prompt prints it on the finish line (`| decode 3325 ms (76.69 tok/s)`). The script read "?"
+three times and exited 6 before any server started. Fixed in `.worktrees/ink-spec-flip/.scratch/flip_night.sh` (scratch only;
+`ink/spec-flip` and its code hash 34525d854 untouched): it falls back to the finish line; checked on the three saved logs (76.69,
+76.56, 76.69). The bar and every other step are unchanged. Rerun needs a 75-minute quiet slot on endor.
+
+**Coordinator (2026-11-23 ~05:55): option 1** (the rerun at 07:05 in place of #11653, #11653 after #11812; touch no other lane's
+job; `--quiet gpu,cpu`, 75 min; a real box-check failure (< 65 tok/s) stops and reports, no retry; hold stays). **Not achieved:** I
+cancelled #11653 before booking 07:05, and fleetq at once started the fp8 lane's waiting #11821 (deadline 09:00), with #11822
+behind it, so 07:05 was no longer free without stopping another lane's job. Booked instead: the rerun **#11828 at 11:15** (75 min,
+after #11812), the spec-k sweep **#11829 at 12:35** (110 min). Result of the bar around 12:30.
+
+**Coordinator heads-up (2026-11-23 ~06:10):** the CUDA lane found that sampled MTP drafts (`mtp.rs` ~1113, ~1157) may read a full
+logits row after a screened head, where only candidate logits are valid; fix on `ink/screen-full-logits`. Keep #11828 as booked;
+in the bar report give the t=1.0 acceptance rate separately and say whether the flip ran with the head screen on; if the fix lands
+before 11:15, the coordinator may say to merge main in first. Reading of the flip's own runs (#11620 gate logs, binary 34525d854):
+the head screen is on ("screened greedy head on", the Metal default since #489) and the device sampler is on; at t=1.0 the DSpark
+default proposes nothing (`spec: verify passes=0 proposed=0 accepted=0` at 150 and 5000 prompt tokens), since sampled requests
+take plain steps under the default. So the t=1.0 A/B is plain decode on both arms; there is no t=1.0 acceptance rate to report,
+and the counters will show it. Inkling-2 has no `[mtp]` head, so the `mtp.rs` sampled-draft path does not run for it.
+
 ## 1. Acceptance (Python oracle, #10743 on spark2's CPU)
 
 `tools/inkling2_dspark_ref.py` (modes `taps`, `draft`, `analyze`, `tiny`) runs the target oracle (`inkling2_ref.py`, W4A16,
@@ -912,3 +1117,443 @@ only later in the stream). Saves at most one chunk's ingest, 4.1 ms: 0.6% of TTF
 overlapping every chunk's ingest (a second Metal queue, event-ordered after the chunk's tap writes) could hide up to 33 ms at 16k
 (0.4%) if the GPU had idle capacity during prefill GEMMs, which it mostly does not; about a day. Neither is worth building: the
 cost they remove is smaller than the TTFT noise of one quiet slot.
+
+## Default-on (Brief L2 / L2a, lane ink-spec-land; branch `ink/spec-flip` from main 22303d704)
+
+What changes:
+- `recipes/inkling2.toml` `[tuning.metal] dspark_default_k = 3` (new recipe key, `Recipe::resolve_dspark_default_k`). Without
+  `--spec`, Inkling-2 on Metal runs `--spec dflash --spec-draft <model dir> --spec-k 3` (gate 0.8, the default since #493) when:
+  one rank in process, `--max-batch` unset or 1, no `--spec-draft` / `--dcoco`, `INTARSIA_SPEC_DEFAULT` not 0. A checkpoint
+  without `mtp_config` + `mtp.safetensors`, or a configured prefix store (a drafting request bypasses it; the MTP default's
+  rule), skips it with one stderr line, never a load error. `--spec off` or `INTARSIA_SPEC_DEFAULT=0` reverts.
+- Sampled requests never draft with DSpark (unchanged) and so keep the device Gumbel sampler (#494).
+- L2a, `engine.rs` (every DFlash-family draft): a greedy request whose draft fell out of sync (a request that did not draft ran,
+  e.g. a sampled turn) and that can reuse more than `DFLASH_RESYNC_REUSE_MAX` = 128 prefix rows keeps the prefix and runs
+  without drafting; before, it re-prefilled the whole prompt to draft. With at most 128 reusable rows (a chat template's
+  preamble: a new conversation) it re-prefills from 0 and drafts, as before. The literal rule ("any reusable prefix") would never
+  draft again on a server whose conversations share a template preamble, hence the threshold. Output is unchanged either way.
+  Coordinator (2026-11-22, L2b): the 128 threshold is approved. Consequence, stated in the PR: on a server whose conversations
+  share a system prompt longer than 128 rows, one sampled request turns drafting off for later greedy conversations reusing that
+  prompt (prefix reuse and output kept, no speculation speed-up).
+  Test: `tests/inkling2_dspark.rs` `dspark_unsynced_draft_keeps_the_prefix_and_skips_drafting` (tiny fixture, cpu / Metal).
+
+Gate rules (set before the gates ran). Job: endor, default load, flip tip vs main 22303d704 built in the same job; every
+`INTARSIA_*` unset. Any miss fails the gate and stops the lane (reported, never re-ruled).
+- F1: Inkling greedy md5 at 64 / 256 (the A1 prompt): default (no `--spec`) == `--spec off` == main; the default run prints the
+  "DSpark default" line and verify passes > 0; `--spec off` does not.
+- F2: Metal `plan show` text and json byte-identical to main for Qwen3-8B and Llama-3.1-8B.
+- F3: default server (no `--spec`, no `--max-batch`): the ~1.4k greedy request HTTP 200 with verify passes > 0; a t1.0 request
+  HTTP 200 with spec steps unchanged.
+- F4: `serve --max-batch 4`: no draft loaded, admission line equal to main's, greedy reply text equal to main's.
+- F5: a model directory without `mtp.safetensors` (symlinks to the rest): rc 0, exactly one "not applied: no draft" line, no
+  speculation, md5 equal to main's at 64.
+- F6: t=1.0 seed 7, 128 tokens, a 150-token and a 5000-token prompt: ids identical default vs `--spec off` (both the device
+  sampler), no verify pass.
+- F7: tests pass: `intarsia-models --lib dspark_default` and `--lib recipe`, `--test recipes_doc`, `--test recipe_gumbel`,
+  `intarsia-cli --test docs_env_vars`, and on Metal `inkling2_dspark` (with the L2a test), `inkling2_dspark_cut`,
+  `inkling2_verify_softcap`. Before that, bespin (cpu): cargo check workspace + metal CLI, the same cpu tests.
+- F8 (L2a): `serve --max-batch 1`, a ~4k conversation: sampled turn (t1.0, 32 tokens), then a greedy turn on it (+ a short
+  assistant and user message), then a new short greedy conversation. On the default server the greedy turn's reply equals the
+  `--spec off` server's, its TTFT is at most max(1.25 x, +0.05 s) of the `--spec off` server's (prefix reuse level), its cached
+  tokens equal, it runs no verify pass; the new conversation does run verify passes and its reply equals `--spec off`'s. Info:
+  main with opt-in `--spec dflash` (before the rule) on the same flow.
+- Night speed (quiet slot after #11567, `--at 05:45`): box check first (no other intarsia serve / generate; a spec-off greedy
+  256-token decode >= 65 tok/s, up to three tries a minute apart). Default server vs `--spec off` server (both without
+  `--max-batch`), localeval speed-plain (143 / 1k / 4k / 16k, 256 forced tokens, 3 reps), warm-up then (A B B A) x 3. Bar, on arm
+  means of six runs each: decode DSpark / off > 1 at every length; serve TTFT and prefill within 2% of off at 1k, 4k and 16k.
+  Also t=1.0 decode (generate, seed 7, 256 tokens, 150 and 5000 prompt tokens, A B B A): default vs off reported. Otherwise stop
+  and report.
+
+### Default-on gates, first run (#11620, endor, default load, code 6d70c6fa7 vs main 22303d704): 2 checks failed
+
+- F1 PASS: md5 default == `--spec off` == main at 64 (65cde8f3...) and 256 (61fd59fe...); the default run speculated (57 verify
+  passes, 80.7% acceptance, 2.61 tokens per pass), `--spec off` did not.
+- F2 PASS: Metal `plan show` byte-identical to main for Qwen3-8B (json 8371 B / txt 1342 B) and Llama-3.1-8B (7983 / 1411 B).
+  Info: Inkling's one-sequence plan now differs from main's by 12 lines (the draft's calls), as expected.
+- F3 PASS: default server, ~1.4k greedy request HTTP 200 with verify passes 0 -> 13; t1.0 request HTTP 200, steps unchanged.
+- F4 FAIL as written ("admission line equal to main's"): main's server line read "30 kernel(s) checked, 113 case(s) run, 0
+  cached", the flip's "30 kernel(s) checked, 22 case(s) run, 91 cached". The admission cache persists across servers, and main's
+  ran first, so the split follows run order; kernels (30) and total cases (113) are the same. No draft was loaded. Both greedy
+  replies were HTTP 200 with an empty `content` (Inkling reasons first and 48 tokens ended inside `reasoning_content`), and the
+  `reasoning_content` texts are identical (238 chars). The script never compared them, since the admission check failed first.
+- F5 PASS: no `mtp.safetensors`: rc 0, one "not applied: no draft" line, no speculation, md5 equal to main's.
+- F6 PASS: t=1.0 seed 7, ids identical default vs `--spec off`, no verify pass, at 150 and 5000 prompt tokens. Decode (default
+  load, one run each, on before off): 71.52 vs 73.07 and 67.54 vs 69.00 tok/s, about 2% lower with the default; the night job
+  measures it A B B A.
+- F7 PASS: dspark_default (1), recipe (16), recipes_doc (3), recipe_gumbel (1), docs_env_vars (2); on Metal inkling2_dspark (4,
+  with the L2a test), inkling2_dspark_cut (1), inkling2_verify_softcap (1).
+- F8 FAIL as designed, no evidence about the rule. The chat flow reused 0 prompt rows on every server, `--spec off` included
+  (cached_tokens 0 at turn 2, 4593 prompt tokens), so the default server's greedy turn had no prefix to keep. With p = 0 it
+  drafted (11 verify passes), which is the rule's behaviour. The client also timed only `content` deltas, so TTFT was None
+  everywhere. Cause of the 0 reuse: Inkling-2's sliding-window ring slots let a request resume only within 16 rows
+  (`INK_RING_MARGIN`) of the cached sequence's end, and the chat template re-renders the history (the turn-1 reply replaced, its
+  reasoning dropped), so the common prefix ends ~30 rows before the cached end. Consequence beyond this gate: in serve, Inkling-2
+  multi-turn chat reuses the KV prefix only when the new prompt extends the cached tokens almost exactly (e.g. `/v1/completions`
+  continuations).
+- Lane stopped here, as the rule says. The night job #11621 will not run without the pass marker. A rerun with fixed
+  measurement (F4: kernels and total cases, reply = reasoning + content; F8: a `/v1/completions` continuation with an 8-token
+  sampled turn) waits on the coordinator.
+
+### Default-on gates, rerun of F4 and F8 (#11634, endor, default load, code 34525d854 vs main 22303d704): all pass
+
+Brief L2c approved both measurement fixes. 34525d854 changed only `crates/intarsia-models/tests/mtp.rs` (the new BackendTuning
+field in two struct literals; #496's CI `cargo test` did not compile) and this doc since 6d70c6fa7: the rebuilt flip binary is
+byte-identical to #11620's (checked with `cmp` in the job), so #11620's F1-F3 and F5-F7 stand for this code.
+- F4 PASS: `--max-batch 4`, no draft loaded; admission main 30 kernels / 113 cases, flip 30 / 113; the greedy reply
+  (`reasoning_content` + `content`) identical to main's.
+- F8 v2 PASS (`/v1/completions`, `serve --max-batch 1`): turn 1 sampled t1.0, 8 tokens on a 4575-row prompt; turn 2 greedy
+  continuation (4584 prompt rows). Default server: 4560 rows cached, no draft (spec steps 0 -> 0), text equal to `--spec off`'s,
+  TTFT 0.097 s; `--spec off`: 4560 cached (above the 4000-row void bar), TTFT 0.085 s. Main with opt-in `--spec dflash`, i.e.
+  before the L2b rule: 0 cached, 15 spec steps, TTFT 1.864 s. A new short prompt (t3) on the default server drafted (9 steps).
+- Summary: 0 failed checks; pass marker `.scratch/flip_pass_34525d854` written, so #11621 (Mon 05:45) runs on this binary.
+
+### Inkling-2 serve re-prefills every normal chat turn (info, Brief L2c; a TTFT lever, separate from the flip, nothing built)
+
+Measured in #11634 on the `--spec off` server (main's behaviour, unchanged by the flip), `/v1/chat/completions`, Metal, endor:
+
+| request | prompt rows | cached rows | TTFT |
+|---|---:|---:|---:|
+| chat turn 1 (sampled t1.0, ~4.6k-token context, cold) | 4575 | 0 | 1.60 s |
+| chat turn 2 (greedy, the history re-rendered by the template) | 4593 | 0 | 1.55 s |
+| the same continuation as `/v1/completions` (F8 v2, prompt extends the cached tokens) | 4584 | 4560 | 0.085 s |
+| new short chat prompt | 21 | 0 | 0.093 s |
+
+- Turn 2 re-prefills all 4593 rows (about 1.5 s, ~3.0k rows/s) where an exact continuation takes 0.085 s: 18x the TTFT at ~4.6k.
+  It grows with the conversation's length, since the whole history is prefilled again each turn.
+- Cause, two parts: (1) the chat template re-renders the history (turn 1's reply replaced by its final text, the reasoning
+  dropped), so turn 2's tokens leave the cached sequence about 30 rows before its end; (2) Inkling-2's sliding-window layers keep
+  ring slots with a 16-row margin (`INK_RING_MARGIN`, `model/inkling2.rs`), so a request can resume only within 16 rows of the
+  cached end; anything further back finds the window's rows overwritten and restarts from 0.
+- Any OpenAI-chat client gets this on every turn (the coordinator's TTFT question, not the flip's). Levers, not built: snapshot
+  the ring state at the end of each prompt (resume at the prompt boundary, which is where re-rendered histories diverge), or a
+  larger margin sized to the template's re-render (memory cost per sliding layer).
+
+**Parked 2026-11-23 (coordinator: weekly quota at its limit).** The coordinator cancelled #11828 (the #11621 speed-bar rerun) and
+#11829 (spec-k sweep); not rebooked, waiters killed. State: `ink/spec-flip-merge` (merge of main 08ae803e0, code a6e3cc43a; MG1-MG6
+pass in #11738 and #11751) is local only, not pushed; `ink/spec-flip` untouched at 9c78ba5e0 (code 34525d854, `flip_pass_34525d854`
+valid); the box-check parse fix is in `.worktrees/ink-spec-flip/.scratch/flip_night.sh`. #496 stays HELD (no push, PR or merge
+without the user's go). Next: (1) rebook #11828 (75 min, `--quiet gpu,cpu`, from `.worktrees/ink-spec-flip`, `bash .scratch/flip_night.sh`);
+(2) then #11829 (spec-k sweep, 110 min, from `.worktrees/ink-spec-k`, `bash .scratch/sweep.sh`); (3) if the bar passes, merge the
+then-current origin/main into `ink/spec-flip-merge`, run `.scratch/flipm_post.sh` (md5 64 / 256 + full MG6), report TTFT on vs off,
+then the #496 call.
+
+## Brief L4 (coordinator, 2026-11-25 ~08:30), lane ink-spec
+
+- Run order for #496's evidence: speed bar #11853 (rebooked #11828, `--quiet gpu,cpu --expect 75`) first, then the spec-k sweep, then
+  the post-merge `flipm_post.sh` check. The coordinator released my queued sweep #11854 on purpose: two cpu correctness gates (#11858
+  prefill unit tests, #11859 busy2048 gate A, about 70 min together) were stuck behind it and they unblock two PRs. Resubmitted the sweep
+  as #11860 (same command and flags, `--quiet gpu,cpu --expect 110`); it queues behind #11858 / #11859. The bar #11853 runs as it is.
+  #496 stays HELD.
+
+## #496 speed bar, run 2026-11-25 (fleetq #11853, endor, `--quiet gpu,cpu`, binary `.worktrees/ink-spec-flip/.scratch/bin/intarsia-34525d854`)
+
+Flip binary only, `localeval suite --cells speed-plain` against `intarsia serve` (default, DSpark k3 tau 0.8) vs `serve --spec off`;
+warm-up (discarded) then (A B B A) x 3 = 12 runs, 5 reps per length per run, medians; each run's rows are in
+`/opt/code/deepeval/results/20261125-08*-adhoc-endor-intarsia-metal-ink-spec-flip-34525d854-NN-{on,off}/` and the raw log in
+`.worktrees/ink-spec-flip/.scratch/night/` (`fleetq_bar.out`; table script `.scratch/night_summary.py`). Box check passed on try 2
+(try 1 read 55.7 tok/s, try 2 71.5 against the 65 floor). Block 1 (runs 02-05) ran with the box still slow after that (run 02 on: 61.7-65.5
+decode and 2.5 s / 10.1 s TTFT at 4k / 16k, and runs 03-04 off also low); blocks 2 and 3 (runs 06-13) are the clean ones. Both shown.
+
+Blocks 2+3 (runs 06-13, n = 4 on, 4 off), mean of per-run medians:
+
+| prompt | decode off | decode default | ratio | TTFT off | TTFT default | ratio | prefill off | prefill default | ratio |
+|---|---|---|---|---|---|---|---|---|---|
+| 144 | 72.8 | 83.2 | 1.144 | 0.150 | 0.160 | 1.062 | - | - | - |
+| 1k (1022) | 70.6 | 77.0 | 1.091 | 0.547 | 0.543 | 0.993 | 1870 | 1881 | 1.006 |
+| 4k (4110) | 69.8 | 90.1 | 1.292 | 1.802 | 1.823 | 1.012 | 2285 | 2257 | 0.988 |
+| 16k (16458) | 65.8 | 77.9 | 1.184 | 6.959 | 7.108 | 1.021 | 2365 | 2316 | 0.979 |
+
+All 12 runs (n = 6 + 6): decode ratio 1.122 / 1.085 / 1.241 / 1.153 (144 / 1k / 4k / 16k); TTFT ratio 1.040 / 0.995 / 1.042 / 1.054;
+prefill ratio - / 1.008 / 0.972 / 0.962. Per-block decode ratios are above 1.06 at every length in all three blocks. A-to-A (same arm,
+blocks 2+3): decode off 1.2-2.5 % spread, default 7.0-17.2 % (the default arm's decode varies with the draft acceptance of each run's
+prompts); TTFT within-arm spread 2.6 % (off, 16k) to 3.9 % (default, 16k). Acceptance in the default arm 0.74-0.75 (2679/3571 .. 3233/4287).
+
+Verdict against the bar: decode gain at every length passes (+9 % to +29 %). TTFT / prefill within 2 % passes at 1k and (blocks 2+3)
+4k, and misses at 16k by 0.1 points on blocks 2+3 (TTFT +2.1 %, prefill -2.1 %) and by 3.4-3.8 points over all runs; the 144-token
+TTFT is +6.2 % (+0.010 s, a 144-token prompt, under the 1024-token prefill-meaningful limit). The 16k miss is inside the same-arm
+TTFT noise (2.6-3.9 %), so the cell is a marginal fail, not a clear one.
+
+t=1.0 sampled decode (seed 7, `generate`, 256 tokens, A B B A, `.scratch/night/t1*.err`): default arm tok/s 66.8 / 68.7 (short) and
+64.9 / 64.0 (5k) against `--spec off` 70.8 / 70.9 and 66.0 / 65.9: the default arm is 3.9 % / 2.4 % slower on sampled requests, and its
+spec counters read 0 verify passes (the default applies to greedy requests only), so the loss is not speculation itself; its cause (drafter resident state, a
+per-step check) is not isolated.
+
+**Correction to the speed-bar table above (2026-11-25):** localeval's spread rule rejected the 1k cell (`speed-plain:1024`, prefill spread, decode
+not) in 10 of the 12 runs, in both arms alike (runs 02-05, 07-12; runs 06 and 13 are fully accepted), and 4k in runs 04-05 and 16k in run 03.
+The rows are in the result files and are what the table averages, but the 1k TTFT / prefill ratio is not a harness-valid figure (its same-arm
+spread is 23-27 %), so the 1k "pass" is not evidence. Runs 06 and 13 (both default arm) are the only runs with every cell accepted.
+
+## Brief L5 (coordinator, 2026-11-25 ~09:00), lane ink-spec
+
+#496 stays held; the t=1.0 finding (default arm 2.4-3.9 % slower than `--spec off` with 0 verify passes) is the blocker, since most chat
+traffic is sampled. (1) Find the t=1.0 loss from the code, then measure in ONE quiet endor slot: t=1.0 short and 5k, `--spec off` vs default vs
+default with the suspected work disabled, A B B A, >= 3 reps per arm; fix it so a request that does not speculate pays nothing, greedy md5 64 /
+256 unchanged. (2) Rerun the 16k cell, off vs default, >= 6 alternated reps on a warm box, with a spread. (3) Sweep: rebooked with
+`fleetq run --at 23:00` (same command, `--quiet gpu,cpu --expect 110`) as **#11871**, run from this session with `run_in_background` so its
+runner stays alive (it survives only while the session does). (4) Then report the cause, the fix and the numbers; no push, #496 untouched.
+
+## Brief L5 result, 2026-11-25: the t=1.0 loss, its cause and the fix (code `0ad399998`, fleetq #11878 and #11884, endor, `--quiet gpu,cpu`)
+
+**Cause.** `Model::feedback_ok` (`crates/intarsia-core/src/model/feedback.rs`) refused any sequence state that carried a draft state
+(`st.dflash.is_none()`). With the DSpark default loaded every state carries one, so a request that does not speculate (a sampled one on the
+device sampler, which the recipe turns on for Inkling-2, or a greedy one that cannot draft) lost the device-side token feedback steps that
+`--spec off` takes, and ran host round-trip steps instead. The draft's tap capture was not it: `inkling2.rs` already copies the taps only for
+`active && synced` states. **Fix.** `feedback_ok` now refuses only an *active* draft (`st.dflash.as_ref().map_or(true, |d| !d.active)`), and
+`feedback_step` leaves the draft unsynced so its rows never reach it. Greedy requests that speculate are untouched.
+
+t=1.0 decode (`generate`, seed 7, 256 tokens, A B B A palindromes x 3, 6 runs per arm, mean tok/s; arms `--spec off` / default before the
+fix `a6e3cc43a` / default after the fix `0ad399998` / `--spec off` with `INTARSIA_TOKEN_FEEDBACK=0`):
+
+| prompt | off | default before | default after fix | off, feedback off |
+|---|---|---|---|---|
+| short (150) | 72.76 | 69.09 (-5.0 %) | 72.19 (-0.8 %) | 71.00 (-2.4 %) |
+| 5k | 64.29 | 61.67 (-4.1 %) | 62.38 (-3.0 %) | 61.19 (-4.8 %) |
+
+The arm with feedback forced off under `--spec off` reproduces most of the loss, which is the attribution. The 5k "after the fix" gap of
+-3.0 % did not reproduce in a second slot (#11884, the box in a faster state, `generate` A B B A x 4 plus the host profile): off 69.97 and
+fix 70.01 tok/s over runs 1-12 (+0.05 %, medians +0.3 %), and the last four runs of both arms dipped (65-68 tok/s, a disturbance on the box),
+which makes all 16 runs -0.6 %. The host profile of one 5k run agrees: decode-only step wall 14.30 ms (off) vs 14.27 ms (fix), launch 0.67 vs
+0.70 ms, sync 13.61 vs 13.55 ms. So the residual is noise between slots, not a cost; the first slot's off arm was in a different state.
+Greedy md5 (64 / 256 tokens): default == `--spec off` with the fix (`65cde8f3...` / `61fd59fe...`). The merged-tip MG1 / MG6 recheck
+(`flipm_post.sh`) is recorded below once it has run.
+
+**16k cell rerun (#11884, localeval `speed-plain` through `serve`, default vs `--spec off`, runs A B B A at 8 runs = 4 per arm, 3 valid reps per
+length per run, the box in its fast state: spec-off box check 77 tok/s).** Means of per-run medians, spread = max / min - 1 over the 4 runs:
+
+| prompt | decode off | decode default | ratio | TTFT off s | TTFT default s | ratio | prefill off | prefill default | ratio |
+|---|---|---|---|---|---|---|---|---|---|
+| 142 | 77.3 | 89.8 | 1.161 | 0.147 | 0.146 | 0.995 | - | - | - |
+| 1k (1021) | 74.9 | 82.6 | 1.103 | 0.415 | 0.456 | 1.099 | 2473 | 2247 | 0.909 |
+| 4k (4111) | 72.5 | 96.5 | 1.330 | 1.561 | 1.680 | 1.076 | 2640 | 2455 | 0.930 |
+| 16k (16456) | 68.0 | 83.1 | 1.222 | 6.241 | 6.442 | 1.032 | 2637 | 2556 | 0.969 |
+
+16k: TTFT spread 6.7 % (default) / 4.3 % (off) over the 4 runs, ranges 6.26-6.68 s vs 6.10-6.36 s; pooled over the 12 valid reps per arm the
+TTFT ratio is 1.033 (means) / 1.018 (medians) and the prefill ratio 0.969 / 0.983 (sd 0.165 s default, 0.121 s off). So the 16k TTFT / prefill
+cost of the default is about 2-3 %, consistently above the 2 % bar and above the same-arm noise on the means, but not on the median. The 4k
+(+7.6 % TTFT) and 1k (+9.9 %) cells are noisier (same-arm spread 12-16 %, and the 1k cell was rejected by localeval's spread rule in runs
+02, 04 and 07) and read larger than the first bar did; the first bar had 4k at +1.2 % (blocks 2+3) and the two runs together do not
+separate 4k / 1k from noise. By the code (not separately measured), what the greedy default arm pays that `--spec off` does not at prefill is the DSpark ingest of the prompt's rows
+(a draft pass over every prompt row) and, for every request with a draft loaded, no macro prefill pass (`model.rs:1783`); a sampled request
+pays only the second (5k t=1.0 prefill 1927 ms off vs 1958 ms fix, +1.6 %, one run each).
+
+## Brief L6 (coordinator, 2026-11-25 ~12:20), lane ink-spec
+
+#496 stays held; the coordinator asks the user whether to waive the 16k TTFT / prefill miss, and meanwhile this lane removes the prefill cost.
+(1) Finish `flipm_post.sh` and report its md5 / MG results. (2) Attribute the prefill cost in ONE quiet endor slot: prefill tok/s and TTFT via
+`generate` at 1k / 4k / 16k, greedy, >= 4 alternated reps per arm: (a) `--spec off`, (b) default, (c) default with the DSpark prompt-row ingest
+disabled, (d) default with the macro prefill pass allowed (diagnostic hack only; a wrong draft state is fine, only prefill time is measured).
+(3) Fix the bigger share (let the macro pass run with the draft loaded by capturing the taps inside it, or overlap / defer the ingest off the TTFT
+path); output unchanged (greedy default md5 == `--spec off` md5 at 64 / 256), MG tests pass, pass lists of spec-off requests unchanged.
+(4) Rerun the bar at 1k / 4k / 16k, >= 6 alternated reps per arm, localeval, warm box; decode, TTFT and prefill ratios with spread. (5) Time box
+about 3 hours; if the fix is bigger, stop after step 2 with the attribution and a design sketch and the fix's estimated length. No push, #496
+untouched. The 23:00 sweep #11871 stays booked: queue jobs to fit before it or after 06:30.
+
+## Decision (user, via the coordinator, 2026-11-25)
+
+The user decided "Wait for the fix": #496 does not flip until the prefill cost is removed and the bar passes (TTFT and prefill within 2 % at
+1k / 4k / 16k, decode gain at every length). Brief L6 continues as planned; when the bar rerun is in, this lane reports the table to the
+coordinator, who takes it to the user.
+
+**Fix check (fleetq #11888, `flipm_post.sh`, code `0ad399998` on main `08ae803e0`, 2026-11-25 13:39-13:47): 0 failed checks.** MG1 greedy md5 at 64 / 256
+tokens: default == `--spec off` == main (`65cde8f3...` / `61fd59fe...`), the default run speculated (57 verify passes, acceptance 80.7 %) and `--spec off`
+and main did not; MG6: dspark_default 1, models-recipe 17, recipes_doc 3, recipe_gumbel 1, mtp 69, docs_env_vars 2, Metal inkling2_dspark 4, dspark_cut 1,
+verify_softcap 1, chat_reuse 6, inkling2 17, inkling2_batch 8, all passed. Marker `.scratch/flipm_post_pass_0ad399998`.
+
+## Brief L6 step 2 result, 2026-11-25: where the default's prefill cost sits (fleetq #11890, #11893, #11895, #11897, endor, `--quiet gpu,cpu`)
+
+Binary: merge tip `04ca79d1d` (code `0ad399998`) plus two diagnostic hacks kept out of the tree (`ink-spec-flip/.scratch/l6/diag_hacks.patch`:
+`INTARSIA_DIAG_NO_INGEST` skips the DSpark ingest's device work, `INTARSIA_DIAG_BALLAST_MB` holds N MB of touched device memory). `generate`, greedy,
+`--max-tokens 1`, prefill ms as the engine prints it; the box check passed at 76-78 tok/s in each slot.
+
+1. **The ingest is cheap.** `INTARSIA_DSPARK_PROFILE=1` at 16455 tokens: 8 chunks of 2048 rows at 2.2-2.3 ms each (the first 11.8 ms, a cold
+   pipeline) and the 71-row tail 0.56 ms, 28 ms in all, **0.44 % of the 6.3 s prefill**. So deferring the last chunk's ingest saves 0.6 ms, and
+   cutting the unread rows (local-layer rows older than the window, f_rnn's HcPre over rows the ring drops) saves a fraction of 28 ms. Neither is
+   worth the risk.
+2. **The lost macro pass is not a share.** Macro prefill needs `st.has_recurrent()` (`engine.rs`), false for Inkling-2; with
+   `INTARSIA_PREFILL_MACRO=16384` the default arm is unchanged and the off arm no faster (1k +25 % in one run, 4k -1.1 %, 16k +4.0 %, noise).
+3. **No kernel differs.** `plan show` off vs default differs only by extra entries for the draft's own ops; with `--profile-every 1 --op-table` at
+   16k the per-op times of `--spec off` and a draft-loaded sampled request agree within noise (total 6.54-7.12 s vs 6.55-7.04 s; `moe_experts`
+   2897 vs 2868 ms).
+4. **The wall-clock difference is box state, not the draft.** Over four slots the 16k prefill (ms) came out: slot 1 (4 reps) off 6763 mean, default
+   +1.4 %, default with the ingest skipped -0.6 %, draft loaded + inactive (sampled) +3.1 %; slot 2 (8 reps) off 5858 median in a fast mode
+   (5 of 8 runs 5.76-5.86 s, the others 6.39-6.49 s), every draft-loaded arm 6.3-6.6 s (default +10 % on medians); slot 4 (8 reps): the other way
+   round, default 5944 and sampled 5920 ms medians (fast mode in 6 of 8 and 5 of 8 runs) against off 6148 (1 of 8) and off with 1.1 GB of ballast
+   6166 (0 of 8). The sign of the gap flips between slots; the process-to-process swing (5.76-7.15 s) is larger than any default-vs-off gap.
+   What these runs support: a default request pays about 28 ms (0.44 %) of ingest at 16k and nothing else that survives the box noise. They do not
+   say the localeval bar's +3.2 % was zero; they say a single ABBA of 4 runs per arm cannot resolve 2 %, so the bar rerun below uses 8 per arm.
+
+No prefill code change was made: the share the attribution can support (the ingest) is 28 ms at 16k, and nothing larger was found to fix.
+
+**Ballast test (fleetq #11897, 16k prefill, `generate`, 8 runs per arm, ABBA; the slot where the draft arms came out about 3 % faster):** medians /
+ranges / spread (max / min - 1) / runs under 6.0 s: `--spec off` 6148 ms, 5799-6263, 8.0 %, 1 of 8; `--spec off` with 1.1 GB of touched ballast 6166
+ms, 6054-6438, 6.3 %, 0 of 8; default greedy 5944 ms, 5865-7147, 21.9 %, 6 of 8; default sampled 5920 ms, 5819-7145, 22.8 %, 5 of 8. The draft arms'
+spread comes from their first slow runs (7.1 s at runs 02-07; from run 10 on they sit at 5.84-6.03 s); off was in its fast mode in only 1 of 8
+runs here. Off with the ballast did not move (+0.3 % on the median) and showed no fast mode either, so extra resident memory alone does not
+reproduce the draft-loaded gap in either direction; because off itself rarely ran fast in this slot, the test cannot say the ballast removes the
+fast mode.
+
+## Brief L6 step 4: the bar rerun, 2026-11-25 (fleetq #11898, code `0ad399998`, default vs `--spec off`, localeval `speed-plain` through `serve`)
+
+Warm-up then (on off off on) x 4 = 16 runs, 8 per arm, 3-5 reps per length per run; box check 75.4 tok/s; 15 of 16 runs fully accepted by localeval
+(run 09-on rejected its 1k cell on the prefill spread). Means of per-run medians (table script `.scratch/l6/bar_summary.py`); spread = max / min - 1
+over the 8 runs of the arm:
+
+| prompt | decode off | decode default | ratio (spread off / default) | TTFT off s | TTFT default s | TTFT ratio | prefill off | prefill default | prefill ratio |
+|---|---|---|---|---|---|---|---|---|---|
+| 143 | 76.98 | 89.49 | 1.163 (2.5 % / 9.1 %) | 0.147 | 0.143 | 0.969 | n/a | n/a | n/a |
+| 1k (1022) | 74.65 | 85.70 | 1.148 (2.7 % / 22.6 %) | 0.400 | 0.431 | 1.078 | 2556 | 2391 | 0.935 |
+| 4k (4109) | 72.38 | 92.25 | 1.275 (2.2 % / 14.5 %) | 1.470 | 1.573 | 1.070 | 2802 | 2625 | 0.937 |
+| 16k (16455) | 67.80 | 84.60 | 1.248 (1.5 % / 14.3 %) | 6.015 | 6.222 | 1.034 | 2738 | 2649 | 0.967 |
+
+TTFT spread within an arm: 1k 11.7 % off / 38.9 % default, 4k 15.9 % / 24.7 %, 16k 12.2 % / 15.0 %. Per ABBA block (4 runs each) the TTFT ratio is
+1k 1.155 / 1.119 / 1.049 / 0.986, 4k 1.069 / 1.067 / 1.110 / 1.032, 16k 1.045 / 1.026 / 1.036 / 1.030; pooled reps at 16k: ratio 1.035 (medians),
+1.043 (means), prefill 0.966 / 0.959.
+
+**Result: the decode gain holds at every length (+15 % to +27 %), the TTFT / prefill bar fails at 1k (+7.8 %), 4k (+7.0 %) and 16k (+3.4 %).** The 16k ratio
+is steady across all four blocks (1.026-1.045), so it is a real +3 % (about +0.2 s), not noise; 4k is +3 to +11 % per block. The absolute extra TTFT is
++31 ms at 1k, +103 ms at 4k, +207 ms at 16k (and -4 ms at 143 tokens). The DSpark ingest accounts for 28 ms of the 16k figure, so most of it is not the
+ingest (attribution above).
+
+**Keep-warm check (fleetq #11899, `generate` 16k prefill with `INTARSIA_METAL_KEEPWARM=1`, which is what `serve` turns on; 6 runs per arm):** medians off
+6276 ms (range 5593-6717, spread 20.1 %), default greedy 6030 (5685-6233, 9.6 %), sampled 5988 (5865-6164, 5.1 %); without keep-warm off 6426 (6222-6555),
+sampled 6208 (6035-6385). So the serve keep-warm thread (a residency set that also takes the draft's 0.64 GB file) does not make a draft-loaded process
+slower in `generate`; the draft arms are 3.9 % and 4.6 % faster than off here. `generate` has now shown the draft-loaded prefill at 0 to -4 % of off in
+three of four slots, while `serve` / localeval shows TTFT +3.4 % at 16k in all four blocks of #11898 (and +3.3 % in #11884, +3.2 % in the L5 bar).
+
+**Open: the serve-only gap.** Engine prefill in `generate` does not show the +31 / +103 / +207 ms (1k / 4k / 16k) that localeval's TTFT shows. What `serve`
+does differently for a drafting request and not for an off one: with a DFlash draft a drafting request bypasses the prefix store (`engine.rs`, the
+`ps` filter: "the store stays off for it, prefill runs exactly as without it"), the server tokenizes and streams, and the engine runs in the server's
+scheduler. Untested next steps, in order of cost: (1) `serve` with the prefix store off in both arms (flag or env), 8 reps at 16k: if the gap closes, the
+off arm's store path is faster for a cold prompt than the bypass; (2) a server-side timestamp of the first token against the engine's prefill end for
+both arms, to see whether the extra time is in or after the engine prefill; (3) only then a code change. About 1.5 h to find the cause, and the fix size
+is unknown until then.
+
+**Serve-side timestamps (fleetq #11901, binary = merge tip `8ec68e6ae` + an env-gated log in `engine.rs` kept out of the tree; `serve` + localeval, 4 runs per
+arm, ABBA, medians over the requests the log saw; prefix store off in both arms, as in every bar run, so the store bypass is not the gap).** The first-token
+event leaves the engine at the same instant the engine's own prefill clock stops (delta 0.0 ms at every length), so the extra TTFT is inside the engine's prefill
+as `serve` runs it, not in tokenization, streaming or the HTTP layer:
+
+| prompt | engine prefill off (ms) | engine prefill default (ms) | ratio | client TTFT off | client TTFT default | ratio |
+|---|---|---|---|---|---|---|
+| 143 | 124.5 | 125.2 | 1.006 | 146.8 | 144.8 | 0.986 |
+| 1k | 364.5 | 405.4 | 1.112 | 398.0 | 453.4 | 1.139 |
+| 4k | 1492.4 | 1639.5 | 1.099 | 1540.3 | 1680.6 | 1.091 |
+| 16k | 6159.1 | 6350.9 | 1.031 | 6208.9 | 6362.1 | 1.025 |
+
+Client TTFT minus engine prefill is 20-48 ms in both arms and does not differ between them. So `generate` (no gap) and `serve` (+3 % at 16k, +10 % at 1k / 4k)
+run the same prefill code with a different result. Differences between the two paths that reach the engine's prefill loop: `serve` runs the engine on its own
+thread under the supervisor with keep-warm on (tested in `generate`: no gap), the request arrives through the scheduler and `Seq::new`, and the sequence state is
+created once per request by the server (the default arm also allocates the draft's state there). A per-chunk log (`#11903`) splits the prefill into setup and chunk times.
+
+**Per-chunk split (fleetq #11903, same harness, a per-chunk log, patch `ink-spec-flip/.scratch/l6/diag_ttftlog.patch`, kept out of the tree).** Medians, ms: setup before the
+prefill loop 0.0 in both arms; the loop's own steps sum to the first-token time to within 0.7 ms. Engine prefill off vs default: 1k (one chunk) 364.4 vs 405.6 (+11.3 %),
+4k (3 chunks) 1455.9 vs 1595.6 (+9.6 %), 16k (9 chunks) 6160.7 vs 6312.1 (+2.5 %), 143 tokens 123.9 vs 124.4 (+0.4 %). Every step but the last returns in 3.6-3.9 ms (the chunk is queued
+asynchronously) and the last one absorbs the GPU wait (922.5 vs 931.9 ms at 16k), so the log cannot place the extra time inside a chunk. The extra is +41 ms (1k), +140 ms (4k),
++151 ms (16k): it grows with length up to 4k and then flattens, which an ingest proportional to prompt length (28 ms at 16k) does not explain either.
+
+## Stop point (Brief L6 step 5, 2026-11-25 ~16:00)
+
+Attribution is done; the fix is not: the one measured per-request cost of the default (the DSpark ingest, 28 ms at 16k) is far smaller than the TTFT gap the bar shows
+(+31 / +103 / +207 ms), `generate` reproduces no gap (0 to -4 %), and `serve` reproduces +3 to +11 %. The gap is inside the engine prefill as `serve` runs it (not setup, streaming or
+the prefix store). Untested candidates, in cost order: (a) `generate --max-tokens 256` instead of 1 (does a longer request change the prefill path for a speculating request); (b) the
+`serve` request's prefill with the draft's tap staging sized for a decode batch rather than a chunk (`dflash_pend_max`, `ws.max_tokens`); (c) a GPU-side per-op timestamp of the last chunk
+(`--profile-every 1` at the server, or Metal counters) instead of host clocks. Estimate: 2-3 h to find the cause, fix size unknown. Per the brief I stop here.
+
+## Brief L7 (coordinator, 2026-11-25 ~16:10), lane ink-spec
+
+#496 stays held; the user's decision is still "Wait for the fix" and the coordinator puts the waiver option to the user separately. Keep searching for the cause of the
+serve-only prefill gap (+41 / +140 / +151 ms at 1k / 4k / 16k), in order: (1) `generate --max-tokens 256`; (2) the draft's tap staging size during prefill; (3) GPU-side per-op
+timestamps of the last chunk. Stop at the first test that clearly localises the extra time. Fix it if the fix is small (under about 2 h) and bitwise; otherwise report the
+cause and a fix sketch. New time box 3 h from now (to about 19:10). Report once, when the cause is found or the box ends. The 23:00 sweep #11871 stays booked; push nothing.
+
+## Brief L7 test 1 and 2 results, 2026-11-25 (fleetq #11904 retry; test 2 by code)
+
+**Test 1: `generate --max-tokens 256 --ignore-eos` vs `--max-tokens 1` (prefill ms, longp.json prompts, greedy, off vs default, palindromic order x 3 = 6 runs per arm; box check 77.6 tok/s).**
+`--max-tokens` does not matter: default / off is the same at 1 and at 256 tokens (medians 4k +23 % vs +28 %, 16k +11 % vs +14 %, 1k -1 % vs +0.4 %). It does show that a gap
+reproduces in `generate` in this slot, larger than in `serve` or the L6 `generate` slots: 4k off 1322-1328 ms in every undisturbed run (1324 median), default 1581-1729 in 11 of 12
+runs (1355-1434 in the others); 16k off 5.6-5.9 s, default 6.4-6.55 s in 8 of 12 runs. 1k: no gap (off 634, default 638). The sign and size of the gap changes between slots (L6: default
++1.4 % / 0 / -3 %), so a single `generate` slot does not settle it, and this one is a slot where the 4k cell shows it cleanly.
+
+**Test 2: the draft's tap staging during prefill, by code: not it.** `DflashHead.feat` (the four tap rows) is allocated with `mt` rows, the workspace's max tokens (>= the 2048-row prefill chunk);
+`inkling2.rs:993` captures taps for every chunk (`t <= feat_rows` always holds), the capture is one `ink_copy` per tap layer (4 x 2048 x 2304 bf16 = 9.4 MB per copy), and the flush after
+each chunk is the ingest already measured at 28 ms for 16k tokens. So neither the staging size nor the copies can account for 140-300 ms.
+
+**Test 3: per-op table of the 4k prefill, off vs default (fleetq #11905, `generate --profile-every 1 --op-table`, 10 profiled runs per arm plus 10 unprofiled, ABBA; box check 77.4 tok/s).** In this slot
+there was no gap to localise: unprofiled 4k prefill off 1666 ms (1588-1887) vs default 1685 (1588-2091), +1.1 %; profiled 2028 vs 1954. Per-op (median over the 10 runs) no op differs by more than
+noise: `moe_experts` 750.7 vs 745.1 ms, `ink_in_proj` 166.8 vs 165.9, `matmul` 74.9 vs 80.0, `moe_experts_mxfp8` 84.2 vs 83.8; the only large delta is the first op (`embedding` 281 vs 198, which absorbs the
+queue wait). The 4k prefill itself ran 1.59-1.67 s here against 1.32 s for `--spec off` in test 1's slot an hour earlier: the box's own slot-to-slot swing (25 %) is bigger than the 41-300 ms the lane is chasing.
+
+**Fast / slow process mode (pooled over every `generate` 16k run of L6 and L7, 1 process per run, slow = prefill >= 6.15 s, fast = 5.6-5.9 s):** off 24 of 44 runs slow, default greedy 24 of 38, default sampled
+19 of 32. Within one slot the arms split hard (L7: off 2 of 12 slow, default 10 of 12; L6 ballast slot: off 4 of 8, default 1 of 8; L6 keep-warm slot: off 11 of 12, default 2 of 6), but the sign flips between
+slots, so pooled the arms agree (55 % / 63 % / 59 %). A slow process costs about +10 % at 16k (6.4 vs 5.8 s), larger than any default-vs-off gap seen.
+
+## L7 conclusion, 2026-11-25 ~16:30
+
+No test localised the extra prefill time to a code path: (1) `--max-tokens` is irrelevant; (2) the tap staging and copies cost about the 28 ms already measured; (3) per-op times of default and off are equal where
+they were measured, and the 41-300 ms gap appears in some slots (L7 test 1, the serve bar at 16k: +2.1 / +3.2 / +3.3 / +3.4 % in four separate bar runs) and not in others. What the data supports: a per-process fast / slow
+GPU mode (about 10 % at 16k) whose arm assignment is slot-dependent, plus a small stable serve-side cost at 16k of about 3 % that no profile has placed. No code change was made.
+
+## Brief L8 (coordinator, 2026-11-25 ~19:45), lane ink-spec
+
+The user said "Keep hunting". #496 stays held, and the waiver is not on the table yet. Every A/B so far compares separate processes, and the per-process fast / slow mode (about 10 % at 16k)
+is bigger than the gap, so L8 removes that confound instead of adding cross-process reps. In order:
+
+1. **Re-split the existing data (no fleet time, about 15 min).** Classify every L6 / L7 run (bar runs and `generate`) as fast or slow per process (16k cut as in L7; derive the 1k / 4k cuts the
+   same way if they are bimodal). Compare default vs off within fast runs only and within slow runs only. If the within-mode gap at 1k / 4k is about 0, those cells were mode-assignment noise.
+   The real target is then the 16k `serve` result (+2.1 / +3.2 / +3.3 / +3.4 %, same sign in four bar runs).
+2. **Within-process A/B at 16k (one fleetq job, endor).** One `serve` process with the draft loaded; alternate 16k requests that speculate with requests that do not, ABAB, at least 10 each,
+   repeated over 3-4 processes. Find how a request ends up not speculating with the draft loaded (the `0ad399998` feedback_ok path touches it). If no per-request switch exists, add a diag-only
+   per-request env read, kept out of the tree like `diag_ttftlog.patch`. This separates "draft present" from "speculating request's prefill". Optional fourth arm if cheap: a process
+   started with spec off for comparison against the non-speculating requests.
+3. **Not in L8:** what decides the fast / slow mode. Pooled slow rates are 55 / 63 / 59 %, so the draft does not cause it; record it as a candidate lane for both arms.
+
+Stop rule: within-process 16k gap within noise → report that the TTFT miss is a cross-process measurement artifact (the coordinator then asks the user: waive, or redefine the bar as
+within-process). Gap holds at about +3 % → report which side (draft present vs speculating path) carries it, plus a fix sketch; fix it only if small (under about 2 h) and bitwise.
+Time box to 22:30 (fleetq `--expect` must end before the 23:00 reservation #11871). Report once. Push nothing.
+
+## Brief L8 step 1: fast / slow re-split of the `generate` runs, 2026-11-25 ~19:50 (no fleet time)
+
+Source: every `generate` prefill (L6 attribution slots #11890 / #11893 / #11897 / #11899 and L7 #11904 retry; 82 runs at 16k, 32 at 1k and 4k; one process per run).
+Cuts: 16k slow >= 6150 ms (the L7 cut; the 16k values are not cleanly bimodal, the largest gap in the sorted list is 193 ms). 4k and 1k have no stable cut: the 4k level is a slot property
+(L6a ~1390-1420 ms for both arms, L7 1322-1328 off vs 1581-1729 default, L7 test 3 ~1590-1700 for both arms), 1k is flat (off 633, default 634.5 median, one 1955 outlier).
+
+| 16k, `generate` | off | default | default / off (median) |
+|---|---|---|---|
+| fast processes (< 6150 ms) | n 20, median 5769 | n 14, median 5913 | +2.5 % |
+| slow processes (>= 6150 ms) | n 24, median 6388 | n 24, median 6466 | +1.2 % |
+| all | n 44 | n 38 | pooled slow shares 55 % / 63 % |
+
+4k (by slot, where both arms ran): L6a off ~1405, default ~1420 ms (+1 %); L7 off 1324, default 1698 (+28 %, and only default sat in the slow level, 9 of 12 vs 1 of 12); L7 test 3 off 1666, default 1685 (+1 %).
+So the 4k and 1k cells are slot / mode-assignment effects (the two arms never differ in two of three slots), as the brief expected. The 16k within-mode gap is +1.2 to +2.5 % in `generate`
+(medians, 14 to 24 runs per cell, ranges overlapping), close to the `serve` +2.1 to +3.4 %; step 2 separates it within one process.
+
+## Brief L8 step 2: within-process A/B at 16k, endor #11908, 2026-11-25 19:44-20:18
+
+Method. One diag-only binary (md5 b24ee4bf264413027b936a3e67d54a9b; diff `.scratch/l8/diag_spec_alt.patch`, never in the tree, same status as `diag_ttftlog.patch`): `INTARSIA_DIAG_SPEC_ALT=1` alternates, per prompt-length
+class, requests that speculate (arm A) and requests that do not (arm B), ABAB. Arm B sets `spec_on = false` and an empty `ctx` right after `Seq::build`, so `drafting` is false and the DSpark draft stays loaded but
+inactive (`dflash.active = false`), the same state a sampled request sees. There is no per-request switch in the tree: the only paths that skip drafting with the draft loaded are non-greedy / trace_logits /
+constraint requests (`spec_on` in `Seq::build`) and the `!d.synced` + reuse > `DFLASH_RESYNC_REUSE_MAX` branch (the `0ad399998` path); the speed prompts start with a fresh nonce, so reuse is ~0 and that branch is not hit.
+TTFT = `ttftlog since_t0_ms` of the first token (server side). Three alternating processes P1-P3 (3 localeval `speed-plain` invocations each, full length ladder), plus two `--spec off` processes O1-O2
+(2 invocations each) as the comparison arm. localeval exited 3 on the alternating processes ("ARM ABORTED: probe ratio 0.94 < 1.05", expected with half the requests not speculating); the timing rows are
+unaffected. Not verified directly: that arm B requests decode without drafting (the ttftlog line carries no draft counters); this rests on the code path above and the 0.94 probe ratio.
+
+16k (plen 16474), TTFT ms, median (mean):
+
+| process | A speculating | B not speculating | A / B median | A / B mean |
+|---|---|---|---|---|
+| P1 | n 6, 6735 (6809) | n 6, 6713 (6731) | +0.3 % | +1.2 % |
+| P2 | n 8, 6870 (7096) | n 8, 6795 (7051) | +1.1 % | +0.6 % |
+| P3 | n 10, 6227 (6433) | n 10, 6315 (6480) | -1.4 % | -0.7 % |
+| pooled | n 24, 6692 | n 24, 6688 | +0.1 % | +0.2 % |
+| `--spec off` O1 / O2 | n 8, 7101 / n 12, 6256 | | | |
+
+Pooled `--spec off` n 20 median 6653: A / off +0.6 %, B / off +0.5 %. The process-to-process spread is 6227 to 7101 (14 %), and it appears in the spec-off processes (O1 7101 vs O2 6256, the same code and flags) as much as in the
+alternating ones, so the fast / slow mode is process state, not the draft. 1k pooled A / B -0.3 %, 4k -2.4 % (per-process -2.1 / -3.8 / +0.6 %), neither with a consistent sign.
+
+Verdict (stop rule: within-process gap within noise): **cross-process measurement artifact.** Inside one process the speculating request's prefill costs the same as the non-speculating one (+0.1 %, per-process
+-1.4 to +1.1 %), and a loaded-but-idle draft costs nothing against a process started with spec off (+0.5 %, well inside the 14 % spread between two spec-off processes). The +2.1 to +3.4 % of the four `serve` bar runs
+is the same size as the per-process mode spread and had the same sign by chance of which mode each arm's processes landed in (pooled slow shares 55 / 63 / 59 %). Nothing to fix in the code, so no fix sketch.
+The decision (waive the 16k TTFT bar miss, or redefine the bar as within-process) goes back to the coordinator and the user; #496 is untouched.
+
+Candidate lane (out of scope here): what decides the fast / slow process mode (~10 % at 16k, ~15-20 % at 4k in some slots). It hits both arms equally, so it is not the draft; suspects are per-process
+Metal state at allocation / first-use (heap placement, residency, shader-cache or page state after the first 16k prefill), measurable by logging per-process mode against the order of the first requests.

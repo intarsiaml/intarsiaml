@@ -1225,6 +1225,11 @@ struct SpecStep {
 /// `LocalEngine`. The Metal, CUDA and HIP backends state 16.
 pub const SERVE_MAX_BATCH: usize = 8;
 
+/// The most reusable prefix rows a drafting request with an out-of-date DFlash-family draft gives up to re-prefill from 0 and draft
+/// ([`Seq::new`]); above it the request keeps the prefix and runs without drafting. 128 covers a chat template's preamble, so a new
+/// conversation drafts again, and re-prefills at most ~0.1 s on Metal (lane ink-spec-land, Brief L2a).
+pub const DFLASH_RESYNC_REUSE_MAX: usize = 128;
+
 /// One verify pass over `[last, drafts...]` at `st.len` (token `generated + 1` is row 0's), greedy acceptance, KV
 /// rollback of the rejected rows. Inside the `min_tokens` window the sequential path masks the stop ids before its
 /// (host) argmax; a row there whose device argmax is not a stop id has the same argmax under the mask (both take the
@@ -1555,8 +1560,24 @@ impl Seq {
             p = model.reuse_len(st, plen, p);
         }
         // (a store request keeps its reuse: the head's context restarts there instead)
-        if st.mtp.as_ref().is_some_and(|m| drafting && !m.synced && ps.is_none()) || st.dflash.as_ref().is_some_and(|d| drafting && !d.synced) {
+        if st.mtp.as_ref().is_some_and(|m| drafting && !m.synced && ps.is_none()) {
             p = 0;
+        }
+        // A DFlash-family draft (DFlash, DFlash2, DSpine, DSpark) that no longer covers the sequence (a request that did not draft
+        // ran on it, e.g. a sampled turn) has no context for the reused rows. Drafting would re-prefill the whole prompt; with more
+        // than `DFLASH_RESYNC_REUSE_MAX` rows to reuse this request keeps the prefix and runs without drafting instead (greedy
+        // speculation is token-for-token the plain decode, so only the schedule changes), and the draft stays out until a request
+        // starts from (nearly) nothing, e.g. a new conversation (lane ink-spec-land, Brief L2a: at 4k a re-prefill costs ~2.1 s
+        // where DSpark saves ~0.85 s over a 256-token reply).
+        let mut drafting = drafting;
+        if st.dflash.as_ref().is_some_and(|d| drafting && !d.synced) {
+            if p > DFLASH_RESYNC_REUSE_MAX {
+                drafting = false;
+                seq.spec_on = false;
+                seq.auto = None;
+            } else {
+                p = 0;
+            }
         }
         let mut restored = Duration::ZERO;
         if let Some(ps) = &ps {

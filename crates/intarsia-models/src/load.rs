@@ -768,7 +768,7 @@ fn mtp_default_allowed(opts: &EngineOptions, local: bool) -> bool {
         && !std::env::var("INTARSIA_SPEC_DEFAULT").is_ok_and(|v| v == "0")
 }
 
-/// Inkling-2's DSpark default (brief 32, user decision 5, 2026-11-22: CUDA): `Some(k)` without `--spec` / `--mtp` / `--spec-draft` /
+/// Inkling-2's DSpark default (user decision 5, 2026-11-22: CUDA, brief 32; Metal, lane ink-spec-land): `Some(k)` without `--spec` / `--mtp` / `--spec-draft` /
 /// `--dcoco` / a prefix store, in-process at one rank, `--max-batch` at most 1 (the batching engine does not speculate with a
 /// draft), on an Inkling-2 recipe that sets `[tuning.<backend>] mtp_default_k = k` ([`Recipe::resolve_draft_default`]), and
 /// `INTARSIA_SPEC_DEFAULT` not `0`. A lone `--spec-k N` sets k. Whether the checkpoint holds the draft is [`dspark_draft_present`]'s.
@@ -952,7 +952,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let mut opts = opts;
     let mut dspark_dflt = false;
     // brief 32 (user decision 5): Inkling-2 speculates with its own DSpark draft when no `--spec` is given, where the recipe sets
-    // `[tuning.<backend>] mtp_default_k` (CUDA: k3), one sequence at one rank; sampled requests take plain steps
+    // `[tuning.<backend>] mtp_default_k` (CUDA and Metal: k3), one sequence at one rank; sampled requests take plain steps
     if let Some(k) = dspark_default(opts, &recipe, backend_name, backends.len(), local) {
         if dspark_draft_present(&cfg, dir) {
             eprintln!(
@@ -1368,28 +1368,50 @@ fn load_dsv41(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> 
 mod dspark_default_tests {
     use super::*;
 
-    /// Inkling-2's DSpark default (brief 32) applies only where the recipe sets it (`[tuning.cuda] mtp_default_k`), at one rank in
-    /// process, one sequence, no explicit `--spec`; the draft's presence is checked apart. `golden/inkling2-tiny-dspark` holds an
-    /// Inkling-2 `config.json` with `mtp_config` and `mtp.safetensors`; `golden/inkling2-tiny` has no draft.
+    /// Inkling-2's DSpark default applies only where the recipe sets it (`[tuning.cuda]` and `[tuning.metal]` `mtp_default_k`), at
+    /// one rank in process, one sequence (`--max-batch` unset or 1), no explicit `--spec`, no prefix store; the draft's presence is
+    /// checked apart. No other recipe has a draft default. `golden/inkling2-tiny-dspark` holds an Inkling-2 `config.json` with
+    /// `mtp_config` and `mtp.safetensors`; `golden/inkling2-tiny` has no draft.
     #[test]
     fn dspark_default_only_where_the_recipe_sets_it() {
         let recipe = crate::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
         let base = EngineOptions { spec_auto: true, ..Default::default() };
         let d = |o: &EngineOptions, backend: &str, world: usize, local: bool| dspark_default(o, &recipe, backend, world, local);
         let k = recipe.resolve_draft_default("cuda").expect("recipes/inkling2.toml sets [tuning.cuda] mtp_default_k");
+        assert_eq!(recipe.resolve_draft_default("metal"), Some(3), "recipes/inkling2.toml [tuning.metal] mtp_default_k");
         assert_eq!(d(&base, "cuda", 1, true), Some(k));
-        assert_eq!(d(&base, "metal", 1, true), None);
+        assert_eq!(d(&base, "metal", 1, true), Some(3));
         assert_eq!(d(&base, "cpu", 1, true), None);
-        assert_eq!(d(&base, "cuda", 2, true), None);
-        assert_eq!(d(&base, "cuda", 1, false), None);
-        assert_eq!(d(&EngineOptions { max_batch: Some(4), ..base.clone() }, "cuda", 1, true), None);
+        assert_eq!(d(&base, "hip", 1, true), None);
+        for b in ["cuda", "metal"] {
+            assert_eq!(d(&base, b, 2, true), None, "{b} at tp 2");
+            assert_eq!(d(&base, b, 1, false), None, "{b} on a remote rank");
+            for n in [2, 4, 16] {
+                assert_eq!(d(&EngineOptions { max_batch: Some(n), ..base.clone() }, b, 1, true), None, "{b} --max-batch {n}");
+            }
+            let store = EngineOptions { prefix_store: intarsia_core::prefix_store::PrefixStoreConfig::parse("on").unwrap(), ..base.clone() };
+            assert_eq!(d(&store, b, 1, true), None, "{b} with a prefix store");
+        }
         assert_eq!(d(&EngineOptions { max_batch: Some(1), ..base.clone() }, "cuda", 1, true), Some(k));
+        assert_eq!(d(&EngineOptions { max_batch: Some(1), ..base.clone() }, "metal", 1, true), Some(3));
+        for entry in std::fs::read_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../recipes")).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().is_none_or(|e| e != "toml") || path.file_stem().is_some_and(|s| s == "inkling2") {
+                continue;
+            }
+            let r = crate::parse_recipe(&std::fs::read_to_string(&path).unwrap()).unwrap();
+            for b in ["cpu", "cuda", "hip", "metal"] {
+                assert_eq!(dspark_default(&base, &r, b, 1, true), None, "{}: a draft default on {b}", path.display());
+            }
+        }
         // an explicit --spec (off included) wins
-        assert_eq!(d(&EngineOptions { spec_auto: false, ..base.clone() }, "cuda", 1, true), None);
         let kk = |k: usize| EngineOptions { spec_k_given: true, spec: intarsia_core::spec::SpecConfig { k, ..Default::default() }, ..base.clone() };
-        assert_eq!(d(&kk(2), "cuda", 1, true), Some(2));
-        assert_eq!(d(&kk(0), "cuda", 1, true), None);
-        assert_eq!(d(&EngineOptions { spec_draft: Some(PathBuf::from("x")), ..base.clone() }, "cuda", 1, true), None);
+        for b in ["cuda", "metal"] {
+            assert_eq!(d(&EngineOptions { spec_auto: false, ..base.clone() }, b, 1, true), None, "{b} with --spec");
+            assert_eq!(d(&kk(2), b, 1, true), Some(2), "{b} --spec-k 2");
+            assert_eq!(d(&kk(0), b, 1, true), None, "{b} --spec-k 0");
+            assert_eq!(d(&EngineOptions { spec_draft: Some(PathBuf::from("x")), ..base.clone() }, b, 1, true), None, "{b} --spec-draft");
+        }
         // the draft's presence
         let g = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../golden");
         for (name, has) in [("inkling2-tiny-dspark", true), ("inkling2-tiny", false)] {
