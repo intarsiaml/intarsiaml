@@ -1,0 +1,6 @@
+md5 4k 256: EQUAL 9675bbb95adabf53ce09c1f77a1d34b4
+md5 short 256: EQUAL 9a27c21b6fdc4ea7700439c818e698d8
+md5 short 64: EQUAL 04cdb28a6849728e8aa5be39bf65c07e
+md5 4k 64: EQUAL 2252566a5c54cf52cb564bd214c9af2b
+tests [('ok', '2', '0'), ('ok', '1', '0'), ('ok', '8', '0')], ADMITTED x2
+GATE PASS

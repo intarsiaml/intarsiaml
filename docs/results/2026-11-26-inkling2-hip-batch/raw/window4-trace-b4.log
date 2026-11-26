@@ -1,0 +1,33 @@
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.0 s
+# memory: device AMD Radeon Graphics total 32624 MiB free-at-load 13730 MiB, weights 12694 MiB, workspace 1934 MiB, KV budget 12356 MiB, KV 32768 B/token, context 352 tokens per sequence, KV total 44 MiB, rings 174 MiB per sequence, batch rows 4
+# memory note: 1044 MiB of the KV budget reserved for the rings of 4 batched Inkling-2 sequences (348 MiB per sequence, live + ring snapshot)
+# Inkling-2-Mini hip, context 256 (+0 per sequence, +16 decoded), 1 rounds x 16 steps, chunk 2048, prompts: text corpus (49909 tokens, 16 slices of up to 3119)
+| B | B solo steps ms | 1 batched step ms | speedup | solo tok/s | batched tok/s | design est. ms (1k) | batched step p99 ms |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4 | NaN | 26.08 | NaNx | NaN | 153.4 | - | 26.64 |
+hip trace: 36 batches, 15196 launches, kernel GPU time 2201.0 ms, stream wall time 2264.3 ms, idle between launches 63.3 ms (3% of wall)
+kernel                         launches   total ms    avg us % kern
+moe_experts_situ_bf16               176    1139.77    6476.0  51.8%
+moe_experts_situ_bf16_rows         1408     339.15     240.9  15.4%
+ink_in_proj_bf16_gemv_rows         1536     114.70      74.7   5.2%
+moe_experts_mxfp8_bf16               16     111.01    6938.2   5.0%
+conv_mix_bf16_rows                 3072      88.16      28.7   4.0%
+logits_bf16_gemv_rows              1568      62.22      39.7   2.8%
+matmul_bf16_gemv_rows              1536      48.39      31.5   2.2%
+conv_mix_bf16                       384      46.99     122.4   2.1%
+moe_experts_mxfp8_bf16_rows         128      46.84     366.0   2.1%
+ink_kv_prologue_bf16                192      45.81     238.6   2.1%
+ink_in_proj_bf16_matmul             192      39.73     206.9   1.8%
+ink_attn_decode_bf16_rows          1536      38.23      24.9   1.7%
+moe_route                          1728      22.15      12.8   1.0%
+matmul_bf16                         192      15.76      82.1   0.7%
+attn_res_mix_bf16                   936      14.19      15.2   0.6%
+rel_sink_attn_bf16                  192      11.61      60.5   0.5%
+logits_bf16                         192       8.25      43.0   0.4%
+loop_blend_bf16                      72       4.80      66.7   0.2%
+embedding_bf16                       36       1.43      39.6   0.1%
+rmsnorm_bf16                         72       1.15      16.0   0.1%
+argmax_f32                           32       0.65      20.4   0.0%
+hip trace gaps after launches of < 0.1 ms: n 12820 sum 46.63 ms, us min 3.4 p10 3.5 median 3.6 p90 3.7 max 18.7
+hip trace gaps after launches of 0.1 to 1 ms: n 2113 sum 7.69 ms, us min 3.5 p10 3.5 median 3.6 p90 3.7 max 9.0
+hip trace gaps after launches of >= 1 ms: n 227 sum 9.01 ms, us min 3.6 p10 3.6 median 3.7 p90 255.5 max 269.5

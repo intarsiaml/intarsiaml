@@ -1,0 +1,6 @@
+# name;bin;serve args;localeval speed args | bitwise:<mode>[,localeval args] | real:<N,..>:<reps>
+# W10, after the pre-stage (stage_w10.sh: the #528 re-gate of b8 vs main4; gate10_check.py must pass): the real-prompt sweep on one
+# --max-batch 16 server: 4, 8 and 16 of the 16 real prompts at once (serve_bitwise.py conc:N:OFF, length-spread subsets, 128 forced
+# tokens), rep by rep while the window lasts. Binary b7 (the branch on 3c6ff64f0, batched path identical to b8): its plan-shape
+# admission is cached (17 s start); b8's would rerun 134 cases (~85 s) and not fit the window.
+mb16-real;b7;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;real:4,8,16:3

@@ -1,0 +1,3 @@
+1795719167.970 [localeval] calibrated: 22.4 tokens/sentence, 47 base tokens, ctx=4608
+1795719171.952 [localeval]   1024 tok rep 1/1: prompt=1035 ttft=0.46s prefill=2262 tok/s decode=73.7 tok/s peak=230.7 tok/s out=256
+1795719188.200 [localeval] 8 streams: aggregate 126.4 tok/s

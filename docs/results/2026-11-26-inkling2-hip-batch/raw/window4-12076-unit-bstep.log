@@ -1,0 +1,93 @@
+fleetq: #12076 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=295 BR=b5 bash ~/intarsiaml-ink-hip-batch/.scratch/window.sh ~/intarsiaml-ink-hip-batch/.scratch/stage_bstep.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-batch/.scratch/stage_bstep.sh; cap 295s; stopping radiance 2026-11-26 13:00:30
+[window] radiance stopped 2026-11-26 13:00:33 (inactive)
+[stage] unit: ink_rows (the RowArgsRT / InkPR form) 2026-11-26 13:00:33
+test attn_decode_rows_bitwise_solo ... ink_attn_decode_bf16_rows: 40 row-table calls bitwise the solo calls (every row, every cache / ring byte)
+test conv_mix_rows_bitwise_solo ... conv_mix_bf16_rows: 645 row-table calls bitwise the solo calls (every row, every ring byte)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.64s
+[stage] unit: ink_attn rows_exact_real_shapes 2026-11-26 13:00:46
+test rows_exact_real_shapes ... 63 rows-exact cases bitwise
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 7.80s
+[stage] kernels test conv_mix 2026-11-26 13:00:54
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+[stage] kernels test ink_attn_decode 2026-11-26 13:01:01
+ink_attn_decode ink_attn_decode_bf16           70      0    1.033e-3    7.283e-5  ADMITTED
+[stage] inkling2_batch tiny on hip 2026-11-26 13:01:06
+test inkling2_batch_argmax_equals_solo ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_equals_solo_2_5_16 ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_failed_pass_resets_every_sequence ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_membership_changes ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_rollback_per_sequence ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_sampler_rows_are_softcapped ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batched_engine_equals_solo_engine ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.56s
+[stage] bitwise short (ctx 256 + 8 i), solo replay 2026-11-26 13:01:12
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.8 s
+# memory: device AMD Radeon Graphics total 32624 MiB free-at-load 13730 MiB, weights 12694 MiB, workspace 6114 MiB, KV budget 12356 MiB, KV 32768 B/token, context 768 tokens per sequence, KV total 384 MiB, rings 174 MiB per sequence, batch rows 16
+# memory note: 5222 MiB of the KV budget reserved for the rings of 16 batched Inkling-2 sequences (348 MiB per sequence, live + ring snapshot)
+# Inkling-2-Mini hip, context 256 (+8 per sequence, +64 decoded), 4 rounds x 16 steps, chunk 2048, prompts: text corpus (49909 tokens, 16 slices of up to 3119)
+| B | B solo steps ms | 1 batched step ms | speedup | solo tok/s | batched tok/s | design est. ms (1k) | batched step p99 ms |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+# solo replay: 2320 tokens of 16 sequences, every one equal to its batched token; solo step median 13.04 ms
+| 1 | 13.04 (replay) | 12.99 | 1.00x | 76.7 | 77.0 | - | 13.08 |
+| 4 | 52.15 (replay) | 23.59 | 2.21x | 76.7 | 169.6 | - | 24.41 |
+| 8 | 104.30 (replay) | 33.25 | 3.14x | 76.7 | 240.6 | - | 34.31 |
+| 16 | 208.60 (replay) | 55.35 | 3.77x | 76.7 | 289.1 | - | 56.64 |
+# B 1 batched-token digest 0e1a74c34754ed69 rows 0e1a74c34754ed69
+# B 4 batched-token digest e5da1687ad9d83f8 rows b731aa62d6b0720f 684db93ca987099a f3402dda8ac86254 f89866f325ce52cf
+# B 8 batched-token digest 983f4f1fbd750a5c rows b9502eb3aa9a917d 9ce786269194b36f 416f67265d34b383 589451e42e42be93 8139a1cc46c6b5cf d42eda64de19e01c f1d7cac8c26c5758 6c71457d5b827f44
+# B 16 batched-token digest 0253a422abb22550 rows a2676dbc4225a415 ab5fe24980175b43 af6594213c98adfe 3bc287c40d9684a3 ca7cd05ba7ade16f 3987d08f6f458d70 41d95383407b05f7 d184b37188e85ccf c5a94a65064aa7a4 a1ea94332c369b1d c18a0ce96d13cce6 ac49ec9f298a2e41 292564f53aba5bdd 82fa5491be3c13d2 812ab8e9b6b32424 c962c99ede01497c
+[stage] bitwise 2k (ctx 2040 + 3 i), solo replay 2026-11-26 13:02:06
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.9 s
+# memory: device AMD Radeon Graphics total 32624 MiB free-at-load 13730 MiB, weights 12694 MiB, workspace 6195 MiB, KV budget 12356 MiB, KV 32768 B/token, context 2200 tokens per sequence, KV total 1100 MiB, rings 174 MiB per sequence, batch rows 16
+# memory note: 5222 MiB of the KV budget reserved for the rings of 16 batched Inkling-2 sequences (348 MiB per sequence, live + ring snapshot)
+# Inkling-2-Mini hip, context 2040 (+3 per sequence, +16 decoded), 2 rounds x 8 steps, chunk 2048, prompts: text corpus (49909 tokens, 16 slices of up to 3119)
+| B | B solo steps ms | 1 batched step ms | speedup | solo tok/s | batched tok/s | design est. ms (1k) | batched step p99 ms |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+# solo replay: 480 tokens of 16 sequences, every one equal to its batched token; solo step median 13.53 ms
+| 4 | 54.12 (replay) | 25.05 | 2.16x | 73.9 | 159.7 | - | 25.86 |
+| 16 | 216.46 (replay) | 61.61 | 3.51x | 73.9 | 259.7 | - | 62.47 |
+# B 4 batched-token digest 35996fb450df7907 rows ff15203af683b3ed 426f64a6b0f4ce20 36c47da3ae147a27 ec85cff8eb681b66
+# B 16 batched-token digest 182d36a45f20cea7 rows 6a9c206b3eb58fe8 329423eae2a0f1f0 cfe8421466046217 e5965cd788aa3423 8e0553d6c6e24150 8a11e7d4326ddb8a cd181cc51e9039b3 1e5b64df9f39c200 94d3254f049ec75b bfae4f40ed05e3b7 95921e00ea7a5448 ed7d32eea66336bc eef0eb4ed851e5bd f031968d82ea27c8 f7eec1838d1221c6 493d1f60960faf88
+[stage] trace short B 4 batched only 2026-11-26 13:02:41
+# memory: device AMD Radeon Graphics total 32624 MiB free-at-load 13730 MiB, weights 12694 MiB, workspace 1934 MiB, KV budget 12356 MiB, KV 32768 B/token, context 352 tokens per sequence, KV total 44 MiB, rings 174 MiB per sequence, batch rows 4
+| 4 | NaN | 26.08 | NaNx | NaN | 153.4 | - | 26.64 |
+moe_experts_situ_bf16               176    1139.77    6476.0  51.8%
+moe_experts_situ_bf16_rows         1408     339.15     240.9  15.4%
+ink_in_proj_bf16_gemv_rows         1536     114.70      74.7   5.2%
+moe_experts_mxfp8_bf16               16     111.01    6938.2   5.0%
+conv_mix_bf16_rows                 3072      88.16      28.7   4.0%
+logits_bf16_gemv_rows              1568      62.22      39.7   2.8%
+matmul_bf16_gemv_rows              1536      48.39      31.5   2.2%
+conv_mix_bf16                       384      46.99     122.4   2.1%
+moe_experts_mxfp8_bf16_rows         128      46.84     366.0   2.1%
+ink_kv_prologue_bf16                192      45.81     238.6   2.1%
+ink_in_proj_bf16_matmul             192      39.73     206.9   1.8%
+ink_attn_decode_bf16_rows          1536      38.23      24.9   1.7%
+matmul_bf16                         192      15.76      82.1   0.7%
+rel_sink_attn_bf16                  192      11.61      60.5   0.5%
+logits_bf16                         192       8.25      43.0   0.4%
+[stage] speed 4k batched only B 16 2026-11-26 13:02:47
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.9 s
+# memory: device AMD Radeon Graphics total 32624 MiB free-at-load 13730 MiB, weights 12694 MiB, workspace 6195 MiB, KV budget 12356 MiB, KV 32768 B/token, context 4224 tokens per sequence, KV total 2112 MiB, rings 174 MiB per sequence, batch rows 16
+# memory note: 5222 MiB of the KV budget reserved for the rings of 16 batched Inkling-2 sequences (348 MiB per sequence, live + ring snapshot)
+# Inkling-2-Mini hip, context 4096 (+0 per sequence, +48 decoded), 3 rounds x 16 steps, chunk 2048, prompts: text corpus (49909 tokens, 16 slices of up to 3119)
+| B | B solo steps ms | 1 batched step ms | speedup | solo tok/s | batched tok/s | design est. ms (1k) | batched step p99 ms |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 16 | NaN | 63.25 | NaNx | NaN | 253.0 | - | 64.14 |
+[stage] speed 4k batched only B 1/4/8 2026-11-26 13:03:16
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.0 s
+# memory: device AMD Radeon Graphics total 32624 MiB free-at-load 13730 MiB, weights 12694 MiB, workspace 3410 MiB, KV budget 12356 MiB, KV 32768 B/token, context 4352 tokens per sequence, KV total 1088 MiB, rings 174 MiB per sequence, batch rows 8
+# memory note: 2437 MiB of the KV budget reserved for the rings of 8 batched Inkling-2 sequences (348 MiB per sequence, live + ring snapshot)
+# Inkling-2-Mini hip, context 4096 (+0 per sequence, +48 decoded), 3 rounds x 16 steps, chunk 2048, prompts: text corpus (49909 tokens, 16 slices of up to 3119)
+| B | B solo steps ms | 1 batched step ms | speedup | solo tok/s | batched tok/s | design est. ms (1k) | batched step p99 ms |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | NaN | 13.63 | NaNx | NaN | 73.4 | - | 13.66 |
+| 4 | NaN | 25.61 | NaNx | NaN | 156.2 | - | 26.27 |
+| 8 | NaN | 36.77 | NaNx | NaN | 217.6 | - | 37.75 |
+[stage] done 2026-11-26 13:03:36
+[window] stage done 2026-11-26 13:03:37 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 13:03:37
+[window] radiance answers 2026-11-26 13:03:47 (after 15 s)
+fleetq: #12076 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

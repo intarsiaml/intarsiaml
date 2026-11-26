@@ -28,6 +28,13 @@ int ik_conv_mix_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor*
                      const ik_tensor* queries, const ik_tensor* norm, const ik_tensor* msg, const ik_tensor* down, const ik_tensor* gain,
                      const ik_tensor* forget, int64_t pos0, const ik_tensor* pos, float eps, ik_tensor* y, ik_tensor* ring, ik_tensor* sum,
                      ik_tensor* mix, const ik_scratch* scratch, void* stream);
+/* ConvMix row-table form (batched decode, lane ink-hip-batch; `OpCall::rows`): row t is the T = 1 call of sequence t at position pos[t]
+ * (i32 [T], required) on its own ring, the buffer at entry tindex of row t of tab (u8 [T, tstride, 8]) plus roff (the ring carrier's byte
+ * offset); ring is row 0's carrier (shape). Every other operand as ik_conv_mix_bf16. */
+int ik_conv_mix_bf16_rows(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* res, const ik_tensor* addend, const ik_tensor* src,
+                          const ik_tensor* queries, const ik_tensor* norm, const ik_tensor* msg, const ik_tensor* down, const ik_tensor* gain,
+                          const ik_tensor* forget, const ik_tensor* pos, float eps, ik_tensor* y, ik_tensor* ring, ik_tensor* sum, ik_tensor* mix,
+                          const ik_scratch* scratch, const ik_tensor* tab, int64_t tstride, int64_t tindex, int64_t roff, void* stream);
 int ik_loop_blend_bf16(const ik_tensor* dest, const ik_tensor* msg, const ik_tensor* down, const ik_tensor* gain, const ik_tensor* forget,
                        const ik_tensor* norm, float eps, ik_tensor* out, const ik_scratch* scratch, void* stream);
 /* kernels/hip/ink_route_fused.hip: InkRoute (76). x bf16 [T,D], w bf16 [E,D], bias f32 [E] -> weights f32 [T,K], ids i32 [T,K], logits f32 [T,E] or an

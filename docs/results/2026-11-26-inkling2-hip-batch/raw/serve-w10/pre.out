@@ -1,0 +1,33 @@
+[stage] unit: ink_rows 2026-11-26 14:08:59
+test attn_decode_rows_bitwise_solo ... ink_attn_decode_bf16_rows: 40 row-table calls bitwise the solo calls (every row, every cache / ring byte)
+test conv_mix_rows_bitwise_solo ... conv_mix_bf16_rows: 645 row-table calls bitwise the solo calls (every row, every ring byte)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.46s
+[stage] md5 4k 256 2026-11-26 14:09:12
+SPD main 4k 256 r1 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3442 ms (74.09 tok/s) | prefill 1366 ms (3094.2 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r1 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3444 ms (74.03 tok/s) | prefill 1371 ms (3084.1 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+[stage] md5 short 256 2026-11-26 14:09:31
+SPD branch short 256 r1 9a27c21b6fdc4ea7700439c818e698d8 | decode 3319 ms (76.83 tok/s) | prefill 98 ms (314.9 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main short 256 r1 9a27c21b6fdc4ea7700439c818e698d8 | decode 3316 ms (76.90 tok/s) | prefill 99 ms (314.2 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+[stage] md5 64 2026-11-26 14:09:48
+SPD main short 64 r1 04cdb28a6849728e8aa5be39bf65c07e | decode 824 ms (76.44 tok/s) | prefill 99 ms (311.8 tok/s) | steps=64 graph replays=63 (captures 1) eager decode steps=0
+SPD branch short 64 r1 04cdb28a6849728e8aa5be39bf65c07e | decode 824 ms (76.43 tok/s) | prefill 100 ms (308.9 tok/s) | steps=64 graph replays=63 (captures 1) eager decode steps=0
+SPD main 4k 64 r1 2252566a5c54cf52cb564bd214c9af2b | decode 857 ms (73.47 tok/s) | prefill 1373 ms (3080.4 tok/s) | steps=66 graph replays=63 (captures 1) eager decode steps=0
+SPD branch 4k 64 r1 2252566a5c54cf52cb564bd214c9af2b | decode 858 ms (73.40 tok/s) | prefill 1376 ms (3072.1 tok/s) | steps=66 graph replays=63 (captures 1) eager decode steps=0
+[stage] unit: ink_attn rows_exact_real_shapes 2026-11-26 14:10:13
+test rows_exact_real_shapes ... 63 rows-exact cases bitwise
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 7.70s
+[stage] kernels test conv_mix 2026-11-26 14:10:21
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+[stage] kernels test ink_attn_decode 2026-11-26 14:10:28
+ink_attn_decode ink_attn_decode_bf16           70      0    1.033e-3    7.283e-5  ADMITTED
+[stage] inkling2_batch tiny on hip 2026-11-26 14:10:33
+test inkling2_batch_argmax_equals_solo ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_equals_solo_2_5_16 ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_failed_pass_resets_every_sequence ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_membership_changes ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_rollback_per_sequence ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_sampler_rows_are_softcapped ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batched_engine_equals_solo_engine ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.58s
+[stage] done 2026-11-26 14:10:39

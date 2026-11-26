@@ -1,0 +1,74 @@
+{
+ "short-1": {
+  "md5": "6d1c9868b552277bb3f3257beed36805",
+  "text": "The user asks: \"Explain in simple terms how vaccines train the immune system, in about four short paragraphs for a curious teenager.\n\nSummarize the above in a few sentences.\"\n\nNeed answer likely should include the four short paragraphs and then a summary in a few sentences. Need be careful: This is medical/science explanation, allowed. Need simple terms for curious teenager. Need produce final only. Need ensure no medical advice beyond general. Explain vaccines train immune system: introduce harmless piece/weakened version of pathogen; immune system recognizes antigens; makes antibodies and memory cells;\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 49,
+  "cached_tokens": 0,
+  "t0": 1795720264.789922,
+  "t1": 1795720273.8138182
+ },
+ "short-2": {
+  "md5": "b090e7cc56424ab0dc62a4780658ce72",
+  "text": "The user wants:\n1. A Python function returning the n-th Fibonacci number using memoization, with type hints and a short docstring.\n2. Explanation of its time complexity.\n3. A summary in a few sentences.\n\nNeed produce final answer. Need ensure correctness. Let's craft function.\n\nOptions: use functools.lru_cache. Type hints: def fib(n: int) -> int:. Docstring short. Validate n? Could raise ValueError for negative. Memoization via @lru_cache(maxsize=None). Implementation:\n\nfrom\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 57,
+  "cached_tokens": 0,
+  "t0": 1795720264.790133,
+  "t1": 1795720273.846038
+ },
+ "4k-0[:700]": {
+  "md5": "0827408680cd7df377969e9b50d167b6",
+  "text": "The user asks to summarize the above in a few sentences. Need answer based on provided text. Need be careful: text is truncated: \"Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons\" incomplete. We can summarize visible content. Need mention v0.2 incorporates Fable adversarial review: torch-free C kernel ABI, TensorFold MIT and radiance Apache-2.0 as first kernel packs, hard kernels earlier, Phase 0 cut to seams\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 226,
+  "cached_tokens": 0,
+  "t0": 1795720264.790312,
+  "t1": 1795720273.875239
+ },
+ "mid-0": {
+  "md5": "cbeba43e08a9ef733bd3cc14ab05821b",
+  "text": "The user has pasted a document and asks to \"Summarize the above in a few sentences.\" Need answer concise. Need be careful: document is an architecture plan v0.2 with status markers. We can summarize: Intarsia is a modular wood-inlay-like engine where ops/kernels/quant formats/model blocks/benchmarks/API surfaces are contract-checked pieces; v0.2 uses torch-free C kernel ABI, TensorFold (MIT) and radiance (Apache-2.0) as first kernel packs, hard kernels earlier, Phase 0\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 570,
+  "cached_tokens": 0,
+  "t0": 1795720264.7904708,
+  "t1": 1795720273.91116
+ },
+ "4k-1[:4000]": {
+  "md5": "0d8bc8c49df00e4f799dbfe5d649f5b8",
+  "text": "The user pasted a long technical note and asks to summarize it in a few sentences. Need answer concise. Need ensure no unsupported claims. Summarize: lane dc opt-in DFlash + DCOCO corrector for Qwen3-8B, default off, phase 1 accepted, phases 2/3 done, cost gate tried, DFlash stays opt-in. Mention sources/licences and key semantics briefly. Need be careful: user asks summarize above in a few sentences. Provide 3-5 sentences. No need to mention hidden thinking. Final only.\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 1410,
+  "cached_tokens": 0,
+  "t0": 1795720264.790634,
+  "t1": 1795720274.005467
+ },
+ "4k-0[:6000]": {
+  "md5": "9bac0fa88f8e8e776c62517309cac761",
+  "text": "The user wants a summary of the above document in a few sentences. The document is an architecture plan for IntarsiaML with a status table. I should summarize the plan and its current status concisely.\n\nLet me read the content: It's a v0.2 plan for IntarsiaML, a wood-inlay-inspired engine where every op/kernel/quant format/model block/benchmark/API surface is a piece with a contract, checked against a reference. It lists components and their status: many implemented (Rust host, backends cpu-ref/CUDA/HIP\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 1914,
+  "cached_tokens": 0,
+  "t0": 1795720264.7907898,
+  "t1": 1795720274.0092318
+ },
+ "4k-1[:9500]": {
+  "md5": "dbc4f8144c954d262452bffa222de519",
+  "text": "The user pasted a long technical note and asks to summarize it in a few sentences. I should summarize the key points: DFlash parallel-draft speculation and DCOCO corrector, opt-in, phase 1 accepted, phases 2 and 3 done, cost gate tried, DFlash stays opt-in.\u0000This note documents the opt-in DFlash parallel-draft speculation path (`--spec dflash`) and the DCOCO corrector (`--dcoco`) for Qwen3-8B on the lane-dc branch. It lays out",
+  "completion_tokens": 128,
+  "prompt_tokens": 3556,
+  "cached_tokens": 0,
+  "t0": 1795720264.790972,
+  "t1": 1795720274.009832
+ },
+ "4k-1": {
+  "md5": "c26af6075d12f0980815bbd77a5d1e6b",
+  "text": "The user asks: \"Explain the document above to a new engineer joining the project, in detail. Summarize the above in a few sentences.\"\n\nThere's a tension: \"in detail\" vs \"a few sentences\". The final instruction says summarize in a few sentences. I should probably give a detailed explanation but the last line says summarize in a few sentences. The safest is to provide a detailed explanation and then a short summary. Actually the prompt structure: \"Explain the document above to a new engineer joining the project, in detail. Summarize the above in a few sentences.\" So\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 4237,
+  "cached_tokens": 0,
+  "t0": 1795720264.7911549,
+  "t1": 1795720274.03076
+ }
+}
