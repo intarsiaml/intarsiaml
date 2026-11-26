@@ -1492,3 +1492,21 @@ slots, so pooled the arms agree (55 % / 63 % / 59 %). A slow process costs about
 No test localised the extra prefill time to a code path: (1) `--max-tokens` is irrelevant; (2) the tap staging and copies cost about the 28 ms already measured; (3) per-op times of default and off are equal where
 they were measured, and the 41-300 ms gap appears in some slots (L7 test 1, the serve bar at 16k: +2.1 / +3.2 / +3.3 / +3.4 % in four separate bar runs) and not in others. What the data supports: a per-process fast / slow
 GPU mode (about 10 % at 16k) whose arm assignment is slot-dependent, plus a small stable serve-side cost at 16k of about 3 % that no profile has placed. No code change was made.
+
+## Brief L8 (coordinator, 2026-11-25 ~19:45), lane ink-spec
+
+The user said "Keep hunting". #496 stays held, and the waiver is not on the table yet. Every A/B so far compares separate processes, and the per-process fast / slow mode (about 10 % at 16k)
+is bigger than the gap, so L8 removes that confound instead of adding cross-process reps. In order:
+
+1. **Re-split the existing data (no fleet time, about 15 min).** Classify every L6 / L7 run (bar runs and `generate`) as fast or slow per process (16k cut as in L7; derive the 1k / 4k cuts the
+   same way if they are bimodal). Compare default vs off within fast runs only and within slow runs only. If the within-mode gap at 1k / 4k is about 0, those cells were mode-assignment noise.
+   The real target is then the 16k `serve` result (+2.1 / +3.2 / +3.3 / +3.4 %, same sign in four bar runs).
+2. **Within-process A/B at 16k (one fleetq job, endor).** One `serve` process with the draft loaded; alternate 16k requests that speculate with requests that do not, ABAB, at least 10 each,
+   repeated over 3-4 processes. Find how a request ends up not speculating with the draft loaded (the `0ad399998` feedback_ok path touches it). If no per-request switch exists, add a diag-only
+   per-request env read, kept out of the tree like `diag_ttftlog.patch`. This separates "draft present" from "speculating request's prefill". Optional fourth arm if cheap: a process
+   started with spec off for comparison against the non-speculating requests.
+3. **Not in L8:** what decides the fast / slow mode. Pooled slow rates are 55 / 63 / 59 %, so the draft does not cause it; record it as a candidate lane for both arms.
+
+Stop rule: within-process 16k gap within noise → report that the TTFT miss is a cross-process measurement artifact (the coordinator then asks the user: waive, or redefine the bar as
+within-process). Gap holds at about +3 % → report which side (draft present vs speculating path) carries it, plus a fix sketch; fix it only if small (under about 2 h) and bitwise.
+Time box to 22:30 (fleetq `--expect` must end before the 23:00 reservation #11871). Report once. Push nothing.
