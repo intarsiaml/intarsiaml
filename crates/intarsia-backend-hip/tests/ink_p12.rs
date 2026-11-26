@@ -8,7 +8,7 @@
 
 mod common;
 
-use intarsia_backend_hip::inkp12::set_p12_shape;
+use intarsia_backend_hip::inkp12::{set_p12_shape, LOGITS_ROWS_MAX};
 use intarsia_core::backend::{Backend, MemKind, TensorRef};
 use intarsia_core::quant::p12;
 use intarsia_core::rng::SplitMix64;
@@ -50,14 +50,17 @@ fn get(b: &dyn Backend, o: &TensorRef) -> Vec<u8> {
     data
 }
 
-/// Launch `kernel` on device inputs (`exact_rows` for the `_rows` names) and return the outputs' bytes.
+/// Launch `kernel` on device inputs (`exact_rows` for the `_rows` names) and return the outputs' bytes. The kernel's registration
+/// must accept the call, except the P12 unembed rows kernel above `LOGITS_ROWS_MAX` rows: registered only where it is faster, its
+/// launcher still serves 1..=16 rows, and those are checked bitwise too.
 fn run(b: &dyn Backend, kernel: &str, op: Op, ins: &[TensorRef], outs: &[(DType, Vec<usize>)]) -> Vec<Vec<u8>> {
     let outputs: Vec<TensorRef> = outs.iter().map(|(dt, s)| out_t(b, *dt, s)).collect();
     let mut call = OpCall::new(op, ins.to_vec(), outputs.clone(), OpAttrs::default());
     call.exact_rows = kernel.ends_with("_rows");
     call.check().unwrap_or_else(|e| panic!("{kernel}: {e}"));
     let k = b.kernels().into_iter().find(|k| k.name == kernel && k.op == op).unwrap_or_else(|| panic!("no {kernel}"));
-    assert!(k.accepts(&ShapeInfo::from_call(&call)), "{kernel} refuses the call");
+    let unreg = kernel == "matmul_p12_logits_gemv_rows" && ins[0].shape[0] > LOGITS_ROWS_MAX;
+    assert!(k.accepts(&ShapeInfo::from_call(&call)) != unreg, "{kernel}: registration accepts = {}, expected {}", !unreg, !unreg);
     b.launch(kernel, &call, 0).unwrap_or_else(|e| panic!("{kernel}: {e}"));
     b.synchronize(0).unwrap();
     outputs.iter().map(|o| get(b, o)).collect()
@@ -206,7 +209,7 @@ fn p12_bitwise_real_shapes() {
         n += check_matmul(b, &mut rng, &wo, DType::Bf16, &[2, 4, 8], &format!("wo shape {r},{u}"));
         n += check_matmul(b, &mut rng, &ue, DType::F32, &[4, 8], &format!("unembed shape {r},{u}"));
     }
-    for u in [4, 8, 9] {
+    for u in [0, 4, 8, 9] {
         set_p12_shape(None, u);
         n += check_in_proj(b, &mut rng, &ip, ns, 3, &[1, 4, 16], &format!("in_proj u={u}"));
     }
@@ -321,8 +324,8 @@ fn p12_microbench() {
             println!("BENCH {name} | {m} | {bk}{sfx} | {tb:.2} | {:.1} | 1.000", cp.bf_bytes as f64 / tb / 1e3);
             let pc = mk_calls(Op::MatmulP12, &x, cp.p12.iter().map(|(c, a)| vec![c.clone(), a.clone()]).collect(), &[out.clone()], m > 4);
             let shapes: Vec<Option<(i32, i32)>> = match m {
-                1 => std::iter::once(None).chain(GEMV_SHAPES_ONE[1..].iter().map(|s| Some(*s))).collect(),
-                2..=8 => std::iter::once(None).chain(GEMV_SHAPES_MANY[1..].iter().map(|s| Some(*s))).collect(),
+                1 => std::iter::once(None).chain(GEMV_SHAPES_ONE.iter().map(|s| Some(*s))).collect(),
+                2..=8 => std::iter::once(None).chain(GEMV_SHAPES_MANY.iter().map(|s| Some(*s))).collect(),
                 _ => vec![None],
             };
             for sh in shapes {
@@ -353,10 +356,11 @@ fn p12_microbench() {
         let tb = time_calls(b, "ink_in_proj_bf16_gemv", &bc, iters);
         println!("BENCH in_proj | {m} | ink_in_proj_bf16_gemv | {tb:.2} | {:.1} | 1.000", cp.bf_bytes as f64 / tb / 1e3);
         let pc = mk_calls(Op::InkInProj, &x, cp.p12.iter().map(|(c, a)| vec![c.clone(), a.clone()]).collect(), &outs, false);
-        for u in [0, 4, 8, 9] {
+        for u in [-1, 0, 4, 9] {
             set_p12_shape(None, u);
             let tp = time_calls(b, "ink_in_proj_p12_gemv", &pc, iters);
-            println!("BENCH in_proj | {m} | ink_in_proj_p12_gemv u={u} | {tp:.2} | {:.1} | {:.3}", cp.p12_bytes as f64 / tp / 1e3, tb / tp);
+            let lbl = if u < 0 { "default".to_string() } else { format!("u={u}") };
+            println!("BENCH in_proj | {m} | ink_in_proj_p12_gemv {lbl} | {tp:.2} | {:.1} | {:.3}", cp.p12_bytes as f64 / tp / 1e3, tb / tp);
         }
         set_p12_shape(None, -1);
     }

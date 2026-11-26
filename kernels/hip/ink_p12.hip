@@ -12,7 +12,8 @@
 // In every HIP bf16 GEMV a (weight row, activation row) output is lane L's fma chain over chunks L, L + 32, L + 64, ... (8 fmas per
 // chunk in element order) and then ik_warp_sum; R (weight rows per wave), U (chunk loads in flight per lane), the block and the
 // piece only change the schedule. The defaults below keep the bf16 twins' exact loop shapes (even their masked tail iterations, which
-// add 0 * 0), so even a signed zero matches; the ik_hip_p12_set variants are the same chain with other schedules.
+// add 0 * 0) or the same masked-tail pattern, so even a signed zero matches; the ik_hip_p12_set variants are the same chain with other
+// schedules.
 //
 // Operands: K % 16 == 0, x bf16 16-byte aligned, codes [N, 3K/2] u8 16-byte aligned (plane A at row byte 0, 8 bytes per 8-element
 // chunk; plane B at row byte K, 4 bytes per chunk), aux [N + 1 + E] (u32 as i32).
@@ -232,9 +233,13 @@ constexpr bool ru_one(int r, int u) {
 }
 constexpr bool ru_many(int r, int u) { return (r == 2 && (u == 4 || u == 8)) || (r == 1 && (u == 4 || u == 8)); }
 
+// Defaults (window 1 microbench, fleetq #12128, rotated copies; docs/results/2026-11-26-inkling2-hip-p12.md): one row R = 1, U = 16 (the
+// unembed 1100 us against 1214 at the twin's 1, 8; wo 22.9 against 22.1), 2..4 rows R = 1, U = 4 (4 rows: wo 23.7 against 25.4, the
+// unembed 1282 against 1319 at 2, 4), 5..8 rows the twin's 2, 4. Each keeps its twin's masked tail iterations where the twin has them
+// (U = 16 at nv = 288 / 384 like the twin's U = 8; U = 4 like the twin's U = 4), so even a signed zero matches.
 template <int M>
 RU gemv_ru() {
-    const RU d = M == 1 ? RU{1, 8} : RU{2, 4};
+    const RU d = M == 1 ? RU{1, 16} : (M <= 4 ? RU{1, 4} : RU{2, 4});
     if (g_gemv_r < 0 || g_gemv_u < 0) return d;
     const bool ok = M == 1 ? ru_one(g_gemv_r, g_gemv_u) : ru_many(g_gemv_r, g_gemv_u);
     return ok ? RU{g_gemv_r, g_gemv_u} : d;
@@ -371,8 +376,8 @@ p12_in_proj_kernel(GemvSegs sg, const uint8_t* __restrict__ codes, const uint32_
     }
 }
 
-// The same chain with U chunk loads in flight per lane (the gemv body's schedule; ik_hip_p12_set inproj_u). With U = nv / 32 (9 at
-// D = 2304) the loop has no masked iterations, exactly the stride loop's adds.
+// The same chain with U chunk loads in flight per lane (the gemv body's schedule). With U = nv / 32 (9 at D = 2304) the loop has no
+// masked iterations, exactly the stride loop's adds.
 template <int M, int U>
 __global__ void __launch_bounds__(kWarps* IK_WARP)
 p12_in_proj_u_kernel(GemvSegs sg, const uint8_t* __restrict__ codes, const uint32_t* __restrict__ aux, int64_t N, int64_t K) {
@@ -416,11 +421,15 @@ p12_in_proj_u_kernel(GemvSegs sg, const uint8_t* __restrict__ codes, const uint3
     }
 }
 
+// Default: up to 4 rows with nv a multiple of 9 * 32 (D = 2304: 9 chunks per lane), all nine chunk loads of a lane in flight
+// (p12_in_proj_u_kernel<M, 9>: no masked iterations, exactly the stride loop's adds; window 1: 53.8 / 55.0 us at 1 / 4 rows against
+// 57.1 / 58.7 for the stride loop and 69.4 / 70.0 for bf16); otherwise the stride loop (at 16 rows U = 9 spills: 1464 us).
 template <int M>
 void in_proj_go(const GemvSegs& sg, const uint8_t* cp, const uint32_t* ap, int64_t N, int64_t D, hipStream_t s) {
     const unsigned grid = (unsigned)((N + kWarps - 1) / kWarps);
     const unsigned block = kWarps * IK_WARP;
-    switch (g_inproj_u) {
+    const int u = g_inproj_u >= 0 ? g_inproj_u : (M <= 4 && (D / 8) % (9 * IK_WARP) == 0 ? 9 : 0);
+    switch (u) {
         case 4: p12_in_proj_u_kernel<M, 4><<<grid, block, 0, s>>>(sg, cp, ap, N, D); break;
         case 8: p12_in_proj_u_kernel<M, 8><<<grid, block, 0, s>>>(sg, cp, ap, N, D); break;
         case 9: p12_in_proj_u_kernel<M, 9><<<grid, block, 0, s>>>(sg, cp, ap, N, D); break;

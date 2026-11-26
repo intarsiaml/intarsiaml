@@ -7,7 +7,8 @@
 //! * `matmul_p12_gemv` / `matmul_p12_logits_gemv` (bf16 / f32 out) == `matmul_bf16_gemv` / `logits_bf16_gemv` (kernels.rs), ordinary
 //!   calls of 1..=4 rows. The bf16 Matmul twins step aside when the WMMA table takes bf16 at that row count (`wmma_takes`), so
 //!   these do too.
-//! * `_rows`: the `rows_exact` registrations, 1..=16 rows, == `matmul_bf16_gemv_rows` / `logits_bf16_gemv_rows`.
+//! * `_rows`: the `rows_exact` registrations, == `matmul_bf16_gemv_rows` (1..=16 rows) / `logits_bf16_gemv_rows` (1..=8 rows:
+//!   `LOGITS_ROWS_MAX`; a 9..=16-row head call keeps the bf16 kernel, faster there).
 //! * `ink_in_proj_p12_gemv[_rows]` == `ink_in_proj_bf16_gemv[_rows]` (inkmix.rs), 1..=16 rows.
 //!
 //! The model makes the P12 copies when `p12::decide` says so for "hip" and uses them where these kernels are selected.
@@ -34,6 +35,9 @@ pub const OPS: &[Op] = &[Op::MatmulP12];
 const BF16_TOL: Tol = Tol::new(1.5e-2, 6e-3);
 const F32_TOL: Tol = Tol::new(1e-3, 2e-4);
 
+/// Most rows of `matmul_p12_logits_gemv_rows` (the unembed's rows twin).
+pub const LOGITS_ROWS_MAX: usize = 8;
+
 /// 1..=16 activation rows, K a multiple of 16 (the launchers' 8-element chunks in pairs), at most 65536 (the format).
 fn rows_ok(s: &ShapeInfo) -> bool {
     (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.k <= 65536
@@ -55,7 +59,11 @@ pub fn all() -> Vec<KernelImpl> {
                     k.when(|s| rows_ok(s) && bf16_gemv_row(s) && s.out == Some(DType::Bf16)).tol(BF16_TOL).priority(-1).rows_exact()
                 }
                 "matmul_p12_logits_gemv" => k.when(|s| rows_ok(s) && s.m <= 4 && s.out == Some(DType::F32)).tol(F32_TOL).priority(10),
-                "matmul_p12_logits_gemv_rows" => k.when(|s| rows_ok(s) && s.out == Some(DType::F32)).tol(F32_TOL).priority(-1).rows_exact(),
+                // up to LOGITS_ROWS_MAX rows: at 16 rows the unembed's P12 kernel is slower than the bf16 one (window 1: 2109 against
+                // 1884 us, ALU bound), so 9..=16-row head calls keep the bf16 rows kernel (the same bits either way)
+                "matmul_p12_logits_gemv_rows" => {
+                    k.when(|s| rows_ok(s) && s.m <= LOGITS_ROWS_MAX && s.out == Some(DType::F32)).tol(F32_TOL).priority(-1).rows_exact()
+                }
                 "ink_in_proj_p12_gemv" => k.when(rows_ok).tol(BF16_TOL).priority(10),
                 "ink_in_proj_p12_gemv_rows" => k.when(rows_ok).tol(BF16_TOL).priority(-1).rows_exact(),
                 other => unreachable!("inkp12 kernel {other} has no registration"),
@@ -65,8 +73,9 @@ pub fn all() -> Vec<KernelImpl> {
 }
 
 /// Tests / benches: the launch shape of the P12 GEMVs (`ik_hip_p12_set`; every value gives the same bits). `gemv` = (rows per wave,
-/// chunk loads in flight per lane) of the 1..=8-row MatmulP12 kernel, `None` the default (1, 8 at one row, 2, 4 above: the bf16
-/// twins' shapes); `in_proj_u` 0 = the bf16 twin's stride loop (default), 4 / 8 / 9 = that many chunk loads in flight per lane.
+/// chunk loads in flight per lane) of the 1..=8-row MatmulP12 kernel, `None` the default (1, 16 at one row, 1, 4 at 2..=4, 2, 4 at
+/// 5..=8); `in_proj_u` 0 = the bf16 twin's stride loop, 4 / 8 / 9 = that many chunk loads in flight per lane, -1 the default (9 at
+/// 1..=4 rows when K / 8 is a multiple of 288, else the stride loop).
 pub fn set_p12_shape(gemv: Option<(i32, i32)>, in_proj_u: i32) {
     #[cfg(ik_hip)]
     {

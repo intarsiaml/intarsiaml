@@ -23,9 +23,9 @@ int ik_ink_in_proj_p12_gemv(const ik_tensor* x, const ik_tensor* codes, const ik
 int ik_ink_in_proj_p12_gemv_rows(const ik_tensor* x, const ik_tensor* codes, const ik_tensor* aux, ik_tensor* pq, ik_tensor* pk,
                                  ik_tensor* pv, void* stream);
 /* Test / bench hook (not a launcher): the launch shape of the P12 GEMVs, every value the same bits. gemv_r / gemv_u: rows per
- * wave and chunk loads in flight per lane of the 1..4-row MatmulP12 kernel (instantiated set in ink_p12.hip; anything else, or
- * < 0, the default 1,8 at one row and 2,4 above, the bf16 twins' shapes); inproj_u: 0 = the bf16 twin's stride loop (default),
- * 4 / 8 / 9 = that many chunk loads in flight per lane; < 0 the default. */
+ * wave and chunk loads in flight per lane of the 1..8-row MatmulP12 kernel (instantiated set in ink_p12.hip; anything else, or
+ * < 0, the default: 1,16 at one row, 1,4 at 2..4, 2,4 at 5..8); inproj_u: 0 = the bf16 twin's stride loop, 4 / 8 / 9 = that many
+ * chunk loads in flight per lane; < 0 the default (9 at 1..4 rows when K / 8 is a multiple of 288, else the stride loop). */
 void ik_hip_p12_set(int gemv_r, int gemv_u, int inproj_u);
 #ifdef __cplusplus
 }
