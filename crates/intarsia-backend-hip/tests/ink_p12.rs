@@ -60,7 +60,12 @@ fn run(b: &dyn Backend, kernel: &str, op: Op, ins: &[TensorRef], outs: &[(DType,
     call.check().unwrap_or_else(|e| panic!("{kernel}: {e}"));
     let k = b.kernels().into_iter().find(|k| k.name == kernel && k.op == op).unwrap_or_else(|| panic!("no {kernel}"));
     let unreg = kernel == "matmul_p12_logits_gemv_rows" && ins[0].shape[0] > LOGITS_ROWS_MAX;
-    assert!(k.accepts(&ShapeInfo::from_call(&call)) != unreg, "{kernel}: registration accepts = {}, expected {}", !unreg, !unreg);
+    assert!(
+        k.accepts(&ShapeInfo::from_call(&call)) != unreg,
+        "{kernel}: registration accepts = {}, expected {}",
+        !unreg,
+        !unreg
+    );
     b.launch(kernel, &call, 0).unwrap_or_else(|e| panic!("{kernel}: {e}"));
     b.synchronize(0).unwrap();
     outputs.iter().map(|o| get(b, o)).collect()
@@ -85,7 +90,11 @@ fn fast_weight(seed: u64, n: usize, k: usize) -> Vec<u16> {
                     let row = t * per + i / k;
                     let col = i % k;
                     let esc = (r >> 40) % 12000 == 0 || (row % 97 == 5 && (col == 0 || col == k - 1));
-                    let e: u16 = if esc { [0u16, 40, 60, 200][(r >> 20) as usize & 3] } else { 121 - ((r.trailing_zeros() as u16) % 14) };
+                    let e: u16 = if esc {
+                        [0u16, 40, 60, 200][(r >> 20) as usize & 3]
+                    } else {
+                        121 - ((r.trailing_zeros() as u16) % 14)
+                    };
                     *v = ((r >> 8) as u16 & 0x8000) | e << 7 | ((r >> 24) as u16 & 0x7F);
                 }
             });
@@ -115,12 +124,23 @@ struct W {
 fn weight(b: &dyn Backend, bits: &[u16], n: usize, k: usize) -> W {
     let p = p12::pack(bits, n, k, 0).unwrap();
     let parts = p.host_parts();
-    W { n, k, bf: put(b, &bf16_tensor(&[n, k], bits)), codes: put(b, &parts[0]), aux: put(b, &parts[1]), escapes: p.escapes() }
+    W {
+        n,
+        k,
+        bf: put(b, &bf16_tensor(&[n, k], bits)),
+        codes: put(b, &parts[0]),
+        aux: put(b, &parts[1]),
+        escapes: p.escapes(),
+    }
 }
 
 /// MatmulP12 against the bf16 twin at rows `ms`: (bf16 kernel, P12 kernel) pairs per output dtype, ordinary (<= 4 rows) and rows.
 fn check_matmul(b: &dyn Backend, rng: &mut SplitMix64, w: &W, dt: DType, ms: &[usize], what: &str) -> usize {
-    let (bk, pk, bop) = if dt == DType::F32 { ("logits_bf16_gemv", "matmul_p12_logits_gemv", Op::Logits) } else { ("matmul_bf16_gemv", "matmul_p12_gemv", Op::Matmul) };
+    let (bk, pk, bop) = if dt == DType::F32 {
+        ("logits_bf16_gemv", "matmul_p12_logits_gemv", Op::Logits)
+    } else {
+        ("matmul_bf16_gemv", "matmul_p12_gemv", Op::Matmul)
+    };
     let mut n = 0;
     let mut one_row: Option<(HostTensor, Vec<u8>)> = None;
     for &m in ms {
@@ -146,23 +166,41 @@ fn check_matmul(b: &dyn Backend, rng: &mut SplitMix64, w: &W, dt: DType, ms: &[u
         let x16 = act(rng, &[15, w.k]);
         xs.extend_from_slice(&x16.data);
         let x = put(b, &HostTensor::new(DType::Bf16, vec![16, w.k], xs).unwrap());
-        let got = run(b, &format!("{pk}_rows"), Op::MatmulP12, &[x, w.codes.clone(), w.aux.clone()], &[(dt, vec![16, w.n])]);
+        let got =
+            run(b, &format!("{pk}_rows"), Op::MatmulP12, &[x, w.codes.clone(), w.aux.clone()], &[(dt, vec![16, w.n])]);
         assert_eq!(&got[0][..o1.len()], &o1[..], "{what}: row 0 of a 16-row call differs from the one-row call");
         n += 1;
     }
     n
 }
 
-fn check_in_proj(b: &dyn Backend, rng: &mut SplitMix64, w: &W, ns: [usize; 3], s: usize, ms: &[usize], what: &str) -> usize {
+fn check_in_proj(
+    b: &dyn Backend,
+    rng: &mut SplitMix64,
+    w: &W,
+    ns: [usize; 3],
+    s: usize,
+    ms: &[usize],
+    what: &str,
+) -> usize {
     let mut n = 0;
     for &t in ms {
         let x = put(b, &act(rng, &[s, t, w.k]));
         let outs: Vec<(DType, Vec<usize>)> = ns.iter().map(|&c| (DType::Bf16, vec![t, c])).collect();
         for sfx in ["", "_rows"] {
             let want = run(b, &format!("ink_in_proj_bf16_gemv{sfx}"), Op::InkInProj, &[x.clone(), w.bf.clone()], &outs);
-            let got = run(b, &format!("ink_in_proj_p12_gemv{sfx}"), Op::InkInProj, &[x.clone(), w.codes.clone(), w.aux.clone()], &outs);
+            let got = run(
+                b,
+                &format!("ink_in_proj_p12_gemv{sfx}"),
+                Op::InkInProj,
+                &[x.clone(), w.codes.clone(), w.aux.clone()],
+                &outs,
+            );
             for j in 0..3 {
-                assert_eq!(got[j], want[j], "{what}: ink_in_proj_p12_gemv{sfx} T={t} S={s} segment {j} differs from bf16");
+                assert_eq!(
+                    got[j], want[j],
+                    "{what}: ink_in_proj_p12_gemv{sfx} T={t} S={s} segment {j} differs from bf16"
+                );
             }
             n += 1;
         }
@@ -236,7 +274,12 @@ fn p12_bitwise_small_and_adversarial() {
     }
     for &(d, ns) in &[(64usize, [246usize, 40, 40]), (2304, [130, 17, 17])] {
         for adv in [false, true] {
-            let w = weight(b, &p12::random_weight(&mut rng, ns.iter().sum(), d, (d as f32).powf(-0.5), adv), ns.iter().sum(), d);
+            let w = weight(
+                b,
+                &p12::random_weight(&mut rng, ns.iter().sum(), d, (d as f32).powf(-0.5), adv),
+                ns.iter().sum(),
+                d,
+            );
             for s in [1usize, 3] {
                 n += check_in_proj(b, &mut rng, &w, ns, s, &[1, 2, 7, 16], &format!("in_proj D={d} adv={adv}"));
             }
@@ -305,15 +348,22 @@ fn p12_microbench() {
     let b = &*be;
     let _g = SHAPE.lock().unwrap_or_else(|e| e.into_inner());
     let mut rng = SplitMix64::new(0xbe12);
-    let ms: Vec<usize> = std::env::var("P12_MS").ok().map(|s| s.split(',').map(|x| x.parse().unwrap()).collect()).unwrap_or(vec![1, 4]);
+    let ms: Vec<usize> =
+        std::env::var("P12_MS").ok().map(|s| s.split(',').map(|x| x.parse().unwrap()).collect()).unwrap_or(vec![1, 4]);
     let iters = 200usize;
     println!("BENCH shape | M | kernel / variant | us per call | GB/s of weight bytes | P12 speedup over bf16");
     // (name, N, K, out dtype, bf16 kernel, P12 kernel, op)
     let wo_bits = p12::random_weight(&mut rng, 2304, 3072, (3072f32).powf(-0.5), false);
     let ue_bits = fast_weight(0xe2, 200_058, 2304);
-    for (name, n, k, bits, dt) in [("wo", 2304usize, 3072usize, &wo_bits, DType::Bf16), ("unembed", 200_058, 2304, &ue_bits, DType::F32)] {
+    for (name, n, k, bits, dt) in
+        [("wo", 2304usize, 3072usize, &wo_bits, DType::Bf16), ("unembed", 200_058, 2304, &ue_bits, DType::F32)]
+    {
         let cp = copies(b, bits, n, k, 400 << 20);
-        let (bk, pk, bop) = if dt == DType::F32 { ("logits_bf16_gemv", "matmul_p12_logits_gemv", Op::Logits) } else { ("matmul_bf16_gemv", "matmul_p12_gemv", Op::Matmul) };
+        let (bk, pk, bop) = if dt == DType::F32 {
+            ("logits_bf16_gemv", "matmul_p12_logits_gemv", Op::Logits)
+        } else {
+            ("matmul_bf16_gemv", "matmul_p12_gemv", Op::Matmul)
+        };
         for &m in &ms {
             let x = put(b, &act(&mut rng, &[m, k]));
             let out = out_t(b, dt, &[m, n]);
@@ -322,7 +372,13 @@ fn p12_microbench() {
             let bc = mk_calls(bop, &x, cp.bf.iter().map(|w| vec![w.clone()]).collect(), &[out.clone()], m > 4);
             let tb = time_calls(b, &format!("{bk}{sfx}"), &bc, it);
             println!("BENCH {name} | {m} | {bk}{sfx} | {tb:.2} | {:.1} | 1.000", cp.bf_bytes as f64 / tb / 1e3);
-            let pc = mk_calls(Op::MatmulP12, &x, cp.p12.iter().map(|(c, a)| vec![c.clone(), a.clone()]).collect(), &[out.clone()], m > 4);
+            let pc = mk_calls(
+                Op::MatmulP12,
+                &x,
+                cp.p12.iter().map(|(c, a)| vec![c.clone(), a.clone()]).collect(),
+                &[out.clone()],
+                m > 4,
+            );
             let shapes: Vec<Option<(i32, i32)>> = match m {
                 1 => std::iter::once(None).chain(GEMV_SHAPES_ONE.iter().map(|s| Some(*s))).collect(),
                 2..=8 => std::iter::once(None).chain(GEMV_SHAPES_MANY.iter().map(|s| Some(*s))).collect(),
@@ -332,7 +388,11 @@ fn p12_microbench() {
                 set_p12_shape(sh, -1);
                 let tp = time_calls(b, &format!("{pk}{sfx}"), &pc, it);
                 let lbl = sh.map_or("default".to_string(), |(r, u)| format!("R={r},U={u}"));
-                println!("BENCH {name} | {m} | {pk}{sfx} {lbl} | {tp:.2} | {:.1} | {:.3}", cp.p12_bytes as f64 / tp / 1e3, tb / tp);
+                println!(
+                    "BENCH {name} | {m} | {pk}{sfx} {lbl} | {tp:.2} | {:.1} | {:.3}",
+                    cp.p12_bytes as f64 / tp / 1e3,
+                    tb / tp
+                );
             }
             set_p12_shape(None, -1);
             if name == "unembed" && m == 1 {
@@ -341,7 +401,10 @@ fn p12_microbench() {
                 let tb1 = time_calls(b, bk, &bc, it);
                 let tp1 = time_calls(b, pk, &pc, it);
                 intarsia_backend_hip::set_dec3(-1);
-                println!("BENCH {name} | {m} | one launch each (dec3=3): bf16 {tb1:.2} / P12 {tp1:.2} | | {:.3}", tb1 / tp1);
+                println!(
+                    "BENCH {name} | {m} | one launch each (dec3=3): bf16 {tb1:.2} / P12 {tp1:.2} | | {:.3}",
+                    tb1 / tp1
+                );
             }
         }
     }
@@ -354,13 +417,21 @@ fn p12_microbench() {
         let outs: Vec<TensorRef> = ns.iter().map(|&c| out_t(b, DType::Bf16, &[m, c])).collect();
         let bc = mk_calls(Op::InkInProj, &x, cp.bf.iter().map(|w| vec![w.clone()]).collect(), &outs, false);
         let tb = time_calls(b, "ink_in_proj_bf16_gemv", &bc, iters);
-        println!("BENCH in_proj | {m} | ink_in_proj_bf16_gemv | {tb:.2} | {:.1} | 1.000", cp.bf_bytes as f64 / tb / 1e3);
-        let pc = mk_calls(Op::InkInProj, &x, cp.p12.iter().map(|(c, a)| vec![c.clone(), a.clone()]).collect(), &outs, false);
+        println!(
+            "BENCH in_proj | {m} | ink_in_proj_bf16_gemv | {tb:.2} | {:.1} | 1.000",
+            cp.bf_bytes as f64 / tb / 1e3
+        );
+        let pc =
+            mk_calls(Op::InkInProj, &x, cp.p12.iter().map(|(c, a)| vec![c.clone(), a.clone()]).collect(), &outs, false);
         for u in [-1, 0, 4, 9] {
             set_p12_shape(None, u);
             let tp = time_calls(b, "ink_in_proj_p12_gemv", &pc, iters);
             let lbl = if u < 0 { "default".to_string() } else { format!("u={u}") };
-            println!("BENCH in_proj | {m} | ink_in_proj_p12_gemv {lbl} | {tp:.2} | {:.1} | {:.3}", cp.p12_bytes as f64 / tp / 1e3, tb / tp);
+            println!(
+                "BENCH in_proj | {m} | ink_in_proj_p12_gemv {lbl} | {tp:.2} | {:.1} | {:.3}",
+                cp.p12_bytes as f64 / tp / 1e3,
+                tb / tp
+            );
         }
         set_p12_shape(None, -1);
     }

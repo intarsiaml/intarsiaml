@@ -52,18 +52,31 @@ pub fn all() -> Vec<KernelImpl> {
     TABLE
         .iter()
         .map(|(name, op)| {
-            let k = KernelImpl::new(*op, *name, "hip").arch([ARCH]).acts([DType::Bf16]).weights([DType::U8]).exact(Exactness::Deterministic);
+            let k = KernelImpl::new(*op, *name, "hip")
+                .arch([ARCH])
+                .acts([DType::Bf16])
+                .weights([DType::U8])
+                .exact(Exactness::Deterministic);
             match *name {
-                "matmul_p12_gemv" => k.when(|s| rows_ok(s) && s.m <= 4 && bf16_gemv_row(s) && s.out == Some(DType::Bf16)).tol(BF16_TOL).priority(10),
-                "matmul_p12_gemv_rows" => {
-                    k.when(|s| rows_ok(s) && bf16_gemv_row(s) && s.out == Some(DType::Bf16)).tol(BF16_TOL).priority(-1).rows_exact()
+                "matmul_p12_gemv" => k
+                    .when(|s| rows_ok(s) && s.m <= 4 && bf16_gemv_row(s) && s.out == Some(DType::Bf16))
+                    .tol(BF16_TOL)
+                    .priority(10),
+                "matmul_p12_gemv_rows" => k
+                    .when(|s| rows_ok(s) && bf16_gemv_row(s) && s.out == Some(DType::Bf16))
+                    .tol(BF16_TOL)
+                    .priority(-1)
+                    .rows_exact(),
+                "matmul_p12_logits_gemv" => {
+                    k.when(|s| rows_ok(s) && s.m <= 4 && s.out == Some(DType::F32)).tol(F32_TOL).priority(10)
                 }
-                "matmul_p12_logits_gemv" => k.when(|s| rows_ok(s) && s.m <= 4 && s.out == Some(DType::F32)).tol(F32_TOL).priority(10),
                 // up to LOGITS_ROWS_MAX rows: at 16 rows the unembed's P12 kernel is slower than the bf16 one (window 1: 2109 against
                 // 1884 us, ALU bound), so 9..=16-row head calls keep the bf16 rows kernel (the same bits either way)
-                "matmul_p12_logits_gemv_rows" => {
-                    k.when(|s| rows_ok(s) && s.m <= LOGITS_ROWS_MAX && s.out == Some(DType::F32)).tol(F32_TOL).priority(-1).rows_exact()
-                }
+                "matmul_p12_logits_gemv_rows" => k
+                    .when(|s| rows_ok(s) && s.m <= LOGITS_ROWS_MAX && s.out == Some(DType::F32))
+                    .tol(F32_TOL)
+                    .priority(-1)
+                    .rows_exact(),
                 "ink_in_proj_p12_gemv" => k.when(rows_ok).tol(BF16_TOL).priority(10),
                 "ink_in_proj_p12_gemv_rows" => k.when(rows_ok).tol(BF16_TOL).priority(-1).rows_exact(),
                 other => unreachable!("inkp12 kernel {other} has no registration"),
@@ -120,7 +133,9 @@ pub(crate) mod launch {
             "matmul_p12_logits_gemv" => ik_matmul_p12_logits_gemv(a.i(0), a.i(1), a.i(2), a.o(0), a.s),
             "matmul_p12_logits_gemv_rows" => ik_matmul_p12_logits_gemv_rows(a.i(0), a.i(1), a.i(2), a.o(0), a.s),
             "ink_in_proj_p12_gemv" => ik_ink_in_proj_p12_gemv(a.i(0), a.i(1), a.i(2), a.o(0), a.o(1), a.o(2), a.s),
-            "ink_in_proj_p12_gemv_rows" => ik_ink_in_proj_p12_gemv_rows(a.i(0), a.i(1), a.i(2), a.o(0), a.o(1), a.o(2), a.s),
+            "ink_in_proj_p12_gemv_rows" => {
+                ik_ink_in_proj_p12_gemv_rows(a.i(0), a.i(1), a.i(2), a.o(0), a.o(1), a.o(2), a.s)
+            }
             _ => return None,
         })
     }
