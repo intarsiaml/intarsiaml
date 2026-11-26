@@ -1,6 +1,6 @@
 # Inkling-2-Mini on HIP: DSpark speculative decoding (lane ink-hip-spec, 2026-11-26)
 
-Branch `ink/hip-spec` (worktree `.worktrees/ink-hip-spec`), base main `87c9745c0`. Goal: DSpark speculative decode (the checkpoint's own
+Branch `ink/hip-spec` (worktree `.worktrees/ink-hip-spec`), base main `87c9745c0`, merged with main `40b85a391` (#526); PR #527. Goal: DSpark speculative decode (the checkpoint's own
 draft, `mtp.safetensors`) for Inkling-2-Mini on one R9700 (tatooine, gfx1201), greedy ids identical to `--spec off`, faster
 single-stream greedy decode. Shared rules: `.worktrees/hip-swarm/COMMON-1126.md`.
 
