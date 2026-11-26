@@ -864,13 +864,73 @@ fn inkling2_tiny_screened_head_one_row_only() {
     assert_eq!(greedy(&m, 12), want, "greedy tokens, every step forced through the full-row fallback");
     let (g1, f1) = m.head_screen_stats().unwrap();
     assert_eq!((g1 - g0, f1 - f0), (12, 12), "forced fallbacks counted");
-    // a multi-row verify runs the full head: no screened call
+    // a verify group past the screen's rows (more than 4) runs the full head: no screened call
     m.head_screen_test_hooks(true, 0);
     let (g0, _) = m.head_screen_stats().unwrap();
     let mut st = m.new_state().unwrap();
     all_logits(&m, &mut st, &ids[..20]);
     m.forward_verify(&mut st, &ids[20..25]).unwrap();
     assert_eq!(m.head_screen_stats().unwrap().0, g0, "a 5-row verify never calls the screen");
+}
+
+/// Lane ink-verify: a greedy verify pass of 2..=4 rows takes the screened head (one fp8 screen, one gather per row through the
+/// 1-row head kernel, one argmax) and its picks are the full head's, at several positions, with every subset of rows forced
+/// through the gather's full-row fallback (mixed candidate and fallback rows in one group). A sampled verify
+/// (`forward_verify_logits`, which reads the rows' logits) never takes it.
+#[test]
+fn inkling2_tiny_screened_verify_head_equals_full_head() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    if backend().name() == "cuda" {
+        return skip("no screened-head kernels on CUDA");
+    }
+    let mut m = load_screen(&dir, chunk(), "1");
+    m.enable_verify(16).unwrap();
+    assert!(m.head_screen_stats().is_some(), "INTARSIA_INK_HEAD_SCREEN=1 loads the screen on the tiny model");
+    let ids = prompt(&dir);
+    let run = |m: &Model, p: usize, r: usize| -> Vec<u32> {
+        let mut st = m.new_state().unwrap();
+        all_logits(m, &mut st, &ids[..p]);
+        m.forward_verify(&mut st, &ids[p..p + r]).unwrap()
+    };
+    let mut engaged = false;
+    for &p in &[5usize, 9, 17, 26] {
+        for r in 2..=4usize {
+            if p + r > ids.len() {
+                continue;
+            }
+            m.head_screen_test_hooks(false, 0);
+            let want = run(&m, p, r);
+            let g0 = m.head_screen_verify_groups().unwrap();
+            m.head_screen_test_hooks(true, 0);
+            let got = run(&m, p, r);
+            assert_eq!(got, want, "verify R={r} at pos {p}: screened picks vs the full head's");
+            let served = m.head_screen_verify_groups().unwrap() - g0;
+            if served == 0 {
+                // the screen is off for the tiny head on this backend (Metal: its lm_head is not 16-byte aligned)
+                assert!(on_metal(), "the verify screen did not engage on cpu (R={r}, pos {p})");
+                continue;
+            }
+            engaged = true;
+            assert_eq!(served, 1, "one screened group per verify pass");
+            for mask in 1u64..(1 << r) {
+                m.head_screen_test_hooks(true, mask);
+                let (_, f0) = m.head_screen_stats().unwrap();
+                assert_eq!(run(&m, p, r), want, "verify R={r} at pos {p}: rows {mask:#b} forced to the full-row fallback");
+                assert_eq!(m.head_screen_stats().unwrap().1 - f0, 1, "forced fallback counted");
+            }
+            m.head_screen_test_hooks(true, 0);
+            // a sampled verify reads the rows' logits: it takes the full head
+            let g1 = m.head_screen_verify_groups().unwrap();
+            let mut st = m.new_state().unwrap();
+            all_logits(&m, &mut st, &ids[..p]);
+            let (picks, _) = m.forward_verify_logits(&mut st, &ids[p..p + r]).unwrap();
+            assert_eq!(picks, want, "verify R={r} at pos {p}: sampled verify picks");
+            assert_eq!(m.head_screen_verify_groups().unwrap(), g1, "forward_verify_logits never calls the screen");
+        }
+    }
+    if !engaged {
+        skip("screened verify head: the screen is off for the tiny head on this backend (see the load log)");
+    }
 }
 
 /// The screened head never changes what batching accepts (brief 12, endor #11315): its plan-probe calls are recorded as

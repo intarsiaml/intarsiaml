@@ -982,7 +982,7 @@ impl Model {
             return Ok(drafts);
         }
         // greedy token of every row: lm_head over the t rows, argmax on the device
-        self.verify_head(&n, t, profile)?;
+        self.verify_head(&n, t, false, profile)?;
         let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("--spec dflash needs verify passes enabled (Model::enable_verify)"))?;
         if self.recorder.lock().unwrap().is_some() {
             return Ok(Vec::new()); // plan dry run: the launches are recorded, nothing to read back

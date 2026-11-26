@@ -1361,7 +1361,7 @@ impl Model {
                         }
                     };
                     let cap = std::env::var(crate::screen::CAP_ENV).ok().and_then(|c| c.trim().parse().ok()).filter(|&c: &usize| c >= 1).unwrap_or(crate::screen::CAP_DEFAULT);
-                    let rows = 1usize; // 1-row heads only (brief 14 option B: verify runs the full head)
+                    let rows = SCREEN_ROWS_MAX; // a decode head (1 row) or a greedy verify group (2..=SCREEN_ROWS_MAX rows, lane ink-verify)
                     let q = hq.upload(b)?;
                     let bb: Vec<u8> = beta.iter().flat_map(|x| x.to_le_bytes()).collect();
                     let beta = TensorRef::new(crate::backend::upload_new(b, &bb)?, DType::F32, &[v]);
@@ -1381,7 +1381,7 @@ impl Model {
                         t0.elapsed().as_secs_f64()
                     );
                     crate::screen::LOADED.store(true, std::sync::atomic::Ordering::Relaxed);
-                    Some(HeadScreenW { q, beta, beta_inf, a, cand, cnt, cap, ok: std::sync::OnceLock::new(), served: Default::default(), gathers: Default::default(), fallback_passes: Default::default(), disabled: Default::default(), force_fallback: std::sync::atomic::AtomicU64::new(crate::screen::force_fallback_env()) })
+                    Some(HeadScreenW { q, beta, beta_inf, a, cand, cnt, cap, rows, rows_ok: Default::default(), verify_groups: Default::default(), ok: std::sync::OnceLock::new(), served: Default::default(), gathers: Default::default(), fallback_passes: Default::default(), disabled: Default::default(), force_fallback: std::sync::atomic::AtomicU64::new(crate::screen::force_fallback_env()) })
                 }
             }
         } else {
@@ -2293,7 +2293,7 @@ impl Model {
             self.dflash_dry_run()?;
             if verify {
                 // a tensor-parallel peer without a head share (replicated head on rank 0) runs only the layers
-                return if self.lm_head.is_some() { self.verify_head(&hn, t, false) } else { Ok(()) };
+                return if self.lm_head.is_some() { self.verify_head(&hn, t, true, false) } else { Ok(()) };
             }
             // the heads generation and accuracy use: argmax of the last row, logits of up to LOGIT_ROWS rows
             if self.lm_head.is_some() {
@@ -2411,7 +2411,7 @@ impl Model {
             .collect();
         let hn = self.run_layers(Seqs::Packed(&segs), &vec![0u32; total], false, None, true, None)?;
         if self.lm_head.is_some() {
-            self.verify_head(&hn, total, false)?;
+            self.verify_head(&hn, total, false, false)?;
         }
         Ok(())
     }
@@ -2601,7 +2601,8 @@ impl Model {
                 self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
                 let run = (|| -> Result<TensorRef> {
                     let hn = self.run_chunk(st, ids, profile)?;
-                    self.verify_head(&hn, q, profile)?;
+                    // a greedy pass (no caller reads its logits) takes the screened head on 2..=4 rows
+                    self.verify_head(&hn, q, matches!(rows, VerifyRead::None), profile)?;
                     Ok(hn)
                 })();
                 self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -2805,7 +2806,7 @@ impl Model {
                 .collect();
             self.tail_dead.store(false, std::sync::atomic::Ordering::Relaxed);
             let hn = self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None)?;
-            self.verify_head(&hn, total, profile)?;
+            self.verify_head(&hn, total, false, profile)?;
             Ok(hn)
         })();
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -2920,7 +2921,7 @@ impl Model {
             self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
             let r0 = (|| -> Result<TensorRef> {
                 let hn = self.run_chunk(st, ids, profile)?;
-                self.verify_head(&hn, q, profile)?;
+                self.verify_head(&hn, q, false, profile)?;
                 Ok(hn)
             })();
             self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -2987,7 +2988,7 @@ impl Model {
             self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
             let r0 = (|| -> Result<TensorRef> {
                 let hn = self.run_chunk(st, ids, profile)?;
-                self.verify_head(&hn, q, profile)?;
+                self.verify_head(&hn, q, false, profile)?;
                 Ok(hn)
             })();
             self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -3025,8 +3026,18 @@ impl Model {
     /// segment of the gather tile, the all-gather, then rank 0 alone copies the tile into `ws.logits` row-major and takes the
     /// argmax (a peer returns after the gather). Every logit is the same row-exact kernel's dot product as the replicated
     /// head's (`Model::check_vocab_split`), so the argmax is too.
-    fn verify_head(&self, hn: &TensorRef, q: usize, profile: bool) -> Result<()> {
+    ///
+    /// `greedy`: no caller reads the rows' logits (only `verify_tok`), so the screened greedy head may serve the rows
+    /// ([`Model::screened_argmax`], 2..=4 rows; `ws.logits` then holds candidates only); else, or where the screen does not apply,
+    /// the full head.
+    fn verify_head(&self, hn: &TensorRef, q: usize, greedy: bool, profile: bool) -> Result<()> {
         let v = self.dims.vocab;
+        if greedy && !self.vocab_par {
+            let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("verify head without its buffer"))?;
+            if self.screened_argmax(&hn.rows(0, q), q, &self.view(tok, DType::I32, &[q]), profile)? {
+                return Ok(());
+            }
+        }
         if self.vocab_par {
             let tile_buf = self.verify_tile.as_ref().ok_or_else(|| Error::invalid("vocab-parallel verify head without its tile"))?;
             let (w, vh) = (self.tp.world, v / self.tp.world);
@@ -3077,7 +3088,7 @@ impl Model {
         let run = (|| -> Result<TensorRef> {
             let hn = self.run_chunk(st, ids, false)?;
             if self.vocab_par {
-                self.verify_head(&hn, q, false)?;
+                self.verify_head(&hn, q, false, false)?;
             }
             Ok(hn)
         })();
@@ -5834,51 +5845,63 @@ impl Model {
     /// The screened greedy head (`crate::screen`, `INTARSIA_INK_HEAD_SCREEN=1`): the argmax of the `c` rows `x` into `tok`
     /// (`i32 [c]`), bitwise the full head's; `ws.logits` then holds the gathered candidates, not the full rows. `false`: off,
     /// or the head's `Logits` kernel is not one the gather reproduces (then the caller runs the full head).
+    ///
+    /// `c == 1` is a decode head; `c` in `2..=SCREEN_ROWS_MAX` is a greedy verify group (lane ink-verify, [`Model::verify_head`]
+    /// with `greedy`): one fp8 screen matmul, one `HeadScreen` and one `ScreenArgmax` over the `c` rows, and one 1-row gather per
+    /// row through the 1-row head kernel (so each gathered logit is the head's bits for that row: the verify head's `_rows` kernels
+    /// are bitwise the 1-row kernels, `tests/rows_exact.rs`). A row past the candidate path (count 0 or above the cap, or a
+    /// non-finite screen) gathers its full row on the device, with no host round trip.
     fn screened_argmax(&self, x: &TensorRef, c: usize, tok: &TensorRef, profile: bool) -> Result<bool> {
         let Some(hs) = self.head_screen.as_ref() else { return Ok(false) };
-        // brief 14 option B: 1-row heads only (verify and every multi-row head run the full head); bf16 activations (the
-        // screen ops' contract), 16-byte aligned (the head kernels' vector form)
-        if c != 1 || self.vocab_par || x.dtype != DType::Bf16 || x.offset % 16 != 0 || hs.disabled.load(std::sync::atomic::Ordering::Relaxed) {
+        // bf16 activations (the screen ops' contract), 16-byte aligned (the head kernels' vector form); 1..=SCREEN_ROWS_MAX rows
+        // (a longer group: the full head)
+        if c == 0 || c > hs.rows || self.vocab_par || x.dtype != DType::Bf16 || x.offset % 16 != 0 || hs.disabled.load(std::sync::atomic::Ordering::Relaxed) {
             return Ok(false);
         }
         // a plan dry run records the screen calls too (so `serve`, admitted kernels only, admits their kernels on the plan
         // shapes), then reports `false` so the full head is recorded as well; the first-use check below runs only for real
         let recording = self.recorder.lock().unwrap().is_some();
         let (v, d) = (self.dims.vocab, self.dims.hidden);
-        let logits = self.view(&self.ws.logits, DType::F32, &[1, v]);
-        let cand = TensorRef::new(hs.cand.clone(), DType::I32, &[1, hs.cap]);
-        let cnt = TensorRef::new(hs.cnt.clone(), DType::I32, &[1]);
+        let logits = self.view(&self.ws.logits, DType::F32, &[c, v]);
+        let cand = TensorRef::new(hs.cand.clone(), DType::I32, &[c, hs.cap]);
+        let cnt = TensorRef::new(hs.cnt.clone(), DType::I32, &[c]);
+        let a = TensorRef::new(hs.a.clone(), DType::F32, &[c, v]);
         // The serving 1-row head, as `head_proj` picks it (P12's copy where its call selects, else the head as loaded), and
-        // the gather over that same weight. The gather is that head kernel itself in its index mode (Metal: gemv_f32o_v or
-        // P12's 1-row p12_gemv_f32o; cpu: the same dot), so a gathered logit is the head's by construction.
-        let gather_call = |xr: &TensorRef| -> Result<(String, OpCall)> {
+        // the gather over that same weight, for row views `xr`, `yr`, `cr`, `nr` (1 row each). The gather is that head kernel
+        // itself in its index mode (Metal: gemv_f32o_v or P12's 1-row p12_gemv_f32o; cpu: the same dot), so a gathered logit
+        // is the head's by construction.
+        let gather_call = |xr: &TensorRef, yr: &TensorRef, cr: &TensorRef, nr: &TensorRef| -> Result<(String, OpCall)> {
             if let Some(p) = self.head_p12.as_ref() {
-                let call = p.call(xr.clone(), logits.clone());
+                let call = p.call(xr.clone(), yr.clone());
                 if let Ok(k) = self.registry.select(&call) {
-                    let g = OpCall::new(Op::LogitsGather, vec![xr.clone(), p.parts[0].clone(), cand.clone(), cnt.clone(), p.parts[1].clone()], vec![logits.clone()], OpAttrs::default());
+                    let g = OpCall::new(Op::LogitsGather, vec![xr.clone(), p.parts[0].clone(), cr.clone(), nr.clone(), p.parts[1].clone()], vec![yr.clone()], OpAttrs::default());
                     return Ok((k.name.clone(), g));
                 }
             }
             let head = self.head()?;
-            let k = self.registry.select(&head.call(xr.clone(), logits.clone())).map(|k| k.name.clone()).unwrap_or_default();
-            Ok((k, OpCall::new(Op::LogitsGather, vec![xr.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![logits.clone()], OpAttrs::default())))
+            let k = self.registry.select(&head.call(xr.clone(), yr.clone())).map(|k| k.name.clone()).unwrap_or_default();
+            Ok((k, OpCall::new(Op::LogitsGather, vec![xr.clone(), head.parts[0].clone(), cr.clone(), nr.clone()], vec![yr.clone()], OpAttrs::default())))
         };
+        let (y1, c1, n1) = (logits.rows(0, 1), cand.rows(0, 1), cnt.rows(0, 1));
         // head kernels whose index mode the gathers are (Metal), and the cpu dot both cpu heads use
         let good = |n: &str| matches!(n, "logits_bf16_gemv" | "matmul_p12_logits_gemv" | "cpu_f32_logits" | "cpu_f32_matmul_p12");
+        // the kernels the verify head (`verify_head`, `exact_rows`) runs over `m` rows, which the 1-row gathers must reproduce
+        // bit for bit: the rows twins of the 1-row head kernels (Metal), the cpu dot
+        let good_rows = |n: &str| matches!(n, "logits_bf16_gemv_rows" | "matmul_p12_logits_gemv_rows" | "cpu_f32_logits" | "cpu_f32_matmul_p12");
         let ok = recording
             || *hs.ok.get_or_init(|| {
                 let xs = self.view(&self.ws.n, self.act, &[1, d]);
-                let (hk, g) = match gather_call(&xs) {
+                let (hk, g) = match gather_call(&xs, &y1, &c1, &n1) {
                     Ok(v) => v,
                     Err(_) => return false,
                 };
                 let kernels_ok = good(&hk);
-                let a = TensorRef::new(hs.a.clone(), DType::F32, &[1, v]);
+                let a1 = a.rows(0, 1);
                 // the screen calls run with `exact_rows` set (Metal registers them rows-exact)
                 let screen_ok = [
-                    OpCall::new(Op::HeadScreen, vec![a, xs.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default()),
+                    OpCall::new(Op::HeadScreen, vec![a1, xs.clone(), hs.beta.clone()], vec![c1.clone(), n1.clone()], OpAttrs::default()),
                     g.clone(),
-                    OpCall::new(Op::ScreenArgmax, vec![cand.clone(), cnt.clone(), logits.clone()], vec![self.view(&self.ws.tok, DType::I32, &[1])], OpAttrs::default()),
+                    OpCall::new(Op::ScreenArgmax, vec![c1.clone(), n1.clone(), y1.clone()], vec![self.view(&self.ws.tok, DType::I32, &[1])], OpAttrs::default()),
                 ]
                 .into_iter()
                 .all(|mut c| {
@@ -5916,13 +5939,60 @@ impl Model {
         if !ok {
             return Ok(false);
         }
-        let (_, g) = gather_call(x)?;
-        let a = TensorRef::new(hs.a.clone(), DType::F32, &[1, v]);
+        let verify_rows = c > 1;
+        // a verify group (c > 1): the pass runs at `exact_rows` (set by the caller); check once per group size that the screen
+        // matmul, the two row kernels and the verify head's own kernel are what the 1-row gathers reproduce, else the full head
+        if verify_rows && !recording {
+            let slot = &hs.rows_ok[c];
+            let st = slot.load(std::sync::atomic::Ordering::Relaxed);
+            let fits = if st != 0 {
+                st == 1
+            } else {
+                let xs = self.view(&self.ws.n, self.act, &[c, d]);
+                let verify_head_kernel = {
+                    let yl = self.view(&self.ws.logits, DType::F32, &[c, v]);
+                    let p12 = self.head_p12.as_ref().filter(|_| c <= crate::quant::p12::ROWS_MAX).and_then(|p| {
+                        let mut call = p.call(xs.clone(), yl.clone());
+                        call.exact_rows = true;
+                        self.registry.select(&call).ok().map(|k| k.name.clone())
+                    });
+                    p12.or_else(|| {
+                        self.head().ok().and_then(|h| {
+                            let mut call = h.call(xs.clone(), yl);
+                            call.exact_rows = true;
+                            self.registry.select(&call).ok().map(|k| k.name.clone())
+                        })
+                    })
+                    .unwrap_or_default()
+                };
+                let mut calls = vec![
+                    OpCall::new(Op::HeadScreen, vec![a.clone(), xs.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default()),
+                    OpCall::new(Op::ScreenArgmax, vec![cand.clone(), cnt.clone(), logits.clone()], vec![self.view(&self.ws.tok, DType::I32, &[c])], OpAttrs::default()),
+                ];
+                let sc = hs.q.call(xs.clone(), a.clone());
+                calls.push(OpCall::new(sc.op, sc.inputs, sc.outputs, sc.attrs));
+                let selectable = calls.into_iter().all(|mut call| {
+                    call.exact_rows = true;
+                    self.registry.select(&call).is_ok()
+                });
+                let fits = good_rows(&verify_head_kernel) && selectable;
+                if !fits {
+                    eprintln!("{}: {c}-row verify head not screened (head kernel '{verify_head_kernel}', screen kernels {})", crate::screen::ENV, if selectable { "selectable" } else { "not selectable" });
+                }
+                slot.store(if fits { 1 } else { 2 }, std::sync::atomic::Ordering::Relaxed);
+                fits
+            };
+            if !fits {
+                return Ok(false);
+            }
+        }
         // recorded (plan dry run) as `extra` calls: plan admission still admits the screen kernels, but the solo decode step's
         // op lists, which the batched step is checked against (`plan::check_batch_ops`), are the full head's
         let set_extra = |v: bool| -> bool { self.recorder.lock().unwrap().as_mut().map_or(false, |r| std::mem::replace(&mut r.extra, v)) };
         let prev_extra = if recording { set_extra(true) } else { false };
-        let forced = !recording && hs.force_fallback.load(std::sync::atomic::Ordering::Relaxed) & 1 == 1;
+        // the forced full-row fallback (test hook): bit i of the mask is row i; in a verify group the rows named by the mask
+        // are screened with the +inf bounds, the others with the real ones (each row gets its own HeadScreen call then)
+        let force = if recording { 0 } else { hs.force_fallback.load(std::sync::atomic::Ordering::Relaxed) & ((1u64 << c) - 1) };
         let r = (|| -> Result<()> {
             let sc = hs.q.call(x.clone(), a.clone());
             self.exec(sc.op, sc.inputs, sc.outputs, sc.attrs, profile)?;
@@ -5930,9 +6000,18 @@ impl Model {
             // only with `exact_rows` set (Registry::select)
             let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);
             let r = (|| -> Result<()> {
-                let beta = if forced { hs.beta_inf.clone() } else { hs.beta.clone() };
-                self.exec(Op::HeadScreen, vec![a, x.clone(), beta], vec![cand.clone(), cnt.clone()], OpAttrs::default(), profile)?;
-                self.exec_call(g, profile)?;
+                if force == 0 {
+                    self.exec(Op::HeadScreen, vec![a.clone(), x.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default(), profile)?;
+                } else {
+                    for i in 0..c {
+                        let beta = if (force >> i) & 1 == 1 { hs.beta_inf.clone() } else { hs.beta.clone() };
+                        self.exec(Op::HeadScreen, vec![a.rows(i, 1), x.rows(i, 1), beta], vec![cand.rows(i, 1), cnt.rows(i, 1)], OpAttrs::default(), profile)?;
+                    }
+                }
+                for i in 0..c {
+                    let (_, g) = gather_call(&x.rows(i, 1), &logits.rows(i, 1), &cand.rows(i, 1), &cnt.rows(i, 1))?;
+                    self.exec_call(g, profile)?;
+                }
                 self.exec(Op::ScreenArgmax, vec![cand.clone(), cnt.clone(), logits.clone()], vec![tok.clone()], OpAttrs::default(), profile)
             })();
             self.exact_rows.store(prev, std::sync::atomic::Ordering::Relaxed);
@@ -5947,11 +6026,14 @@ impl Model {
         }
         crate::screen::LAUNCHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         hs.gathers.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if forced {
+        if force != 0 {
             hs.fallback_passes.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
         if !hs.served.swap(true, std::sync::atomic::Ordering::Relaxed) {
-            eprintln!("{}: first screened head step served (1 row)", crate::screen::ENV);
+            eprintln!("{}: first screened head step served ({c} row(s))", crate::screen::ENV);
+        }
+        if verify_rows {
+            hs.verify_groups.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
         Ok(true)
     }
@@ -5961,6 +6043,11 @@ impl Model {
         self.head_screen.as_ref().map(|h| {
             (h.gathers.load(std::sync::atomic::Ordering::Relaxed), h.fallback_passes.load(std::sync::atomic::Ordering::Relaxed))
         })
+    }
+
+    /// Screened verify groups (2..=4 rows) served so far (lane ink-verify), if the screen is loaded.
+    pub fn head_screen_verify_groups(&self) -> Option<u64> {
+        self.head_screen.as_ref().map(|h| h.verify_groups.load(std::sync::atomic::Ordering::Relaxed))
     }
 
     /// Test hooks of the screened head: `enabled` false makes every head the full head; bit 0 of `force_fallback_rows` sends
@@ -6292,6 +6379,9 @@ mod weights_named_tests {
     }
 }
 
+/// Most rows of a screened head group: the verify rows of a DSpark pass (2..=4) and the 1-row decode head (lane ink-verify).
+const SCREEN_ROWS_MAX: usize = 4;
+
 /// The screened greedy head's state (`INTARSIA_INK_HEAD_SCREEN=1`, lane ink-fp8; `crate::screen`).
 struct HeadScreenW {
     /// The fp8 copy of the head (`[V, D]` e4m3, one scale).
@@ -6300,11 +6390,17 @@ struct HeadScreenW {
     beta: TensorRef,
     /// +inf bounds `[V]` f32: the forced full-row fallback (test hook).
     beta_inf: TensorRef,
-    /// Screen values `[1, V]` f32, candidates `[1, cap]` i32, the count `[1]` i32 (1-row heads only).
+    /// Screen values `[rows, V]` f32, candidates `[rows, cap]` i32, the counts `[rows]` i32.
     a: Buffer,
     cand: Buffer,
     cnt: Buffer,
     cap: usize,
+    /// Most rows of one screened group (`SCREEN_ROWS_MAX`: a decode head is 1, a greedy verify group 2..=this).
+    rows: usize,
+    /// Per verify group size (index `c`): 0 not checked yet, 1 the verify head's kernels are the gathers' (screened), 2 not.
+    rows_ok: [std::sync::atomic::AtomicU8; SCREEN_ROWS_MAX + 1],
+    /// Screened verify groups served (`c > 1`).
+    verify_groups: std::sync::atomic::AtomicU64,
     /// Whether this backend's head kernel is one the gather reproduces (decided on first use).
     ok: std::sync::OnceLock<bool>,
     /// Set by the first screened step (logged once, so a gate can tell the screen really ran).

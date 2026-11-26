@@ -205,7 +205,7 @@ impl Model {
             let run = (|| -> Result<TensorRef> {
                 let hn = self.run_layers(Seqs::One(st), &vec![0u32; q], false, Some(&pos_at(POS_VERIFY)), false, None)?;
                 if self.vocab_par {
-                    self.verify_head(&hn, q, false)?;
+                    self.verify_head(&hn, q, false, false)?;
                 }
                 Ok(hn)
             })();
@@ -583,7 +583,7 @@ impl Model {
             self.exact_rows.store(true, Ordering::Relaxed);
             let run = (|| -> Result<TensorRef> {
                 let hn = self.run_layers(Seqs::One(st), &vec![0u32; q], false, Some(&pos_at(POS_VERIFY)), false, None)?;
-                self.verify_head(&hn, q, false)?;
+                self.verify_head(&hn, q, false, false)?;
                 Ok(hn)
             })();
             self.exact_rows.store(false, Ordering::Relaxed);
@@ -743,7 +743,7 @@ impl Model {
             self.exact_rows.store(true, Ordering::Relaxed);
             let run = (|| -> Result<TensorRef> {
                 let hn = self.run_layers(Seqs::One(st), &vec![0u32; q], false, Some(&pos), false, None)?;
-                self.verify_head(&hn, q, false)?;
+                self.verify_head(&hn, q, false, false)?;
                 Ok(hn)
             })();
             self.exact_rows.store(false, Ordering::Relaxed);
