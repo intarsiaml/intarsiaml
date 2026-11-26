@@ -1,0 +1,20 @@
+fleetq: #11988 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=280 bash ~/intarsiaml-ink-hip-attn/docs/results/2026-11-25-inkling2-hip-attn/raw/window.sh ~/intarsiaml-ink-hip-attn/docs/results/2026-11-25-inkling2-hip-attn/raw/stage_shortpf.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-attn/docs/results/2026-11-25-inkling2-hip-attn/raw/stage_shortpf.sh; cap 280s; stopping radiance 2026-11-25 22:53:38
+[window] radiance stopped 2026-11-25 22:53:42 (inactive)
+PF rep1 main | prefill 81 ms | decode 500 ms (61.94 tok/s) | graph replays=31 (captures 1) eager decode steps=0 | process 5.357392837 s
+PF rep1 branch | prefill 95 ms | decode 430 ms (72.15 tok/s) | graph replays=31 (captures 1) eager decode steps=0 | process 5.317567065 s
+PF rep3 main | prefill 70 ms | decode 493 ms (62.82 tok/s) | graph replays=93 (captures 1) eager decode steps=0 | process 6.430070430 s
+PF rep3 branch | prefill 69 ms | decode 425 ms (72.97 tok/s) | graph replays=93 (captures 1) eager decode steps=0 | process 6.227638902 s
+PF nograph main | prefill 81 ms | decode 508 ms (61.05 tok/s) | graph replays=0 (captures 0) eager decode steps=31 | process 5.316646201 s
+PF nograph branch | prefill 94 ms | decode 438 ms (70.75 tok/s) | graph replays=0 (captures 0) eager decode steps=31 | process 5.297906547 s
+PF nolazy main | prefill 77 ms | decode 500 ms (62.01 tok/s) | graph replays=31 (captures 1) eager decode steps=0 | process 5.379696535 s
+PF nolazy branch | prefill 74 ms | decode 429 ms (72.32 tok/s) | graph replays=31 (captures 1) eager decode steps=0 | process 5.383072418 s
+PF revert branch | prefill 95 ms | decode 460 ms (67.44 tok/s) | graph replays=31 (captures 1) eager decode steps=0 | process 5.252811751 s
+PF rep1b main | prefill 85 ms | decode 502 ms (61.81 tok/s) | graph replays=31 (captures 1) eager decode steps=0 | process 6.388825671 s
+PF rep1b branch | prefill 122 ms | decode 434 ms (71.37 tok/s) | graph replays=31 (captures 1) eager decode steps=0 | process 7.241297340 s
+[stage] done 22:54:46
+[window] stage done 2026-11-25 22:54:47 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-25 22:54:47
+[window] radiance answers 2026-11-25 22:55:02 (after 20 s)
+fleetq: #11988 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0
