@@ -4,7 +4,7 @@
 #     ssh -o BatchMode=yes tatooine 'CAP=<seconds> bash ~/intarsiaml-ink-hip-spec/.scratch/window.sh <stage script> [args]' < /dev/null
 # Stops radiance, runs the stage script in its own process group under a hard cap (CAP seconds, default 1500 = 25 min; never
 # above 2400), then restarts radiance on ANY exit (trap) and polls /v1/models (<= 3 min). Kills only what it started: the
-# stage's process group and the container `ink-hip-spec-run`. Log (the downtime record): ~/intarsiaml-ink-hip-spec/logs/window-*.log.
+# stage's process group and the containers `ink-hip-spec-run` (card 0) and `ink-hip-spec-run2` (card 1). Log (the downtime record): ~/intarsiaml-ink-hip-spec/logs/window-*.log.
 set -uo pipefail
 REPO=$HOME/intarsiaml-ink-hip-spec
 mkdir -p "$REPO/logs"
@@ -22,7 +22,7 @@ restore() {
     sleep 2
     kill -KILL -- "-$STAGE_PID" 2>/dev/null
   fi
-  docker rm -f ink-hip-spec-run >/dev/null 2>&1
+  docker rm -f ink-hip-spec-run ink-hip-spec-run2 >/dev/null 2>&1
   echo "[window] starting radiance $(now)" | tee -a "$LOG"
   systemctl --user start radiance
   local i

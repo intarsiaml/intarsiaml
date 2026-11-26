@@ -56,3 +56,44 @@ Prefix reuse on hip is unchanged by the `ink_rows_exact` line: `Model::model_min
 - 1k prompt (1021 ids), 128 tokens, `--spec off` vs `--spec dflash --spec-k 3` (gate 0.8): **ids identical**; decode 74.75 -> 79.46
   tok/s (+6.3 %, one pair), 31 verify passes, 62 proposed, 44 accepted (71.0 %, 2.42 tokens per pass); no `device top-k unavailable`
   and no `no row-exact kernel` line; draft load: Markov fold 2.1 s, MXFP4 head 0.2 s.
+
+## 3. Window 2 (fleetq #12048, 12:13:34-12:17:24 EST, radiance down 3 min 50 s; both cards)
+
+Binaries: `base` = main `87c9745c0` + PR #526 (`da8501b51`, the HIP prefill flip: WMMA experts, flash prefill attention, chunk 2048),
+md5 `492211cf` (= pfflip's `intarsia-pf`); `spec2` = this branch with #526 merged (`e49b8a29c`), md5 `f7494043`. No env set unless named.
+
+**Brief 3 checks.** (1) With #526's defaults and no env, 2..4-row verify rows are bitwise the one-row decode steps on the real model:
+`verify_rows_real` rows 2..=4 at 17 / 1024 / 4000 and 16 greedy windows, `PROBE_RESULT rows=91 windows_with_diff=0 argmax_flips=0
+worst_abs_logit_diff=0e0` (verify graph on: 13 captures, 61 replays), and eager (`INTARSIA_VERIFY_GRAPH=0`, 1024): 73 rows, 0 diff. The
+verify forward never reaches the WMMA experts or flash attention: under `exact_rows` the registry only takes `rows_exact` kernels (the
+`_rows` expert / GEMV twins and `ink_attn_decode_bf16`), and the startup line names them (`moe_experts=moe_experts_situ_bf16_rows`,
+`ink_attn_decode=ink_attn_decode_bf16`). (2) Identity on the rebased binary with no env: below, all equal. (3) not needed.
+
+**Greedy ids, 128 tokens** (`--prompt-ids`, `--show-ids`; md5 over every `ids[...]` line of the process):
+
+| Prompts | base `--spec off` | branch `--spec off` | branch gate 0.8 k3 | branch cut 0.5 k3 |
+|---|---|---|---|---|
+| 12 greedy golden prompts (`greedy.json`, lane ink-mtp's set) | `24b7ad602ac6` | `24b7ad602ac6` | `24b7ad602ac6` | `24b7ad602ac6` |
+| 2 prose texts (`prose.json`: long_prose_300 / 700) | `c849c8651696` | `c849c8651696` | `c849c8651696` | `c849c8651696` |
+
+**Text prompts, 256 tokens `--ignore-eos`** (md5 of the first 64 / all 256 ids):
+
+| Prompt | base off | branch off | gate | cut |
+|---|---|---|---|---|
+| short-0 | `c5c42d88` / `5f925d56` | same | same | same |
+| 4k-0 | `d1fc9761` / `36298f75` | same | same | same |
+
+Acceptance: greedy set gate 70.9 % (2.54 tokens / pass), cut 57.5 % (2.36); prose gate 75.6 % (2.66), cut 59.5 % (2.27); short-0 gate
+2.43, cut 2.12; 4k-0 gate 2.66, cut 2.55.
+
+**Verify cost** (probe, 1024 context, graph on / eager): decode 13.30 / 13.24 ms; verify 2 rows 16.48 / 16.75 (1.24x / 1.26x), 3 rows
+19.00 / 19.58 (1.43x / 1.48x), 4 rows 20.80 / 21.41 (1.56x / 1.62x). The verify graph saves 0.3-0.6 ms a pass.
+
+**Draft cost** (`INTARSIA_DSPARK_PROFILE=1`, 1k, gate, means over 39 cycles): whole cycle 37.67 ms (= verify + draft + host), draft
+block 2.11 ms, its first step 0.70 ms, head 0.71 ms, ingest 0.20 ms. The draft is ~6 % of a cycle; the verify pass is the rest.
+
+**G2 at spec off (branch, no env):** short KL 4.491e-3 (n 569, top-1 99.47 %) PASS, long 4.083e-3 (n 1569, top-1 98.98 %) PASS: equal to
+pfflip's G2 at the same defaults (4.491e-3 / 4.083e-3), so spec off is unchanged by this branch.
+
+Single-process speed seen in passing (card 1, not the measurement): greedy set off 77.54 tok/s, gate 100.68 (+29.8 %), cut 102.06
+(+31.6 %); prose off 76.13, gate 87.93, cut 92.52.

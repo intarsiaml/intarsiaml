@@ -19,7 +19,7 @@ if ! docker volume inspect $V >/dev/null 2>&1; then
 fi
 if [ -z "${SKIP_MAIN:-}" ]; then
   echo "[phaseA] build main $(date +%T)"
-  bash "$LANE/.scratch/build.sh" main .scratch/main-src || exit $?
+  bash "$LANE/.scratch/build.sh" ${MAIN_NAME:-main} .scratch/main-src || exit $?
 fi
 if [ -n "${BRANCH:-}" ]; then
   echo "[phaseA] build branch $BRANCH $(date +%T)"
