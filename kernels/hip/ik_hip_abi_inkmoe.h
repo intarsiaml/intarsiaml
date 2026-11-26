@@ -45,7 +45,7 @@ void ik_ink_moe_set_nb(int v);
 /* the tensor-core prefill of the ordinary names: 0 off, 1 the rule (64-pair tiles from 16 pairs per expert), 32 | 64 every
  * pair-table call with that tile, -1 = INTARSIA_HIP_INK_MOE_WMMA / the default (off) */
 void ik_ink_moe_set_wmma(int v);
-/* the one-wave grouping of size class 0 (at most 32 pairs; lane ink-hip-dec2): 1 on, 0 the shared-memory grouping, -1 =
+/* the one-wave grouping of size class 0 (at most 16 pairs; lane ink-hip-dec2): 1 on, 0 the shared-memory grouping, -1 =
  * INTARSIA_HIP_INK_DEC_FAST bit 1 / the default (on); bitwise the same output */
 void ik_ink_moe_set_dec(int v);
 

@@ -182,11 +182,14 @@ struct SmemGroups {
     unsigned vmask;  // group_wave: bit p = pair p is valid (the down kernel's token sum reads it instead of the ids)
 };
 
-// ---- one-wave grouping (class 0, at most 32 pairs: decode; lane ink-hip-dec2) ------------------------------------------
+// ---- one-wave grouping (class 0, at most kWaveGroupPairs pairs: decode; lane ink-hip-dec2) ------------------------------------------
 // The class-0 tables of group_pairs, written by wave 0 alone with one barrier for the block instead of six (and no table
 // initialisation): lane p holds pair p; a pair leads its expert when no earlier pair has its id; the experts are numbered by
 // their first pair and an expert's pairs come in pair order. Duplicate and invalid ids are handled as group_pairs does (an
 // invalid pair is in no group). Like the atomics' order, this decides only which wave runs what, never a bit of the result.
+// Taken up to 16 pairs (T <= 2 at top-8): the grouping probe of the bench (window 2, #12002) went 11.8 -> 9.7 us at T = 1 and
+// 11.9 -> 11.3 at T = 2, but 11.8 -> 15.4 at T = 4 (32 pairs; the call itself was flat there).
+constexpr int kWaveGroupPairs = 16;
 template <int SZ>
 IK_DEVI void group_wave(const MoeArgs& a, SmemGroups<SZ>& sg) {
     if (threadIdx.x < IK_WARP) {
@@ -839,7 +842,7 @@ int launch_pair(const MoeArgs& a0, int out_f32, hipStream_t st) {
     if (g_sz == 1 || g_sz == 2) sz = sz < g_sz ? g_sz : sz;
     if (g_sz == 4 && P <= kWavePairs) sz = 4;  // opt-in: slower than the tables at T = 1, 2, 4 (window 5)
     MoeArgs a = a0;
-    a.wg = (sz == 0 && !a.table && P <= IK_WARP && moe_dec_wave()) ? 1 : 0;
+    a.wg = (sz == 0 && !a.table && P <= kWaveGroupPairs && moe_dec_wave()) ? 1 : 0;
     if (g_probe != 2) {
         const int pre = pc.gu, nb = pc.gu_nb;
         const bool lean = moe_lean();

@@ -185,14 +185,14 @@ fn ink_moe_rows_exact() {
     let (e, k, h, i) = (32usize, 8usize, 288usize, 160usize);
     for mx in [false, true] {
         let (ord, rows) = if mx { (NAMES[2], NAMES[3]) } else { (NAMES[0], NAMES[1]) };
-        for t in [1usize, 3, 4, 5, 10, 16, 70] {
+        for t in [1usize, 2, 3, 4, 5, 10, 16, 70] {
             let hc = if mx { mxfp8_case(&mut rng, t, e, k, h, i, "situ") } else { situ_case(&mut rng, t, e, k, h, i) };
             // the reference: the first form of the step at window 3; every other form / window gives its bits
             intarsia_backend_hip::inkmoe::set_lean(0);
             intarsia_backend_hip::inkmoe::set_pre(3, 3);
             let first = run_host(&*hip, ord, &hc).unwrap();
             intarsia_backend_hip::inkmoe::set_lean(1);
-            // (size class, one-wave grouping): class 0 with the one-wave grouping (T <= 4 here) and with the shared-memory tables
+            // (size class, one-wave grouping): class 0 with the one-wave grouping (T <= 2 here) and with the shared-memory tables
             for (sz, dec) in [(0, 1), (0, 0), (4, -1), (1, -1), (2, -1)] {
                 intarsia_backend_hip::inkmoe::set_sz(sz);
                 intarsia_backend_hip::inkmoe::set_dec(dec);
@@ -226,7 +226,7 @@ fn ink_moe_rows_exact() {
     }
 }
 
-/// The one-wave grouping (size class 0, at most 32 pairs; lane ink-hip-dec2) on odd routing gives the shared-memory grouping's
+/// The one-wave grouping (size class 0, at most 16 pairs; lane ink-hip-dec2; 32 pairs take the tables in both runs) on odd routing gives the shared-memory grouping's
 /// bits: duplicate ids in a token, ids out of range (-1 and >= E), every pair on one expert, at T 1 to 4 and top-k 1, 4, 8, 32.
 #[test]
 fn ink_moe_wave_grouping_odd_ids() {

@@ -138,7 +138,7 @@ pub fn set_sz(v: i32) {
     let _ = v;
 }
 
-/// Tests / benchmarks: the one-wave grouping of the expert kernels' size class 0 (at most 32 pairs and 128 experts: decode;
+/// Tests / benchmarks: the one-wave grouping of the expert kernels' size class 0 (at most 16 pairs and 128 experts: decode, T <= 2 at top-8;
 /// lane ink-hip-dec2): 1 = on, 0 = the shared-memory grouping of `group_pairs`, `-1` = the env (`INTARSIA_HIP_INK_DEC_FAST` bit 1)
 /// or the default (on). Bitwise the same output.
 pub fn set_dec(v: i32) {
