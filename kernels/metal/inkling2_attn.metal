@@ -632,6 +632,15 @@ template <uint GP, bool RT>
         kpre = ink_conv_load(pk, kr, kt, t0, pos0, p, ch, kvh);
         vpre = ink_conv_load(pv, vr, vt, t0, pos0, p, ch, kvh);
     }
+    // the rel bias with one distance per thread (flags 64 = INTARSIA_INK_BIAS_PRE): its d_rel = 16 relproj values are loaded
+    // together and every head of the group reuses them; flags 128 issues those loads here, before the q prologue. The same
+    // fma chain per element (j ascending) as the loop below: bitwise.
+    const bool bpre = (p.flags & 64u) != 0 && dr == 16 && g.nb <= INK_NSG * 32;
+    ushort bw[16];
+    if (bpre && (p.flags & 128u) != 0 && tid < g.nb) {
+#pragma unroll
+        for (uint j = 0; j < 16; ++j) bw[j] = rp[(ulong)j * E + g.dlo + tid];
+    }
 
     // q and r of the row (the prologue's arithmetic)
     float qv[GP], rv[GP];
@@ -694,11 +703,26 @@ template <uint GP, bool RT>
         }
     }
     // the bias of the split's distances (the prologue's rel element: the r . relproj chain, rounded)
-    for (uint x = tid; x < GP * g.nb; x += INK_NSG * 32) {
-        const uint h = x / g.nb, e = g.dlo + x % g.nb;
-        float a = 0.0f;
-        for (uint j = 0; j < dr; ++j) a = fma(rsh[h][j], bf2f(rp[(ulong)j * E + e]), a);
-        tb[h * g.nb + x % g.nb] = rA(a) * INK_LOG2E;
+    if (bpre) {
+        if (tid < g.nb) {
+            if ((p.flags & 128u) == 0) {
+#pragma unroll
+                for (uint j = 0; j < 16; ++j) bw[j] = rp[(ulong)j * E + g.dlo + tid];
+            }
+            for (uint h = 0; h < GP; ++h) {
+                float a = 0.0f;
+#pragma unroll
+                for (uint j = 0; j < 16; ++j) a = fma(rsh[h][j], bf2f(bw[j]), a);
+                tb[h * g.nb + tid] = rA(a) * INK_LOG2E;
+            }
+        }
+    } else {
+        for (uint x = tid; x < GP * g.nb; x += INK_NSG * 32) {
+            const uint h = x / g.nb, e = g.dlo + x % g.nb;
+            float a = 0.0f;
+            for (uint j = 0; j < dr; ++j) a = fma(rsh[h][j], bf2f(rp[(ulong)j * E + e]), a);
+            tb[h * g.nb + x % g.nb] = rA(a) * INK_LOG2E;
+        }
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
     for (uint r = 0; r < nnew; ++r) {

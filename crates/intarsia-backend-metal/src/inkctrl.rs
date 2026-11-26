@@ -69,6 +69,25 @@ pub static BLEND_NORM_C: Switch = Switch::new("INTARSIA_INK_BLEND_NORM_C", true)
 /// `INTARSIA_INK_CONV_PRE` (default on): the fused decode attention (`ink_attn_decode_bf16*`) issues its one own key's K / V
 /// conv loads before the q prologue (InkP flag 32); the same fma chain, bitwise. Lane ink-metal (solo 38).
 pub static CONV_PRE: Switch = Switch::new("INTARSIA_INK_CONV_PRE", true);
+/// `INTARSIA_INK_BIAS_PRE` (default off until measured; lane ink-decroof): the fused decode attention computes its split's rel
+/// bias with one distance per thread, the 16 relproj values of the distance loaded together and reused by every head of the
+/// group (InkP flag 64; d_rel 16 and at most 128 distances per split, else the old loop); the same fma chain, bitwise.
+pub static BIAS_PRE: Switch = Switch::new("INTARSIA_INK_BIAS_PRE", false);
+/// `INTARSIA_INK_BIAS_EARLY` (default off; with `INTARSIA_INK_BIAS_PRE` only): those relproj loads go out at kernel entry,
+/// before the q prologue (InkP flag 128). Bitwise.
+pub static BIAS_EARLY: Switch = Switch::new("INTARSIA_INK_BIAS_EARLY", false);
+
+/// InkP flags 32 / 64 / 128 of the fused decode attention: CONV_PRE, BIAS_PRE, BIAS_EARLY.
+pub(crate) fn attn_dec_flags() -> u32 {
+    let mut f = if CONV_PRE.on() { 32 } else { 0 };
+    if BIAS_PRE.on() {
+        f |= 64;
+        if BIAS_EARLY.on() {
+            f |= 128;
+        }
+    }
+    f
+}
 
 /// Logits per threadgroup (`RT_SG` in the shader).
 const RT_SG: usize = 4;
