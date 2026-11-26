@@ -1,0 +1,71 @@
+# Inkling-2-Mini prefill on HIP after the flip (lane ink-hip-pf2, 2026-11-26)
+
+Branch `ink/hip-pf2` from main `87c9745c0`. One R9700 (tatooine card 0, gfx1201). Shared rules:
+`.worktrees/hip-swarm/COMMON-1126.md`.
+
+## 0. Brief (coordinator, 2026-11-26 ~11:45 EST; kept here against context loss)
+
+- Goal: Inkling-2-Mini prefill faster on HIP, starting from the new prefill defaults that lane ink-hip-pfflip is flipping
+  (MoE tensor-core prefill, flash prefill attention, chunk 2048). Until its PR merges, run main with
+  `INTARSIA_HIP_INK_MOE_WMMA=1 INTARSIA_HIP_INK_ATTN_FLASH=1 --prefill-chunk 2048` (2687 tok/s at 4k, 2793 at 16k).
+- Do not edit `kWmDefault`, `INK_ATTN_FLASH_DEFAULT` or `recipes/inkling2.toml [tuning.hip]` (lane ink-hip-pfflip owns them);
+  merge `origin/main` once its PR lands.
+- Step 1 (first window): rocprofv3 `--kernel-trace` prefill profile at 4k and 16k with the new settings; per kernel class
+  (experts WMMA, in-projection / wo / other GEMMs, attention, mix and row kernels, unembed, host gaps between chunks) ms per
+  chunk against its roofline (bf16 / fp8 WMMA peak for GEMMs, bandwidth for the rest); pick the 1-3 levers with the most ms
+  left. Candidates: unembed on every prefill row, in-projection on WMMA, MoE WMMA tile at 2048 rows, flash occupancy, gaps
+  between chunks.
+- Bar: speed >= +5 % prefill tok/s at 4k AND 16k, 4 + 4 paired processes, 95 % CI lower bound > 1.0, decode unchanged;
+  G2 short and long within limit, admission for touched ops. Forms that keep the bits of the new defaults can be default-on
+  behind a knob whose `=0` reverts; forms that change output are opt-in unless >= +15 % (then flagged for a user decision).
+- Report once when it ships or is ruled out (or after about 4 hours), COMMON report format, speed table first.
+- Coordinator message (~12:20 EST), after this lane reported that COMMON's build line `--load cpu --mem 10` counts 10 GB
+  against the card's 32 GB that radiance holds (so a CPU build waits for a radiance window and blocks the queue): "you were
+  right"; COMMON-1126.md no longer has `--mem` on tatooine; batch cancels and resubmits #12035, spec resubmits #12037 if it
+  carries `--mem`; keep #12036 (this lane's window 1) in line.
+
+## 1. Ceilings used
+
+- bf16 WMMA: issue peak 194 TFLOPS, hipBLASLt at prefill shapes ~165-170 TFLOPS; fp8 issue peak 377, hipBLASLt ~300
+  (measured on this card by lane hp, `docs/results/2026-10-22-hp-hip-prefill-roofline.md` section 1; not re-measured here).
+- Bandwidth 627 GB/s (the HIP lanes' figure; the bf16 GEMVs reach 92-96 % of it).
+- Dispatch stall: every dispatch of about 1 ms or more is followed by ~256 us in which the GPU starts nothing
+  (`kernels/hip/ik_hip.h`, `docs/results/2026-10-19-hip-round9.md`).
+
+## 2. Window 1: where a 2048-row prefill chunk goes (main 87c9745c0 with the new settings; fleetq #12036)
+
+Radiance down 11:49:34 - 11:50:23 (0:49). Binary: main `87c9745c0` built in CPU job #12033 (md5 `3e70c45a…`).
+`generate --backend hip --spec off --prefill-chunk 2048 --max-tokens 2`, `INTARSIA_HIP_INK_MOE_WMMA=1 INTARSIA_HIP_INK_ATTN_FLASH=1`,
+4k prompt (4228 tokens: chunks 2048 + 2048 + 132) and 16k (16915 tokens: 8 x 2048 + 531). Unprofiled in the same window:
+4k 1550 ms (2727.6 tok/s), 16k 6008 ms (2815.3 tok/s); under rocprofv3 1575 / 6021 ms. Stage `raw/stage_prof.sh`, analysis
+`raw/pftrace.py` (chunks split at the embedding dispatch), output `raw/w1-split.txt`, traces `raw/w1-ktrace-{4k,16k}.csv.gz`.
+
+ms per 2048-row chunk, kernel time, at context 2048 (4k prompt, chunk 1; the 16k prompt's chunk 1 is the same within 0.5 ms)
+and at context 14336 (16k prompt, chunk 7). FLOPs are 2 per MAC of the work the class must do (attention: causal, the
+window on SWA layers); bytes are what the class must move at least.
+
+| Class (kernels) | calls | ms, ctx 2k | ms, ctx 14k | Work per chunk | Achieved | Ceiling | Floor ms | Left ms (ctx 2k / 14k) |
+|---|---|---|---|---|---|---|---|---|
+| Experts NVFP4 gate_up (`ink_moe_wmma_kernel<0,2,true,64>`) | 44 | 187.1 (4.25 / call) | 186.5 | 173.9 GFLOP / call | 41 TFLOPS | 170 (hipBLASLt bf16, all pairs as one GEMM); 35B's `moe_wmma_kernel_r7` reaches 62 | 45 (at 170); 124 (at 62) | 142 / 142 (63 at the 35B kernel's rate) |
+| Experts NVFP4 down (`<0,2,false,64>`) | 44 | 89.9 (2.04) | 89.2 | 87.0 GFLOP / call | 43 TFLOPS | 170; 35B r7 56 | 22; 68 | 68 / 67 (22) |
+| Experts MXFP8 gate_up + down (`<1,..>`) | 4 + 4 | 26.6 | 25.8 | as NVFP4 | 39-40 TFLOPS | as above | 6 | 21 / 20 |
+| Experts glue (gather 8.5, group 1.1, route 0.7) | 144 | 10.3 | 10.3 | ~30 MB / visit | | bandwidth | ~2.3 | 8 |
+| Attention prologue (`ink_prologue_k<4>`) | 48 | 80.3 (1.67) | 80.0 | 157 MB / call (rel table `[T,H,E]` 100.7 MB of it) | 94 GB/s | 627 GB/s | 12.0 (4.3 without the rel table) | 68 / 68 |
+| Flash attention (`ink_flash_k<128,3>`) | 48 | 80.5 (1.68) | 149.7 (3.12) | 1.65 / 4.12 TFLOP | 20.5 / 27.5 TFLOPS | ~100 (hipBLASLt QK^T / PV at 99-145; the 35B's flash runs 81) | 16.5 / 41.2 | 64 / 108 |
+| KV / ring writes | 96 | 1.5 | 1.5 | | | | | ~0 |
+| In-projection + wo (`gemm_wmma_kernel<4,2,2,4,bf16>`, 3 + 1 per visit) | 192 | 52.1 | 52.0 | 5.32 TFLOP | 102 TFLOPS | ~165 (hipBLASLt bf16 at these shapes) | 32 | 20 / 20 |
+| Router (`gemm_wmma_kernel<..,float>`) | 48 | 1.7 | 1.7 | 58 GFLOP | 34 TFLOPS | | | ~1 |
+| Mix: ConvMix / AttnResMix (`ink_row_kernel<3,false,true>`) | 460 | 42.8 (0.093) | 42.8 | ~60-70 MB / call | ~650-750 GB/s (est.) | 627 GB/s | ~40 | ~0 |
+| Blend (`ink_ctl_gemv` 23.7, `ink_blend_gate` 16.5, `ink_blend_norm` 5.9) | 1152 | 46.1 | 46.1 | | | bandwidth | ~20 (est.) | ~25 |
+| Unembed + argmax | 1 / prefill | 0 per chunk (last row only) | | | | | | 0 |
+| Idle between dispatches | 2388 | 60.1 | 59.9 | | | | | |
+| of which the dispatch stall (gaps of ~274 us, one after each launch of >= 1 ms) | 192 | 52.6 | 52.4 | | | 0 | 0 | 53 / 52 |
+| **Chunk wall** | | **679.3** | **745.9** | | | | | |
+
+Notes:
+- The unembed runs on the last prompt row only (`head_groups` gives `(len - 1, 1)` for `LastArgmax`; the trace has one head
+  dispatch after the last chunk). Not a lever.
+- The 192 stall gaps per chunk are exactly the 48 visits x the four launch types over 1 ms: experts gate_up (4.25 ms) and
+  down (2.04 ms), the prologue (1.67 ms) and flash (1.06 - 3.12 ms). In-chunk idle without the stall: 7.5 ms (3 us per
+  dispatch). Between chunks: 0.01 ms (the host is ahead); the first chunk waits 7.2 ms (4k) for host set-up.
+- The row kernel is at about the bandwidth line (estimated bytes, not counted); the GEMMs are at 62 % of hipBLASLt.
