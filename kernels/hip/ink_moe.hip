@@ -884,13 +884,20 @@ IK_DEVI uint4 pack_trunc8(const float* f, float sc) {
     return r;
 }
 
-template <int FMT, int ACT, bool GATEUP, int PAIRS>
-__global__ void __launch_bounds__(kMwThreads) ink_moe_wmma_kernel(MoeArgs a) {
+// OCC (INTARSIA_HIP_INK_PF2 bit 16, lane ink-hip-pf2; moe_wmma_r7.h kMwOcc): compiled for 8 waves per SIMD (192 VGPRs instead of
+// 224, 6 waves) and, in gate_up, the up accumulators in the activation tiles' LDS (34.8 -> 18.4 KB per block): the same
+// instructions on the same values in the same order, so the same bits.
+template <int FMT, int ACT, bool GATEUP, int PAIRS, bool OCC = false>
+__global__ void __launch_bounds__(kMwThreads) __attribute__((amdgpu_waves_per_eu(OCC ? 8 : 1))) ink_moe_wmma_kernel(MoeArgs a) {
     constexpr int FEAT = GATEUP ? kMwFeatGateUp : kMwFeatDown;
     constexpr int J = PAIRS / 16;   // 16-pair B fragments per weight fragment
     constexpr int XR = PAIRS / 32;  // activation rows each thread stages
+    constexpr int kRed = GATEUP ? 4 * 32 * J * 8 : 1;
+    constexpr bool ALIAS = GATEUP && OCC;
+    static_assert(2 * PAIRS * kMwLD * 2 >= kRed * 4, "the up accumulators fit in the activation tiles");
     __shared__ __align__(16) uint16_t sx[2][PAIRS * kMwLD];
-    __shared__ __align__(16) float sred[GATEUP ? 4 * 32 * J * 8 : 1];  // up accumulators -> gate waves
+    __shared__ __align__(16) float sred_own[ALIAS ? 1 : kRed];  // up accumulators -> gate waves
+    float* const sred = ALIAS ? reinterpret_cast<float*>(&sx[0][0]) : sred_own;
 
     const int slot = (int)blockIdx.z;
     if (slot >= a.t_exp[a.E]) return;  // block-uniform
@@ -1050,7 +1057,8 @@ int moe_wmma_pairs(int64_t P, int E) {
 // INTARSIA_HIP_INK_PF2 (lane ink-hip-pf2; read at every launch, every bit keeps the output bits): bit 4 = the tensor-core down in
 // pieces of consecutive feature tiles (grid y) under the R9700's ~1 ms dispatch stall line (ik_hip.h), bit 8 = gate_up too (opt-in:
 // on the 35B its pieces each paid the hot experts' load-imbalance tail, moe.hip round 8). A block of a piece is the block of the
-// one launch with the same feature tile. Bits 1 / 2 are ink_attn.hip's. Unset = kPf2Default; 0 = one launch each.
+// one launch with the same feature tile. Bit 16 / 32: gate_up / down at 64-pair tiles on the OCC form of ink_moe_wmma_kernel
+// (8 waves per SIMD; same bits). Bits 1 / 2 are ink_attn.hip's. Unset = kPf2Default; 0 = main's forms.
 constexpr int kPf2Default = 3;
 int pf2_mask() {
     const char* e = getenv("INTARSIA_HIP_INK_PF2");
@@ -1093,6 +1101,7 @@ int launch_wmma(const MoeArgs& a_in, int pairs, hipStream_t st) {
             a.y0 = y0;
             const dim3 g((unsigned)zp, (unsigned)(y1 - y0), (unsigned)a.E);
             if (pairs == 32) ink_moe_wmma_kernel<FMT, ACT, true, 32><<<g, kMwThreads, 0, st>>>(a);
+            else if (mask & 16) ink_moe_wmma_kernel<FMT, ACT, true, 64, true><<<g, kMwThreads, 0, st>>>(a);
             else ink_moe_wmma_kernel<FMT, ACT, true, 64><<<g, kMwThreads, 0, st>>>(a);
             IK_TRY(ik_launch_status());
         }
@@ -1105,6 +1114,7 @@ int launch_wmma(const MoeArgs& a_in, int pairs, hipStream_t st) {
             a.y0 = y0;
             const dim3 g((unsigned)zp, (unsigned)(y1 - y0), (unsigned)a.E);
             if (pairs == 32) ink_moe_wmma_kernel<FMT, ACT, false, 32><<<g, kMwThreads, 0, st>>>(a);
+            else if (mask & 32) ink_moe_wmma_kernel<FMT, ACT, false, 64, true><<<g, kMwThreads, 0, st>>>(a);
             else ink_moe_wmma_kernel<FMT, ACT, false, 64><<<g, kMwThreads, 0, st>>>(a);
             IK_TRY(ik_launch_status());
         }

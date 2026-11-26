@@ -314,7 +314,7 @@ fn ink_moe_wmma_prefill() {
 
 /// `INTARSIA_HIP_INK_PF2` bits 4 / 8 (lane ink-hip-pf2): the tensor-core down / gate_up in pieces of feature tiles give the bits of
 /// one launch, at the default budget and forced to one feature tile per piece (`INTARSIA_HIP_INK_PF2_US=1`), both formats, small
-/// shapes and the real one (H 2304, I 1152: 18 feature tiles each); and any pair-tile block count (`INTARSIA_HIP_INK_PF2_ZP`) gives
+/// shapes and the real one (H 2304, I 1152: 18 feature tiles each); the OCC forms (bits 16 / 32); and any pair-tile block count (`INTARSIA_HIP_INK_PF2_ZP`) gives
 /// the default grid's bits. Run with `--test-threads=1` (env).
 #[test]
 fn ink_moe_pf2_pieces() {
@@ -333,7 +333,7 @@ fn ink_moe_pf2_pieces() {
             set("INTARSIA_HIP_INK_PF2", Some("0"));
             let base = run_host(&*hip, name, &hc).unwrap();
             assert!(base[0].data.iter().any(|&x| x != 0), "mx={mx} T={t}: zero output");
-            for (mask, us) in [("4", None), ("12", None), ("4", Some("1")), ("8", Some("1")), ("12", Some("1"))] {
+            for (mask, us) in [("4", None), ("12", None), ("4", Some("1")), ("8", Some("1")), ("12", Some("1")), ("16", None), ("32", None), ("60", Some("1"))] {
                 set("INTARSIA_HIP_INK_PF2", Some(mask));
                 set("INTARSIA_HIP_INK_PF2_US", us);
                 let got = run_host(&*hip, name, &hc).unwrap();
