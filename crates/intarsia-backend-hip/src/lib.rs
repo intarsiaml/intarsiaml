@@ -17,6 +17,7 @@ pub mod inkattn;
 pub mod inkmix;
 pub mod inkmoe;
 pub mod inkroute;
+pub mod inkspec;
 pub mod kernels;
 pub mod quantmoe;
 

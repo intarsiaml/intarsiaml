@@ -331,3 +331,52 @@ fn device_topk_rejects_bad_arguments() {
     check(&rig, "after-reject", &data, rows, v, 5);
     println!("G-B topk_f32 (hip) rejections: k 0 / 65 / > V, wrong output shape, short scratch");
 }
+
+/// bf16 rows (the DSpark draft's base logits, lane ink-hip-spec; CUDA's twin is in crates/intarsia-backend-cuda/tests/row_tables.rs):
+/// the order of the bf16 values (ties likely: by index), the values widened exactly, a NaN in a bf16 row flagged.
+#[test]
+fn device_topk_bf16_rows_are_the_host_order() {
+    let Some(rig) = Rig::new("topk_bf16") else { return };
+    let bf = |vals: &[f32], shape: &[usize]| rig.put_bytes(&HostTensor::from_f32_as(DType::Bf16, shape, vals).data, DType::Bf16, shape);
+    let mut rng = SplitMix64::new(0x7b16);
+    let mut checked = 0usize;
+    for &(v, rows, k) in &[(200058usize, 7usize, 64usize), (201024, 3, 64), (1000, 7, 64), (70, 2, 8), (300, 1, 1)] {
+        let raw = rng.normal_vec(v * rows, 2.0);
+        // the bf16 grid: the values the device row holds, so the host order is the device's
+        let data: Vec<f32> = raw.iter().map(|x| f32::from_bits((f32::to_bits(*x) + 0x7fff + ((f32::to_bits(*x) >> 16) & 1)) & 0xffff_0000)).collect();
+        let logits = bf(&data, &[rows, v]);
+        let ids = rig.poison(rows * k * 4, DType::I32, &[rows, k]);
+        let vals = rig.poison(rows * k * 4, DType::F32, &[rows, k]);
+        let nan = rig.poison(rows * 4, DType::I32, &[rows]);
+        let sb = rows * SLICES * k * 8;
+        let scratch = rig.put_bytes(&vec![0x01u8; sb], DType::U8, &[sb]);
+        rig.be.topk_rows(&logits, k, &ids, &vals, &nan, &scratch, 0).unwrap();
+        rig.be.synchronize(0).unwrap();
+        let gi: Vec<i32> = rig.down(&ids).chunks_exact(4).map(|c| i32::from_le_bytes(c.try_into().unwrap())).collect();
+        let gv: Vec<f32> = rig.down(&vals).chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect();
+        let gn: Vec<i32> = rig.down(&nan).chunks_exact(4).map(|c| i32::from_le_bytes(c.try_into().unwrap())).collect();
+        assert!(gn.iter().all(|&f| f == 0), "bf16 v {v}: no NaN in the rows, flags {gn:?}");
+        for r in 0..rows {
+            let row = &data[r * v..(r + 1) * v];
+            let order = host_topk(row, k);
+            for j in 0..k {
+                assert_eq!(gi[r * k + j] as u32, order[j], "bf16 v {v} rows {rows} k {k} row {r} rank {j}");
+                assert_eq!(gv[r * k + j].to_bits(), row[order[j] as usize].to_bits(), "bf16 v {v} row {r} rank {j} value");
+                checked += 1;
+            }
+        }
+    }
+    // a NaN anywhere in a bf16 row flags that row only
+    let mut data = vec![1.0f32; 2 * 500];
+    data[500 + 321] = f32::NAN;
+    let logits = bf(&data, &[2, 500]);
+    let ids = rig.poison(2 * 8 * 4, DType::I32, &[2, 8]);
+    let vals = rig.poison(2 * 8 * 4, DType::F32, &[2, 8]);
+    let nan = rig.poison(8, DType::I32, &[2]);
+    let scratch = rig.put_bytes(&vec![0u8; 2 * SLICES * 8 * 8], DType::U8, &[2 * SLICES * 8 * 8]);
+    rig.be.topk_rows(&logits, 8, &ids, &vals, &nan, &scratch, 0).unwrap();
+    rig.be.synchronize(0).unwrap();
+    let gn: Vec<i32> = rig.down(&nan).chunks_exact(4).map(|c| i32::from_le_bytes(c.try_into().unwrap())).collect();
+    assert_eq!(gn, vec![0, 1], "the NaN row is flagged, the other not");
+    println!("G-B topk bf16 rows (hip): {checked} (id, value) pairs equal to the host order (V 200058 / 201024 / 1000 / 70 / 300), NaN row flagged");
+}
