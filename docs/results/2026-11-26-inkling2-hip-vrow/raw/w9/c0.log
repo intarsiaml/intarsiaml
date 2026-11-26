@@ -1,0 +1,7 @@
+[speed] main@c0a rc 0 t+37s | decode overall: 2013 tokens after the first, 19569 ms (102.87 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] new@c0a rc 0 t+74s | decode overall: 2013 tokens after the first, 19434 ms (103.58 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] new@c0b rc 0 t+111s | decode overall: 2013 tokens after the first, 19422 ms (103.64 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] main@c0b rc 0 t+149s | decode overall: 2013 tokens after the first, 19579 ms (102.81 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] main5@c0a rc 0 t+185s | decode overall: 2013 tokens after the first, 19366 ms (103.94 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] new5@c0a rc 0 t+221s | decode overall: 2013 tokens after the first, 19213 ms (104.77 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[c0] done 16:20:49

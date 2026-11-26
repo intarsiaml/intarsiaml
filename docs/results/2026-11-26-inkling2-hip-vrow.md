@@ -7,6 +7,25 @@ chunks leave the fused launches) and the verify attention (+1.20 ms at 4 rows in
 Tatooine side: the lane folder and cargo volume of ink-hip-verify (`~/intarsiaml-ink-hip-verify`, this tree synced to
 `.scratch/vrow-src`).
 
+## Result
+
+| Inkling-2-Mini, one R9700, spec-default decode (main's recipe, k3; 4 + 4 processes ABBA) | main | this branch | ratio, 95 % CI |
+|---|---:|---:|---|
+| short (12 golden prompts) | 103.66 tok/s | 104.00 | 1.003 [1.002-1.005] |
+| 1k | 90.05 | 92.16 | **1.023** [1.022-1.025] |
+| 4k | 114.94 | 117.81 | **1.025** [1.024-1.026] |
+| 16k | 91.75 | 93.78 | **1.022** [1.020-1.024] |
+| verify pass at 1k, 4 / 5 rows (probe) | 22.38 / 24.77 ms | 21.49 / 23.63 ms | -4.0 % / -4.6 % |
+
+- **Change, bitwise:**
+  - The loop blend keeps the fused row-kernel launch up to 8 rows (was 2); the fused norm stays at 2 rows.
+  - Op 75 takes its fused kernel for 1-row calls only; verify passes take its split path.
+  - Both are existing forms with the same bits, now chosen by rows. Env knobs `INTARSIA_HIP_INK_BLEND_FUSE`, `INTARSIA_HIP_INK_DEC_FUSED_ROWS`; revert `=2` / `=16`.
+- **Gates** (section 3): verify probe rows 2..8 worst diff 0; md5 = main x 8; hip tests incl. `ink_rows` pass; admission 0 FAIL;
+  G2 identical; tiny suites as on main.
+- **Lever 1 as asked** (a multi-row op 75 form sharing the K / V reads) was not built: the 4k trace shows the per-row cost is per-row work, not K / V
+  bytes (section 2).
+
 ## Briefs received
 
 1. 2026-11-26 ~15:45 EST (coordinator, brief 2 part 2 to lane ink-hip-verify), summarised: lane ink-hip-batch is closed, its files
@@ -115,3 +134,37 @@ test targets. Logs `raw/window8-12197.log`, `raw/w8/`.
 4. **G2**: short 21-way KL 4.491e-3 PASS, long 4.083e-3 PASS (1 top-1 miss), identical to main.
 5. Verify cost probe at 1k, same binary, main's rules / the defaults (ms): decode 13.37 / 13.39; 2 rows 16.62 / 16.46; 3: 20.10 /
    19.49; 4: 22.38 / **21.49 (-4.0 %)**; 5: 24.77 / **23.63 (-4.6 %)**; 6: 27.02 / 25.82; 8: 31.77 / 30.27.
+
+## 4. Window 9: speed (4 + 4 processes, same binary)
+
+fleetq #12198, radiance down 16:17:04-16:21:00 EST (**3:56**), both cards. Binary `vrow2`, arm **new** = the defaults, arm **main** =
+`INTARSIA_HIP_INK_BLEND_FUSE=2 INTARSIA_HIP_INK_DEC_FUSED_ROWS=16` (main `12c6c78ac`'s launch sequence; the same binary, so only the
+rules differ). Spec default, no `--spec` and no TAU / CUT env (main's recipe: DSpark k3, cut 0.5). speed.json = a warm-up + the 12 short
+golden prompts + 1021 / 4108 / 16455 ids, 128 tokens, greedy, EOS honoured. Order per card ABBA (card 0 main new new main, card 1 new
+main main new). Ratio per (prompt, process) to the main process of the same card and rep, geometric mean per class, 95 % CI: t over the
+4 processes [bootstrap over processes x prompts] (`raw/w9/speed-k3.txt`). Then one process per arm per card at k5 (`--recipe` copy with
+`mtp_default_k = 5`, as PR #534 ships; `raw/w9/speed-k5.txt`).
+
+| spec-default decode | short (12) | 1k | 4k | 16k |
+|---|---:|---:|---:|---:|
+| main rules, k3 (tok/s, median) | 103.66 | 90.05 | 114.94 | 91.75 |
+| new rules, k3 | 104.00 | 92.16 | 117.81 | 93.78 |
+| **new / main, k3 (4 + 4)** | **1.003** [1.002-1.005] | **1.023** [1.022-1.025] | **1.025** [1.024-1.026] | **1.022** [1.020-1.024] |
+| new / main, k5 (2 + 2) | 1.003 [0.991-1.016] | 1.021 [1.020-1.022] | 1.023 [0.998-1.048] | 1.023 [0.995-1.052] |
+
+Ids identical in all 16 processes; the counters are equal arm for arm (the rules change no output). The bar for default-on (brief 1:
+bitwise, no length slower, >= +2 % at >= 1 length with a CI lower bound above 1.0) is met at 1k, 4k and 16k, short is +0.3 % (lower
+bound 1.002). Plain decode (`--spec off`) runs main's launches (1-row calls keep both fused forms): probe decode step 13.37 / 13.39 ms,
+the md5 runs' single-run plain decode 76.40 / 76.84 / 73.35 / 74.02 tok/s against main2's 76.86 / 76.86 / 74.04 / 74.04 (window 4);
+no plain ABBA was run.
+
+## 5. Windows, jobs, radiance
+
+| window | fleetq | what | radiance down (EST) | down | part 2 total |
+|---|---|---|---|---:|---:|
+| 7 | #12192 | bench, probe sweeps, 4k trace (card 1 also PR #534's k5 gates) | 16:05:24-16:08:23 | 2:59 | 2:59 |
+| 8 | #12197 | gates of vrow2 | 16:13:27-16:16:34 | 3:07 | 6:06 |
+| 9 | #12198 | speed 4 + 4 (+ k5 2 + 2) | 16:17:04-16:21:00 | 3:56 | **10:02** of 15:00 |
+
+Radiance answered 15 s after each restart (`/v1/models` checked). CPU jobs on tatooine (`--load cpu`): #12190 (vrow1, saving
+verify2's test executables), #12196 (vrow2 + test targets).
