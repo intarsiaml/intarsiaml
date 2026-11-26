@@ -1526,3 +1526,34 @@ Cuts: 16k slow >= 6150 ms (the L7 cut; the 16k values are not cleanly bimodal, t
 4k (by slot, where both arms ran): L6a off ~1405, default ~1420 ms (+1 %); L7 off 1324, default 1698 (+28 %, and only default sat in the slow level, 9 of 12 vs 1 of 12); L7 test 3 off 1666, default 1685 (+1 %).
 So the 4k and 1k cells are slot / mode-assignment effects (the two arms never differ in two of three slots), as the brief expected. The 16k within-mode gap is +1.2 to +2.5 % in `generate`
 (medians, 14 to 24 runs per cell, ranges overlapping), close to the `serve` +2.1 to +3.4 %; step 2 separates it within one process.
+
+## Brief L8 step 2: within-process A/B at 16k, endor #11908, 2026-11-25 19:44-20:18
+
+Method. One diag-only binary (md5 b24ee4bf264413027b936a3e67d54a9b; diff `.scratch/l8/diag_spec_alt.patch`, never in the tree, same status as `diag_ttftlog.patch`): `INTARSIA_DIAG_SPEC_ALT=1` alternates, per prompt-length
+class, requests that speculate (arm A) and requests that do not (arm B), ABAB. Arm B sets `spec_on = false` and an empty `ctx` right after `Seq::build`, so `drafting` is false and the DSpark draft stays loaded but
+inactive (`dflash.active = false`), the same state a sampled request sees. There is no per-request switch in the tree: the only paths that skip drafting with the draft loaded are non-greedy / trace_logits /
+constraint requests (`spec_on` in `Seq::build`) and the `!d.synced` + reuse > `DFLASH_RESYNC_REUSE_MAX` branch (the `0ad399998` path); the speed prompts start with a fresh nonce, so reuse is ~0 and that branch is not hit.
+TTFT = `ttftlog since_t0_ms` of the first token (server side). Three alternating processes P1-P3 (3 localeval `speed-plain` invocations each, full length ladder), plus two `--spec off` processes O1-O2
+(2 invocations each) as the comparison arm. localeval exited 3 on the alternating processes ("ARM ABORTED: probe ratio 0.94 < 1.05", expected with half the requests not speculating); the timing rows are
+unaffected. Not verified directly: that arm B requests decode without drafting (the ttftlog line carries no draft counters); this rests on the code path above and the 0.94 probe ratio.
+
+16k (plen 16474), TTFT ms, median (mean):
+
+| process | A speculating | B not speculating | A / B median | A / B mean |
+|---|---|---|---|---|
+| P1 | n 6, 6735 (6809) | n 6, 6713 (6731) | +0.3 % | +1.2 % |
+| P2 | n 8, 6870 (7096) | n 8, 6795 (7051) | +1.1 % | +0.6 % |
+| P3 | n 10, 6227 (6433) | n 10, 6315 (6480) | -1.4 % | -0.7 % |
+| pooled | n 24, 6692 | n 24, 6688 | +0.1 % | +0.2 % |
+| `--spec off` O1 / O2 | n 8, 7101 / n 12, 6256 | | | |
+
+Pooled `--spec off` n 20 median 6653: A / off +0.6 %, B / off +0.5 %. The process-to-process spread is 6227 to 7101 (14 %), and it appears in the spec-off processes (O1 7101 vs O2 6256, the same code and flags) as much as in the
+alternating ones, so the fast / slow mode is process state, not the draft. 1k pooled A / B -0.3 %, 4k -2.4 % (per-process -2.1 / -3.8 / +0.6 %), neither with a consistent sign.
+
+Verdict (stop rule: within-process gap within noise): **cross-process measurement artifact.** Inside one process the speculating request's prefill costs the same as the non-speculating one (+0.1 %, per-process
+-1.4 to +1.1 %), and a loaded-but-idle draft costs nothing against a process started with spec off (+0.5 %, well inside the 14 % spread between two spec-off processes). The +2.1 to +3.4 % of the four `serve` bar runs
+is the same size as the per-process mode spread and had the same sign by chance of which mode each arm's processes landed in (pooled slow shares 55 / 63 / 59 %). Nothing to fix in the code, so no fix sketch.
+The decision (waive the 16k TTFT bar miss, or redefine the bar as within-process) goes back to the coordinator and the user; #496 is untouched.
+
+Candidate lane (out of scope here): what decides the fast / slow process mode (~10 % at 16k, ~15-20 % at 4k in some slots). It hits both arms equally, so it is not the draft; suspects are per-process
+Metal state at allocation / first-use (heap placement, residency, shader-cache or page state after the first 16k prefill), measurable by logging per-process mode against the order of the first requests.
