@@ -312,7 +312,7 @@ fn rows_exact_real_shapes() {
 }
 
 /// `INTARSIA_HIP_INK_PF2` (lane ink-hip-pf2): the prefill forms that keep the bits, bit 1 (the prologue's rel tail as its own pass,
-/// `ink_rel_table_k`) and bit 2 (flash in pieces of query tiles), give the bits of `=0` (q / rel / k / v / o, rings and caches) on
+/// `ink_rel_table_k`), bit 2 (flash in pieces of query tiles) and bit 128 (the prologue's OCC form), give the bits of `=0` (q / rel / k / v / o, rings and caches) on
 /// prefill-sized calls, with flash on (the new default) and off; the pieces at their default rule, at a smaller budget and forced
 /// to one query tile each (`INTARSIA_HIP_INK_PF2_US=1`, `INTARSIA_HIP_INK_PF2_BLOCKS=1`). Run with `--test-threads=1` (env).
 #[test]
@@ -342,7 +342,7 @@ fn pf2_bitwise_prefill() {
                     set("INTARSIA_HIP_INK_PF2", Some("0"));
                     let base = run(be, l, &inp, t, pos0, t, false, false);
                     assert!(base.outs[4].iter().any(|&x| x & 0x7fff != 0), "{what}: zero output");
-                    for (mask, us, blocks) in [("1", None, None), ("3", None, None), ("3", Some("700"), None), ("2", Some("1"), Some("1")), ("7", Some("1"), Some("1"))] {
+                    for (mask, us, blocks) in [("1", None, None), ("3", None, None), ("3", Some("700"), None), ("2", Some("1"), Some("1")), ("7", Some("1"), Some("1")), ("129", None, None), ("131", Some("1"), Some("1"))] {
                         set("INTARSIA_HIP_INK_PF2", Some(mask));
                         set("INTARSIA_HIP_INK_PF2_US", us);
                         set("INTARSIA_HIP_INK_PF2_BLOCKS", blocks);

@@ -76,7 +76,8 @@ struct InkP {
 
 // INTARSIA_HIP_INK_PF2 (lane ink-hip-pf2; prefill chunks only, every bit keeps the output bits): bit 1 = the prologue's rel tail
 // as its own pass (ink_rel_table_k), bit 2 = flash attention in pieces of query tiles under the R9700 dispatch stall line
-// (ik_hip.h), the experts' bits 4 / 8 in ink_moe.hip. Unset = kPf2Default; 0 = main's form. Read at every launch.
+// (ik_hip.h), bit 128 = with bit 1, the prologue's OCC form (12 waves per SIMD); the experts' bits 4 / 8 / 16 / 32 / 64 are in
+// ink_moe.hip. Unset = kPf2Default; 0 = main's forms. Read at every launch.
 constexpr int kPf2Default = 3;
 int pf2_mask() {
     const char* e = getenv("INTARSIA_HIP_INK_PF2");
@@ -256,9 +257,10 @@ IK_DEVI float k_out(float v, float ss, const InkP& p) { return rA(fmul(v, ink_cl
 IK_DEVI float v_out(float v, float ss, const InkP& p) { return rA(fmul(v, ink_inv_rms(ss, p))); }
 
 // InkKvPrologue. Grid (Hk, T, rel slices), 256 threads (8 waves): waves take the jobs k, v, q_0 .., r_0 .. in turn, then all
-// threads the rel tail.
-template <int J, bool DPP = false>
-__global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
+// threads the rel tail. OCC (INTARSIA_HIP_INK_PF2 bit 128, prefill calls with bit 1): compiled for 12 waves per SIMD (at most
+// 128 VGPRs; 160 otherwise, 9 waves): the same instructions on the same values, the same bits.
+template <int J, bool DPP = false, bool OCC = false>
+__global__ void __launch_bounds__(256) __attribute__((amdgpu_waves_per_eu(OCC ? 12 : 1))) ink_prologue_k(InkP p) {
     __shared__ float rsh[4][32];
     const unsigned tid = threadIdx.x, lane = tid & 31, warp = tid >> 5, nw = blockDim.x >> 5;
     const unsigned kvh = blockIdx.x, t = blockIdx.y;
@@ -325,10 +327,11 @@ __global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
 // a block of one (kv head, row) forms G x E entries, each with 16 relproj loads, and the 100 MB table of a 2048-row chunk took
 // 1.67 ms (94 GB/s). Here a block takes RT_ROWS call rows (all H heads): it stages their r (left by the prologue in the first dr
 // entries of each rel row, F_R_ROW) in LDS before any write, and each thread holds the relproj columns of its entries
-// e = 2 * (tid + 256 i) and e + 1 in registers. Every entry is ink_rel_g's chain (from 0, j ascending, ffma) on the same r and
-// relproj values, then the bf16 round: bitwise the prologue's tail. Launcher: dr <= RT_DR, E even and <= 512 * RT_NP.
+// e = 4 tid .. 4 tid + 3 in registers (one 8-byte store per row). Every entry is ink_rel_g's chain (from 0, j ascending, ffma) on
+// the same r and relproj values, then the bf16 round: bitwise the prologue's tail. Launcher: dr <= RT_DR, E a multiple of 4 and
+// <= 1024, the table 8-byte aligned.
 constexpr int RT_ROWS = 8;  // call rows per block
-constexpr int RT_NP = 2;    // entry pairs per thread
+constexpr int RT_EPT = 4;   // consecutive entries per thread (one 8-byte store per row)
 constexpr int RT_DR = 16;   // most d_rel
 __global__ void __launch_bounds__(256) ink_rel_table_k(InkP p) {
     extern __shared__ float rts[];  // r of the block's rows [RT_ROWS * H][dr]
@@ -337,34 +340,30 @@ __global__ void __launch_bounds__(256) ink_rel_table_k(InkP p) {
     const int nrow = (p.t - t0 < RT_ROWS ? p.t - t0 : RT_ROWS) * H;
     bf16* rel = p.relo + (size_t)t0 * H * E;
     for (int x = tid; x < nrow * dr; x += blockDim.x) rts[x] = b2f(rel[(size_t)(x / dr) * E + x % dr]);
-    float w[RT_NP][2][RT_DR];
+    const int e0 = RT_EPT * tid;
+    float w[RT_EPT][RT_DR];
 #pragma unroll
-    for (int i = 0; i < RT_NP; ++i)
+    for (int u = 0; u < RT_EPT; ++u)
 #pragma unroll
-        for (int u = 0; u < 2; ++u) {
-            const int e = 2 * (tid + 256 * i) + u;
-#pragma unroll
-            for (int j = 0; j < RT_DR; ++j) w[i][u][j] = (e < E && j < dr) ? b2f(p.rp[(size_t)j * E + e]) : 0.0f;
-        }
+        for (int j = 0; j < RT_DR; ++j) w[u][j] = (e0 + u < E && j < dr) ? b2f(p.rp[(size_t)j * E + e0 + u]) : 0.0f;
     __syncthreads();  // every r of the block is staged before the first entry of its rows is overwritten
+    if (e0 >= E) return;
     for (int row = 0; row < nrow; ++row) {
         float r[RT_DR];
 #pragma unroll
         for (int j = 0; j < RT_DR; ++j) r[j] = j < dr ? rts[row * dr + j] : 0.0f;
-        uint32_t* dst = reinterpret_cast<uint32_t*>(rel + (size_t)row * E);
+        float acc[RT_EPT];
 #pragma unroll
-        for (int i = 0; i < RT_NP; ++i) {
-            const int e = 2 * (tid + 256 * i);
-            if (e >= E) break;
-            float a0 = 0.0f, a1 = 0.0f;
+        for (int u = 0; u < RT_EPT; ++u) {
+            acc[u] = 0.0f;
 #pragma unroll
             for (int j = 0; j < RT_DR; ++j)
-                if (j < dr) {
-                    a0 = ffma(r[j], w[i][0][j], a0);
-                    a1 = ffma(r[j], w[i][1][j], a1);
-                }
-            dst[e / 2] = (uint32_t)f2b(a0).bits | ((uint32_t)f2b(a1).bits << 16);
+                if (j < dr) acc[u] = ffma(r[j], w[u][j], acc[u]);
         }
+        uint2 o;
+        o.x = (uint32_t)f2b(acc[0]).bits | ((uint32_t)f2b(acc[1]).bits << 16);
+        o.y = (uint32_t)f2b(acc[2]).bits | ((uint32_t)f2b(acc[3]).bits << 16);
+        *reinterpret_cast<uint2*>(rel + (size_t)row * E + e0) = o;
     }
 }
 
@@ -1134,10 +1133,11 @@ extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk,
     if (nz < 1) nz = 1;
     // prefill chunks (INTARSIA_HIP_INK_PF2 bit 1): the rel tail as its own pass (ink_rel_table_k), the same bits
     const size_t rt_lds = (size_t)RT_ROWS * p.h * p.dr * sizeof(float);
-    const bool rel_pass = (pf2_mask() & 1) && p.t > MAXROWS && p.dr <= RT_DR && p.e % 2 == 0 && p.e <= 512 * RT_NP && rt_lds <= 32768 &&
-                          (reinterpret_cast<uintptr_t>(p.relo) & 3u) == 0;
+    const bool rel_pass = (pf2_mask() & 1) && p.t > MAXROWS && p.dr <= RT_DR && p.e % RT_EPT == 0 && p.e <= 256 * RT_EPT && rt_lds <= 32768 &&
+                          (reinterpret_cast<uintptr_t>(p.relo) & 7u) == 0;
     if (rel_pass) p.flags |= F_R_ROW;
-    if (p.d <= 128) ink_prologue_k<4><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
+    if (p.d <= 128 && rel_pass && (pf2_mask() & 128)) ink_prologue_k<4, false, true><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
+    else if (p.d <= 128) ink_prologue_k<4><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
     else ink_prologue_k<JMAX><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
     if (rel_pass) {
         ink_rel_table_k<<<(unsigned)((p.t + RT_ROWS - 1) / RT_ROWS), 256, rt_lds, st>>>(p);
