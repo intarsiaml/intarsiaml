@@ -750,7 +750,7 @@ fn inkling2_tiny_failed_pass_resets_the_sequence() {
 
 /// `INTARSIA_INK_PACK12=1` (lane ink-pack12) on cpu, whose reference registers the P12 kernels, packs at load and gives the
 /// bf16 logits bit for bit, over 1-row decode steps and 4- and 5-row passes (both sides of `quant::p12::DENSE_ROWS_MAX`).
-/// On a backend without the P12 kernels (`MatmulP12` dropped, as CUDA and HIP register none) the forced `1` keeps the bf16
+/// On a backend without the P12 kernels (`MatmulP12` dropped, the cpu reference wrapped) the forced `1` keeps the bf16
 /// weights instead of packing. The variable is read at load, so this runs only when the test binary has it set to `1`.
 #[test]
 fn inkling2_tiny_p12_forced_on() {
