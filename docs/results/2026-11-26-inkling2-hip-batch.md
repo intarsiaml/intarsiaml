@@ -5,6 +5,42 @@ for Inkling-2-Mini on the HIP backend. Today HIP refuses `--max-batch > 1` with 
 (`model/batch.rs` `row_tables_wanted`: Inkling-2 needs row-table kernels of `ConvMix` and `InkAttnDecode`, or of the pair).
 Raw: `docs/results/2026-11-26-inkling2-hip-batch/raw/`.
 
+## 0. Summary (final binary b7 = this branch merged onto main `3c6ff64f0`)
+
+| tok/s, one R9700 | main `3c6ff64f0` | branch b7 | change |
+|---|---|---|---|
+| Prefill 4k (defaults: chunk 2048, MoE WMMA, flash) | 2702 | 2705 | +0.1 % (ratio 1.0014 ± 0.0030) |
+| Prefill 16k | 2793 (COMMON-1126) | not run; solo device code identical to main (section 7) | 0 expected |
+| Decode short (`--spec off`, 256 tok) | 76.88 | 76.90 | +0.03 % (1.0003 ± 0.0003) |
+| Decode 4k (`--spec off`, 256 tok) | 74.06 | 74.06 | +0.01 % (1.0001 ± 0.0006) |
+| Serve aggregate, 1 stream (1k prompt, 256 tok, TTFT included) | solo engine (not run) | 66.6 | |
+| Serve aggregate, 4 streams | refused (NoKernel) | **130.0** | new |
+| Serve aggregate, 8 streams | refused | **168.4** | new |
+| Serve aggregate, 16 streams | refused | **189.9** | new |
+| Pure batched decode B 16 (`batch_step`, real text), short / 4k | refused | **289.1 / 253.0** (3.77x / 3.45x the solo step) | new |
+
+- **Verdict: ships, opt-in by `--max-batch`.**
+  - Batched == solo holds bitwise at every level:
+    - kernels: 645 + 40 row-table calls;
+    - model: 2800 tokens at B 1 / 4 / 8 / 16 (section 5.2);
+    - server: 16 / 16 real prompts at once against solo (section 10.2).
+  - The solo path is main's:
+    - solo device code identical to main;
+    - greedy md5 at 64 / 256, short and 4k, equal to main;
+    - solo decode ratio 1.000.
+- **ITL p50 / p99** (server histogram buckets) at 1 / 4 / 8 / 16 streams:
+  - p50: 10-20 / 20-35 / 20-35 / 50-75 ms;
+  - p99: 10-20 / 20-35 to 250-500 / 250-500 / 250-500 ms, where the tail is other streams' 1k prefill chunks.
+  - Pure decode step time p50 / p99 at B 16: 55.4 / 56.6 ms.
+- **VRAM**: 19.7 GB for the solo server and 28.6 GB for `--max-batch 16 --max-seq 4608 --kv-fraction 0.9`. The largest B at 4k on
+  32 GB is 16, the engine's row cap, with about 4 GB to spare. It needs `--kv-fraction` of 0.6 or more.
+- **Recipe**:
+  - `max_batch = 16` (the `[defaults]` value) is the right cap on HIP.
+  - No `busy_chunk` line is needed: HIP's default busy chunk is the solo chunk 2048. Busy chunk 256 breaks batched == solo and
+    costs 25 % at 8 streams.
+- **Since #527**: a batching server loads no DSpark draft and takes plain batched steps (section 9.1). One stream is faster on the
+  solo server with DSpark.
+
 ## Briefs and messages received
 
 - 2026-11-26 ~11:40 (coordinator): go ahead with the RT template parameter on `ink_row_kernel` / `ink_attn_dec_k`, not a copy.
