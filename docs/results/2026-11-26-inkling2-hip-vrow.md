@@ -175,3 +175,12 @@ measured. The row-table attention (`ink_attn_decode_bf16_rows`) has its own laun
 
 Radiance answered 15 s after each restart (`/v1/models` checked). CPU jobs on tatooine (`--load cpu`): #12190 (vrow1, saving
 verify2's test executables), #12196 (vrow2 + test targets).
+
+**Merge with main `b7450223e` (#534, HIP k5).** Merged origin/main into the branch (merge commit, no force push); the two conflicts
+(`docs/tuning.md`, `docs/decisions/LOG.md`) keep both sides' rows. The `kernels/` and `crates/` changes against main are the same
+as before the merge, apart from `verify_rows_real.rs`, whose timing knobs both branches carried and which is now main's copy. Checks
+on the merged tree, no GPU: tatooine #12205 (`--load cpu`) builds `vrow3` (md5 `9d2ba4dc44263671de42380d9a9bd768`) and the hip test
+targets `ink_mix` / `ink_attn` / `ink_rows` plus `verify_rows_real`, and `docs_env_vars` passes (2/2); endor #12206 (prepush:
+`docs_env_vars`, `recipes_doc`) and #12212 (`intarsia-models --lib dspark_default`, 1/1) pass. The gates and speed above were
+measured on `vrow2` (base `12c6c78ac`, k3, plus a k5 leg); not rerun on `vrow3`: the merge adds only #534's recipe k change and
+its tests, which window 9's k5 leg already measured with this change (1.003 / 1.021 / 1.023 / 1.023).
