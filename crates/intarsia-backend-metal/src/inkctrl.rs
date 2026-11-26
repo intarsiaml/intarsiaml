@@ -66,6 +66,9 @@ pub static ROUTE_RANK4: Switch = Switch::new("INTARSIA_INK_ROUTE_RANK4", true);
 /// `INTARSIA_INK_BLEND_NORM_C` (default on: -0.29 ms per decode step, job E #11003): the blend norm with one channel per
 /// thread (`ink_blend_norm_c`).
 pub static BLEND_NORM_C: Switch = Switch::new("INTARSIA_INK_BLEND_NORM_C", true);
+/// `INTARSIA_INK_CONV_PRE` (default on): the fused decode attention (`ink_attn_decode_bf16*`) issues its one own key's K / V
+/// conv loads before the q prologue (InkP flag 32); the same fma chain, bitwise. Lane ink-metal (solo 38).
+pub static CONV_PRE: Switch = Switch::new("INTARSIA_INK_CONV_PRE", true);
 
 /// Logits per threadgroup (`RT_SG` in the shader).
 const RT_SG: usize = 4;

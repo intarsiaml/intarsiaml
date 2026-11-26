@@ -97,6 +97,41 @@ inline float ink_conv(device const ushort* x, device const ushort* ring, device 
     return rA((acc + bf2f(x[(ulong)t * p.pw + ch])) * p.cscale);
 }
 
+// The loads of one ink_conv output (taps, dyn taps, inputs, own x), issued early (`INTARSIA_INK_CONV_PRE`, lane ink-metal
+// solo 38: the fused decode kernel loads them before the q prologue's barrier so they are in flight while q is reduced), and
+// the same fma chain over them: bitwise ink_conv. K <= INK_CPRE_K.
+constant constexpr uint INK_CPRE_K = 8;
+struct InkConvPre {
+    float w[INK_CPRE_K], x[INK_CPRE_K], own;
+};
+inline InkConvPre ink_conv_load(device const ushort* x, device const ushort* ring, device const ushort* taps, uint t, uint pos0,
+                                constant InkP& p, uint ch, uint kvh) {
+    InkConvPre c;
+    const uint ckv = p.hk * p.d;
+    const long pp = (long)(pos0 + t);
+    const bool dyn = (p.flags & 1u) != 0;
+    for (uint l = 0; l < INK_CPRE_K; ++l) {
+        c.w[l] = 0.0f;
+        c.x[l] = 0.0f;
+        if (l < p.k) {
+            float w = bf2f(taps[(ulong)l * ckv + ch]);
+            if (dyn) w += bf2f(x[(ulong)t * p.pw + ckv + kvh * p.k + l]);
+            c.w[l] = w;
+            c.x[l] = ink_cx(x, ring, pp - (long)l, pos0, p.pw, p.rr, ckv, ch);
+        }
+    }
+    c.own = bf2f(x[(ulong)t * p.pw + ch]);
+    return c;
+}
+inline float ink_conv_fin(thread const InkConvPre& c, constant InkP& p) {
+    float acc = 0.0f;
+    for (uint l = 0; l < INK_CPRE_K; ++l) {
+        if (l >= p.k) break;
+        acc = fma(c.w[l], c.x[l], acc);
+    }
+    return rA((acc + c.own) * p.cscale);
+}
+
 inline float ink_clipf(float ss, float th) { return min(precise::divide(th, precise::sqrt(ss) + INK_SRC_EPS), 1.0f); }
 
 inline float ink_tau(constant InkP& p, uint pp) {
@@ -587,6 +622,16 @@ template <uint GP, bool RT>
     if (split >= g.ns) return;
     const uint c = tid, ch = kvh * D + c;
     const ulong qrow = (ulong)t * p.nq;
+    // the call's own keys inside the split: rows t0 .. t1 (positions pos0 + t0 ..)
+    const uint jn0 = max(g.ks, pos0), jn1 = g.ke;
+    const uint t0 = jn0 - pos0, nnew = jn1 > jn0 ? jn1 - jn0 : 0u;
+    // one own key (decode): its conv loads go out before the q prologue (flags 32 = INTARSIA_INK_CONV_PRE)
+    const bool cpre = (p.flags & 32u) != 0 && nnew == 1u && p.k <= INK_CPRE_K && c < D;
+    InkConvPre kpre, vpre;
+    if (cpre) {
+        kpre = ink_conv_load(pk, kr, kt, t0, pos0, p, ch, kvh);
+        vpre = ink_conv_load(pv, vr, vt, t0, pos0, p, ch, kvh);
+    }
 
     // q and r of the row (the prologue's arithmetic)
     float qv[GP], rv[GP];
@@ -625,11 +670,13 @@ template <uint GP, bool RT>
             }
         }
     }
-    // the call's own keys inside the split: rows t0 .. t1 (positions pos0 + t0 ..)
-    const uint jn0 = max(g.ks, pos0), jn1 = g.ke;
-    const uint t0 = jn0 - pos0, nnew = jn1 > jn0 ? jn1 - jn0 : 0u;
     float kcv[16], vcv[16];
+    if (cpre) {
+        kcv[0] = ink_conv_fin(kpre, p);
+        vcv[0] = ink_conv_fin(vpre, p);
+    }
     for (uint r = 0; r < nnew; ++r) {
+        if (cpre) break;
         kcv[r] = 0.0f;
         vcv[r] = 0.0f;
         if (c < D) {
