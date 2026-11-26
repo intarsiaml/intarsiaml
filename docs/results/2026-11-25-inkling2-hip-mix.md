@@ -34,7 +34,7 @@ Ops: SconvRes 69, AttnResMix 67, LoopBlend 68, ConvMix 74, InkInProj 73 (+ `_row
   total radiance-down time from then on is 20 min or less; none after 06:00; radiance must answer `/v1/models` before release. Log each window's down time here.
   PR #516 (`ink/hip` -> main, the correctness form) stays as it is until it merges: do not merge into `ink/hip`; send speed heads as "ready to merge at <commit>" (the
   lead integrates them in a follow-up branch).
-  Down-time log (speed round): (none yet; window 1 of the first round was 60 s, before the rule).
+  Down-time log (speed round): 22:13:00-22:14:13, 22:19:51-22:21:03, 22:23:51-22:24:06, 22:29:11-22:30:23, 22:32:39-22:33:50, 22:36:04-22:37:16 (each radiance answered within 15 s of the restart); about 7 min total, each window under 2 min.
 
 ## Status (2026-11-25 21:45 EST)
 
@@ -86,3 +86,27 @@ T16 verify rows pay 66 us. Not tuned tonight beyond the correctness form.
 - Not run through the model (G1 / G2: the lead's window). `-ffp-contract` is left at hipcc's default (fast); rows-exactness holds because every
   row runs the same compiled code, and the admission tolerances pass; no kernel is on `NO_FP_CONTRACT_SOURCES`.
 - `rsqrtf` in the conv scale is the hardware approximation (CUDA's too); admitted within tolerance.
+
+## Speed round (2026-11-25 22:10-22:40 EST), logs `raw/window2..6-*.log`
+
+Same-window A/B of every form in the bench (`ink_mix_bench`); the first forms stay in the code (mask 0) and every test checks every form against them to the bit.
+
+Shipped (default mask 3), all BITWISE equal to the first forms (`ink_*_rows_exact` tests run each call at mask 0, 15 and the default and compare; they passed in window 6):
+
+| item | change | before -> after (us per launch, 1-2 decode rows) |
+|---|---|---|
+| (c) ConvMix / AttnResMix / SconvRes row kernel | `ink_row_kernel<NE, true>`: every load of the row (conv taps and ring rows, res / addend, sources, queries, norm weights) issued first and unconditionally (clamped addresses, value selected after), `block_fin` unrolled; used for launches of <= 16 rows | attn_res_mix 13.1 -> 10.2; conv_mix (no blend) 14.8 -> 10.3; sconv_res 6.7 -> 5.6 |
+| (b) LoopBlend / ConvMix blend | fused blend launches for chunks of <= 2 rows: row kernel (np = S * G / 8 blocks per row: pair in LDS + controller GEMV) -> gate kernel whose last block per (stream, row group) does the norm (device-scope ticket): 2 launches instead of 4 | loop_blend S3 G64 T=1 28.1 -> 20.7, T=2 31.4 -> 25.4; conv_mix + blend T=1 37.9 -> 25.4, T=2 40.7 -> 35.0 |
+
+Why (c) was 11 us: a `wall_clock64` probe of block 0 (`INK_PROBE` build, `tests/ink_mix_probe.rs`) showed the conv phase alone at 3.3 us and entry at 0.8 us of the 10-11 us: the loads sat under lane conditions (`row ? load : 0`, `n < N ? load : 0`), which the compiler serialises (wait before the merge), a memory latency (~170 ns x several, plus the ring modulo) per tap. With unconditional loads the conv phase is 0.12 us (loads overlap the entry latency). The rest (sums 0.9, fin 0.3, mix 1.4, stores 0.4-0.6 us) is the reduction chain.
+Over about 124 ConvMix / AttnResMix calls per decode token this is 124 x 3.5-4.5 us = 0.43-0.56 us ms (lead's target 0.7 ms; not reached), and the fused blend saves ~7-12 us x 48-96 calls = about 0.4-0.6 ms (their estimate 0.5 ms), if the model's blend calls are 1-2 rows (decode; T = 4 verify rows are not fused: no gain measured).
+
+Measured and NOT shipped:
+- The fast row kernel above 16 rows: 160-240 VGPRs cut occupancy, attn_res_mix T=256 47 -> 57 us, T=1024 155 -> 193 us. Gated off (mask bit 8 only in tests).
+- Fusing the blend at 4 and 16 rows: no gain (39.0 vs 38.7, 58.5 vs 58.2): the controller GEMV is then weight-bandwidth bound.
+- Gate kernel with early weight loads (mask bit 4): no gain, off by default.
+- (a) fused `InkRoute` (op 76, `kernels/hip/ink_route_fused.hip`, `ink_route_bf16`): implemented and ADMITTED, BITWISE equal to `logits_bf16_gemv` + `moe_route` (T 1..4, 3 shapes, 4 score functions, with / without logits, row = one-row call; passes), but NOT FASTER: T=1 15.9 us fused against 15.7 us for the pair (4.8 + 10.9, each measured back to back), T=4 19.4 against 15.9, T=16 59 against 26.5. The last-block tail (ticket, then `moe_route`'s serial top-k on 1 wave per row) costs as much as the dispatch it saves; the pair's `moe_route` is itself only 10 us because the GEMV is already separate. Registered for T <= 4 so the model can select it with `INTARSIA_INK_ROUTE_FUSED=1` if the lead wants to A/B it end to end, where the saved dispatch gap (~3.6 us on the 712-dispatch profile) may show: I could not see it in a microbench. Do not default it on from this data.
+
+Unchanged ceilings: InkInProj decode 65.7-66.9 us (95-97% of 627 GB/s); LoopBlend prefill rows (0.8 us / row, 824 us per 1024 rows).
+
+ConvMix + blend at 4 / 16 rows and LoopBlend at 4+ rows: unchanged (39 / 58 us). The remaining LoopBlend decode cost: 3 launches (row kernel + gate; ~20 us) against a 3.5 MB controller-weight floor of 5.6 us.
