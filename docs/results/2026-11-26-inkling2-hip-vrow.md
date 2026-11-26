@@ -152,11 +152,18 @@ main main new). Ratio per (prompt, process) to the main process of the same card
 | **new / main, k3 (4 + 4)** | **1.003** [1.002-1.005] | **1.023** [1.022-1.025] | **1.025** [1.024-1.026] | **1.022** [1.020-1.024] |
 | new / main, k5 (2 + 2) | 1.003 [0.991-1.016] | 1.021 [1.020-1.022] | 1.023 [0.998-1.048] | 1.023 [0.995-1.052] |
 
-Ids identical in all 16 processes; the counters are equal arm for arm (the rules change no output). The bar for default-on (brief 1:
+The main-rules arm reproduces main: lane ink-hip-verify's window 6 ran the real main binary (`80719483a`, k3, the same protocol) at
+103.67 / 90.09 / 115.00 / 91.82 tok/s, within 0.1 % of this arm's 103.66 / 90.05 / 114.94 / 91.75. Ids identical in all 16 processes;
+the counters are equal arm for arm (the rules change no output). The bar for default-on (brief 1:
 bitwise, no length slower, >= +2 % at >= 1 length with a CI lower bound above 1.0) is met at 1k, 4k and 16k, short is +0.3 % (lower
 bound 1.002). Plain decode (`--spec off`) runs main's launches (1-row calls keep both fused forms): probe decode step 13.37 / 13.39 ms,
 the md5 runs' single-run plain decode at 256 tokens 76.84 (short) / 74.02 (4k) tok/s against main2's 76.86 / 74.04 (lane
 ink-hip-verify window 4); no plain ABBA was run.
+
+**Batched decode** (`serve --max-batch`, lane ink-hip-batch's row-table ConvMix, `conv_mix_bf16_rows`): `run_blend` is shared, so
+3..8 sequences now take the fused row kernel's RT form as well. Bitwise: `tests/ink_rows.rs` `conv_mix_rows_bitwise_solo` runs the
+blend (S 1 and 3) at 1 / 2 / 3 / 5 / 16 sequences against the solo T = 1 calls and passed on `vrow2` (window 8). Its speed was not
+measured. The row-table attention (`ink_attn_decode_bf16_rows`) has its own launcher and keeps the fused kernel.
 
 ## 5. Windows, jobs, radiance
 
