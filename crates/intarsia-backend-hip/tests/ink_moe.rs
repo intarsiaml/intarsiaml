@@ -173,7 +173,7 @@ fn one_row(hc: &HostCall, r: usize) -> HostCall {
 }
 
 /// A T-row call is bitwise its one-row calls: on the shared-memory path (T 5 and 16), on the pair-table path (T 70 at top-8 = 560
-/// pairs; rows 0, 33, 69) and at every load window; the `_rows` twins give the ordinary kernels' bits.
+/// pairs; rows 0, 33, 69), at every load window, in both step forms and in every LDS size class; the `_rows` twins give the ordinary kernels' bits.
 #[test]
 fn ink_moe_rows_exact() {
     let Some(hip) = device("ink_moe_rows_exact") else { return };
@@ -181,16 +181,30 @@ fn ink_moe_rows_exact() {
     let (e, k, h, i) = (32usize, 8usize, 288usize, 160usize);
     for mx in [false, true] {
         let (ord, rows) = if mx { (NAMES[2], NAMES[3]) } else { (NAMES[0], NAMES[1]) };
-        for t in [5usize, 16, 70] {
+        for t in [1usize, 3, 4, 5, 10, 16, 70] {
             let hc = if mx { mxfp8_case(&mut rng, t, e, k, h, i, "situ") } else { situ_case(&mut rng, t, e, k, h, i) };
-            intarsia_backend_hip::inkmoe::set_pre(3);
-            let full = run_host(&*hip, ord, &hc).unwrap();
-            for pre in [1, 9] {
-                intarsia_backend_hip::inkmoe::set_pre(pre);
-                let alt = run_host(&*hip, ord, &hc).unwrap();
-                assert_eq!(full[0].data, alt[0].data, "mx={mx} T={t}: load window {pre} changes bits");
+            // the reference: the first form of the step at window 3; every other form / window gives its bits
+            intarsia_backend_hip::inkmoe::set_lean(0);
+            intarsia_backend_hip::inkmoe::set_pre(3, 3);
+            let first = run_host(&*hip, ord, &hc).unwrap();
+            intarsia_backend_hip::inkmoe::set_lean(1);
+            for sz in [0, 4, 1, 2] {
+                intarsia_backend_hip::inkmoe::set_sz(sz);
+                for nb in [4, 8] {
+                    intarsia_backend_hip::inkmoe::set_nb(nb);
+                    for pre in [1, 3, 6, 9] {
+                        intarsia_backend_hip::inkmoe::set_pre(pre, pre);
+                        let alt = run_host(&*hip, ord, &hc).unwrap();
+                        assert_eq!(first[0].data, alt[0].data, "mx={mx} T={t}: lean, size class {sz}, {nb} pairs per batch, load window {pre} changes bits");
+                    }
+                }
+                intarsia_backend_hip::inkmoe::set_nb(0);
             }
-            intarsia_backend_hip::inkmoe::set_pre(-1);
+            intarsia_backend_hip::inkmoe::set_sz(0);
+            intarsia_backend_hip::inkmoe::set_lean(-1);
+            intarsia_backend_hip::inkmoe::set_pre(-1, -1);
+            let full = run_host(&*hip, ord, &hc).unwrap();
+            assert_eq!(first[0].data, full[0].data, "mx={mx} T={t}: the default form changes bits");
             if t <= 16 {
                 let tw = run_host(&*hip, rows, &hc).unwrap();
                 assert_eq!(full[0].data, tw[0].data, "mx={mx} T={t}: the _rows twin differs");
@@ -214,7 +228,8 @@ fn put(b: &dyn Backend, t: &HostTensor) -> TensorRef {
 
 /// Microbenchmark at the real expert shape. One weight set on the device; `NR` calls with different routings (so successive calls
 /// read different experts: 8 of 128 each at T = 1) run back to back, best of 5 passes. Prints us per call and GB/s over the bytes
-/// of the distinct experts a call reads (payload + scales), for both launches and for gate_up / down alone, per load window.
+/// of the distinct experts a call reads (payload + scales), for both launches and for gate_up / down alone: the default form, then
+/// (T <= 16) each step form and load window.
 #[test]
 fn ink_moe_bench() {
     if std::env::var_os("INK_MOE_BENCH").is_none() {
@@ -225,8 +240,7 @@ fn ink_moe_bench() {
     let b = &*hip;
     let (k, h, i) = (8usize, 2304usize, 1152usize);
     let ts: Vec<usize> =
-        std::env::var("INK_MOE_BENCH_T").ok().map(|s| s.split(',').map(|x| x.parse().unwrap()).collect()).unwrap_or(vec![1, 2, 4, 8, 16, 64, 256]);
-    const NR: usize = 12;
+        std::env::var("INK_MOE_BENCH_T").ok().map(|s| s.split(',').map(|x| x.parse().unwrap()).collect()).unwrap_or(vec![1, 2, 4, 8, 16, 32, 64, 128, 256, 2048]);
     for mx in [false, true] {
         let e = if mx { 64usize } else { 128 };
         let name = if mx { NAMES[2] } else { NAMES[0] };
@@ -235,10 +249,16 @@ fn ink_moe_bench() {
         let weights: Vec<TensorRef> = base.inputs[3..].iter().map(|t| put(b, t)).collect();
         // bytes one expert costs: every weight / scale tensor is [E, ..]
         let per_expert: usize = base.inputs[3..].iter().filter(|t| t.shape.len() == 3).map(|t| t.nbytes() / e).sum();
+        // of which gate_up (inputs 3, 4) and down (5, 6)
+        let gu_expert: usize = base.inputs[3..5].iter().map(|t| t.nbytes() / e).sum();
+        let dn_expert: usize = base.inputs[5..7].iter().map(|t| t.nbytes() / e).sum();
         let kern = kernel(b, name);
         for &t in &ts {
             let mut calls = Vec::new();
             let mut bytes = 0usize;
+            let nr: usize = if t >= 1024 { 3 } else { 12 };
+            #[allow(non_snake_case)]
+            let NR = nr;
             for _ in 0..NR {
                 let (ids, ws) = random_routing(&mut rng, t, e, k);
                 let distinct: BTreeSet<i32> = ids.to_i32().unwrap().into_iter().collect();
@@ -256,10 +276,32 @@ fn ink_moe_bench() {
                 calls.push(call);
             }
             let avg_bytes = bytes as f64 / NR as f64;
-            for pre in [1, 3, 9] {
-                intarsia_backend_hip::inkmoe::set_pre(pre);
-                let mut us = [0f64; 3];
-                for probe in [0, 1, 2] {
+            // (lean, window): the default (-1, -1) first, then the sweep at decode sizes
+            // (name, lean, size class, pairs per batch, window): -1 / 0 = the default rule
+            let pairs = t * k;
+            let mut cfgs: Vec<(String, i32, i32, i32, i32)> = vec![("default".into(), -1, 0, 0, -1), ("first form".into(), 0, 0, 0, 3)];
+            if pairs <= 512 && std::env::var_os("INK_MOE_BENCH_NOSWEEP").is_none() {
+                for nb in [4, 8] {
+                    for pre in [1, 3, 6, 9] {
+                        cfgs.push((format!("lean nb{nb} pre{pre}"), 1, 0, nb, pre));
+                    }
+                }
+                if pairs <= 32 {
+                    // the in-wave grouping instead of the LDS tables
+                    for pre in [6, 9] {
+                        cfgs.push((format!("lean wave nb4 pre{pre}"), 1, 4, 4, pre));
+                    }
+                }
+            }
+            for (cname, lean, sz, nb, pre) in cfgs {
+                intarsia_backend_hip::inkmoe::set_lean(lean);
+                intarsia_backend_hip::inkmoe::set_sz(sz);
+                intarsia_backend_hip::inkmoe::set_nb(nb);
+                intarsia_backend_hip::inkmoe::set_pre(pre, pre);
+                let dflt = cname == "default";
+                let mut us = [0f64; 5];
+                for probe in if dflt && t <= 4 { &[0, 1, 2, 3, 4][..] } else { &[0, 1, 2][..] } {
+                    let probe = *probe;
                     // down alone reads the h of the full run before it
                     intarsia_backend_hip::inkmoe::set_probe(0);
                     for c in &calls {
@@ -269,7 +311,7 @@ fn ink_moe_bench() {
                     intarsia_backend_hip::inkmoe::set_probe(probe);
                     let reps = if t >= 64 { 1 } else { 4 };
                     let mut best = f64::MAX;
-                    for _ in 0..5 {
+                    for _ in 0..(if t >= 64 { 3 } else { 7 }) {
                         let t0 = Instant::now();
                         for _ in 0..reps {
                             for c in &calls {
@@ -282,17 +324,26 @@ fn ink_moe_bench() {
                     us[probe as usize] = best;
                 }
                 intarsia_backend_hip::inkmoe::set_probe(0);
+                if dflt && t <= 4 {
+                    println!("INKMOEBENCH {} T={t:<4} fixed cost of a call (both launches): threads return at once {:.1} us, after the grouping {:.1} us", if mx { "mxfp8" } else { "nvfp4" }, us[3], us[4]);
+                }
+                let (gu_b, dn_b) = (gu_expert as f64 * avg_bytes / per_expert as f64, dn_expert as f64 * avg_bytes / per_expert as f64);
                 println!(
-                    "INKMOEBENCH {} T={t:<4} pre={pre} both {:>9.1} us {:>6.0} GB/s | gate_up {:>9.1} us | down {:>9.1} us | {:.1} MB / call",
+                    "INKMOEBENCH {} T={t:<4} {cname:<20} both {:>9.1} us {:>6.0} GB/s | gate_up {:>9.1} us {:>5.0} GB/s | down {:>9.1} us {:>5.0} GB/s | {:.1} MB / call",
                     if mx { "mxfp8" } else { "nvfp4" },
                     us[0],
                     avg_bytes / us[0] / 1e3,
                     us[1],
+                    gu_b / us[1] / 1e3,
                     us[2],
+                    dn_b / us[2] / 1e3,
                     avg_bytes / 1e6
                 );
             }
-            intarsia_backend_hip::inkmoe::set_pre(-1);
+            intarsia_backend_hip::inkmoe::set_lean(-1);
+            intarsia_backend_hip::inkmoe::set_sz(0);
+            intarsia_backend_hip::inkmoe::set_nb(0);
+            intarsia_backend_hip::inkmoe::set_pre(-1, -1);
         }
     }
 }

@@ -5,7 +5,7 @@
 //
 // A port of the SIMT kernels of kernels/cuda/ink_moe.cu (union-grouped decode, Metal lane ink-m-moe's design): every block lists
 // the call's (token, slot) pairs by distinct expert in shared memory, and its waves take experts; a wave streams its rows of the
-// expert once and runs every pair routed to that expert on them (in batches of kNB accumulators; a batch past the first re-reads
+// expert once and runs every pair routed to that expert on them (in batches of NB accumulators; a batch past the first re-reads
 // the rows). Two launches:
 //   gate_up  block = 4 rows of I; per row 8 lanes, each lane one 32-element chunk of the gate row and of the up row per step;
 //            h[pair, r] = epilogue(rA(x . gate_r), rA(x . up_r)) (situ: times the routing weight)
@@ -22,9 +22,10 @@
 //    scheme of moe_wmma_r7.h kMwCvt): an e2m1 code becomes the e4m3 byte of its value * 2^-6 and the block scale carries the 2^6,
 //    so every product and every fma chain is the exact 2^-6 multiple of the plain one and the scaled sum has the same bits;
 //  * no prefetch and no dependent launch: RDNA4 has neither. A lane instead requests the weights of PRE of its steps before it
-//    computes on the first (INTARSIA_HIP_INK_MOE_PRE = 1 | 3 | 9, default 3; the same bits for every value), so the DRAM latency
-//    of a step overlaps the arithmetic of the ones before it;
-//  * shared memory: 16.4 KB of group tables + 16 KB of terms (of 64 KB LDS).
+//    computes on the first (INTARSIA_HIP_INK_MOE_PRE, see moe_pre; the same bits for every value), so the DRAM latency of a
+//    step overlaps the arithmetic of the ones before it;
+//  * shared memory sized by the call (sz_dp / sz_em): 2.3 KB per down block at decode instead of 32.8 KB, because the LDS a
+//    block holds caps the blocks resident per workgroup processor.
 //
 // Scratch: the core `moe_experts_scratch` layout: pairs int[P] | offsets int[E+1] | active int[E+1] | h bf16[P,I] | y bf16[P,H].
 #include "ik_quant.h"
@@ -32,6 +33,7 @@
 #include <limits.h>
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 
 namespace {
 
@@ -41,13 +43,28 @@ constexpr int kDecPairs = 512;  // pairs grouped in shared memory (decode / veri
 constexpr int kEMax = 1024;
 constexpr int kGuRows = 4;  // rows of I per gate_up block (8 lanes each)
 constexpr int kDnRows = 8;  // output rows per down block (4 lanes each)
-constexpr int kNB = 8;      // pairs per accumulator batch
+// pairs per accumulator batch: NB 4 on the shared-memory path (decode: mostly one pair per expert; fewer live registers),
+// NB 8 on the pair-table path (prefill: an expert's rows are decoded once per 8 pairs)
 
 enum { FMT_NV = 0, FMT_MX = 1 };
 enum { ACT_SILU = 0, ACT_GELU = 1, ACT_SITU = 2 };
 
-int g_probe = 0;  // benchmarks: 1 = only gate_up, 2 = only down (garbage output)
-int g_pre = -1;   // < 0: read INTARSIA_HIP_INK_MOE_PRE at the launch
+int g_probe = 0;  // benchmarks: 1 = only gate_up, 2 = only down, 3 / 4 = both launches with MoeArgs::probe (garbage output)
+int g_pre_gu = -1, g_pre_dn = -1;  // < 0: INTARSIA_HIP_INK_MOE_PRE / the default
+int g_lean = -1;                   // < 0: INTARSIA_HIP_INK_MOE_LEAN / the default (1)
+int g_nb = 0;                      // tests / benchmarks: pairs per batch below the pair table (4 | 8); else the default rule
+int g_sz = 0;                      // tests / benchmarks: the smallest LDS size class a call may take (0 | 1 | 2); 4: by the call, in-wave grouping up to 32 pairs
+
+// LDS size classes: the group tables (and down's terms) are sized by the call, because LDS per block decides how many blocks a
+// workgroup processor holds (64 KB): class 2 is 16.4 KB of tables + 16 KB of terms (one down block, three gate_up blocks per
+// WGP), class 0 is 1.3 KB + 1 KB. 0: up to 32 pairs and 128 experts (decode, T <= 4 at top-8); 1: up to 128 pairs and 128
+// experts; 2: up to kDecPairs pairs and kEMax experts; 3: the pair-table path (no tables in LDS).
+// 4: up to kWavePairs pairs, grouped inside each wave in registers: no tables, no barriers; LDS = down's terms. Opt-in
+// (ik_ink_moe_set_sz(4)): it measured slower than class 0 (more registers per wave; window 5).
+constexpr int kWavePairs = 32;
+constexpr int sz_dp(int z) { return z == 0 ? 32 : (z == 1 ? 128 : (z == 2 ? 512 : 1)); }
+constexpr int sz_em(int z) { return z == 0 ? 128 : (z == 1 ? 128 : (z == 2 ? 1024 : 1)); }
+constexpr int sz_terms(int z) { return z == 4 ? kWavePairs : sz_dp(z); }
 
 struct MoeArgs {
     const ik_bf16* x;
@@ -68,6 +85,7 @@ struct MoeArgs {
     int T, K, E, H, I;
     float gc, uc;
     int table;
+    int probe;  // benchmarks: 3 = every thread returns at once, 4 = after the grouping (the launch + start-up cost of a call)
 };
 
 IK_DEVI float ink_rbf(float v) { return ik_b2f(ik_f2b(v)); }
@@ -145,15 +163,16 @@ IK_DEVI void group_pairs(const int* __restrict__ ids, int P, int E, int* first, 
     __syncthreads();
 }
 
+template <int SZ>
 struct SmemGroups {
-    int first[kEMax];
+    int first[sz_em(SZ)];
     int nd;
-    int dexp[kDecPairs];
-    int doff[kDecPairs + 1];
-    int dpair[kDecPairs];
-    int pd[kDecPairs];
-    int ps[kDecPairs];
-    int cnt[kDecPairs];
+    int dexp[sz_dp(SZ)];
+    int doff[sz_dp(SZ) + 1];
+    int dpair[sz_dp(SZ)];
+    int pd[sz_dp(SZ)];
+    int ps[sz_dp(SZ)];
+    int cnt[sz_dp(SZ)];
 };
 
 // table view the kernels read
@@ -164,13 +183,91 @@ struct Groups {
     const int* dpair;
 };
 
-IK_DEVI Groups get_groups(const MoeArgs& a, SmemGroups& sg) {
+template <int SZ>
+IK_DEVI Groups get_groups(const MoeArgs& a, SmemGroups<SZ>& sg) {
     if (a.table) {
         return Groups{a.t_exp[a.E], a.t_exp, a.t_off, a.t_pair};
     }
     group_pairs(a.ids, a.T * a.K, a.E, sg.first, &sg.nd, sg.dexp, sg.doff, sg.dpair, sg.pd, sg.ps, sg.cnt);
     return Groups{sg.nd, sg.dexp, sg.doff, sg.dpair};
 }
+
+#define IK_MEMB __device__ __forceinline__
+// The kernels' view of the groups: `nd` distinct experts; select(d) -> the expert and its pair count; pair(i) -> its i-th pair.
+template <int SZ>
+struct Grp {
+    Groups g;
+    int nd, o0;
+    IK_MEMB void init(const MoeArgs& a, SmemGroups<SZ>& sg) {
+        g = get_groups(a, sg);
+        nd = g.nd;
+    }
+    IK_MEMB int select(int d, int& cnt) {
+        o0 = g.doff[d];
+        cnt = g.doff[d + 1] - o0;
+        return g.dexp[d];
+    }
+    IK_MEMB int pair(int i) const { return g.dpair[o0 + i]; }
+};
+
+// ---- grouping inside the wave (class 4, at most 32 pairs) ---------------------------------------------------------------
+// Lane p holds pair p. A pair leads its expert when no earlier pair has the same id; the leaders' ranks number the distinct
+// experts. Every answer is a wave reduction, so all lanes of the wave get the same value. As with the tables, the grouping only
+// decides which wave runs what: here the experts are numbered by their first pair and an expert's pairs come in pair order.
+IK_DEVI int wave_max(int v) {
+#pragma unroll
+    for (int o = IK_WARP / 2; o > 0; o >>= 1) {
+        const int u = __shfl_xor(v, o, IK_WARP);
+        v = u > v ? u : v;
+    }
+    return v;
+}
+// how many lower lanes have the flag set
+IK_DEVI int wave_rank(bool flag, int lane) {
+    int v = flag ? 1 : 0;
+    const int own = v;
+#pragma unroll
+    for (int sft = 1; sft < IK_WARP; sft <<= 1) {
+        const int u = __shfl_up(v, sft, IK_WARP);
+        if (lane >= sft) v += u;
+    }
+    return v - own;
+}
+template <>
+struct Grp<4> {
+    int nd, lane, id, dl, mrank;
+    bool member;
+    IK_MEMB void init(const MoeArgs& a, SmemGroups<4>&) {
+        lane = threadIdx.x % IK_WARP;
+        const int P = a.T * a.K;
+        id = -1;
+        bool lead = false;
+#pragma nounroll
+        for (int j = 0; j < P; ++j) {
+            const int v = a.ids[j];
+            const bool ok = v >= 0 && v < a.E;
+            if (j == lane && ok) {
+                id = v;
+                lead = true;
+            }
+        }
+#pragma nounroll
+        for (int j = 0; j < P; ++j) {
+            if (j < lane && a.ids[j] == id) lead = false;
+        }
+        const int r = wave_rank(lead, lane);
+        dl = lead ? r : -1;
+        nd = wave_max(dl + 1);
+    }
+    IK_MEMB int select(int d, int& cnt) {
+        const int e = wave_max(dl == d ? id : -1);
+        member = id >= 0 && id == e;
+        mrank = wave_rank(member, lane);
+        cnt = wave_max(member ? mrank + 1 : 0);
+        return e;
+    }
+    IK_MEMB int pair(int i) const { return wave_max(member && mrank == i ? lane : -1); }
+};
 
 // ---- weight chunks: 32 consecutive k of one row ----------------------------------------------------------------------
 // NVFP4: 16 bytes of e2m1 pairs + two e4m3 block scales; dot with 32 bf16 of x: two chains of 16 fma (one per block of 16),
@@ -287,6 +384,73 @@ IK_DEVI void load_x32(const ik_bf16* __restrict__ p, float* x) {
     for (int i = 0; i < 4; ++i) ik_unpack8(ik_ldg(q + i), x + 8 * i);
 }
 
+// ---- the lean step: a chunk as 4 units of 8 weights, each decoded and used at once -------------------------------------------
+// The same chains in the same order as decode() + chunk_dot() (elements 0..31 ascending, the fold after element 15 and 31 for
+// NVFP4, after 31 for MXFP8), so the same bits; only 8 decoded weights per row are live instead of 32, and the block scales come
+// from one fp8 conversion.
+IK_DEVI void decode_unit(const Raw<FMT_NV>& r, int u, float* f) {
+    fp4x8_to_f32_s6(u == 0 ? r.v.x : (u == 1 ? r.v.y : (u == 2 ? r.v.z : r.v.w)), f);
+}
+IK_DEVI void decode_unit(const Raw<FMT_MX>& r, int u, float* f) {
+    const uint4& v = u < 2 ? r.v0 : r.v1;
+    e4m3x4_to_f32((u & 1) ? v.z : v.x, f);
+    e4m3x4_to_f32((u & 1) ? v.w : v.y, f + 4);
+}
+IK_DEVI void decode_scales(const Raw<FMT_NV>& r, float* s) {
+#if __has_builtin(__builtin_amdgcn_cvt_pk_f32_fp8)
+    const ink_v2f v = __builtin_amdgcn_cvt_pk_f32_fp8((int)r.sb, false);
+    s[0] = v[0] * 64.f, s[1] = v[1] * 64.f;
+#else
+    s[0] = ik_e4m3_to_f(r.sb & 0xffu) * 64.f, s[1] = ik_e4m3_to_f((r.sb >> 8) & 0xffu) * 64.f;
+#endif
+}
+IK_DEVI void decode_scales(const Raw<FMT_MX>& r, float* s) {
+    const uint32_t e = r.e;
+    s[0] = e == 0 ? __uint_as_float(0x00400000u) : (e == 255 ? __uint_as_float(0x7fc00000u) : __uint_as_float(e << 23));
+    s[1] = s[0];
+}
+
+// one chunk of NR weight rows (gate and up: 2, down: 1) against the same 32 activations of up to NB pairs; rows[b] = the pair's
+// activation row, acc[r][b] its accumulators
+template <int FMT, int NR, int NB>
+IK_DEVI void lean_step(const Raw<FMT>* raw, const ik_bf16* const* rows, int ch, int nb, float (*acc)[NB]) {
+    float sc[NR][2];
+#pragma unroll
+    for (int r = 0; r < NR; ++r) decode_scales(raw[r], sc[r]);
+    float p[NR][NB];
+#pragma unroll
+    for (int r = 0; r < NR; ++r)
+#pragma unroll
+        for (int b = 0; b < NB; ++b) p[r][b] = 0.f;
+#pragma unroll
+    for (int u = 0; u < 4; ++u) {
+        float w[NR][8];
+#pragma unroll
+        for (int r = 0; r < NR; ++r) decode_unit(raw[r], u, w[r]);
+#pragma unroll
+        for (int b = 0; b < NB; ++b) {
+            if (b >= nb) break;
+            float x[8];
+            ik_unpack8(ik_ldg(reinterpret_cast<const uint4*>(rows[b] + ch * 32) + u), x);
+#pragma unroll
+            for (int r = 0; r < NR; ++r)
+#pragma unroll
+                for (int i = 0; i < 8; ++i) p[r][b] = fmaf(w[r][i], x[i], p[r][b]);
+        }
+        if (FMT == FMT_NV ? (u & 1) : u == 3) {
+#pragma unroll
+            for (int b = 0; b < NB; ++b) {
+                if (b >= nb) break;
+#pragma unroll
+                for (int r = 0; r < NR; ++r) {
+                    acc[r][b] = fmaf(p[r][b], sc[r][FMT == FMT_NV ? (u >> 1) : 0], acc[r][b]);
+                    p[r][b] = 0.f;
+                }
+            }
+        }
+    }
+}
+
 // bytes per row of a [rows, k] weight matrix and of its scales
 template <int FMT>
 IK_DEVI int64_t row_bytes(int k) { return FMT == FMT_NV ? k / 2 : k; }
@@ -294,10 +458,14 @@ template <int FMT>
 IK_DEVI int64_t srow_bytes(int k) { return FMT == FMT_NV ? k / 16 : k / 32; }
 
 // ---- gate + up ---------------------------------------------------------------------------------------------------------
-template <int FMT, int ACT, int PRE>
+template <int FMT, int ACT, int PRE, int NB, bool LEAN, int SZ>
 __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
-    __shared__ SmemGroups sg;
-    const Groups gr = get_groups(a, sg);
+    constexpr int kNB = NB;
+    __shared__ SmemGroups<SZ> sg;
+    if (a.probe == 3) return;
+    Grp<SZ> gr;
+    gr.init(a, sg);
+    if (a.probe == 4) return;
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
     const int q = lane >> 3, sub = lane & 7;
     const int I = a.I, H = a.H;
@@ -308,50 +476,56 @@ __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
     const int nit = (nch + 7) / 8;  // steps of a lane: its chunks sub, sub + 8, ..
     const int64_t wb = row_bytes<FMT>(H), sb = srow_bytes<FMT>(H);
     for (int d = warp; d < gr.nd; d += kWarpsB) {
-        const int e = gr.dexp[d];
+        int cnt;
+        const int e = gr.select(d, cnt);
         const uint8_t* wg = a.guw + ((int64_t)e * 2 * I + rr) * wb;
         const uint8_t* wu = a.guw + ((int64_t)e * 2 * I + I + rr) * wb;
         const uint8_t* sgp = a.gus + ((int64_t)e * 2 * I + rr) * sb;
         const uint8_t* sup = a.gus + ((int64_t)e * 2 * I + I + rr) * sb;
-        const int o0 = gr.doff[d], o1 = gr.doff[d + 1];
-        for (int pb = o0; pb < o1; pb += kNB) {
-            const int nb = min(kNB, o1 - pb);
+        for (int pb = 0; pb < cnt; pb += kNB) {
+            const int nb = min(kNB, cnt - pb);
             int pp[kNB];
-            float ag[kNB], au[kNB];
+            const ik_bf16* xr[kNB];  // the pairs' token rows
+            float acc[2][kNB];       // [0] gate, [1] up
 #pragma unroll
             for (int b = 0; b < kNB; ++b) {
-                pp[b] = gr.dpair[pb + (b < nb ? b : 0)];
-                ag[b] = au[b] = 0.f;
+                pp[b] = gr.pair(pb + (b < nb ? b : 0));
+                xr[b] = a.x + (int64_t)(pp[b] / a.K) * H;
+                acc[0][b] = acc[1][b] = 0.f;
             }
             for (int it0 = 0; it0 < nit; it0 += PRE) {
-                Raw<FMT> rg[PRE], ru[PRE];
+                Raw<FMT> rw[PRE][2];
 #pragma unroll
                 for (int j = 0; j < PRE; ++j) {
                     const int ch = sub + 8 * (it0 + j);
-                    load_raw(wg, sgp, ch, ch < nch, rg[j]);
-                    load_raw(wu, sup, ch, ch < nch, ru[j]);
+                    load_raw(wg, sgp, ch, ch < nch, rw[j][0]);
+                    load_raw(wu, sup, ch, ch < nch, rw[j][1]);
                 }
 #pragma unroll
                 for (int j = 0; j < PRE; ++j) {
                     const int ch = sub + 8 * (it0 + j);
                     if (ch >= nch) continue;
-                    WChunk cg, cu;
-                    decode(rg[j], cg);
-                    decode(ru[j], cu);
+                    if (LEAN) {
+                        lean_step<FMT, 2, NB>(rw[j], xr, ch, nb, acc);
+                    } else {
+                        WChunk cg, cu;
+                        decode(rw[j][0], cg);
+                        decode(rw[j][1], cu);
 #pragma unroll
-                    for (int b = 0; b < kNB; ++b) {
-                        if (b >= nb) break;
-                        float xv[32];
-                        load_x32(a.x + (int64_t)(pp[b] / a.K) * H + ch * 32, xv);
-                        ag[b] = chunk_dot<FMT>(cg, xv, ag[b]);
-                        au[b] = chunk_dot<FMT>(cu, xv, au[b]);
+                        for (int b = 0; b < kNB; ++b) {
+                            if (b >= nb) break;
+                            float xv[32];
+                            load_x32(xr[b] + ch * 32, xv);
+                            acc[0][b] = chunk_dot<FMT>(cg, xv, acc[0][b]);
+                            acc[1][b] = chunk_dot<FMT>(cu, xv, acc[1][b]);
+                        }
                     }
                 }
             }
 #pragma unroll
             for (int b = 0; b < kNB; ++b) {
                 if (b >= nb) break;
-                float sgv = ag[b], suv = au[b];
+                float sgv = acc[0][b], suv = acc[1][b];
 #pragma unroll
                 for (int o = 4; o > 0; o >>= 1) {
                     sgv += __shfl_xor(sgv, o, IK_WARP);
@@ -374,11 +548,15 @@ __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
 }
 
 // ---- down + the token sum ----------------------------------------------------------------------------------------------
-template <int FMT, int ACT, typename OutT, int PRE>
+template <int FMT, int ACT, typename OutT, int PRE, int NB, bool LEAN, int SZ>
 __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
-    __shared__ SmemGroups sg;
-    __shared__ float term[kDecPairs * kDnRows];
-    const Groups gr = get_groups(a, sg);
+    constexpr int kNB = NB;
+    __shared__ SmemGroups<SZ> sg;
+    __shared__ float term[sz_terms(SZ) * kDnRows];
+    if (a.probe == 3) return;
+    Grp<SZ> gr;
+    gr.init(a, sg);
+    if (a.probe == 4) return;
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
     const int q = lane >> 2, sub = lane & 3;
     const int I = a.I, H = a.H;
@@ -390,45 +568,51 @@ __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
     const int nit = (nch + 3) / 4;
     const int64_t wb = row_bytes<FMT>(I), sb = srow_bytes<FMT>(I);
     for (int d = warp; d < gr.nd; d += kWarpsB) {
-        const int e = gr.dexp[d];
+        int cnt;
+        const int e = gr.select(d, cnt);
         const uint8_t* wd = a.dnw + ((int64_t)e * H + rr) * wb;
         const uint8_t* sd = a.dns + ((int64_t)e * H + rr) * sb;
-        const int o0 = gr.doff[d], o1 = gr.doff[d + 1];
-        for (int pb = o0; pb < o1; pb += kNB) {
-            const int nb = min(kNB, o1 - pb);
+        for (int pb = 0; pb < cnt; pb += kNB) {
+            const int nb = min(kNB, cnt - pb);
             int pp[kNB];
-            float ac[kNB];
+            const ik_bf16* hr[kNB];  // the pairs' h rows
+            float acc[1][kNB];
 #pragma unroll
             for (int b = 0; b < kNB; ++b) {
-                pp[b] = gr.dpair[pb + (b < nb ? b : 0)];
-                ac[b] = 0.f;
+                pp[b] = gr.pair(pb + (b < nb ? b : 0));
+                hr[b] = a.h + (int64_t)pp[b] * I;
+                acc[0][b] = 0.f;
             }
             for (int it0 = 0; it0 < nit; it0 += PRE) {
-                Raw<FMT> rw[PRE];
+                Raw<FMT> rw[PRE][1];
 #pragma unroll
                 for (int j = 0; j < PRE; ++j) {
                     const int ch = sub + 4 * (it0 + j);
-                    load_raw(wd, sd, ch, ch < nch, rw[j]);
+                    load_raw(wd, sd, ch, ch < nch, rw[j][0]);
                 }
 #pragma unroll
                 for (int j = 0; j < PRE; ++j) {
                     const int ch = sub + 4 * (it0 + j);
                     if (ch >= nch) continue;
-                    WChunk c;
-                    decode(rw[j], c);
+                    if (LEAN) {
+                        lean_step<FMT, 1, NB>(rw[j], hr, ch, nb, acc);
+                    } else {
+                        WChunk c;
+                        decode(rw[j][0], c);
 #pragma unroll
-                    for (int b = 0; b < kNB; ++b) {
-                        if (b >= nb) break;
-                        float hv[32];
-                        load_x32(a.h + (int64_t)pp[b] * I + ch * 32, hv);
-                        ac[b] = chunk_dot<FMT>(c, hv, ac[b]);
+                        for (int b = 0; b < kNB; ++b) {
+                            if (b >= nb) break;
+                            float hv[32];
+                            load_x32(hr[b] + ch * 32, hv);
+                            acc[0][b] = chunk_dot<FMT>(c, hv, acc[0][b]);
+                        }
                     }
                 }
             }
 #pragma unroll
             for (int b = 0; b < kNB; ++b) {
                 if (b >= nb) break;
-                float s = ac[b];
+                float s = acc[0][b];
                 s += __shfl_xor(s, 2, IK_WARP);
                 s += __shfl_xor(s, 1, IK_WARP);
                 if (sub == 0) {
@@ -449,7 +633,8 @@ __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
         const int t = i / kDnRows, qq = i % kDnRows;
         if (r0 + qq >= H) continue;
         float tot = 0.f;
-        for (int k = 0; k < a.K; ++k) {
+#pragma nounroll
+        for (int k = 0; k < a.K; ++k) {  // (not unrolled: its registers would set the kernel's VGPR count)
             const int v = a.ids[t * a.K + k];
             if (v >= 0 && v < a.E) tot += term[(t * a.K + k) * kDnRows + qq];
         }
@@ -481,27 +666,113 @@ __global__ void __launch_bounds__(256) ink_moe_gather_kernel(MoeArgs a) {
 
 int64_t rnd(int64_t v) { return (v + 255) & ~(int64_t)255; }
 
-// the load window: weights of this many lane steps requested before the first is used (1, 3 or 9; anything else = the default)
-constexpr int kPreDefault = 3;
-int moe_pre() {
-    int v = g_pre;
-    if (v < 0) {
+// The load window (weights of this many lane steps requested before the first is used) of gate_up and of down:
+// INTARSIA_HIP_INK_MOE_PRE = "v" (both) or "g:d", each one of kPres; unset or anything else: the format's default. Every value
+// gives the same bits. INTARSIA_HIP_INK_MOE_LEAN=0: the first form of the step (32 decoded weights per row live, 8 pairs per
+// batch), bitwise the default; kept for one round as the reference.
+struct PreCfg {
+    int gu, dn;
+    int gu_nb, dn_nb;  // pairs per accumulator batch below the pair table (4 | 8)
+    bool dn_first;     // down takes the first form (below the pair table)
+};
+bool pre_ok(int v) { return v == 1 || v == 3 || v == 6 || v == 9; }
+PreCfg moe_pre(int fmt, int T, int64_t P, int E) {
+    // Windows 3 to 5 (results doc section 3), below the pair table. Sparse calls (at most 2 pairs per expert on average: decode,
+    // T <= 32 at top-8 of 128): 4 pairs per batch; down with every lane step requested up front (9); NVFP4 gate_up 6, and 9 only
+    // from 8 rows (202 VGPRs: fewer waves resident, which costs at T = 1); MXFP8 gate_up 1 (it spills at 9).
+    // Denser calls: 8 pairs per batch (an expert's rows are decoded once per 8 pairs), NVFP4 gate_up window 3; and from 4 pairs
+    // per expert down takes the first form, which is the faster one there (T = 64: 533 against 649 us).
+    const bool dense = P > 2 * (int64_t)E, dense4 = P >= 4 * (int64_t)E;
+    PreCfg c;
+    if (fmt == FMT_NV) c = dense ? PreCfg{3, 9, 8, 8, dense4} : PreCfg{T >= 8 ? 9 : 6, 9, 4, 4, false};
+    else c = dense ? PreCfg{1, 9, 8, 8, dense4} : PreCfg{1, 9, 4, 4, false};
+    int g = g_pre_gu, d = g_pre_dn;
+    if (g < 0 || d < 0) {
         const char* e = getenv("INTARSIA_HIP_INK_MOE_PRE");
-        v = e ? atoi(e) : kPreDefault;
+        if (e && e[0]) {
+            const int eg = atoi(e);
+            const char* colon = strchr(e, ':');
+            const int ed = colon ? atoi(colon + 1) : eg;
+            if (g < 0) g = eg;
+            if (d < 0) d = ed;
+        }
     }
-    return v == 1 || v == 3 || v == 9 ? v : kPreDefault;
+    if (pre_ok(g)) c.gu = g;
+    if (pre_ok(d)) c.dn = d;
+    if (g_nb == 4 || g_nb == 8) c.gu_nb = c.dn_nb = g_nb;
+    if (g_nb == 4 || g_nb == 8 || g_lean == 1) c.dn_first = false;  // tests / benchmarks: a forced lean form
+    return c;
+}
+bool moe_lean() {
+    if (g_lean >= 0) return g_lean != 0;
+    const char* e = getenv("INTARSIA_HIP_INK_MOE_LEAN");
+    return !(e && e[0] == '0');
 }
 
-template <int FMT, int ACT, int PRE>
-int launch_pre(const MoeArgs& a, int out_f32, hipStream_t st) {
+template <int FMT, int ACT, int PRE, int NB, bool LEAN, int SZ>
+void launch_gu1(const MoeArgs& a, hipStream_t st) {
+    ink_moe_gu_kernel<FMT, ACT, PRE, NB, LEAN, SZ><<<(a.I + kGuRows - 1) / kGuRows, kThreads, 0, st>>>(a);
+}
+template <int FMT, int ACT, int PRE, int NB, bool LEAN, int SZ>
+void launch_dn1(const MoeArgs& a, int out_f32, hipStream_t st) {
+    const unsigned g = (unsigned)((a.H + kDnRows - 1) / kDnRows);
+    if (out_f32) ink_moe_dn_kernel<FMT, ACT, float, PRE, NB, LEAN, SZ><<<g, kThreads, 0, st>>>(a);
+    else ink_moe_dn_kernel<FMT, ACT, ik_bf16, PRE, NB, LEAN, SZ><<<g, kThreads, 0, st>>>(a);
+}
+
+// the lean form: every window in the call's size class (4 = grouped in the wave, 0..2 LDS tables) with NB 4 below the pair table, window 3 with NB 8 on the
+// pair-table path (class 3); the first form (the reference of window 1): NB 8, window 3, class 2
+#define INK_PRE_SZN(CALL, N, Z)                 \
+    switch (pre) {                              \
+        case 1: CALL(1, N, true, Z); break;     \
+        case 3: CALL(3, N, true, Z); break;     \
+        case 9: CALL(9, N, true, Z); break;     \
+        default: CALL(6, N, true, Z); break;    \
+    }
+#define INK_PRE_SZ(CALL, Z)                     \
+    if (nb == 8) {                              \
+        INK_PRE_SZN(CALL, 8, Z)                 \
+    } else {                                    \
+        INK_PRE_SZN(CALL, 4, Z)                 \
+    }
+#define INK_PRE_SWITCH(CALL)                    \
+    if (!lean) {                                \
+        CALL(3, 8, false, 2);                   \
+    } else if (a.table) {                       \
+        CALL(3, 8, true, 3);                    \
+    } else if (sz == 4) {                       \
+        INK_PRE_SZ(CALL, 4)                     \
+    } else if (sz == 0) {                       \
+        INK_PRE_SZ(CALL, 0)                     \
+    } else if (sz == 1) {                       \
+        INK_PRE_SZ(CALL, 1)                     \
+    } else {                                    \
+        INK_PRE_SZ(CALL, 2)                     \
+    }
+
+template <int FMT, int ACT>
+int launch_pair(const MoeArgs& a, int out_f32, hipStream_t st) {
+    const int64_t P = (int64_t)a.T * a.K;
+    const PreCfg pc = moe_pre(FMT, a.T, P, a.E);
+    int sz = 2;
+    for (int z = 1; z >= 0; --z)
+        if (P <= sz_dp(z) && a.E <= sz_em(z)) sz = z;
+    if (g_sz == 1 || g_sz == 2) sz = sz < g_sz ? g_sz : sz;
+    if (g_sz == 4 && P <= kWavePairs) sz = 4;  // opt-in: slower than the tables at T = 1, 2, 4 (window 5)
     if (g_probe != 2) {
-        ink_moe_gu_kernel<FMT, ACT, PRE><<<(a.I + kGuRows - 1) / kGuRows, kThreads, 0, st>>>(a);
+        const int pre = pc.gu, nb = pc.gu_nb;
+        const bool lean = moe_lean();
+#define INK_GU(P, N, L, Z) launch_gu1<FMT, ACT, P, N, L, Z>(a, st)
+        INK_PRE_SWITCH(INK_GU)
+#undef INK_GU
         IK_TRY(ik_launch_status());
     }
     if (g_probe != 1) {
-        const unsigned g = (unsigned)((a.H + kDnRows - 1) / kDnRows);
-        if (out_f32) ink_moe_dn_kernel<FMT, ACT, float, PRE><<<g, kThreads, 0, st>>>(a);
-        else ink_moe_dn_kernel<FMT, ACT, ik_bf16, PRE><<<g, kThreads, 0, st>>>(a);
+        const int pre = pc.dn, nb = pc.dn_nb;
+        const bool lean = moe_lean() && !(pc.dn_first && !a.table);
+#define INK_DN(P, N, L, Z) launch_dn1<FMT, ACT, P, N, L, Z>(a, out_f32, st)
+        INK_PRE_SWITCH(INK_DN)
+#undef INK_DN
         IK_TRY(ik_launch_status());
     }
     return IK_OK;
@@ -519,16 +790,13 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc, hipStream_t st) {
     a.h = (ik_bf16*)(base + rnd(P * 4) + rnd((int64_t)(a.E + 1) * 4) * 2);
     a.y = (ik_bf16*)((char*)a.h + rnd(P * a.I * 2));
     a.table = P > kDecPairs;
+    a.probe = g_probe >= 3 ? g_probe : 0;
     if (a.table) {
         if (P * 3 * 4 > P * a.I * 2) return IK_ERR_SHAPE;  // (the grouping's temporaries in h: I >= 6)
         ink_moe_group_kernel<<<1, 1024, 0, st>>>(a);
         IK_TRY(ik_launch_status());
     }
-    switch (moe_pre()) {
-        case 1: IK_TRY((launch_pre<FMT, ACT, 1>(a, out_f32, st))); break;
-        case 9: IK_TRY((launch_pre<FMT, ACT, 9>(a, out_f32, st))); break;
-        default: IK_TRY((launch_pre<FMT, ACT, 3>(a, out_f32, st))); break;
-    }
+    IK_TRY((launch_pair<FMT, ACT>(a, out_f32, st)));
     if (a.table && g_probe != 1) {
         const dim3 gg((unsigned)((a.H + 255) / 256), (unsigned)a.T);
         if (out_f32) ink_moe_gather_kernel<float><<<gg, 256, 0, st>>>(a);
@@ -629,7 +897,10 @@ int mxfp8_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, c
 extern "C" {
 
 void ik_ink_moe_probe(int v) { g_probe = v; }
-void ik_ink_moe_set_pre(int v) { g_pre = v; }
+void ik_ink_moe_set_pre(int gu, int dn) { g_pre_gu = gu, g_pre_dn = dn; }
+void ik_ink_moe_set_lean(int v) { g_lean = v; }
+void ik_ink_moe_set_sz(int v) { g_sz = v; }
+void ik_ink_moe_set_nb(int v) { g_nb = v; }
 
 // The `_rows` twins are the same launchers: every path above is rows-exact. (A later tensor-core prefill path belongs to the
 // ordinary names only.)
