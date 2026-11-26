@@ -46,9 +46,10 @@ Same harness as the fp8 lane (`docs/results/2026-11-21-inkling2-fp8.md`): `intar
 --write-self-golden`, the self-golden scored by `confident.py` (the skel lane's script, copied unchanged) against the vLLM W4A4
 golden (G3: `golden/inkling2-mini-vllm-{short,long,4k}-top20`), the W4A16 oracle golden (G2: `golden/oracle/inkling2-mini-oracle-w4a16-{short,long}-top20`)
 and our own bf16 self-golden (the quantisation effect alone). KL21 is the 21-way KL mean over all scored rows. Misses are
-confident-row top-1 misses (golden `p1 - p2 >= 0.5`; allowance 1 + rows / 1000). Binary: `.scratch/bin/intarsia` (sha256 `081bad67...`,
-built from the branch's first commit; `intarsia2` / `intarsia3` add the controls, same code for the arms). Scripts: `.scratch/acc.sh`
-(arms), `.scratch/py/summary.py` (rows below).
+confident-row top-1 misses (golden `p1 - p2 >= 0.5`; allowance 1 + rows / 1000). Binaries: `.scratch/bin/intarsia` (sha256 `081bad67...`, built from the working tree before the controls existed: the arms A, B, C
+and the bf16 / long / 4k runs), `intarsia2` (`02649cc4...`, adds `int8a_row`, `id_row`, the stats; short controls) and `intarsia3`
+(`b880d0e5...`, adds `noise_row`; noise runs). The arm code did not change between them: `Cs` (intarsia2) is tensor-identical to
+`C` (intarsia). Scripts: `.scratch/acc.sh` (arms), `.scratch/py/summary.py` (rows below).
 
 Harness proof: our bf16 self-golden is tensor-identical to the fp8 lane's `bf16-short` (`sgcmp.py`: 24 / 24 tensors equal), arm A
 reproduces its row exactly (short: G3 8.956e-3 / 0 of 367 / 97.72 %, G2 4.387e-3, vs own bf16 4.859e-3; long: 1.282e-2, 5.300e-3),
@@ -153,7 +154,7 @@ Reading:
 - **C is the only arm that passes G2 short**, and the only one that does so with margin (1.68e-3 against 4e-3; D2 = C with the
   three small projections bf16: 2.59e-3). Against the noise controls this is a real, repeatable difference, not luck: all twelve
   runs whose weight error is at most int8's (int8 variants, random noise up to rms 0.9 %) pass G2 short with 1.4-3.8e-3; all six
-  runs at e4m3's error (A, B, D1, random noise rms 2.5 %) land at 4.06-5.64e-3 and none passes. The 4k set tells the same story:
+  runs at e4m3's error (A, B, D1, random noise rms 2.5 %) land at 4.06-5.64e-3, at or just over the bound (two of them within 2 % of it), and none passes: the separation of the two classes is what repeats, not any single value. The 4k set tells the same story:
   KL against our own bf16 is 5.3e-3 for C against 7.4-7.6e-3 for the e4m3 arms.
 - **Both e4m3 arms fail G2 short and pass everything else**, as the fp8 lane found for A. B's one f32 scale per row buys nothing
   (4.12e-3 against A's 4.39e-3, own-bf16 KL 5.2e-3 against 4.9e-3): e4m3 has a constant *relative* error of 2.64 % whatever the scale
@@ -173,11 +174,11 @@ Reading:
   (non-greedy) quality. The cpu confident-row misses that quantisation adds are one per set at most.
 
 **What a GPU kernel for C needs.** Both targets are the existing W8A16 GEMV structure with the per-pack scalar replaced by a per-row
-scale in the epilogue, and the int8 element makes the decode cheaper than e4m3's. HIP (R9700, gfx1201): the e4m3 GEMV's load structure (16-byte
+scale in the epilogue, and the int8 element should be no more expensive to decode than e4m3 (unmeasured; gfx12 has native fp8 converts). HIP (R9700, gfx1201): the e4m3 GEMV's load structure (16-byte
 global loads per lane, 1..16 rows, rows-exact tree) with the e4m3 decode replaced by a sign-extend and an int-to-float convert (the
 activations stay bf16: packed i8 dot products would need quantised activations, a W8A8 mode this study did not measure), the row scale multiplied once after the f32 sum and before the bf16 rounding, which is exactly the cpu emulation's
 `rA(scale_row * sum(x * q))` order. Metal: `ink_in_proj_f8_gemv`'s 8-byte chunks read as `char8` (Apple GPUs convert i8 to half /
-float natively, no LUT or bit trick), same lane mapping and reduction tree; the prefill chunks (more than 16 rows) need a
+float natively), same lane mapping and reduction tree; the prefill chunks (more than 16 rows) need a
 dequantising GEMM (NAX path or an int8 variant of the simdgroup matmul) or the three-pack fallback must also hold int8. Contract
 changes shared by both: `InkInProj`'s third input becomes `scales [Nq+Nk+Nv]` f32 (a length other than 3 selects the per-row
 form, keeping the `[3]` e4m3 form and the validator one match over the w dtype: {bf16, e4m3 + scales, p12 + aux, i8 + row scales}),
