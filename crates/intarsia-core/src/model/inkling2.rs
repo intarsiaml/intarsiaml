@@ -1197,9 +1197,10 @@ impl Model {
             let rule = match ink_attn_fused_env() {
                 Some(f) => f,
                 // a batched step's rows are 1-row calls each: the 1-row rule over the largest context
-                // CUDA: fused for every visit of 1..16 rows
+                // CUDA / HIP: fused for every visit of 1..16 rows (HIP's launcher picks its fused or split path itself, both
+                // bitwise the pair: kernels/hip/ink_attn.hip, INTARSIA_INK_DEC_FUSED_KEYS)
                 None => {
-                    self.backend.name() == "cuda"
+                    matches!(self.backend.name(), "cuda" | "hip")
                         || (self.backend.name() == "metal"
                             && match batch {
                                 Some(bt) => ink_attn_fused_rule(1, l.local, bt.max_pos + 1, ink.window),

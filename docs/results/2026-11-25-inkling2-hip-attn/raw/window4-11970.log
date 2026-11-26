@@ -1,0 +1,65 @@
+fleetq: #11970 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=290 bash ~/intarsiaml-ink-hip-attn/docs/results/2026-11-25-inkling2-hip-attn/raw/window.sh ~/intarsiaml-ink-hip-attn/docs/results/2026-11-25-inkling2-hip-attn/raw/stage_w4.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-attn/docs/results/2026-11-25-inkling2-hip-attn/raw/stage_w4.sh; cap 290s; stopping radiance 2026-11-25 22:26:29
+[window] radiance stopped 2026-11-25 22:26:32 (inactive)
+[stage] admission (full) flash=0 2026-11-25 22:26:32
+op             kernel                      cases   fail     max_abs      rel_l2  result
+ink_kv_prologue ink_kv_prologue_bf16          117      0    5.464e-3    4.346e-4  ADMITTED
+rel_sink_attn  rel_sink_attn_bf16             63      0    1.678e-3    1.161e-4  ADMITTED
+ink_attn_decode ink_attn_decode_bf16           70      0    1.033e-3    7.283e-5  ADMITTED
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 13.47s
+[stage] admission (full) flash=1 2026-11-25 22:26:46
+op             kernel                      cases   fail     max_abs      rel_l2  result
+ink_kv_prologue ink_kv_prologue_bf16          117      0    5.464e-3    4.346e-4  ADMITTED
+rel_sink_attn  rel_sink_attn_bf16             63      0    5.952e-3    1.581e-3  ADMITTED
+ink_attn_decode ink_attn_decode_bf16           70      0    1.033e-3    7.283e-5  ADMITTED
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 13.51s
+[stage] rows-exact 2026-11-25 22:27:00
+63 rows-exact cases bitwise
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 7.54s
+[stage] bench decode INTARSIA_INK_DEC_FUSED_KEYS=2048 2026-11-25 22:27:08
+BENCH swa 1024 keys: prologue 11.7 us, attention 19.1 us, pair 30.8 us, fused op 75 25.1 us (220 GB/s of KV; roofline 6.7 us at 627 GB/s, 35%)
+BENCH full 4k keys: prologue 12.3 us, attention 33.9 us, pair 46.2 us, fused op 75 41.9 us (495 GB/s of KV; roofline 26.8 us at 627 GB/s, 79%)
+BENCH full 8k keys: prologue 12.5 us, attention 53.3 us, pair 65.8 us, fused op 75 61.8 us (630 GB/s of KV; roofline 53.5 us at 627 GB/s, 100%)
+BENCH full 16k keys: prologue 12.1 us, attention 96.3 us, pair 108.4 us, fused op 75 110.1 us (697 GB/s of KV; roofline 107.0 us at 627 GB/s, 111%)
+[stage] bench decode INTARSIA_INK_DEC_FUSED_KEYS=0 2026-11-25 22:27:09
+BENCH swa 1024 keys: prologue 11.7 us, attention 19.0 us, pair 30.7 us, fused op 75 30.3 us (220 GB/s of KV; roofline 6.7 us at 627 GB/s, 35%)
+BENCH full 4k keys: prologue 12.3 us, attention 33.9 us, pair 46.2 us, fused op 75 42.2 us (495 GB/s of KV; roofline 26.8 us at 627 GB/s, 79%)
+BENCH full 8k keys: prologue 12.1 us, attention 53.3 us, pair 65.5 us, fused op 75 61.9 us (629 GB/s of KV; roofline 53.5 us at 627 GB/s, 100%)
+BENCH full 16k keys: prologue 12.2 us, attention 97.4 us, pair 109.5 us, fused op 75 111.3 us (689 GB/s of KV; roofline 107.0 us at 627 GB/s, 110%)
+[stage] bench decode INTARSIA_INK_DEC_FUSED_KEYS=100000000 2026-11-25 22:27:11
+BENCH swa 1024 keys: prologue 11.7 us, attention 19.0 us, pair 30.8 us, fused op 75 25.1 us (220 GB/s of KV; roofline 6.7 us at 627 GB/s, 35%)
+BENCH full 4k keys: prologue 12.3 us, attention 33.9 us, pair 46.2 us, fused op 75 51.3 us (495 GB/s of KV; roofline 26.8 us at 627 GB/s, 79%)
+BENCH full 8k keys: prologue 12.1 us, attention 53.4 us, pair 65.5 us, fused op 75 79.4 us (628 GB/s of KV; roofline 53.5 us at 627 GB/s, 100%)
+BENCH full 16k keys: prologue 12.5 us, attention 98.1 us, pair 110.6 us, fused op 75 148.6 us (684 GB/s of KV; roofline 107.0 us at 627 GB/s, 109%)
+[stage] bench prefill 2026-11-25 22:27:12
+BENCH prefill swa, 256 rows at 3840: split-KV 1510 us, flash 180 us (8.4x)
+BENCH prefill full, 256 rows at 3840: split-KV 5610 us, flash 437 us (12.9x)
+BENCH prefill full, 256 rows at 0: split-KV 262 us, flash 58 us (4.5x)
+[stage] G2 short flash=0 2026-11-25 22:27:14
+prefill floor [4bit]: top-1 (all rows) 98.95% (not gated for this class) ok | 21-way KL (scored rows, n=569) 2.566e-3 (need <= 3.0e-2) ok [all rows, n=569: 2.566e-3, reported only] | tail mass (all rows) ours 0.0671 vs ref 0.0679, excess -0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+[stage] G2 long flash=0 2026-11-25 22:27:20
+prefill floor [4bit]: top-1 (all rows) 99.30% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 3.251e-3 (need <= 3.0e-2) ok [all rows, n=1569: 3.251e-3, reported only] | tail mass (all rows) ours 0.0409 vs ref 0.0407, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+[stage] G2 short flash=1 2026-11-25 22:27:31
+prefill floor [4bit]: top-1 (all rows) 99.47% (not gated for this class) ok | 21-way KL (scored rows, n=569) 4.491e-3 (need <= 3.0e-2) ok [all rows, n=569: 4.491e-3, reported only] | tail mass (all rows) ours 0.0665 vs ref 0.0679, excess -0.0014 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+[stage] G2 long flash=1 2026-11-25 22:27:38
+prefill floor [4bit]: top-1 (all rows) 99.04% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 4.521e-3 (need <= 3.0e-2) ok [all rows, n=1569: 4.521e-3, reported only] | tail mass (all rows) ours 0.0409 vs ref 0.0407, excess +0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+[stage] model fused=0 (1 = op 75 with the rule) flash=0 short 256 2026-11-25 22:27:48
+finish=length prompt=31 (cached 0) completion=256 | prefill 82 ms (377.3 tok/s) | decode 4084 ms (62.44 tok/s)
+[stage] model fused=0 (1 = op 75 with the rule) flash=0 4k 256 2026-11-25 22:27:57
+finish=length prompt=4228 (cached 0) completion=256 | prefill 8093 ms (522.4 tok/s) | decode 4192 ms (60.83 tok/s)
+[stage] model fused=1 (1 = op 75 with the rule) flash=0 short 256 2026-11-25 22:28:14
+finish=length prompt=31 (cached 0) completion=256 | prefill 82 ms (377.7 tok/s) | decode 4008 ms (63.62 tok/s)
+[stage] model fused=1 (1 = op 75 with the rule) flash=0 4k 256 2026-11-25 22:28:23
+finish=length prompt=4228 (cached 0) completion=256 | prefill 8143 ms (519.2 tok/s) | decode 4127 ms (61.79 tok/s)
+[stage] model fused=1 flash=1 4k 256 2026-11-25 22:28:40
+finish=length prompt=4228 (cached 0) completion=256 | prefill 7082 ms (597.0 tok/s) | decode 4138 ms (61.62 tok/s)
+[stage] done 2026-11-25 22:28:56
+[window] stage done 2026-11-25 22:28:57 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-25 22:28:57
+[window] radiance answers 2026-11-25 22:29:07 (after 15 s)
+fleetq: #11970 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0

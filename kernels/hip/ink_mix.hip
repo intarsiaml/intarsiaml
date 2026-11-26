@@ -19,8 +19,19 @@
 //          slice partials of sum(y^2)
 //   norm   rA(y inv(y) norm) with the partials in slice order
 // in chunks of kBlendRows rows (the scratch holds one chunk).
+#include <stdlib.h>
 #include "ik_hip.h"
 #include "ik_hip_abi_inkmix.h"
+
+// Phase timestamps of block 0 / thread 0 (INK_PROBE builds only; tests/ink_mix_probe.rs reads them with ik_ink_probe): wall_clock64 ticks (100 MHz).
+#ifdef INK_PROBE
+__device__ unsigned long long g_probe[32];
+#define INK_MARK(i) \
+    do { __builtin_amdgcn_s_waitcnt(0); if (blockIdx.x == 0 && threadIdx.x == 0) g_probe[i] = wall_clock64(); } while (0)
+#else
+#define INK_MARK(i) \
+    do { } while (0)
+#endif
 
 namespace {
 
@@ -37,6 +48,12 @@ constexpr int kNvMax = kNsMax + kQMax * kNsMax;  // values of the widest reducti
 constexpr int kBlendRows = 256;                  // rows per blend chunk
 constexpr int kGateCh = 128;                     // channels per gate block (one thread each)
 constexpr int kGateRows = 16;                    // rows per gate block
+constexpr int kFastRowsMax = 16;                 // launches of at most this many rows take the fast row kernel (mask bit 1)
+constexpr int kFuseRowsMax = 2;                  // blend chunks of at most this many rows take the fused launches
+constexpr int kFuseD = 2304;                     // widest row of the fused blend (the pair lives in shared memory)
+
+// tickets of the gate kernel's fused norm: [stream][row group], zero between launches (the last block of a group resets its own)
+__device__ unsigned int g_gate_ctr[3 * 16];
 
 IK_DEVI float bsum(float v) {
 #pragma unroll
@@ -49,12 +66,19 @@ IK_DEVI void warp_put(float* red, int i, float v) {
     v = bsum(v);
     if ((threadIdx.x & 31) == 0) red[(threadIdx.x >> 5) * kNvMax + i] = v;
 }
+template <bool FAST>
 IK_DEVI void block_fin(const float* red, float* fin, int nv) {
     __syncthreads();
     const int nw = (blockDim.x + 31) >> 5;
     if ((int)threadIdx.x < nv) {
         float s = 0.f;
-        for (int w = 0; w < nw; ++w) s += red[w * kNvMax + threadIdx.x];
+        if constexpr (FAST) {
+            // the same chain s = ((0 + w0) + w1) + ..., with the loads of several waves in flight
+#pragma unroll 8
+            for (int w = 0; w < nw; ++w) s += red[w * kNvMax + threadIdx.x];
+        } else {
+            for (int w = 0; w < nw; ++w) s += red[w * kNvMax + threadIdx.x];
+        }
         fin[threadIdx.x] = s;
     }
     __syncthreads();
@@ -94,14 +118,32 @@ struct RowArgs {
     int64_t pos0;
     const int* pos;
     float eps;
+    // fused blend (a.fuse): np = S * G / 8 blocks per row, the controller rank G, down [S,G,2D], the h scratch [S,rows,G]
+    int fuse, np, G;
+    const ik_bf16* down;
+    ik_bf16* hbuf;
 };
 
-template <int NE>
+// The row kernel. FAST = false is the first form (loads where the arithmetic needs them); FAST = true issues every load of the row
+// (taps and ring rows of the conv, res / addend, the sources, the queries, the norm weights) up front, unrolled and without
+// branches between them, so one memory latency is paid instead of one per tap and per phase, and unrolls the wave-partial sum
+// of block_fin. Arithmetic, operation order and rounding are the same in both: the two forms are bitwise equal (tests/ink_mix.rs
+// runs every call in both).
+// Blend with `a.fuse` (rows <= kFuseRowsMax, D <= kFuseD): np = S * G / 8 blocks per row; every block of a row computes the row
+// redundantly, the block (s, gq) forms the pair of stream s in shared memory and the controller rows g = 8 gq .. 8 gq + 7 of that
+// stream (one wave per g, the wave GEMV of ink_ctl_gemv_kernel, same lane order), block part 0 writes y / ring / sum.
+template <int NE, bool FAST>
 __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
     __shared__ float red[32 * kNvMax];
     __shared__ float fin[kNvMax];
-    const int t = a.t0 + blockIdx.x;
-    const int tl = blockIdx.x;  // row in the blend chunk
+    __shared__ __attribute__((aligned(16))) ik_bf16 pl[2 * kFuseD];
+    const int np = a.fuse ? a.np : 1;
+    const int bx = blockIdx.x / np;
+    const int part = blockIdx.x - bx * np;
+    const bool wr = part == 0;  // the block that writes the row's outputs
+    const int t = a.t0 + bx;
+    const int tl = bx;  // row in the blend chunk
+    const int rows = gridDim.x / np;
     const int D = a.D;
     const int64_t T = a.T;
     const int nt = blockDim.x;
@@ -113,25 +155,123 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
         ok[j] = ix[j] < D;
         if (!ok[j]) ix[j] = 0;
     }
+    INK_MARK(0);
+    const int Q = a.Q;
+    const bool do_mix = Q > 0 && !a.dest;
+    float xs[kNsMax][NE];
+    float qv[kQMax][NE];
+    float nwv[kQMax][NE];
+    float rv[NE], adv[NE], xcur[NE];
+    float tv[8][NE], xr[8][NE];
+    const int64_t pos0 = a.pos ? (int64_t)*a.pos : a.pos0;
+    const int64_t p = pos0 + t;
+    const bool fastconv = FAST && a.x && a.K <= 8;
+    bool vr[8];
+    if constexpr (FAST) {
+        // Every load below is issued unconditionally (clamped, always valid addresses) and its value selected afterwards: a load under a
+        // lane condition makes the compiler wait for it before the merge, so conditional loads cost one memory latency (~170 ns) each.
+        if (fastconv) {
+#pragma unroll
+            for (int l = 0; l < 8; ++l) {
+                const int lc = l < a.K ? l : a.K - 1;
+                const int64_t qp = p - lc;
+                const bool inx = qp >= pos0, inr = !inx && qp >= 0;
+                const ik_bf16* row = inx ? a.x + (qp - pos0) * D : (inr ? a.ring + (int64_t)((int)qp % a.Rr) * D : a.taps);
+                const ik_bf16* tap = a.taps + (int64_t)lc * D;
+                vr[l] = inx || inr;
+#pragma unroll
+                for (int j = 0; j < NE; ++j) {
+                    tv[l][j] = ik_b2f(tap[ix[j]]);
+                    xr[l][j] = ik_b2f(row[ix[j]]);
+                }
+            }
+        }
+        if (a.x) {
+            const ik_bf16* rs = a.res ? a.res : a.x;
+            const ik_bf16* as = a.add ? a.add : a.x;
+#pragma unroll
+            for (int j = 0; j < NE; ++j) {
+                const int64_t o = (int64_t)t * D + ix[j];
+                const float r0 = ik_b2f(rs[o]), a0 = ik_b2f(as[o]);
+                rv[j] = (ok[j] && a.res) ? r0 : 0.f;
+                adv[j] = (ok[j] && a.add) ? a0 : 0.f;
+            }
+        }
+        if (do_mix) {
+            const ik_bf16* sfb = a.x ? a.x : a.last;
+#pragma unroll
+            for (int n = 0; n < kNsMax; ++n) {
+                const ik_bf16* sp = a.N > 0 ? a.src + ((int64_t)(n < a.N ? n : 0) * T + t) * D : sfb + (int64_t)t * D;
+#pragma unroll
+                for (int j = 0; j < NE; ++j) {
+                    const float v = ik_b2f(sp[ix[j]]);
+                    xs[n][j] = (n < a.N && ok[j]) ? v : 0.f;
+                }
+            }
+#pragma unroll
+            for (int qi = 0; qi < kQMax; ++qi) {
+                if (qi < Q) {
+#pragma unroll
+                    for (int j = 0; j < NE; ++j) {
+                        const float v = a.q[(int64_t)qi * D + ix[j]];
+                        qv[qi][j] = ok[j] ? v : 0.f;
+                    }
+                }
+            }
+            if (!a.msg && a.norm) {
+#pragma unroll
+                for (int qi = 0; qi < kQMax; ++qi) {
+                    if (qi < Q) {
+#pragma unroll
+                        for (int j = 0; j < NE; ++j) {
+                            const float v = ik_b2f(a.norm[(int64_t)qi * D + ix[j]]);
+                            nwv[qi][j] = ok[j] ? v : 0.f;
+                        }
+                    }
+                }
+            }
+        }
+    }
     float last[NE];
     if (a.x) {
-        const int64_t pos0 = a.pos ? (int64_t)*a.pos : a.pos0;
-        const int64_t p = pos0 + t;
         const float sc = rsqrtf((float)(a.K + 1));
         float yv[NE], acc[NE];
 #pragma unroll
         for (int j = 0; j < NE; ++j) acc[j] = 0.f;
-        // taps outer, elements inner: each acc[j] sums l = 0 .. K-1 in order, the source row of a tap (and its ring modulo) is
-        // formed once per tap instead of once per tap and element
-        for (int l = 0; l < a.K; ++l) {
-            const int64_t qp = p - l;
-            const ik_bf16* row = qp >= pos0 ? a.x + (qp - pos0) * D : qp >= 0 ? a.ring + (int64_t)((int)qp % a.Rr) * D : nullptr;
-            const ik_bf16* tap = a.taps + (int64_t)l * D;
+        if (fastconv) {
+            // each acc[j] sums l = 0 .. K-1 in order, as the loop below
 #pragma unroll
-            for (int j = 0; j < NE; ++j) acc[j] = fmaf(ik_b2f(tap[ix[j]]), row ? ik_b2f(row[ix[j]]) : 0.f, acc[j]);
+            for (int l = 0; l < 8; ++l) {
+                if (l < a.K) {
+#pragma unroll
+                    for (int j = 0; j < NE; ++j) acc[j] = fmaf(tv[l][j], vr[l] ? xr[l][j] : 0.f, acc[j]);
+                }
+            }
+#pragma unroll
+            for (int j = 0; j < NE; ++j) xcur[j] = xr[0][j];  // tap 0 reads the current row: x[t]
+        } else {
+            // taps outer, elements inner: each acc[j] sums l = 0 .. K-1 in order, the source row of a tap (and its ring modulo) is
+            // formed once per tap instead of once per tap and element
+            for (int l = 0; l < a.K; ++l) {
+                const int64_t qp = p - l;
+                const ik_bf16* row = qp >= pos0 ? a.x + (qp - pos0) * D : qp >= 0 ? a.ring + (int64_t)((int)qp % a.Rr) * D : nullptr;
+                const ik_bf16* tap = a.taps + (int64_t)l * D;
+#pragma unroll
+                for (int j = 0; j < NE; ++j) acc[j] = fmaf(ik_b2f(tap[ix[j]]), row ? ik_b2f(row[ix[j]]) : 0.f, acc[j]);
+            }
+#pragma unroll
+            for (int j = 0; j < NE; ++j) xcur[j] = ik_b2f(a.x[(int64_t)t * D + ix[j]]);
+        }
+        if constexpr (!FAST) {
+#pragma unroll
+            for (int j = 0; j < NE; ++j) {
+                const int64_t o = (int64_t)t * D + ix[j];
+                rv[j] = (ok[j] && a.res) ? ik_b2f(a.res[o]) : 0.f;
+                adv[j] = (ok[j] && a.add) ? ik_b2f(a.add[o]) : 0.f;
+            }
         }
 #pragma unroll
-        for (int j = 0; j < NE; ++j) yv[j] = ink_rbf((acc[j] + ik_b2f(a.x[(int64_t)t * D + ix[j]])) * sc);
+        for (int j = 0; j < NE; ++j) yv[j] = ink_rbf((acc[j] + xcur[j]) * sc);
         // y, the ring row of this position (no row of the launch reads it), the sum
         const int64_t ring_off = a.Rr > 0 ? (p % a.Rr) * D : 0;
 #pragma unroll
@@ -139,15 +279,16 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
             if (!ok[j]) continue;
             const int c = ix[j];
             const int64_t o = (int64_t)t * D + c;
-            a.y[o] = ik_f2b(yv[j]);
-            if (a.ring_now && p >= pos0 + T - a.Rr) a.ring[ring_off + c] = a.x[o];
+            if (wr) {
+                a.y[o] = ik_f2b(yv[j]);
+                if (a.ring_now && p >= pos0 + T - a.Rr) a.ring[ring_off + c] = a.x[o];
+            }
             if (a.sum) {
-                const float ad = a.add ? ik_b2f(a.add[o]) : 0.f;
-                const float s = ink_rbf((ik_b2f(a.res[o]) + ad) + yv[j]);
-                a.sum[o] = ik_f2b(s);
+                const float s = ink_rbf((rv[j] + adv[j]) + yv[j]);
+                if (wr) a.sum[o] = ik_f2b(s);
                 last[j] = s;
             } else if (a.res) {
-                last[j] = ik_b2f(a.res[o]) + yv[j];
+                last[j] = rv[j] + yv[j];
             } else {
                 last[j] = yv[j];
             }
@@ -159,22 +300,26 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
             last[j] = ok[j] ? ik_b2f(a.last[o]) + (a.last_add ? ik_b2f(a.last_add[o]) : 0.f) : 0.f;
         }
     }
+    INK_MARK(1);
     float mix[kQMax][NE];
-    const int Q = a.Q;
-    if (Q > 0 && !a.dest) {
+    if (do_mix) {
         // ---- depth mix: sources src[0..N) and last ----
         const int NS = a.N + 1;
-        float xs[kNsMax][NE];
 #pragma unroll
         for (int n = 0; n < kNsMax; ++n) {
 #pragma unroll
             for (int j = 0; j < NE; ++j) {
                 float v = 0.f;
-                if (n < a.N) v = ok[j] ? ik_b2f(a.src[((int64_t)n * T + t) * D + ix[j]]) : 0.f;
-                else if (n == a.N) v = ok[j] ? last[j] : 0.f;
+                if constexpr (!FAST) {
+                    if (n < a.N) v = ok[j] ? ik_b2f(a.src[((int64_t)n * T + t) * D + ix[j]]) : 0.f;
+                } else {
+                    if (n < a.N) v = xs[n][j];
+                }
+                if (n == a.N) v = ok[j] ? last[j] : 0.f;
                 xs[n][j] = v;
             }
         }
+        INK_MARK(8);
 #pragma unroll
         for (int n = 0; n < kNsMax; ++n) {
             if (n >= NS) break;
@@ -183,22 +328,28 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
             for (int j = 0; j < NE; ++j) s = fmaf(xs[n][j], xs[n][j], s);
             warp_put(red, n, s);
         }
+        INK_MARK(9);
 #pragma unroll
         for (int qi = 0; qi < kQMax; ++qi) {
             if (qi >= Q) break;
-            float qv[NE];
+            float qq[NE];
 #pragma unroll
-            for (int j = 0; j < NE; ++j) qv[j] = ok[j] ? a.q[(int64_t)qi * D + ix[j]] : 0.f;
+            for (int j = 0; j < NE; ++j) {
+                if constexpr (FAST) qq[j] = qv[qi][j];
+                else qq[j] = ok[j] ? a.q[(int64_t)qi * D + ix[j]] : 0.f;
+            }
 #pragma unroll
             for (int n = 0; n < kNsMax; ++n) {
                 if (n >= NS) break;
                 float s = 0.f;
 #pragma unroll
-                for (int j = 0; j < NE; ++j) s = fmaf(qv[j], xs[n][j], s);
+                for (int j = 0; j < NE; ++j) s = fmaf(qq[j], xs[n][j], s);
                 warp_put(red, kNsMax + qi * kNsMax + n, s);
             }
         }
-        block_fin(red, fin, kNvMax);
+        INK_MARK(2);
+        block_fin<FAST>(red, fin, kNvMax);
+        INK_MARK(3);
         float wn[kNsMax];
 #pragma unroll
         for (int n = 0; n < kNsMax; ++n) wn[n] = n < NS ? 1.f / sqrtf(fin[n] / (float)D + kSrcEps) : 0.f;
@@ -228,6 +379,7 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
             }
         }
     }
+    INK_MARK(4);
     if (Q > 0 && !a.msg) {
         if (a.norm) {
 #pragma unroll
@@ -238,15 +390,23 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
                 for (int j = 0; j < NE; ++j) s = fmaf(mix[qi][j], mix[qi][j], s);
                 warp_put(red, qi, s);
             }
-            block_fin(red, fin, Q);
+            INK_MARK(5);
+            block_fin<FAST>(red, fin, Q);
+            INK_MARK(6);
 #pragma unroll
             for (int qi = 0; qi < kQMax; ++qi) {
                 if (qi >= Q) break;
                 const float r = 1.f / sqrtf(fin[qi] / (float)D + a.eps);
 #pragma unroll
-                for (int j = 0; j < NE; ++j)
-                    if (ok[j]) a.out_b[((int64_t)qi * T + t) * D + ix[j]] = ik_f2b(mix[qi][j] * r * ik_b2f(a.norm[(int64_t)qi * D + ix[j]]));
+                for (int j = 0; j < NE; ++j) {
+                    if (!ok[j]) continue;
+                    float nw;
+                    if constexpr (FAST) nw = nwv[qi][j];
+                    else nw = ik_b2f(a.norm[(int64_t)qi * D + ix[j]]);
+                    a.out_b[((int64_t)qi * T + t) * D + ix[j]] = ik_f2b(mix[qi][j] * r * nw);
+                }
             }
+            INK_MARK(7);
         } else {
 #pragma unroll
             for (int qi = 0; qi < kQMax; ++qi) {
@@ -259,6 +419,64 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
         return;
     }
     if (!a.msg) return;
+    if (a.fuse) {
+        // ---- fused blend: stream s of this block, its pair in shared memory, its controller rows ----
+        const int gqn = a.G / 8;
+        const int s = part / gqn, gq = part - s * gqn;
+        float dvs[NE], mvs[NE];
+#pragma unroll
+        for (int j = 0; j < NE; ++j) {
+            float d;
+            if (a.dest) {
+                d = ok[j] ? a.dest[((int64_t)(a.dest_bcast ? 0 : s) * T + t) * D + ix[j]] : 0.f;
+            } else {
+                d = 0.f;
+#pragma unroll
+                for (int qq = 0; qq < kQMax; ++qq)
+                    if (qq == (Q == 1 ? 0 : (s < kQMax ? s : 0))) d = mix[qq][j];
+            }
+            dvs[j] = ok[j] ? d : 0.f;
+            mvs[j] = ok[j] ? a.msg[((int64_t)s * T + t) * D + ix[j]] : 0.f;
+        }
+        float sd = 0.f, sm = 0.f;
+#pragma unroll
+        for (int j = 0; j < NE; ++j) {
+            sd = fmaf(dvs[j], dvs[j], sd);
+            sm = fmaf(mvs[j], mvs[j], sm);
+        }
+        warp_put(red, 0, sd);
+        warp_put(red, 1, sm);
+        block_fin<FAST>(red, fin, 2);
+        const float wd = 1.f / sqrtf(fin[0] / (float)D + kSrcEps);
+        const float wm = 1.f / sqrtf(fin[1] / (float)D + kSrcEps);
+        float* db = a.dbuf + ((int64_t)s * rows + tl) * D;
+#pragma unroll
+        for (int j = 0; j < NE; ++j) {
+            if (!ok[j]) continue;
+            pl[ix[j]] = ik_f2b(dvs[j] * wd);
+            pl[D + ix[j]] = ik_f2b(mvs[j] * wm);
+            if (gq == 0) db[ix[j]] = dvs[j];
+        }
+        __syncthreads();
+        const int wave = threadIdx.x >> 5, lane = threadIdx.x & 31, nwaves = nt >> 5;
+        const int64_t nv = (2 * D) / 8;
+        const uint4* xl = reinterpret_cast<const uint4*>(pl);
+        for (int g = gq * 8 + wave; g < gq * 8 + 8; g += nwaves) {
+            const uint4* w8 = reinterpret_cast<const uint4*>(a.down + ((int64_t)s * a.G + g) * 2 * D);
+            float acc = 0.f;
+#pragma unroll 6
+            for (int64_t i = lane; i < nv; i += IK_WARP) {
+                float wf[8], xf[8];
+                ik_unpack8(ik_ldcs(w8 + i), wf);
+                ik_unpack8(xl[i], xf);
+#pragma unroll
+                for (int e = 0; e < 8; ++e) acc = fmaf(wf[e], xf[e], acc);
+            }
+            const float v = ik_warp_sum(acc);
+            if (lane == 0) a.hbuf[((int64_t)s * rows + tl) * a.G + g] = ik_f2b(v);
+        }
+        return;
+    }
     // ---- blend: the pair of every stream ----
     const int S = a.S;
     float dv[kSMax][NE], mv[kSMax][NE];
@@ -282,14 +500,14 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
         warp_put(red, 2 * s, sd);
         warp_put(red, 2 * s + 1, sm);
     }
-    block_fin(red, fin, 2 * S);
+    block_fin<FAST>(red, fin, 2 * S);
 #pragma unroll
     for (int s = 0; s < kSMax; ++s) {
         if (s >= S) break;
         const float wd = 1.f / sqrtf(fin[2 * s] / (float)D + kSrcEps);
         const float wm = 1.f / sqrtf(fin[2 * s + 1] / (float)D + kSrcEps);
-        ik_bf16* pr = a.pair + ((int64_t)s * gridDim.x + tl) * 2 * D;
-        float* db = a.dbuf + ((int64_t)s * gridDim.x + tl) * D;
+        ik_bf16* pr = a.pair + ((int64_t)s * rows + tl) * 2 * D;
+        float* db = a.dbuf + ((int64_t)s * rows + tl) * D;
 #pragma unroll
         for (int j = 0; j < NE; ++j) {
             if (!ok[j]) continue;
@@ -311,30 +529,51 @@ __global__ void ink_ring_kernel(const ik_bf16* __restrict__ x, ik_bf16* __restri
         ring[(q % Rr) * D + c] = x[(q - pos0) * D + c];
 }
 
+// The fused norm of the gate kernel (blend chunks of at most kFuseRowsMax rows): the last block of a (stream, row group) to finish
+// forms the group's norm, so the separate norm launch goes away; `on` = 0: the separate kernel below does it.
+struct GateNorm {
+    const ik_bf16* norm;
+    ik_bf16* out;
+    float eps;
+    int on;
+};
+
 // gate: y = (1 - tanh(fg)) d + tanh(gn) m for one stream, 128 channels x 16 rows of a chunk; writes y and the block's slice
-// partial of sum(y^2) per row
+// partial of sum(y^2) per row. FAST unrolls the loads of the controller rows (the same fmaf chain per output).
+template <bool FAST>
 __global__ void __launch_bounds__(kGateCh) ink_blend_gate_kernel(const ik_bf16* __restrict__ h, const ik_bf16* __restrict__ gain,
                                                                  const ik_bf16* __restrict__ forget, const float* __restrict__ dbuf,
                                                                  const float* __restrict__ msg, float* __restrict__ ybuf,
-                                                                 float* __restrict__ part, int Tc, int T, int t0, int D, int G) {
+                                                                 float* __restrict__ part, int Tc, int T, int t0, int D, int G,
+                                                                 GateNorm gn_) {
     __shared__ float hs[kGateRows][kGMax];
     __shared__ float red[kGateRows][kGateCh / 32];
+    __shared__ int last_blk;
+    __shared__ float rsh[kGateRows];
     const int s = blockIdx.y;
     const int r0 = blockIdx.z * kGateRows;
     const int rows = min(kGateRows, Tc - r0);
-    for (int i = threadIdx.x; i < rows * G; i += blockDim.x) hs[i / G][i % G] = ik_b2f(h[((int64_t)s * Tc + r0 + i / G) * G + i % G]);
-    __syncthreads();
     const int c = blockIdx.x * kGateCh + threadIdx.x;
     const bool on = c < D;
     const int cc = on ? c : 0;
+    const ik_bf16* gr = gain + ((int64_t)s * D + cc) * G;
+    const ik_bf16* fr = forget + ((int64_t)s * D + cc) * G;
+    // FAST: the first two controller chunks of this channel do not depend on h: their loads are issued before h is staged
+    uint4 gp0 = make_uint4(0, 0, 0, 0), fp0 = gp0, gp1 = gp0, fp1 = gp0;
+    if constexpr (FAST) {
+        gp0 = ik_ldg(reinterpret_cast<const uint4*>(gr));
+        fp0 = ik_ldg(reinterpret_cast<const uint4*>(fr));
+        if (G > 8) {
+            gp1 = ik_ldg(reinterpret_cast<const uint4*>(gr + 8));
+            fp1 = ik_ldg(reinterpret_cast<const uint4*>(fr + 8));
+        }
+    }
+    for (int i = threadIdx.x; i < rows * G; i += blockDim.x) hs[i / G][i % G] = ik_b2f(h[((int64_t)s * Tc + r0 + i / G) * G + i % G]);
+    __syncthreads();
     float gn[kGateRows], fg[kGateRows];
 #pragma unroll
     for (int r = 0; r < kGateRows; ++r) gn[r] = fg[r] = 0.f;
-    const ik_bf16* gr = gain + ((int64_t)s * D + cc) * G;
-    const ik_bf16* fr = forget + ((int64_t)s * D + cc) * G;
-    for (int g0 = 0; g0 < G; g0 += 8) {
-        const uint4 gu = ik_ldg(reinterpret_cast<const uint4*>(gr + g0));
-        const uint4 fu = ik_ldg(reinterpret_cast<const uint4*>(fr + g0));
+    auto step = [&](const uint4& gu, const uint4& fu, int g0) {
         float gw[8], fw[8];
         ik_unpack8(gu, gw);
         ik_unpack8(fu, fw);
@@ -347,6 +586,15 @@ __global__ void __launch_bounds__(kGateCh) ink_blend_gate_kernel(const ik_bf16* 
                 fg[r] = fmaf(fw[e], hs[r][g0 + e], fg[r]);
             }
         }
+    };
+    if constexpr (FAST) {
+        step(gp0, fp0, 0);
+        if (G > 8) step(gp1, fp1, 8);
+        // the loads of 4 iterations are in flight together (the fmaf chain per output keeps its order)
+#pragma unroll 4
+        for (int g0 = 16; g0 < G; g0 += 8) step(ik_ldg(reinterpret_cast<const uint4*>(gr + g0)), ik_ldg(reinterpret_cast<const uint4*>(fr + g0)), g0);
+    } else {
+        for (int g0 = 0; g0 < G; g0 += 8) step(ik_ldg(reinterpret_cast<const uint4*>(gr + g0)), ik_ldg(reinterpret_cast<const uint4*>(fr + g0)), g0);
     }
     const int lane = threadIdx.x & 31, warp = threadIdx.x >> 5;
 #pragma unroll
@@ -368,6 +616,32 @@ __global__ void __launch_bounds__(kGateCh) ink_blend_gate_kernel(const ik_bf16* 
         float q = 0.f;
         for (int w = 0; w < kGateCh / 32; ++w) q += red[threadIdx.x][w];
         part[((int64_t)s * Tc + r0 + threadIdx.x) * gridDim.x + blockIdx.x] = q;
+    }
+    if (!gn_.on) return;
+    // ---- fused norm: the last block of this (stream, row group) ----
+    __threadfence();  // ybuf (every thread) and part (threads < rows) before the ticket
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        const unsigned old = atomicAdd(&g_gate_ctr[s * 16 + blockIdx.z], 1u);
+        const bool l = old == gridDim.x - 1;
+        if (l) atomicExch(&g_gate_ctr[s * 16 + blockIdx.z], 0u);
+        last_blk = l;
+    }
+    __syncthreads();
+    if (!last_blk) return;
+    __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "agent");
+    const int nsl = gridDim.x;
+    if ((int)threadIdx.x < rows) {
+        float q = 0.f;
+        for (int i = 0; i < nsl; ++i) q += part[((int64_t)s * Tc + r0 + threadIdx.x) * nsl + i];
+        rsh[threadIdx.x] = 1.f / sqrtf(q / (float)D + gn_.eps);
+    }
+    __syncthreads();
+    for (int r = 0; r < rows; ++r) {
+        const float* yr = ybuf + ((int64_t)s * Tc + r0 + r) * D;
+        ik_bf16* orow = gn_.out + ((int64_t)s * T + t0 + r0 + r) * D;
+        const float rr = rsh[r];
+        for (int cj = threadIdx.x; cj < D; cj += blockDim.x) orow[cj] = ik_f2b(yr[cj] * rr * ik_b2f(gn_.norm[(int64_t)s * D + cj]));
     }
 }
 
@@ -469,19 +743,38 @@ int row_threads(int D, int* ne) {
     return (th + 31) / 32 * 32;
 }
 
-int launch_rows(const RowArgs& a, int rows, hipStream_t st) {
-    if (rows <= 0) return IK_OK;
+// Bit mask of the fast forms: 1 = ink_row_kernel<NE, true> (every load of the row up front, unconditional) for launches of at most kFastRowsMax rows
+// (decode / verify: -2..-3.6 us of 13..15; above that its 160+ VGPRs cut occupancy and it loses up to 60%), 2 = the fused blend launches (pair +
+// controller rows in the row kernel's launch, the norm in the gate kernel's last block) for chunks of at most kFuseRowsMax rows (-7 us at 1..2 rows),
+// 4 = the gate kernel's early loads (no gain measured, off), 8 = the fast row kernel at any row count (tests). 0 = the first forms of all. The bits
+// are the same for every mask (tests/ink_mix.rs). Default 3. INTARSIA_INK_MIX_FAST=<mask> or ik_ink_mix_mode(mask) overrides.
+int g_mix_mask = -1;
+
+int mix_mask() {
+    if (g_mix_mask < 0) {
+        const char* e = getenv("INTARSIA_INK_MIX_FAST");
+        g_mix_mask = e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : 3;
+    }
+    return g_mix_mask;
+}
+
+// `blocks` = the grid (rows, or rows * np for the fused blend)
+int launch_rows(const RowArgs& a, int blocks, hipStream_t st) {
+    if (blocks <= 0) return IK_OK;
     int ne = 0;
     const int th = row_threads(a.D, &ne);
+    const int rows = a.fuse ? blocks / a.np : blocks;
+    const bool fast = ((mix_mask() & 1) != 0 && rows <= kFastRowsMax) || (mix_mask() & 8) != 0;
+#define IK_ROW_CASE(N)                                                      \
+    case N:                                                                 \
+        if (fast) ink_row_kernel<N, true><<<blocks, th, 0, st>>>(a);        \
+        else ink_row_kernel<N, false><<<blocks, th, 0, st>>>(a);            \
+        break;
     switch (ne) {
-        case 1: ink_row_kernel<1><<<rows, th, 0, st>>>(a); break;
-        case 2: ink_row_kernel<2><<<rows, th, 0, st>>>(a); break;
-        case 3: ink_row_kernel<3><<<rows, th, 0, st>>>(a); break;
-        case 4: ink_row_kernel<4><<<rows, th, 0, st>>>(a); break;
-        case 5: ink_row_kernel<5><<<rows, th, 0, st>>>(a); break;
-        case 6: ink_row_kernel<6><<<rows, th, 0, st>>>(a); break;
+        IK_ROW_CASE(1) IK_ROW_CASE(2) IK_ROW_CASE(3) IK_ROW_CASE(4) IK_ROW_CASE(5) IK_ROW_CASE(6)
         default: return IK_ERR_SHAPE;
     }
+#undef IK_ROW_CASE
     return ik_launch_status();
 }
 
@@ -508,17 +801,38 @@ int run_blend(RowArgs a, const ik_tensor* down, const ik_tensor* gain, const ik_
         r.t0 = t0;
         r.pair = b.pair;
         r.dbuf = b.dbuf;
-        IK_TRY(launch_rows(r, rc, st));
-        const dim3 hg((unsigned)((G + kHWaves - 1) / kHWaves), (unsigned)S, (unsigned)((rc + kHRows - 1) / kHRows));
-        ink_ctl_gemv_kernel<<<hg, kHWaves * IK_WARP, 0, st>>>(b.pair, (const ik_bf16*)down->data, b.h, rc, 2 * D, G);
-        IK_TRY(ik_launch_status());
+        // decode / verify chunks: the pair and the controller rows in the row kernel's own launch (np blocks per row), the norm in the
+        // gate kernel's last block: 2 launches instead of 4
+        const int np = S * (G / 8);
+        const bool fuse = (mix_mask() & 2) != 0 && rc <= kFuseRowsMax && D <= kFuseD;
+        if (fuse) {
+            r.fuse = 1;
+            r.np = np;
+            r.G = G;
+            r.down = (const ik_bf16*)down->data;
+            r.hbuf = b.h;
+            IK_TRY(launch_rows(r, rc * np, st));
+        } else {
+            IK_TRY(launch_rows(r, rc, st));
+            const dim3 hg((unsigned)((G + kHWaves - 1) / kHWaves), (unsigned)S, (unsigned)((rc + kHRows - 1) / kHRows));
+            ink_ctl_gemv_kernel<<<hg, kHWaves * IK_WARP, 0, st>>>(b.pair, (const ik_bf16*)down->data, b.h, rc, 2 * D, G);
+            IK_TRY(ik_launch_status());
+        }
+        const bool fnorm = (mix_mask() & 2) != 0 && rc <= kFuseRowsMax;
+        const GateNorm gnorm{(const ik_bf16*)norm->data, (ik_bf16*)out->data, a.eps, fnorm ? 1 : 0};
         const dim3 gg((unsigned)nsl, (unsigned)S, (unsigned)((rc + kGateRows - 1) / kGateRows));
-        ink_blend_gate_kernel<<<gg, kGateCh, 0, st>>>(b.h, (const ik_bf16*)gain->data, (const ik_bf16*)forget->data, b.dbuf, a.msg, b.ybuf,
-                                                     b.part, rc, T, t0, D, G);
+        if (mix_mask() & 4)
+            ink_blend_gate_kernel<true><<<gg, kGateCh, 0, st>>>(b.h, (const ik_bf16*)gain->data, (const ik_bf16*)forget->data, b.dbuf, a.msg,
+                                                                b.ybuf, b.part, rc, T, t0, D, G, gnorm);
+        else
+            ink_blend_gate_kernel<false><<<gg, kGateCh, 0, st>>>(b.h, (const ik_bf16*)gain->data, (const ik_bf16*)forget->data, b.dbuf, a.msg,
+                                                                 b.ybuf, b.part, rc, T, t0, D, G, gnorm);
         IK_TRY(ik_launch_status());
-        ink_blend_norm_kernel<<<dim3((unsigned)rc, (unsigned)S), 256, 0, st>>>(b.ybuf, b.part, (const ik_bf16*)norm->data,
-                                                                                (ik_bf16*)out->data, rc, T, t0, D, nsl, a.eps);
-        IK_TRY(ik_launch_status());
+        if (!fnorm) {
+            ink_blend_norm_kernel<<<dim3((unsigned)rc, (unsigned)S), 256, 0, st>>>(b.ybuf, b.part, (const ik_bf16*)norm->data,
+                                                                                    (ik_bf16*)out->data, rc, T, t0, D, nsl, a.eps);
+            IK_TRY(ik_launch_status());
+        }
     }
     return IK_OK;
 }
@@ -580,6 +894,21 @@ int ring_after(const RowArgs& a, hipStream_t st) {
 }  // namespace
 
 extern "C" {
+
+/* the phase timestamps of the last row-kernel launch (INK_PROBE builds; IK_ERR_UNSUPPORTED otherwise): n values into out */
+int ik_ink_probe(unsigned long long* out, int n) {
+#ifdef INK_PROBE
+    if (hipDeviceSynchronize() != hipSuccess) return IK_ERR_LAUNCH;
+    return hipMemcpyFromSymbol(out, HIP_SYMBOL(g_probe), (size_t)(n < 32 ? n : 32) * 8) == hipSuccess ? IK_OK : IK_ERR_LAUNCH;
+#else
+    (void)out;
+    (void)n;
+    return IK_ERR_UNSUPPORTED;
+#endif
+}
+
+/* tests / benchmarks: bit mask of the fast forms (1 row kernel loads, 2 fused blend launches, 4 gate kernel loads; 0 = the first forms of all; same bits) */
+void ik_ink_mix_mode(int v) { g_mix_mask = v; }
 
 int64_t ik_ink_blend_scratch_bytes(int64_t s, int64_t r, int64_t d, int64_t g) { return blend_bytes(s, r, d, g); }
 

@@ -1,0 +1,8 @@
+
+```
+
+**Status (section 2).** The diagram is the design intent, not a description of the code. What exists on origin/main:
+
+| Piece | Status | Evidence on origin/main |
+|---|---|---|
+| OpenAI `/v1/chat

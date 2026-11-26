@@ -1,0 +1,1229 @@
+fleetq: #11972 waiting (#1 in line): radiance-rank0 is also taken down by #11970 "ink-hip-attn: window 4 op 75 rule + flash knob (admission x2, bitwise, benches, G2 x2, model), down <= 5 min" (claude-04c0e1cd)
+fleetq:   #11970 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11970 set, or it will wait for #11970 to be released.
+fleetq: #11972 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=200 bash ~/intarsiaml-ink-hip-mix/docs/results/2026-11-25-inkling2-hip-mix/raw/window.sh ~/intarsiaml-ink-hip-mix/docs/results/2026-11-25-inkling2-hip-mix/raw/stage_mix.sh "cargo test --release -p intarsia-backend-hip --test ink_mix_probe -- --ignored --nocapture" "cargo test --release -p intarsia-backend-hip --test ink_mix -- --nocapture --test-threads=1" "cargo test --release -p intarsia-backend-hip --test ink_mix ink_mix_bench -- --ignored --nocapture"'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-mix/docs/results/2026-11-25-inkling2-hip-mix/raw/stage_mix.sh cargo test --release -p intarsia-backend-hip --test ink_mix_probe -- --ignored --nocapture cargo test --release -p intarsia-backend-hip --test ink_mix -- --nocapture --test-threads=1 cargo test --release -p intarsia-backend-hip --test ink_mix ink_mix_bench -- --ignored --nocapture; cap 200s; stopping radiance 2026-11-25 22:29:07
+[window] radiance stopped 2026-11-25 22:29:11 (inactive)
+=== cargo test --release -p intarsia-backend-hip --test ink_mix_probe -- --ignored --nocapture
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:365:9
+    |
+365 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+365 -     Ink(usize),
+365 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1384:4
+     |
+1384 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:299:9
+    |
+295 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+299 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: fields `tab`, `tab_stride`, `tab_index`, and `tab_off` are never read
+   --> crates/intarsia-backend-hip/src/device.rs:151:9
+    |
+142 | pub(crate) struct InkArgs<'a> {
+    |                   ------- fields in this struct
+...
+151 |     pub tab: *const IkTensor,
+    |         ^^^
+152 |     pub tab_stride: i64,
+    |         ^^^^^^^^^^
+153 |     pub tab_index: i64,
+    |         ^^^^^^^^^
+154 |     pub tab_off: i64,
+    |         ^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 7 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/ink_mix_probe.rs (/target/release/deps/ink_mix_probe-dd853c74e07bb7a2)
+
+running 1 test
+PROBE mask 0 attn_res_mix N6 Q1: entry->conv 800 ns; conv->xs 3320 ns; xs->sums 920 ns; sums->q dots 1040 ns; fin1 600 ns; mix math 1480 ns; norm sums 200 ns; fin2 920 ns; stores 840 ns; total 10120 ns
+PROBE mask 1 attn_res_mix N6 Q1: entry->conv 1400 ns; conv->xs 120 ns; xs->sums 960 ns; sums->q dots 840 ns; fin1 320 ns; mix math 1440 ns; norm sums 200 ns; fin2 600 ns; stores 640 ns; total 6520 ns
+PROBE mask 0 conv_mix N6 Q1 norm: entry->conv 3240 ns; conv->xs 2920 ns; xs->sums 840 ns; sums->q dots 960 ns; fin1 520 ns; mix math 1440 ns; norm sums 280 ns; fin2 600 ns; stores 720 ns; total 11520 ns
+PROBE mask 1 conv_mix N6 Q1 norm: entry->conv 2280 ns; conv->xs 120 ns; xs->sums 880 ns; sums->q dots 760 ns; fin1 320 ns; mix math 1320 ns; norm sums 200 ns; fin2 560 ns; stores 600 ns; total 7040 ns
+test ink_row_kernel_phases ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+=== cargo test --release -p intarsia-backend-hip --test ink_mix -- --nocapture --test-threads=1
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:365:9
+    |
+365 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+365 -     Ink(usize),
+365 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1384:4
+     |
+1384 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:299:9
+    |
+295 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+299 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: fields `tab`, `tab_stride`, `tab_index`, and `tab_off` are never read
+   --> crates/intarsia-backend-hip/src/device.rs:151:9
+    |
+142 | pub(crate) struct InkArgs<'a> {
+    |                   ------- fields in this struct
+...
+151 |     pub tab: *const IkTensor,
+    |         ^^^
+152 |     pub tab_stride: i64,
+    |         ^^^^^^^^^^
+153 |     pub tab_index: i64,
+    |         ^^^^^^^^^
+154 |     pub tab_off: i64,
+    |         ^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 7 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/ink_mix.rs (/target/release/deps/ink_mix-75ba8a33168c1864)
+
+running 6 tests
+test ink_attn_res_mix_and_blend_rows_exact ... ok
+test ink_conv_mix_rows_exact ... ok
+test ink_in_proj_rows_exact ... ok
+test ink_mix_bench ... ignored
+test ink_mix_ops_match_the_reference ... candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 S=1 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 S=3 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 S=1 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 S=3 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 S=1 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 S=3 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 S=1 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 S=3 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 S=1 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 S=3 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 S=1 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 S=3 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 S=1 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=1.335e-4 rel_l2=1.133e-5 T=7 S=3 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 S=1 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 S=3 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 S=1 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 S=3 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=4.562e-4 rel_l2=1.398e-5 real T=3 S=1 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=4.976e-5 rel_l2=1.769e-6 real T=3 S=3 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=1.157e-4 rel_l2=2.293e-6 real T=7 S=1 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=3.846e-3 rel_l2=7.295e-5 real T=7 S=3 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=9.542e-4 rel_l2=4.246e-5 real T=16 S=1 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv  ok    max_abs=8.741e-4 rel_l2=1.248e-5 real T=16 S=3 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 S=1 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 S=3 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 S=1 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 S=3 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 S=1 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 S=3 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 S=1 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 S=3 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 S=1 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 S=3 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 S=1 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 S=3 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 S=1 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=1.335e-4 rel_l2=1.133e-5 T=7 S=3 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 S=1 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 S=3 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 S=1 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 S=3 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=4.562e-4 rel_l2=1.398e-5 real T=3 S=1 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=4.976e-5 rel_l2=1.769e-6 real T=3 S=3 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=1.157e-4 rel_l2=2.293e-6 real T=7 S=1 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=3.846e-3 rel_l2=7.295e-5 real T=7 S=3 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=9.542e-4 rel_l2=4.246e-5 real T=16 S=1 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_gemv_rows ok    max_abs=8.741e-4 rel_l2=1.248e-5 real T=16 S=3 D=2304 N=[6552, 1056, 1056] bf16
+  ink_in_proj    ink_in_proj_bf16_matmul ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 S=1 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_matmul ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 S=3 D=64 N=[246, 32, 32] bf16
+  ink_in_proj    ink_in_proj_bf16_matmul ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 S=1 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_matmul ok    max_abs=8.536e-7 rel_l2=3.775e-8 T=40 S=3 D=64 N=[246, 40, 40] bf16
+  ink_in_proj    ink_in_proj_bf16_matmul ok    max_abs=3.125e-3 rel_l2=4.706e-5 real T=2048 S=3 D=2304 N=[6552, 1056, 1056] bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=9.416e-8 rel_l2=1.249e-7 T=1 C=64 pos0=0 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.707e-8 rel_l2=2.332e-8 T=1 C=64 pos0=0 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.983e-7 rel_l2=1.311e-7 T=1 C=64 pos0=0 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=9.994e-8 rel_l2=7.751e-8 T=1 C=64 pos0=0 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.102e-7 rel_l2=6.316e-8 T=1 C=64 pos0=2 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.228e-7 rel_l2=1.262e-7 T=1 C=64 pos0=2 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.790e-7 rel_l2=1.768e-7 T=1 C=64 pos0=2 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.654e-8 rel_l2=6.625e-8 T=1 C=64 pos0=2 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=2 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=5.543e-8 rel_l2=4.342e-8 T=1 C=64 pos0=29 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.715e-8 rel_l2=5.514e-8 T=1 C=64 pos0=29 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.044e-7 rel_l2=7.917e-8 T=1 C=64 pos0=29 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=9.651e-8 rel_l2=4.670e-8 T=1 C=64 pos0=29 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=29 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=0 res=false add=false sum=false N=4 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.811e-5 rel_l2=2.819e-6 T=1 C=2304 pos0=0 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.689e-4 rel_l2=1.124e-5 T=1 C=2304 pos0=0 res=true add=false sum=false N=4 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=0 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.488e-3 rel_l2=8.973e-5 T=1 C=2304 pos0=0 res=true add=false sum=true N=4 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=0 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.770e-5 rel_l2=2.003e-6 T=1 C=2304 pos0=0 res=true add=true sum=true N=4 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=0 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=2 res=false add=false sum=false N=4 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=2 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.956e-4 rel_l2=2.275e-5 T=1 C=2304 pos0=2 res=true add=false sum=false N=4 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.055e-3 rel_l2=9.096e-5 T=1 C=2304 pos0=2 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.882e-4 rel_l2=2.259e-5 T=1 C=2304 pos0=2 res=true add=false sum=true N=4 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=2 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=2 res=true add=true sum=true N=4 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=2 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=29 res=false add=false sum=false N=4 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.114e-8 rel_l2=2.756e-9 T=1 C=2304 pos0=29 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=29 res=true add=false sum=false N=4 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.460e-7 rel_l2=1.107e-8 T=1 C=2304 pos0=29 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=29 res=true add=false sum=true N=4 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.628e-4 rel_l2=1.132e-5 T=1 C=2304 pos0=29 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=29 res=true add=true sum=true N=4 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 pos0=29 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.777e-7 rel_l2=1.235e-7 T=3 C=64 pos0=0 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=9.853e-8 rel_l2=1.109e-7 T=3 C=64 pos0=0 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.774e-7 rel_l2=1.048e-7 T=3 C=64 pos0=0 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.470e-7 rel_l2=1.198e-7 T=3 C=64 pos0=0 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=0 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=9.843e-8 rel_l2=6.438e-8 T=3 C=64 pos0=2 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.628e-7 rel_l2=1.499e-7 T=3 C=64 pos0=2 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.483e-7 rel_l2=1.546e-7 T=3 C=64 pos0=2 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=9.197e-8 rel_l2=9.730e-8 T=3 C=64 pos0=2 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=2 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.465e-7 rel_l2=1.012e-7 T=3 C=64 pos0=29 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=9.762e-8 rel_l2=4.203e-8 T=3 C=64 pos0=29 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.765e-4 rel_l2=4.115e-5 T=3 C=64 pos0=29 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.132e-7 rel_l2=1.148e-7 T=3 C=64 pos0=29 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.719e-6 rel_l2=3.120e-7 T=3 C=64 pos0=29 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.151e-7 rel_l2=9.453e-8 T=3 C=64 pos0=29 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 pos0=29 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=9.898e-8 rel_l2=9.947e-8 T=7 C=64 pos0=0 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.129e-5 rel_l2=1.583e-6 T=7 C=64 pos0=0 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=5.964e-5 rel_l2=6.575e-6 T=7 C=64 pos0=0 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=9.276e-8 rel_l2=8.267e-8 T=7 C=64 pos0=0 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.488e-7 rel_l2=7.192e-8 T=7 C=64 pos0=0 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=8.497e-8 rel_l2=9.499e-8 T=7 C=64 pos0=0 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=0 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.004e-7 rel_l2=6.986e-8 T=7 C=64 pos0=2 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.248e-7 rel_l2=1.133e-7 T=7 C=64 pos0=2 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=9.236e-8 rel_l2=8.486e-8 T=7 C=64 pos0=2 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.273e-7 rel_l2=9.018e-8 T=7 C=64 pos0=2 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=2 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.430e-7 rel_l2=8.810e-8 T=7 C=64 pos0=29 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.461e-7 rel_l2=1.009e-7 T=7 C=64 pos0=29 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.177e-5 rel_l2=1.577e-6 T=7 C=64 pos0=29 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=8.235e-8 rel_l2=7.245e-8 T=7 C=64 pos0=29 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.661e-7 rel_l2=8.904e-8 T=7 C=64 pos0=29 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 pos0=29 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.321e-7 rel_l2=1.155e-7 T=16 C=64 pos0=0 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.919e-8 rel_l2=6.514e-8 T=16 C=64 pos0=0 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=8.981e-8 rel_l2=8.468e-8 T=16 C=64 pos0=0 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.594e-7 rel_l2=8.224e-8 T=16 C=64 pos0=0 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=0 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=5.813e-6 rel_l2=5.444e-7 T=16 C=64 pos0=0 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.502e-4 rel_l2=1.664e-5 T=16 C=64 pos0=0 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.587e-5 rel_l2=3.586e-6 T=16 C=64 pos0=2 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.541e-7 rel_l2=8.862e-8 T=16 C=64 pos0=2 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.368e-7 rel_l2=8.387e-8 T=16 C=64 pos0=2 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.302e-5 rel_l2=1.056e-6 T=16 C=64 pos0=2 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=7.651e-8 rel_l2=7.766e-8 T=16 C=64 pos0=2 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.603e-3 rel_l2=3.135e-4 T=16 C=64 pos0=2 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.379e-7 rel_l2=8.148e-8 T=16 C=64 pos0=2 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=2 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=4.664e-4 rel_l2=3.459e-5 T=16 C=64 pos0=29 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.002e-7 rel_l2=8.515e-8 T=16 C=64 pos0=29 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.897e-7 rel_l2=6.710e-8 T=16 C=64 pos0=29 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.464e-7 rel_l2=7.678e-8 T=16 C=64 pos0=29 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=8.719e-8 rel_l2=8.570e-9 T=16 C=64 pos0=29 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.268e-7 rel_l2=8.350e-8 T=16 C=64 pos0=29 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.466e-7 rel_l2=1.179e-7 T=16 C=64 pos0=29 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.174e-7 rel_l2=1.506e-8 T=16 C=64 pos0=29 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 pos0=29 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.429e-3 rel_l2=1.586e-4 T=16 C=64 pos0=29 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=0 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=0 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=7.891e-5 rel_l2=7.316e-6 T=40 C=64 pos0=0 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.783e-7 rel_l2=9.586e-8 T=40 C=64 pos0=0 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=0 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.820e-7 rel_l2=4.311e-8 T=40 C=64 pos0=0 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.414e-4 rel_l2=1.067e-5 T=40 C=64 pos0=0 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=0 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=0 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.062e-7 rel_l2=1.041e-8 T=40 C=64 pos0=0 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.418e-7 rel_l2=9.498e-8 T=40 C=64 pos0=0 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=0 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=0 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=0 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=0 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=0 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.756e-6 rel_l2=8.311e-8 T=40 C=64 pos0=0 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.645e-7 rel_l2=7.650e-8 T=40 C=64 pos0=0 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.420e-3 rel_l2=2.518e-4 T=40 C=64 pos0=0 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.149e-8 rel_l2=6.455e-10 T=40 C=64 pos0=0 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=5.222e-6 rel_l2=3.350e-7 T=40 C=64 pos0=0 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=0 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=0 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=4.281e-4 rel_l2=2.154e-5 T=40 C=64 pos0=0 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.794e-7 rel_l2=9.274e-8 T=40 C=64 pos0=0 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.907e-3 rel_l2=5.370e-4 T=40 C=64 pos0=0 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=4.335e-8 rel_l2=2.622e-9 T=40 C=64 pos0=0 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.793e-3 rel_l2=1.838e-4 T=40 C=64 pos0=0 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.563e-7 rel_l2=9.790e-8 T=40 C=64 pos0=2 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.073e-7 rel_l2=4.091e-8 T=40 C=64 pos0=2 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.156e-7 rel_l2=8.002e-8 T=40 C=64 pos0=2 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.353e-8 rel_l2=6.436e-10 T=40 C=64 pos0=2 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.499e-7 rel_l2=9.080e-8 T=40 C=64 pos0=2 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=4.596e-5 rel_l2=2.768e-6 T=40 C=64 pos0=2 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.812e-7 rel_l2=9.528e-8 T=40 C=64 pos0=2 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=2 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.708e-4 rel_l2=1.087e-5 T=40 C=64 pos0=2 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.668e-8 rel_l2=2.630e-9 T=40 C=64 pos0=2 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.647e-7 rel_l2=9.358e-8 T=40 C=64 pos0=29 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.433e-7 rel_l2=1.065e-8 T=40 C=64 pos0=29 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=true add=false sum=false N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.488e-5 rel_l2=1.291e-6 T=40 C=64 pos0=29 res=true add=false sum=false N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.376e-7 rel_l2=9.479e-8 T=40 C=64 pos0=29 res=true add=false sum=false N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=5.183e-9 rel_l2=3.209e-10 T=40 C=64 pos0=29 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.983e-4 rel_l2=4.242e-5 T=40 C=64 pos0=29 res=true add=false sum=false N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=true add=false sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=4.268e-7 rel_l2=3.657e-8 T=40 C=64 pos0=29 res=true add=false sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=true add=false sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.171e-7 rel_l2=8.754e-8 T=40 C=64 pos0=29 res=true add=false sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=true add=false sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=true add=false sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=true add=false sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=true add=true sum=true N=0 Q=0 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=true add=true sum=true N=2 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.339e-5 rel_l2=1.345e-6 T=40 C=64 pos0=29 res=true add=true sum=true N=3 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.360e-7 rel_l2=9.055e-8 T=40 C=64 pos0=29 res=true add=true sum=true N=1 Q=1 norm=false S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 pos0=29 res=true add=true sum=true N=3 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.285e-6 rel_l2=8.812e-8 real T=1 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.853e-8 rel_l2=2.811e-9 real T=1 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=4.859e-8 rel_l2=2.775e-9 real T=1 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.698e-4 rel_l2=1.125e-5 real T=1 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.936e-8 rel_l2=1.362e-9 real T=1 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=4.085e-4 rel_l2=2.738e-5 real T=1 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.302e-4 rel_l2=1.023e-5 real T=1 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.591e-3 rel_l2=1.181e-3 real T=1 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.674e-3 rel_l2=3.904e-4 real T=1 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.534e-3 rel_l2=5.215e-5 real T=3 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.271e-5 rel_l2=1.417e-6 real T=3 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.567e-5 rel_l2=1.624e-6 real T=3 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.591e-3 rel_l2=1.971e-4 real T=3 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=3 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.579e-4 rel_l2=2.608e-5 real T=3 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=3 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=5.605e-4 rel_l2=2.607e-5 real T=3 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.491e-5 rel_l2=8.156e-7 real T=3 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.067e-5 rel_l2=7.056e-7 real T=3 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.720e-4 rel_l2=1.305e-5 real T=3 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.491e-5 rel_l2=7.832e-7 real T=3 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.109e-4 rel_l2=1.318e-5 real T=3 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=9.881e-4 rel_l2=9.708e-5 real T=3 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=3 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.623e-7 rel_l2=6.312e-9 real T=3 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=4.269e-5 rel_l2=2.847e-6 real T=3 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.098e-4 rel_l2=3.594e-5 real T=3 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.250e-4 rel_l2=2.928e-5 real T=3 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=3 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.289e-4 rel_l2=8.919e-6 real T=7 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=9.032e-5 rel_l2=3.744e-6 real T=7 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.232e-3 rel_l2=1.194e-4 real T=7 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.481e-4 rel_l2=5.974e-6 real T=7 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.233e-6 rel_l2=5.800e-8 real T=7 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.415e-3 rel_l2=7.087e-5 real T=7 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.395e-6 rel_l2=5.792e-8 real T=7 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=9.924e-7 rel_l2=3.719e-8 real T=7 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.232e-3 rel_l2=2.974e-4 real T=7 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=7 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.024e-5 rel_l2=7.546e-7 real T=7 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.956e-4 rel_l2=1.478e-5 real T=7 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.146e-3 rel_l2=1.614e-4 real T=7 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.812e-3 rel_l2=2.723e-4 real T=7 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=0.000e0 rel_l2=0.000e0 real T=7 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.437e-3 rel_l2=3.418e-5 real T=7 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=7.440e-4 rel_l2=2.960e-5 real T=7 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.451e-3 rel_l2=2.169e-4 real T=7 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.583e-4 rel_l2=1.282e-5 real T=7 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.381e-3 rel_l2=2.371e-4 real T=7 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.510e-4 rel_l2=1.394e-5 real T=16 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=8.492e-5 rel_l2=2.818e-6 real T=16 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.131e-3 rel_l2=4.606e-5 real T=16 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=4.525e-3 rel_l2=3.261e-4 real T=16 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.225e-5 rel_l2=2.750e-6 real T=16 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.410e-4 rel_l2=1.625e-5 real T=16 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.079e-5 rel_l2=3.047e-7 real T=16 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.604e-4 rel_l2=5.815e-6 real T=16 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.033e-3 rel_l2=2.829e-4 real T=16 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=8.878e-6 rel_l2=3.249e-7 real T=16 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.420e-3 rel_l2=2.810e-5 real T=16 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.472e-4 rel_l2=1.017e-5 real T=16 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.101e-3 rel_l2=2.565e-4 real T=16 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=4.098e-3 rel_l2=3.311e-4 real T=16 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=4.444e-3 rel_l2=1.823e-4 real T=16 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=5.507e-4 rel_l2=1.278e-5 real T=16 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=7 Q=3 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=6.684e-4 rel_l2=2.989e-5 real T=16 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=1.748e-3 rel_l2=2.547e-4 real T=16 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=4.255e-3 rel_l2=3.631e-4 real T=16 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=4 Q=3 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=5.482e-4 rel_l2=2.208e-5 real T=16 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=2 Q=1 norm=false S=1 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.174e-3 rel_l2=3.080e-5 real T=2048 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.334e-3 rel_l2=2.706e-4 real T=2048 C=2304 Rr=19 pos0=0 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.193e-3 rel_l2=2.846e-5 real T=2048 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.086e-3 rel_l2=2.618e-4 real T=2048 C=2304 Rr=19 pos0=0 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.145e-3 rel_l2=2.365e-5 real T=2048 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.311e-3 rel_l2=2.563e-4 real T=2048 C=2304 Rr=19 pos0=29 res=true add=true sum=true N=3 Q=1 norm=false S=3 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=2.110e-3 rel_l2=2.893e-5 real T=2048 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=4 Q=1 norm=true S=0 bf16
+  conv_mix       conv_mix_bf16          ok    max_abs=3.205e-3 rel_l2=2.448e-4 real T=2048 C=2304 Rr=19 pos0=29 res=true add=false sum=false N=3 Q=1 norm=false S=3 bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=0 Q=1 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=0 Q=1 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=9.302e-8 rel_l2=6.676e-8 R=1 N=0 Q=1 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=9.523e-8 rel_l2=8.740e-8 R=1 N=0 Q=1 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=1 Q=3 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=1 Q=3 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.996e-7 rel_l2=1.125e-7 R=1 N=1 Q=3 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.300e-7 rel_l2=1.164e-7 R=1 N=1 Q=3 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=4 Q=4 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=4 Q=4 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.416e-7 rel_l2=1.550e-7 R=1 N=4 Q=4 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.686e-7 rel_l2=9.207e-8 R=1 N=4 Q=4 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=3 Q=1 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 N=3 Q=1 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.605e-7 rel_l2=1.409e-7 R=1 N=3 Q=1 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.028e-7 rel_l2=9.413e-8 R=1 N=3 Q=1 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=3 N=0 Q=1 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=3 N=0 Q=1 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.473e-7 rel_l2=6.560e-8 R=3 N=0 Q=1 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=7.231e-8 rel_l2=4.508e-8 R=3 N=0 Q=1 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=3 N=1 Q=3 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=3 N=1 Q=3 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.741e-7 rel_l2=9.898e-8 R=3 N=1 Q=3 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=9.733e-8 rel_l2=5.772e-8 R=3 N=1 Q=3 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=3 N=4 Q=4 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=3 N=4 Q=4 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=3.650e-7 rel_l2=1.660e-7 R=3 N=4 Q=4 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.161e-7 rel_l2=1.465e-7 R=3 N=4 Q=4 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=3 N=3 Q=1 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=3 N=3 Q=1 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.476e-7 rel_l2=1.249e-7 R=3 N=3 Q=1 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.801e-7 rel_l2=1.757e-7 R=3 N=3 Q=1 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 N=0 Q=1 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 N=0 Q=1 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=8.442e-8 rel_l2=5.444e-8 R=7 N=0 Q=1 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=7.395e-8 rel_l2=6.250e-8 R=7 N=0 Q=1 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 N=1 Q=3 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 N=1 Q=3 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.455e-7 rel_l2=1.267e-7 R=7 N=1 Q=3 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.672e-7 rel_l2=1.028e-7 R=7 N=1 Q=3 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 N=4 Q=4 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=6.829e-6 rel_l2=7.010e-7 R=7 N=4 Q=4 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.569e-7 rel_l2=1.520e-7 R=7 N=4 Q=4 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.248e-7 rel_l2=1.164e-7 R=7 N=4 Q=4 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 N=3 Q=1 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 N=3 Q=1 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=9.358e-8 rel_l2=9.006e-8 R=7 N=3 Q=1 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.406e-7 rel_l2=1.229e-7 R=7 N=3 Q=1 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 N=0 Q=1 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 N=0 Q=1 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=7.875e-8 rel_l2=5.017e-8 R=16 N=0 Q=1 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=7.030e-8 rel_l2=4.391e-8 R=16 N=0 Q=1 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=4.032e-4 rel_l2=3.402e-5 R=16 N=1 Q=3 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.122e-7 rel_l2=8.273e-9 R=16 N=1 Q=3 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.497e-7 rel_l2=9.205e-8 R=16 N=1 Q=3 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.058e-7 rel_l2=9.349e-8 R=16 N=1 Q=3 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 N=4 Q=4 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.272e-8 rel_l2=9.024e-10 R=16 N=4 Q=4 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.655e-7 rel_l2=1.319e-7 R=16 N=4 Q=4 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.274e-7 rel_l2=1.479e-7 R=16 N=4 Q=4 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 N=3 Q=1 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 N=3 Q=1 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.097e-7 rel_l2=8.985e-8 R=16 N=3 Q=1 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=9.969e-8 rel_l2=1.207e-7 R=16 N=3 Q=1 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=40 N=0 Q=1 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=40 N=0 Q=1 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.416e-7 rel_l2=5.951e-8 R=40 N=0 Q=1 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=7.251e-8 rel_l2=5.474e-8 R=40 N=0 Q=1 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=8.621e-4 rel_l2=4.253e-5 R=40 N=1 Q=3 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=40 N=1 Q=3 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.457e-7 rel_l2=8.971e-8 R=40 N=1 Q=3 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.345e-7 rel_l2=9.145e-8 R=40 N=1 Q=3 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.049e-4 rel_l2=4.614e-6 R=40 N=4 Q=4 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.252e-5 rel_l2=5.701e-7 R=40 N=4 Q=4 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.276e-7 rel_l2=1.258e-7 R=40 N=4 Q=4 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.763e-7 rel_l2=1.299e-7 R=40 N=4 Q=4 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 R=40 N=3 Q=1 D=64 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.457e-5 rel_l2=2.295e-6 R=40 N=3 Q=1 D=64 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.899e-7 rel_l2=9.754e-8 R=40 N=3 Q=1 D=64 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.715e-7 rel_l2=1.067e-7 R=40 N=3 Q=1 D=64 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=0.000e0 rel_l2=0.000e0 real R=3 N=4 Q=1 D=2304 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.953e-4 rel_l2=6.730e-6 real R=3 N=7 Q=3 D=2304 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=4.335e-7 rel_l2=2.069e-7 real R=3 N=5 Q=4 D=2304 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.660e-7 rel_l2=1.110e-7 real R=3 N=2 Q=1 D=2304 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=4.389e-5 rel_l2=1.843e-6 real R=7 N=4 Q=1 D=2304 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.330e-3 rel_l2=4.909e-5 real R=7 N=7 Q=3 D=2304 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.498e-7 rel_l2=1.602e-7 real R=7 N=5 Q=4 D=2304 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.605e-7 rel_l2=1.163e-7 real R=7 N=2 Q=1 D=2304 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.754e-7 rel_l2=4.715e-9 real R=16 N=4 Q=1 D=2304 addend=true norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=1.330e-3 rel_l2=2.681e-5 real R=16 N=7 Q=3 D=2304 addend=false norm=true bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=3.092e-7 rel_l2=1.966e-7 real R=16 N=5 Q=4 D=2304 addend=false norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.893e-7 rel_l2=1.939e-7 real R=16 N=2 Q=1 D=2304 addend=true norm=false bf16
+  attn_res_mix   attn_res_mix_bf16      ok    max_abs=2.016e-3 rel_l2=2.287e-5 real R=2048 N=4 Q=1 D=2304 addend=true norm=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 K=4 Rr=7 pos0=0 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 K=4 Rr=7 pos0=0 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 K=4 Rr=7 pos0=0 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 K=4 Rr=7 pos0=2 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 K=4 Rr=7 pos0=2 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 K=4 Rr=7 pos0=2 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 K=4 Rr=7 pos0=29 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 K=4 Rr=7 pos0=29 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 K=4 Rr=7 pos0=29 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 K=4 Rr=7 pos0=0 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 K=4 Rr=7 pos0=0 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 K=4 Rr=7 pos0=0 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 K=4 Rr=7 pos0=2 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 K=4 Rr=7 pos0=2 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 K=4 Rr=7 pos0=2 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 K=4 Rr=7 pos0=29 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 K=4 Rr=7 pos0=29 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 C=2304 K=4 Rr=7 pos0=29 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 K=4 Rr=7 pos0=0 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 K=4 Rr=7 pos0=0 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 K=4 Rr=7 pos0=0 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 K=4 Rr=7 pos0=2 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 K=4 Rr=7 pos0=2 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 K=4 Rr=7 pos0=2 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 K=4 Rr=7 pos0=29 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 K=4 Rr=7 pos0=29 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 C=64 K=4 Rr=7 pos0=29 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 K=4 Rr=7 pos0=0 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 K=4 Rr=7 pos0=0 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 K=4 Rr=7 pos0=0 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 K=4 Rr=7 pos0=2 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 K=4 Rr=7 pos0=2 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 K=4 Rr=7 pos0=2 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 K=4 Rr=7 pos0=29 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 K=4 Rr=7 pos0=29 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 C=64 K=4 Rr=7 pos0=29 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 K=4 Rr=7 pos0=0 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 K=4 Rr=7 pos0=0 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 K=4 Rr=7 pos0=0 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 K=4 Rr=7 pos0=2 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 K=4 Rr=7 pos0=2 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 K=4 Rr=7 pos0=2 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 K=4 Rr=7 pos0=29 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 K=4 Rr=7 pos0=29 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 C=64 K=4 Rr=7 pos0=29 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 K=4 Rr=7 pos0=0 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 K=4 Rr=7 pos0=0 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 K=4 Rr=7 pos0=0 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 K=4 Rr=7 pos0=2 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 K=4 Rr=7 pos0=2 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 K=4 Rr=7 pos0=2 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 K=4 Rr=7 pos0=29 res=false add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 K=4 Rr=7 pos0=29 res=true add=false bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 C=64 K=4 Rr=7 pos0=29 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 C=2304 K=4 Rr=19 pos0=0 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 C=2304 K=4 Rr=19 pos0=29 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 real T=3 C=2304 K=4 Rr=19 pos0=0 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 real T=3 C=2304 K=4 Rr=19 pos0=29 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 real T=7 C=2304 K=4 Rr=19 pos0=0 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 real T=7 C=2304 K=4 Rr=19 pos0=29 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 real T=16 C=2304 K=4 Rr=19 pos0=0 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=0.000e0 rel_l2=0.000e0 real T=16 C=2304 K=4 Rr=19 pos0=29 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=1.351e-3 rel_l2=1.205e-5 real T=2048 C=2304 K=4 Rr=19 pos0=0 res=true add=true bf16
+  sconv_res      sconv_res_bf16         ok    max_abs=1.880e-3 rel_l2=1.234e-5 real T=2048 C=2304 K=4 Rr=19 pos0=29 res=true add=true bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 S=1 Sd=1 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 S=3 Sd=1 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 S=3 Sd=3 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=1 S=3 Sd=3 D=2304 G=64 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=3 S=1 Sd=1 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=3 S=3 Sd=1 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=3 S=3 Sd=3 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 S=1 Sd=1 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 S=3 Sd=1 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=7 S=3 Sd=3 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 S=1 Sd=1 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 S=3 Sd=1 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=16 S=3 Sd=3 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=40 S=1 Sd=1 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=40 S=3 Sd=1 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 R=40 S=3 Sd=3 D=64 G=8 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=1.369e-7 rel_l2=6.355e-9 real R=3 S=3 Sd=1 D=2304 G=64 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=0.000e0 rel_l2=0.000e0 real R=3 S=3 Sd=3 D=2304 G=64 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=2.597e-6 rel_l2=1.767e-7 real R=3 S=1 Sd=1 D=2304 G=64 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=1.961e-3 rel_l2=7.831e-5 real R=7 S=3 Sd=1 D=2304 G=64 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=2.530e-4 rel_l2=8.606e-6 real R=7 S=3 Sd=3 D=2304 G=64 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=1.004e-3 rel_l2=9.549e-5 real R=7 S=1 Sd=1 D=2304 G=64 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=9.881e-4 rel_l2=3.458e-5 real R=16 S=3 Sd=1 D=2304 G=64 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=2.155e-3 rel_l2=1.570e-4 real R=16 S=3 Sd=3 D=2304 G=64 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=2.381e-3 rel_l2=2.637e-4 real R=16 S=1 Sd=1 D=2304 G=64 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=3.226e-3 rel_l2=2.019e-4 real R=2048 S=3 Sd=1 D=2304 G=64 bf16
+  loop_blend     loop_blend_bf16        ok    max_abs=3.086e-3 rel_l2=1.886e-4 real R=2048 S=3 Sd=3 D=2304 G=64 bf16
+  ink_route      ink_route_bf16         ok    max_abs=4.889e-8 rel_l2=6.820e-8 T=1 D=64 E=16 K=4 Sigmoid norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=2.980e-8 rel_l2=5.527e-8 T=1 D=64 E=16 K=4 Sigmoid norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.006e-7 rel_l2=8.147e-8 T=1 D=64 E=16 K=4 Softmax norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=5.960e-8 rel_l2=5.457e-8 T=1 D=64 E=16 K=4 Softmax norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=5.960e-8 rel_l2=7.890e-8 T=1 D=64 E=16 K=4 SqrtSoftplus norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=2.980e-8 rel_l2=5.588e-8 T=1 D=64 E=16 K=4 SqrtSoftplus norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=7.041e-8 rel_l2=5.574e-8 T=1 D=64 E=16 K=4 Sigmoid norm=false temp=0.7 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=8.760e-8 rel_l2=7.466e-8 T=1 D=64 E=16 K=4 Sigmoid norm=false temp=0.7 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=7.487e-8 rel_l2=7.702e-8 T=1 D=2304 E=128 K=8 Sigmoid norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.104e-7 rel_l2=6.656e-8 T=1 D=2304 E=128 K=8 Sigmoid norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=6.649e-8 rel_l2=6.233e-8 T=2 D=64 E=16 K=4 Sigmoid norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=2.980e-8 rel_l2=5.551e-8 T=2 D=64 E=16 K=4 Sigmoid norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=6.709e-8 rel_l2=4.947e-8 T=2 D=64 E=16 K=4 Softmax norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=9.012e-8 rel_l2=9.574e-8 T=2 D=64 E=16 K=4 Softmax norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=6.036e-8 rel_l2=6.068e-8 T=2 D=64 E=16 K=4 SqrtSoftplus norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=2.980e-8 rel_l2=7.882e-8 T=2 D=64 E=16 K=4 SqrtSoftplus norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=9.140e-8 rel_l2=7.942e-8 T=2 D=64 E=16 K=4 Sigmoid norm=false temp=0.7 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=8.095e-8 rel_l2=4.832e-8 T=2 D=64 E=16 K=4 Sigmoid norm=false temp=0.7 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.085e-7 rel_l2=9.129e-8 T=2 D=2304 E=128 K=8 Sigmoid norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.037e-7 rel_l2=5.146e-8 T=2 D=2304 E=128 K=8 Sigmoid norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=5.055e-8 rel_l2=5.577e-8 T=3 D=64 E=16 K=4 Sigmoid norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=2.980e-8 rel_l2=6.047e-8 T=3 D=64 E=16 K=4 Sigmoid norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=2.033e-7 rel_l2=1.450e-7 T=3 D=64 E=16 K=4 Softmax norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.603e-7 rel_l2=1.245e-7 T=3 D=64 E=16 K=4 Softmax norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.163e-7 rel_l2=6.441e-8 T=3 D=64 E=16 K=4 SqrtSoftplus norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=2.980e-8 rel_l2=4.544e-8 T=3 D=64 E=16 K=4 SqrtSoftplus norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=9.253e-8 rel_l2=6.065e-8 T=3 D=64 E=16 K=4 Sigmoid norm=false temp=0.7 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=8.401e-8 rel_l2=5.393e-8 T=3 D=64 E=16 K=4 Sigmoid norm=false temp=0.7 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.576e-7 rel_l2=8.738e-8 T=3 D=2304 E=128 K=8 Sigmoid norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=2.037e-7 rel_l2=9.464e-8 T=3 D=2304 E=128 K=8 Sigmoid norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.035e-7 rel_l2=7.128e-8 T=4 D=64 E=16 K=4 Sigmoid norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=5.960e-8 rel_l2=6.485e-8 T=4 D=64 E=16 K=4 Sigmoid norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=9.338e-8 rel_l2=8.413e-8 T=4 D=64 E=16 K=4 Softmax norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=8.941e-8 rel_l2=6.766e-8 T=4 D=64 E=16 K=4 Softmax norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.076e-7 rel_l2=7.086e-8 T=4 D=64 E=16 K=4 SqrtSoftplus norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=2.980e-8 rel_l2=3.925e-8 T=4 D=64 E=16 K=4 SqrtSoftplus norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=8.256e-8 rel_l2=5.031e-8 T=4 D=64 E=16 K=4 Sigmoid norm=false temp=0.7 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=8.364e-8 rel_l2=4.498e-8 T=4 D=64 E=16 K=4 Sigmoid norm=false temp=0.7 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.098e-7 rel_l2=9.337e-8 T=4 D=2304 E=128 K=8 Sigmoid norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.028e-7 rel_l2=6.302e-8 T=4 D=2304 E=128 K=8 Sigmoid norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=7.970e-8 rel_l2=5.594e-8 T=7 D=64 E=16 K=4 Sigmoid norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=5.960e-8 rel_l2=8.335e-8 T=7 D=64 E=16 K=4 Sigmoid norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=8.757e-8 rel_l2=6.455e-8 T=7 D=64 E=16 K=4 Softmax norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=5.960e-8 rel_l2=5.317e-8 T=7 D=64 E=16 K=4 Softmax norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=6.306e-8 rel_l2=6.991e-8 T=7 D=64 E=16 K=4 SqrtSoftplus norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=5.960e-8 rel_l2=5.564e-8 T=7 D=64 E=16 K=4 SqrtSoftplus norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=9.311e-8 rel_l2=5.964e-8 T=7 D=64 E=16 K=4 Sigmoid norm=false temp=0.7 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=8.262e-8 rel_l2=7.008e-8 T=7 D=64 E=16 K=4 Sigmoid norm=false temp=0.7 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.119e-7 rel_l2=9.181e-8 T=7 D=2304 E=128 K=8 Sigmoid norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.039e-7 rel_l2=5.665e-8 T=7 D=2304 E=128 K=8 Sigmoid norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=8.941e-8 rel_l2=7.522e-8 T=16 D=64 E=16 K=4 Sigmoid norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=5.960e-8 rel_l2=6.162e-8 T=16 D=64 E=16 K=4 Sigmoid norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=5.960e-8 rel_l2=7.341e-8 T=16 D=64 E=16 K=4 Softmax norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.071e-7 rel_l2=7.066e-8 T=16 D=64 E=16 K=4 Softmax norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=8.361e-8 rel_l2=7.056e-8 T=16 D=64 E=16 K=4 SqrtSoftplus norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=5.960e-8 rel_l2=6.832e-8 T=16 D=64 E=16 K=4 SqrtSoftplus norm=true temp=1 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=8.082e-8 rel_l2=5.075e-8 T=16 D=64 E=16 K=4 Sigmoid norm=false temp=0.7 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=8.102e-8 rel_l2=4.802e-8 T=16 D=64 E=16 K=4 Sigmoid norm=false temp=0.7 logits=false bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.472e-7 rel_l2=8.852e-8 T=16 D=2304 E=128 K=8 Sigmoid norm=true temp=1 logits=true bf16
+  ink_route      ink_route_bf16         ok    max_abs=1.975e-7 rel_l2=6.704e-8 T=16 D=2304 E=128 K=8 Sigmoid norm=true temp=1 logits=false bf16
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+ink_in_proj    ink_in_proj_bf16_gemv          24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_gemv_rows     24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_matmul         5      0    3.125e-3    4.706e-5  ADMITTED
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+attn_res_mix   attn_res_mix_bf16              93      0    2.016e-3    4.909e-5  ADMITTED
+sconv_res      sconv_res_bf16                 64      0    1.880e-3    1.234e-5  ADMITTED
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.637e-4  ADMITTED
+ink_route      ink_route_bf16                 60      0    2.037e-7    1.450e-7  ADMITTED
+
+ok
+test ink_route_bitwise_pair ... ok
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 55.83s
+
+=== cargo test --release -p intarsia-backend-hip --test ink_mix ink_mix_bench -- --ignored --nocapture
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:365:9
+    |
+365 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+365 -     Ink(usize),
+365 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1384:4
+     |
+1384 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:299:9
+    |
+295 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+299 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: fields `tab`, `tab_stride`, `tab_index`, and `tab_off` are never read
+   --> crates/intarsia-backend-hip/src/device.rs:151:9
+    |
+142 | pub(crate) struct InkArgs<'a> {
+    |                   ------- fields in this struct
+...
+151 |     pub tab: *const IkTensor,
+    |         ^^^
+152 |     pub tab_stride: i64,
+    |         ^^^^^^^^^^
+153 |     pub tab_index: i64,
+    |         ^^^^^^^^^
+154 |     pub tab_off: i64,
+    |         ^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 7 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/ink_mix.rs (/target/release/deps/ink_mix-75ba8a33168c1864)
+
+running 1 test
+BENCH in_proj ink_in_proj_bf16_gemv S=1 T=1: 66.9 us, weights 597 GB/s (95% of 627), 0.6 TFLOP/s
+BENCH in_proj ink_in_proj_bf16_gemv S=1 T=4: 70.8 us, weights 564 GB/s (90% of 627), 2.3 TFLOP/s
+BENCH in_proj ink_in_proj_bf16_gemv S=1 T=16: 132.1 us, weights 302 GB/s (48% of 627), 4.8 TFLOP/s
+BENCH in_proj ink_in_proj_bf16_gemv S=3 T=1: 65.7 us, weights 607 GB/s (97% of 627), 0.6 TFLOP/s
+BENCH in_proj ink_in_proj_bf16_gemv S=3 T=16: 140.5 us, weights 284 GB/s (45% of 627), 4.5 TFLOP/s
+BENCH in_proj ink_in_proj_bf16_matmul S=1 T=64: 90.7 us, weights 440 GB/s (70% of 627), 28.2 TFLOP/s
+BENCH in_proj ink_in_proj_bf16_matmul S=1 T=512: 301.5 us, weights 132 GB/s (21% of 627), 67.8 TFLOP/s
+BENCH sconv_res T=1: first 6.7 us | row loads 5.7 | fused blend 6.7 | gate loads 6.6 | all 5.7
+BENCH attn_res_mix N6 Q1 T=1: first 13.3 us | row loads 11.0 | fused blend 13.3 | gate loads 13.4 | all 11.0
+BENCH loop_blend S3 G64 T=1: first 27.9 us | row loads 28.2 | fused blend 20.5 | gate loads 28.0 | all 20.7
+BENCH conv_mix N6 Q1 norm T=1: first 14.7 us | row loads 11.1 | fused blend 14.7 | gate loads 14.7 | all 11.1
+BENCH conv_mix N6 Q1 blend S3 T=1: first 38.0 us | row loads 34.0 | fused blend 29.5 | gate loads 38.2 | all 25.8
+BENCH sconv_res T=2: first 6.6 us | row loads 5.8 | fused blend 6.6 | gate loads 6.6 | all 5.8
+BENCH attn_res_mix N6 Q1 T=2: first 13.2 us | row loads 11.0 | fused blend 13.2 | gate loads 13.2 | all 11.0
+BENCH loop_blend S3 G64 T=2: first 31.2 us | row loads 31.3 | fused blend 24.9 | gate loads 31.3 | all 25.8
+BENCH conv_mix N6 Q1 norm T=2: first 14.6 us | row loads 11.1 | fused blend 14.6 | gate loads 14.5 | all 11.1
+BENCH conv_mix N6 Q1 blend S3 T=2: first 41.0 us | row loads 37.1 | fused blend 34.1 | gate loads 41.3 | all 35.9
+BENCH sconv_res T=4: first 6.8 us | row loads 5.7 | fused blend 6.9 | gate loads 6.8 | all 5.8
+BENCH attn_res_mix N6 Q1 T=4: first 13.1 us | row loads 10.9 | fused blend 12.8 | gate loads 12.7 | all 11.0
+BENCH loop_blend S3 G64 T=4: first 39.0 us | row loads 39.2 | fused blend 39.0 | gate loads 39.1 | all 39.4
+BENCH conv_mix N6 Q1 norm T=4: first 14.5 us | row loads 11.1 | fused blend 14.5 | gate loads 14.5 | all 11.0
+BENCH conv_mix N6 Q1 blend S3 T=4: first 48.4 us | row loads 44.6 | fused blend 48.5 | gate loads 48.6 | all 44.7
+BENCH sconv_res T=16: first 6.9 us | row loads 5.8 | fused blend 6.9 | gate loads 6.9 | all 5.8
+BENCH attn_res_mix N6 Q1 T=16: first 13.0 us | row loads 11.0 | fused blend 13.0 | gate loads 13.0 | all 11.0
+BENCH loop_blend S3 G64 T=16: first 58.8 us | row loads 58.8 | fused blend 58.3 | gate loads 59.8 | all 60.2
+BENCH conv_mix N6 Q1 norm T=16: first 14.6 us | row loads 11.0 | fused blend 14.6 | gate loads 14.5 | all 11.0
+BENCH conv_mix N6 Q1 blend S3 T=16: first 67.9 us | row loads 64.1 | fused blend 67.9 | gate loads 69.5 | all 65.7
+BENCH sconv_res T=256: first 30.3 us | row loads 22.0 | fused blend 22.3 | gate loads 22.3 | all 22.0
+BENCH attn_res_mix N6 Q1 T=256: first 46.9 us | row loads 57.2 | fused blend 43.5 | gate loads 42.1 | all 52.0
+BENCH loop_blend S3 G64 T=256: first 204.6 us | row loads 213.9 | fused blend 202.5 | gate loads 204.7 | all 211.9
+BENCH conv_mix N6 Q1 norm T=256: first 54.9 us | row loads 61.4 | fused blend 55.4 | gate loads 55.4 | all 61.0
+BENCH conv_mix N6 Q1 blend S3 T=256: first 244.1 us | row loads 260.6 | fused blend 243.8 | gate loads 247.4 | all 265.3
+BENCH sconv_res T=1024: first 75.0 us | row loads 65.3 | fused blend 69.1 | gate loads 64.7 | all 58.3
+BENCH attn_res_mix N6 Q1 T=1024: first 158.8 us | row loads 193.0 | fused blend 155.2 | gate loads 154.4 | all 192.4
+BENCH loop_blend S3 G64 T=1024: first 823.6 us | row loads 856.7 | fused blend 841.7 | gate loads 850.5 | all 890.2
+BENCH conv_mix N6 Q1 norm T=1024: first 200.0 us | row loads 220.0 | fused blend 200.1 | gate loads 199.5 | all 220.0
+BENCH conv_mix N6 Q1 blend S3 T=1024: first 1061.6 us | row loads 1104.1 | fused blend 1070.8 | gate loads 1080.0 | all 1119.5
+BENCH router T=1: logits_bf16_gemv 4.8 + moe_route 10.9 = 15.7 us, fused ink_route_bf16 16.0 us
+BENCH router T=4: logits_bf16_gemv 6.3 + moe_route 9.9 = 16.2 us, fused ink_route_bf16 19.4 us
+BENCH router T=16: logits_bf16_gemv_rows 16.8 + moe_route 9.7 = 26.5 us, fused ink_route_bf16 59.0 us
+test ink_mix_bench ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 4.82s
+
+[window] stage done 2026-11-25 22:30:13 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-25 22:30:13
+[window] radiance answers 2026-11-25 22:30:23 (after 15 s)
+fleetq: #11972 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
