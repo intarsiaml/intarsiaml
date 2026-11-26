@@ -47,6 +47,12 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
   reads <= 2048 keys" rule as the fallback, measured at whole-model level (short and 4k) against the pair. Integration branch
   starts after PR #516 merges (no rush for v1). Keep the window budget log.
 
+- 2026-11-25 ~22:55 EST, coordinator: PR #518 reviewed clean, merged on green CI. Follow-up: short-prompt prefill 81 -> 100 ms
+  (+19 ms; main also captures one graph). (1) Split the 19 ms into the 31-token chunk and the first-step capture (host
+  timestamps or HIP trace). (2) Once per process or every request: 3 requests in one `serve` process per build. (3) If per
+  request, find the kernel (at T=31 none of the fast forms should be on) and fix on a branch off main after #518 merges.
+  <= 5 min radiance down (9:00 left), none after 06:00. Report as before.
+
 ## Radiance down time (this lane)
 
 | Window | fleetq | Down | Counts toward the 20 min budget |
