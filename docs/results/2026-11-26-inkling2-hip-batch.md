@@ -17,7 +17,7 @@ Raw: `docs/results/2026-11-26-inkling2-hip-batch/raw/`.
 | Serve aggregate, 4 streams | refused (NoKernel) | **130.0** | new |
 | Serve aggregate, 8 streams | refused | **168.4** | new |
 | Serve aggregate, 16 streams | refused | **189.9** | new |
-| Pure batched decode B 16 (`batch_step`, real text), short / 4k | refused | **289.1 / 253.0** (3.77x / 3.45x the solo step) | new |
+| Pure batched decode B 16 (`batch_step`, real text), short / 4k | refused | **289.1 / 253.0** (3.77x / 3.45x the solo step; measured on b5, section 5.3) | new |
 
 - **Verdict: ships, opt-in by `--max-batch`.**
   - Batched == solo holds bitwise at every level:
@@ -32,8 +32,9 @@ Raw: `docs/results/2026-11-26-inkling2-hip-batch/raw/`.
   - p50: 10-20 / 20-35 / 20-35 / 50-75 ms;
   - p99: 10-20 / 20-35 to 250-500 / 250-500 / 250-500 ms, where the tail is other streams' 1k prefill chunks.
   - Pure decode step time p50 / p99 at B 16: 55.4 / 56.6 ms.
-- **VRAM**: 19.7 GB for the solo server and 28.6 GB for `--max-batch 16 --max-seq 4608 --kv-fraction 0.9`. The largest B at 4k on
-  32 GB is 16, the engine's row cap, with about 4 GB to spare. It needs `--kv-fraction` of 0.6 or more.
+- **VRAM**: 19.7 GB for the solo server and 28.6 GB for `--max-batch 16 --max-seq 4608 --kv-fraction 0.9`. B 4 / 8 were not
+  measured (estimate in 10.5). The largest B at 4k on 32 GB is 16, the engine's row cap, with about 4 GB to spare. It needs
+  `--kv-fraction` of 0.6 or more.
 - **Recipe**:
   - `max_batch = 16` (the `[defaults]` value) is the right cap on HIP.
   - No `busy_chunk` line is needed: HIP's default busy chunk is the solo chunk 2048. Busy chunk 256 breaks batched == solo and
@@ -458,10 +459,15 @@ to the solo chunk, and that is HIP's default.
 - The batching server reserves its 16 sequences at load (section 5.5: 348 MiB of rings and snapshots plus 32 KiB per token of
   full-attention KV per sequence, about 492 MiB at 4608 tokens). The peak is therefore that of 16 sequences at a 4.6k context,
   whatever the prompts.
-- B 4 and B 8 servers were not measured; the window time was used for the third rep and the busy-chunk check. Interpolated
-  between B 1 and B 16 (about 597 MiB per extra sequence, batch workspace included), they would be about 21.4 GB and 23.8 GB.
+- B 4 and B 8 servers were not measured; the window time went to the third rep and the busy-chunk check.
+  - Both engines reserve KV for their context, not the whole `--kv-fraction` budget (`memplan.rs`: `kv_total = cap x bytes per
+    token`).
+  - So a server at B costs about the solo server + (B - 1) x 492 MiB (plan, at 4608 tokens) + the batch workspace. That workspace
+    is the rest of the B 16 difference: 28 611 - 19 662 - 15 x 492 = about 1.6 GB at B 16, and unmeasured at B 4 / 8.
+  - Estimate, not measured: B 4 about 21.1-22.7 GB, B 8 about 23.1-24.7 GB.
 - **Largest B at 4k on 32 GB: 16**, the engine's row cap (`kernels::ROWS_MAX` = `Model::BATCH_MAX_ROWS` = 16). It fits with about
-  4 GB to spare at a 4608-token context. Memory alone would allow about 6 more.
+  4 GB to spare at a 4608-token context. Memory alone would allow about 8 more sequences at 480-492 MiB each, if the row cap were
+  raised.
 - B 16 at 4k needs a KV budget of at least about 7.9 GB, which means `--kv-fraction` of 0.6 or more (0.9 tested). At the default
   0.5, the plan clamps B 16 to 3285 tokens per sequence (window 2).
 
