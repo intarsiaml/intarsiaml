@@ -105,3 +105,30 @@ stage `raw/stage_unit.sh`, profile split `raw/w2-split-mask7.txt`.
   tile (profile: down 792 launches of 155 us = 122.9 ms per chunk against 89.6). Fixed in pf2b (21e6 MAC per us: down 3 pieces,
   gate_up 5) and re-measured in window 3. The profile at mask 7 also shows the rest working: prologue 29.6 ms + rel table 15.2
   ms per chunk (80.1 before), flash 88 launches with no stall after the sliding ones, idle 27.3 ms (60.1).
+
+## 5. Window 3: the bits one by one (pf2c `b61cd1315`; fleetq #12056)
+
+Radiance down 12:29:41 - 12:33:13 (3:32). Binary pf2c (CPU job #12052), still on main `87c9745c0` with the new settings set by
+env + `--prefill-chunk 2048`. Log `raw/window3-12056-ab.log`, stage `raw/stage_ab.sh`, profile split `raw/w3-split-mask3.txt`.
+One process per configuration, so single samples (the two mask-0 and mask-3 repeats agree within 0.7 %):
+
+| `INTARSIA_HIP_INK_PF2` | 4k tok/s | 16k tok/s | vs 0 (4k / 16k) |
+|---|---|---|---|
+| 0 (main's forms; two runs) | 2711.5 / 2691.9 | 2805.9 / 2791.5 | |
+| 3 (rel pass + flash pieces; two runs) | 2900.0 / 2882.3 | 3015.6 / 3007.3 | +6.9 % / +7.6 % |
+| 7 (+ down in 3 pieces) | 2923.8 | 3041.1 | +7.9 % / +8.6 % |
+| 15 (+ gate_up in 5 pieces) | 2904.1 | 3010.0 | +7.2 % / +7.5 % |
+| 19 (3 + the OCC gate_up) | 2613.1 | 2681.1 | -3.6 % / -4.2 % |
+| 51 (3 + OCC gate_up and down) | 2498.8 | 2552.9 | -7.8 % / -8.8 % |
+| 67 (3 + experts in pair-count order) | 2874.9 | 3000.1 | +6.1 % / +7.2 % |
+| 3, `INTARSIA_HIP_INK_PF2_ZP=16` | 2969.7 | 3107.4 | +9.6 % / +11.0 % |
+| 3, `INTARSIA_HIP_INK_MOE_WMMA=32` (32-pair tile) | 2638.6 | 2813.1 | -2.6 % / +0.4 % |
+
+- Bitwise: `ink_moe_pf2_pieces` 72 cases (pieces, OCC, pair-count order, ZP 1 / 16) equal to one launch at mask 0.
+- Dropped (no gain): the OCC form of the experts kernel (192 VGPRs at 8 waves per SIMD costs more than the occupancy buys) and
+  the pair-count slot order; gate_up in pieces (its 5 pieces each pay the hot experts' tail: no better than one launch with the
+  stall); the 32-pair tile.
+- Kept: down in pieces (+1 % over 3) and the wider pair-tile grid (ZP 16: +2.5 % / +3.3 % over 3), now bit 16 (eight times the
+  average pairs per expert over the tile, 1 to 64: 16 at a 2048-row chunk; main's rule gives 4). Default mask 23.
+- Profile at mask 3 (4k, chunk 1): 633.8 ms per chunk (679.3 in window 1): prologue 30.7 + rel table 15.7 ms (80.3), flash
+  82.5 ms in 88 launches, idle 37.7 ms of which 104 stalls (gate_up 48, down 48, full-attention flash 8).
