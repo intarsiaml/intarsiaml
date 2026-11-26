@@ -4,6 +4,41 @@ Branch `ink/hip-bpf` from main `80719483a` (#529 merged). Goal (user, verbatim, 
 main goal is to maximize speed while keeping accuracy high to exact". Bar: with `serve --max-batch N` on HIP, several streams' prompt
 chunks prefill in one forward pass, and every stream's reply stays bitwise its solo run's. Raw: `docs/results/2026-11-26-inkling2-hip-bpf/raw/`.
 
+## Summary
+
+**Packed prefill for Inkling-2 on HIP works and is bitwise: every stream's reply equals its solo run's.** With
+`INTARSIA_INK_PACK=1` and `serve --max-batch N`, the waiting prompts' next chunks (at least 17 rows each) run as one forward pass.
+The row-wise kernels run once over all rows. The attention pair runs once per segment, on that segment's own rings, KV and position.
+`ConvMix` runs in a new segment-table form (`kernels/hip/ink_mix_segs.hip`). The experts run once per run of segments that take the
+same expert form solo. Each final chunk's head runs alone on its last row. It **ships opt-in** (section 4.5). The recommended config
+for `--max-batch` servers is `INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096` (+606 MiB VRAM). With the default 2048-row passes,
+two ~1k prompts never fit one pass, so there is almost no gain.
+
+Speed, paired on card 0 (A = main 6517d98f4's batching server, which does not pack; R = this branch with the recommended config;
+2 paired reps of R, 3 of A; ratio R / A with its 95 % interval):
+
+| streams | 1k filler: agg tok/s A -> R | R / A | TTFT p50 s A -> R | real prompts at once: agg A -> R | R / A | TTFT p50 A -> R | ITL p50 / p99 s A -> R |
+|---|---|---|---|---|---|---|---|
+| 1 | 61.9 -> 61.7 | 0.996 | 0.41 -> 0.39 | (not run; one at a time: solo server 16 / 16 equal) | | | |
+| 4 | 111.2 -> 117.4 | **1.056** [0.966, 1.147] | 1.32 -> 1.35 | 97.3 -> 99.8 | **1.041** [0.994, 1.088] | 1.66 -> 1.42 | 0.024 / 0.483 -> 0.024 / 0.173 |
+| 8 | 140.9 -> 152.3 | **1.081** [1.066, 1.096] | 2.16 -> 2.14 | 114.0 -> 116.2 | **1.032** [1.024, 1.040] | 2.11 -> 2.08 | 0.034 / 0.591 -> 0.034 / 0.587 |
+| 16 | 154.4 -> 168.9 | **1.095** [1.076, 1.114] | 3.67 -> 3.37 (**0.916** [0.870, 0.962]) | 122.0 -> 128.0 | **1.050** [1.000, 1.099] | 3.29 -> 2.57 (**0.779** [0.569, 0.990]) | 0.058 / 0.649 -> 0.058 / 0.653 |
+
+Pure prefill, prompt tok/s A -> R: 16 x 49 560 -> 634 (1.14), 8 x 512 1913 -> 2834 (**1.48**), 4 x 1024 2897 -> 3230 (1.12), 2 x 2048
+2799 -> 2783 (1.00: `pack_half` sends two waiting prompts one at a time). VRAM peak 28 529 -> 29 135 MiB. Packing at 2048 rows (B):
+real 16 at once 1.016, filler 16 streams 0.994, 8 x 512 1.28.
+
+| Gate | Result |
+|---|---|
+| 1 unit: packed pass == K solo `prefill_chunk` (head, KV, every ring byte, `restorable_len`, the next decode step) | cpu tiny 5 / 5 tests (2 .. 16 segments, 17 .. 2048 rows, resumed, 4096-row pass, blend tails; per-op dump 548 / 548). **hip real shapes 7 / 7 cases** (W8: up to 16 segments, 2 x 2048, 6 segments 4029 rows, resumed), plus 3 cases on b7 (W2) and the per-op dumps 1636 / 1636 x 2. hip tiny: 4 / 4 tests with `INTARSIA_HIP_INK_PF2=0`. At the PF2 default on b10 they fail from the first prologue, which is main's PF2 tiny-shape fault: g1b failed on main too (W2), fixed by #537 (merged after W8, in this branch's base; not re-run here) |
+| 2 serve, 16 real prompts vs the solo server | **16 / 16 at 4 at once (4 waves), 16 / 16 at 8 (2 waves), 16 / 16 at 16** (W5); 16 / 16 with the 4096-row workspace; in the speed windows every packed arm's replies equal main's on the same requests, **232 / 232**. Prefix reuse: the HIP batching engine never resumes an Inkling-2 prompt (`prefix_reuse` off: no batched snapshots), so resumed packs do not arise at serve level; they are unit-tested |
+| 3 solo unchanged | `generate` greedy md5 **8 / 8 = main** (spec off and the DSpark default, short / 4k, 64 / 256; W3). Solo server (no `--max-batch`) **16 / 16 = main's** (W4). G2 short 4.491e-3 / long 4.083e-3: main's values exactly |
+| 4 tests | `inkling2_batch` hip tiny 9 / 9; `inkling2` hip tiny 14 / 17 (the same 3 as main: g1b (PF2), 2 screened-head); `intarsia-core` lib 270 (scheduler, registry, ops); `plan` 10; `docs_env_vars` 2 / 2; admission: `conv_mix_bf16` 532 cases, `moe_experts` 57 cases ADMITTED, serve admission 135 cases with nothing rejected (b10). ISA of `ink_mix` / `ink_mix_rows` / `ink_moe` kernels identical to main (31 / 55 / 427) |
+| 5 speed | above and section 4; the default rule's condition (4) is not shown (the 4-stream filler TTFT p50: 1.020, interval [0.870, 1.170]), so opt-in |
+
+Radiance: 8 windows, **25:42** down in total (the longest 4:38), restored within 15 s each time. Overlap (R3d) was not built
+(section 1.5 says what it needs).
+
 ## Briefs received
 
 - 2026-11-26 (coordinator, lane brief): build packed prefill for Inkling on HIP; design first (per-sequence state, per-kernel row
@@ -193,6 +228,11 @@ Code (branch `ink/hip-bpf`):
   `INTARSIA_INK_PACK_ROWS` (a larger packed workspace; the prefill chunk stays the recipe's).
 - Engine / scheduler: `SlotModel::ink_prefill_pack`, `BatchModel::pack_last_alone` (false for Inkling: a final chunk's body is
   the whole chunk), the pack body uses the long-prompt chunk a request would start with.
+- Plan (b8): `Phase::Pack`, a probe of the largest packed pass (fresh phantom sequences of at most a chunk each, the real packed
+  layers recorded), so the scratch and admission cover passes of more rows than one sequence's KV room (W2's 2 x 2048 refusal).
+- Admission (b10): a segment-table kernel is skipped by the sweep and takes the admission of the kernel it twins, as row-table kernels
+  do (W3's REJECTED `conv_mix_bf16_segs`); `INTARSIA_HIP_DISABLE` of the base drops the twin too.
+- Dumps: `Model::ink_dump_packed` (the oracle-named intermediates of a packed pass, for the per-op diff test).
 
 Checks without a GPU (tatooine cpu slots):
 
@@ -419,4 +459,26 @@ filler TTFT p50 with two reps. **Recommended for `--max-batch` servers: `INTARSI
 which makes the measured gains: up to +9.5 % aggregate and -8 % TTFT p50 at 16 filler streams, +5 % aggregate and -22 % TTFT p50 at
 16 real prompts, +48 % prompt tok/s on 8 x 512, every reply bitwise. Flipping it default-on (both knobs) is the coordinator's / user's
 call; what it would take: one more paired rep of the 4-stream filler row (radiance budget spent: 8 windows, 25:42).
+
+## 5. fleetq jobs and binaries
+
+- cpu-slot jobs (builds, cpu tests, ISA): #12163 (main 80719483a cli), #12199 (b1), #12201 / #12208 / #12210 (b2-b4, ISA), #12215 (b5),
+  #12221 (b6 + main tiny tests), #12223 (b7), #12227 (b8: rebased on b7450223e, ISA, main2), #12231 (b9 on 6517d98f4, main3),
+  #12238 / #12239 (b10, cpu admission sweep check), #12243 / #12245 (packed test rebuilt with the batched load, `docs_env_vars`),
+  #12249 (**b11 = the PR head on 5367023d2**: cli built, core 270, plan 10, `inkling2_packed` cpu 5 / 5, hip lib 2, `docs_env_vars` 2).
+- GPU windows (radiance down): W1 #12216, W2 #12224, W3 #12236, W4 #12240, W5 #12241, W6 #12242, W7 #12246, W8 #12248.
+- b11 differs from b10 only by the rebase onto #537 (ink-hip-pf2-tiny: `kernels/hip/ink_attn.hip`, which this lane does not touch)
+  and docs; no GPU window ran b11 (budget spent). The GPU gates above ran b10 (on 6517d98f4).
+
+## 6. Leftovers
+
+- **Default flip**: one more paired rep of the 4-stream filler row (R vs A) would show or refute condition (4); then
+  `INK_PACK_DEFAULT = true` with a 4096-row default workspace is a two-line change (`model/inkling2.rs`).
+- **hip tiny packed tests at the PF2 default**: they failed on b10 from main's PF2 tiny-shape fault, which #537 fixes (now in the base);
+  re-run `inkling2_packed` hip tiny without `INTARSIA_HIP_INK_PF2=0` on b11 in the next window.
+- **Overlap (R3d)**: not built. ITL p99 stays 0.5-0.65 s at 8 / 16 (decode rows wait for a 2048-row pass); R lowers the 4-at-once
+  p99 (0.483 -> 0.173 s) only because fewer passes run. Section 1.5 lists what it needs (a second HIP stream, events, per-slot fences).
+- **Prefix reuse on HIP batching**: off for Inkling (no batched ring snapshots); with it, resumed prompts would pack (unit-tested).
+- `pack_half` sends two waiting prompts one at a time (the 2 x 2048 row): a per-model `pack_half` could help Inkling, whose
+  prefill is slow enough that TTFT gains from packing two.
 
