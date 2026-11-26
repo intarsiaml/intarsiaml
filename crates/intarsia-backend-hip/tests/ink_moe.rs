@@ -328,6 +328,52 @@ fn ink_moe_wmma_prefill() {
     assert!(fails.is_empty(), "{} failures:\n{}", fails.len(), fails.join("\n"));
 }
 
+/// `INTARSIA_HIP_INK_PF2` bits 4 / 8 (lane ink-hip-pf2): the tensor-core down / gate_up in pieces of feature tiles give the bits of
+/// one launch, at the default budget and forced to one feature tile per piece (`INTARSIA_HIP_INK_PF2_US=1`), both formats, small
+/// shapes and the real one (H 2304, I 1152: 18 feature tiles each); the wider pair-tile grid (bit 16); and any pair-tile block count (`INTARSIA_HIP_INK_PF2_ZP`) gives
+/// the default grid's bits. Run with `--test-threads=1` (env).
+#[test]
+fn ink_moe_pf2_pieces() {
+    let _knobs = lock_knobs();
+    let Some(hip) = device("ink_moe_pf2_pieces") else { return };
+    let mut rng = SplitMix64::new(0x1A4B_0042);
+    let set = |k: &str, v: Option<&str>| match v {
+        Some(v) => std::env::set_var(k, v),
+        None => std::env::remove_var(k),
+    };
+    let mut n = 0;
+    for (t, e, k, h, i) in [(100usize, 32usize, 8usize, 192usize, 320usize), (530, 128, 1, 64, 64), (300, 128, 8, 2304, 1152)] {
+        for mx in [false, true] {
+            let hc = if mx { mxfp8_case(&mut rng, t, e, k, h, i, "situ") } else { situ_case(&mut rng, t, e, k, h, i) };
+            let name = if mx { NAMES[2] } else { NAMES[0] };
+            intarsia_backend_hip::inkmoe::set_wmma(64);
+            set("INTARSIA_HIP_INK_PF2", Some("0"));
+            let base = run_host(&*hip, name, &hc).unwrap();
+            assert!(base[0].data.iter().any(|&x| x != 0), "mx={mx} T={t}: zero output");
+            for (mask, us) in [("4", None), ("12", None), ("4", Some("1")), ("8", Some("1")), ("12", Some("1")), ("16", None), ("20", None), ("28", Some("1"))] {
+                set("INTARSIA_HIP_INK_PF2", Some(mask));
+                set("INTARSIA_HIP_INK_PF2_US", us);
+                let got = run_host(&*hip, name, &hc).unwrap();
+                assert_eq!(base[0].data, got[0].data, "mx={mx} T={t} E={e} K={k} H={h} I={i}: PF2={mask} US={us:?} differs from one launch");
+                n += 1;
+            }
+            set("INTARSIA_HIP_INK_PF2_US", None);
+            // the pair-tile block count (INTARSIA_HIP_INK_PF2_ZP): one block per expert slot stepping through every tile, and many
+            for zp in ["1", "16"] {
+                set("INTARSIA_HIP_INK_PF2", Some("0"));
+                set("INTARSIA_HIP_INK_PF2_ZP", Some(zp));
+                let got = run_host(&*hip, name, &hc).unwrap();
+                assert_eq!(base[0].data, got[0].data, "mx={mx} T={t} E={e} K={k} H={h} I={i}: ZP={zp} differs from the default grid");
+                n += 1;
+            }
+            set("INTARSIA_HIP_INK_PF2_ZP", None);
+            intarsia_backend_hip::inkmoe::set_wmma(-1);
+        }
+    }
+    set("INTARSIA_HIP_INK_PF2", None);
+    eprintln!("{n} INTARSIA_HIP_INK_PF2 expert cases bitwise one launch");
+}
+
 /// The defaults as shipped (user decision 2026-11-26): with `INTARSIA_HIP_INK_MOE_WMMA` unset the ordinary names take the tensor-core
 /// prefill (the rule: 64-pair tiles from 16 pairs per expert on average), `=0` the decode kernels (the revert), `=1` the rule, `32` /
 /// `64` force a tile; `_rows` twins never take it. Resolution first (`wmma_pairs`), then the bits of an eligible call: unset = the

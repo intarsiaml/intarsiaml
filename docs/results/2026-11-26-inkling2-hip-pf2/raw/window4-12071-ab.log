@@ -1,0 +1,30 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-pf2/.scratch/stage_ab4.sh; cap 280s; stopping radiance 2026-11-26 12:52:26
+[window] radiance stopped 2026-11-26 12:52:30 (inactive)
+GEN 4k main2 INK=main | prefill 1551 ms (2726.2 tok/s)  [12:52:36]
+GEN 16k main2 INK=main | prefill 5999 ms (2819.7 tok/s)  [12:52:47]
+GEN 4k pf2d INTARSIA_HIP_INK_PF2=0 | prefill 1554 ms (2721.2 tok/s)  [12:52:53]
+GEN 16k pf2d INTARSIA_HIP_INK_PF2=0 | prefill 6009 ms (2815.1 tok/s)  [12:53:04]
+GEN 4k pf2d INTARSIA_HIP_INK_PF2=3 | prefill 1454 ms (2908.1 tok/s)  [12:53:10]
+GEN 16k pf2d INTARSIA_HIP_INK_PF2=3 | prefill 5587 ms (3027.7 tok/s)  [12:53:21]
+GEN 4k pf2d INTARSIA_HIP_INK_PF2=7 | prefill 1442 ms (2932.4 tok/s)  [12:53:27]
+GEN 16k pf2d INTARSIA_HIP_INK_PF2=7 | prefill 5545 ms (3050.3 tok/s)  [12:53:37]
+GEN 4k pf2d INTARSIA_HIP_INK_PF2=19 | prefill 1415 ms (2987.1 tok/s)  [12:53:44]
+GEN 16k pf2d INTARSIA_HIP_INK_PF2=19 | prefill 5422 ms (3119.8 tok/s)  [12:53:54]
+GEN 4k pf2d INTARSIA_HIP_INK_PF2=23 | prefill 1399 ms (3021.6 tok/s)  [12:54:00]
+GEN 16k pf2d INTARSIA_HIP_INK_PF2=23 | prefill 5360 ms (3155.8 tok/s)  [12:54:10]
+GEN 4k pf2d INTARSIA_HIP_INK_PF2_ZP=8 | prefill 1410 ms (2998.4 tok/s)  [12:54:16]
+GEN 16k pf2d INTARSIA_HIP_INK_PF2_ZP=8 | prefill 5392 ms (3137.0 tok/s)  [12:54:26]
+GEN 4k pf2d INTARSIA_HIP_INK_PF2_ZP=32 | prefill 1402 ms (3015.0 tok/s)  [12:54:33]
+GEN 16k pf2d INTARSIA_HIP_INK_PF2_ZP=32 | prefill 5358 ms (3157.2 tok/s)  [12:54:43]
+GEN 4k pf2d INTARSIA_HIP_INK_PF2_ZP=64 | prefill 1404 ms (3010.9 tok/s)  [12:54:49]
+GEN 16k pf2d INTARSIA_HIP_INK_PF2_ZP=64 | prefill 5367 ms (3151.5 tok/s)  [12:54:59]
+GEN 4k pf2d INTARSIA_HIP_INK_PF2=151 | prefill 1387 ms (3048.5 tok/s)  [12:55:05]
+GEN 16k pf2d INTARSIA_HIP_INK_PF2=151 | prefill 5319 ms (3180.3 tok/s)  [12:55:15]
+GEN 4k pf2d INK=default | prefill 1402 ms (3015.9 tok/s)  [12:55:22]
+GEN 16k pf2d INK=default | prefill 5365 ms (3152.9 tok/s)  [12:55:32]
+GEN 4k main2 INK=main | prefill 1571 ms (2690.5 tok/s)  [12:55:38]
+GEN 16k main2 INK=main | prefill 6063 ms (2790.0 tok/s)  [12:55:49]
+[stage] done 12:55:49
+[window] stage done 2026-11-26 12:55:50 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 12:55:50
+[window] radiance answers 2026-11-26 12:56:00 (after 15 s)

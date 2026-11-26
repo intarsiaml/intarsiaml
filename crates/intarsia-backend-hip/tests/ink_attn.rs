@@ -368,6 +368,149 @@ fn rows_exact_real_shapes() {
     eprintln!("{n} rows-exact cases bitwise");
 }
 
+/// `INTARSIA_HIP_INK_PF2` (lane ink-hip-pf2): the prefill forms that keep the bits, bit 1 (the prologue's rel tail as its own pass,
+/// `ink_rel_table_k`), bit 2 (flash in pieces of query tiles) and bit 128 (the prologue's OCC form), give the bits of `=0` (q / rel / k / v / o, rings and caches) on
+/// prefill-sized calls, with flash on (the new default) and off; the pieces at their default rule, at a smaller budget and forced
+/// to one query tile each (`INTARSIA_HIP_INK_PF2_US=1`, `INTARSIA_HIP_INK_PF2_BLOCKS=1`). Run with `--test-threads=1` (env).
+#[test]
+fn pf2_bitwise_prefill() {
+    let Some(be) = device() else { return };
+    let be = be.as_ref();
+    let swa = Layer { window: 1024, ring: true, cr: 1040, dynamic: false };
+    let full = Layer { window: 0, ring: false, cr: 4200, dynamic: true };
+    let set = |k: &str, v: Option<&str>| match v {
+        Some(v) => std::env::set_var(k, v),
+        None => std::env::remove_var(k),
+    };
+    let mut n = 0;
+    for (l, poss) in [(&swa, vec![0usize, 1500]), (&full, vec![0, 1500])] {
+        for &t in &[17usize, 64, 300, 2048] {
+            for &pos0 in &poss {
+                if !l.ring && pos0 + t > l.cr {
+                    continue;
+                }
+                let inp = make(l, t, (t * 31 + pos0) as u64);
+                let what = format!("window {} T={t} pos0={pos0}", l.window);
+                for flash in ["1", "0"] {
+                    if flash == "0" && t > 300 {
+                        continue; // the split-KV form of a 2048-row call only repeats the 300-row check, slowly
+                    }
+                    intarsia_backend_hip::inkattn::set_flash(if flash == "1" { 1 } else { 0 });
+                    set("INTARSIA_HIP_INK_PF2", Some("0"));
+                    let base = run(be, l, &inp, t, pos0, t, false, false);
+                    assert!(base.outs[4].iter().any(|&x| x & 0x7fff != 0), "{what}: zero output");
+                    for (mask, us, blocks) in [("1", None, None), ("3", None, None), ("3", Some("700"), None), ("2", Some("1"), Some("1")), ("7", Some("1"), Some("1")), ("129", None, None), ("131", Some("1"), Some("1"))] {
+                        set("INTARSIA_HIP_INK_PF2", Some(mask));
+                        set("INTARSIA_HIP_INK_PF2_US", us);
+                        set("INTARSIA_HIP_INK_PF2_BLOCKS", blocks);
+                        let got = run(be, l, &inp, t, pos0, t, false, false);
+                        same(&base, &got, &format!("{what} flash {flash} PF2={mask} US={us:?} BLOCKS={blocks:?}"));
+                        n += 1;
+                    }
+                    set("INTARSIA_HIP_INK_PF2_US", None);
+                    set("INTARSIA_HIP_INK_PF2_BLOCKS", None);
+                }
+            }
+        }
+    }
+    set("INTARSIA_HIP_INK_PF2", None);
+    intarsia_backend_hip::inkattn::set_flash(-1);
+    eprintln!("{n} INTARSIA_HIP_INK_PF2 attention cases bitwise =0");
+}
+
+/// One 2048-row prefill visit at the real shapes (sliding at 2048 context, full at 2048 and 14336): the prologue (with and without
+/// `INTARSIA_HIP_INK_PF2` bit 1) and the flash attention (one launch, and the pieces of bit 2), us per call (`INK_PF2_BENCH=1`).
+#[test]
+fn bench_pf2_prefill() {
+    if std::env::var_os("INK_PF2_BENCH").is_none() {
+        eprintln!("skipping: INK_PF2_BENCH unset");
+        return;
+    }
+    let Some(be) = device() else { return };
+    let be = be.as_ref();
+    let t = 2048usize;
+    let ckv = HK * DH;
+    let nqw = nq(H, DH, DR);
+    for (name, l, pos0) in [
+        ("swa at 2048", Layer { window: 1024, ring: true, cr: 1040, dynamic: false }, 2048usize),
+        ("full at 2048", Layer { window: 0, ring: false, cr: 4200, dynamic: true }, 2048),
+        ("full at 14336", Layer { window: 0, ring: false, cr: 16400, dynamic: true }, 14336),
+    ] {
+        let inp = make(&l, t, 5);
+        let pw = inp.pk.len() / 2 / t;
+        let (pq, pk, pv) = (upload(be, &inp.pq), upload(be, &inp.pk), upload(be, &inp.pv));
+        let w: Vec<Buffer> = inp.w.iter().map(|v| upload(be, v)).collect();
+        let st: Vec<Buffer> = vec![
+            upload(be, &inp.state0[0]),
+            upload(be, &inp.state0[1]),
+            upload(be, &rand_bf16(HK * l.cr * DH, 7, 1.5, 1.5)),
+            upload(be, &rand_bf16(HK * l.cr * DH, 8, 1.0, 1.0)),
+        ];
+        let (q, rel, k, v, o) = (zeros(be, t * H * DH), zeros(be, t * H * E), zeros(be, t * ckv), zeros(be, t * ckv), zeros(be, t * H * DH));
+        let a = attrs(&l, pos0);
+        let pro = OpCall::new(
+            Op::InkKvPrologue,
+            vec![
+                tr(&pq, 0, &[t, nqw]),
+                tr(&pk, 0, &[t, pw]),
+                tr(&pv, 0, &[t, pw]),
+                tr(&w[0], 0, &[K, ckv]),
+                tr(&w[1], 0, &[K, ckv]),
+                tr(&w[2], 0, &[H, DH]),
+                tr(&w[3], 0, &[H, DR]),
+                tr(&w[4], 0, &[DR, E]),
+            ],
+            vec![
+                tr(&q, 0, &[t, H, DH]),
+                tr(&rel, 0, &[t, H, E]),
+                tr(&k, 0, &[t, HK, DH]),
+                tr(&v, 0, &[t, HK, DH]),
+                tr(&st[0], 0, &[RR, ckv]),
+                tr(&st[1], 0, &[RR, ckv]),
+            ],
+            a.clone(),
+        );
+        let mut att = OpCall::new(
+            Op::RelSinkAttn,
+            vec![
+                tr(&q, 0, &[t, H, DH]),
+                tr(&k, 0, &[t, HK, DH]),
+                tr(&v, 0, &[t, HK, DH]),
+                tr(&st[2], 0, &[HK, l.cr, DH]),
+                tr(&st[3], 0, &[HK, l.cr, DH]),
+                tr(&rel, 0, &[t, H, E]),
+                tr(&pq, 0, &[t, nqw]),
+            ],
+            vec![tr(&o, 0, &[t, H * DH]), tr(&st[2], 0, &[HK, l.cr, DH]), tr(&st[3], 0, &[HK, l.cr, DH])],
+            a,
+        );
+        att.scratch = Some(scratch_for(be, "rel_sink_attn_bf16", &att));
+        let time = |kn: &str, c: &OpCall| {
+            for _ in 0..2 {
+                be.launch(kn, c, 0).unwrap();
+            }
+            be.synchronize(0).unwrap();
+            let n = 10;
+            let t0 = std::time::Instant::now();
+            for _ in 0..n {
+                be.launch(kn, c, 0).unwrap();
+            }
+            be.synchronize(0).unwrap();
+            t0.elapsed().as_secs_f64() * 1e6 / n as f64
+        };
+        intarsia_backend_hip::inkattn::set_flash(1);
+        std::env::set_var("INTARSIA_HIP_INK_PF2", "0");
+        let p0 = time("ink_kv_prologue_bf16", &pro);
+        let f0 = time("rel_sink_attn_bf16", &att);
+        std::env::set_var("INTARSIA_HIP_INK_PF2", "3");
+        let p1 = time("ink_kv_prologue_bf16", &pro);
+        let f1 = time("rel_sink_attn_bf16", &att);
+        std::env::remove_var("INTARSIA_HIP_INK_PF2");
+        intarsia_backend_hip::inkattn::set_flash(-1);
+        println!("PF2BENCH {name}: prologue {p0:.0} -> {p1:.0} us (bit 1), flash {f0:.0} -> {f1:.0} us (bit 2); wall per call back to back, so a stall after a >= 1 ms launch is in the number");
+    }
+}
+
 /// One-row decode at the real shapes: prologue + attention, timed over many launches (host position, eager). KV bytes read per
 /// call: 2 (K, V) x Hk x keys x Dh x 2 bytes; roofline 627 GB/s (the Neon review's stream rate, unverified).
 #[test]

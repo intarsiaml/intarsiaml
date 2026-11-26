@@ -1,0 +1,175 @@
+chunk 0: 2388 dispatches, wall 675.8 ms, busy 588.9 ms, idle 86.9 ms (12.9 %), gap before 7.20 ms, emb grid 524288; idle gaps > 50 us: 181 (79.3 ms)
+   classes ms: experts 312.3, attention 132.8, mix-row 88.8, gemm 54.0, router-topk 0.7, norm-embed 0.1, other 0.1
+   kernel                                                                                        n       ms   us/call  vgpr/lds/wg
+   ink_moe_wmma_kernel<0, 2, true, 64>                                                          44   186.62    4241.3  224/34816/256
+   ink_moe_wmma_kernel<0, 2, false, 64>                                                         44    89.60    2036.3  224/18432/256
+   ink_prologue_k<4, false>                                                                     48    80.06    1667.9  160/512/256
+   gemm_wmma_kernel<4, 2, 2, 4, ik_bf16>                                                       192    52.25     272.1  224/40960/256
+   ink_flash_k<128, 3>                                                                          48    51.06    1063.7  256/35840/384
+   ink_row_kernel<3, false, true>                                                              460    42.76      93.0  104/14848/768
+   ink_ctl_gemv_kernel                                                                         384    23.67      61.7  40/0/256
+   ink_moe_wmma_kernel<1, 2, true, 64>                                                           4    17.84    4460.9  240/34816/256
+   ink_blend_gate_kernel<false, true>                                                          384    16.48      42.9  192/9728/128
+   ink_moe_wmma_kernel<1, 2, false, 64>                                                          4     8.71    2177.1  240/18432/256
+   ink_moe_gather_kernel<ik_bf16>                                                               48     8.43     175.6  8/0/256
+   ink_blend_norm_kernel                                                                       384     5.93      15.4  8/512/256
+   gemm_wmma_kernel<4, 2, 2, 4, float>                                                          48     1.75      36.5  224/40960/256
+   ink_moe_group_kernel                                                                         48     1.14      23.7  16/4096/1024
+   ink_kv_write_k                                                                               48     1.04      21.6  16/0/256
+   moe_route_kernel<true>                                                                       48     0.68      14.1  24/512/32
+   ink_ring_write_k                                                                             48     0.49      10.3  16/0/256
+   ink_ring_kernel                                                                              96     0.18       1.8  8/0/256
+   __amd_rocclr_copyBuffer                                                                       5     0.09      17.2  16/0/512
+   rmsnorm_kernel<false, true, false>                                                            2     0.08      39.5  24/512/256
+   embedding_kernel<true>                                                                        1     0.03      28.7  16/0/256
+     gap  24705.3 us before ink_moe_group_kernel
+     gap   4360.8 us before gemm_wmma_kernel<4, 2, 2, 4, ik_bf16>
+     gap   1112.2 us before ink_prologue_k<4, false>
+     gap    664.3 us before rmsnorm_kernel<false, true, false>
+     gap    306.7 us before ink_kv_write_k
+chunk 1: 2388 dispatches, wall 679.3 ms, busy 619.2 ms, idle 60.1 ms (8.9 %), gap before 0.01 ms, emb grid 524288; idle gaps > 50 us: 192 (52.6 ms)
+   classes ms: experts 313.1, attention 162.5, mix-row 88.9, gemm 53.8, router-topk 0.7, other 0.1, norm-embed 0.0
+   kernel                                                                                        n       ms   us/call  vgpr/lds/wg
+   ink_moe_wmma_kernel<0, 2, true, 64>                                                          44   187.05    4251.0  224/34816/256
+   ink_moe_wmma_kernel<0, 2, false, 64>                                                         44    89.88    2042.8  224/18432/256
+   ink_flash_k<128, 3>                                                                          48    80.51    1677.3  256/35840/384
+   ink_prologue_k<4, false>                                                                     48    80.31    1673.1  160/512/256
+   gemm_wmma_kernel<4, 2, 2, 4, ik_bf16>                                                       192    52.09     271.3  224/40960/256
+   ink_row_kernel<3, false, true>                                                              460    42.82      93.1  104/14848/768
+   ink_ctl_gemv_kernel                                                                         384    23.67      61.6  40/0/256
+   ink_moe_wmma_kernel<1, 2, true, 64>                                                           4    17.86    4464.9  240/34816/256
+   ink_blend_gate_kernel<false, true>                                                          384    16.50      43.0  192/9728/128
+   ink_moe_wmma_kernel<1, 2, false, 64>                                                          4     8.69    2172.7  240/18432/256
+   ink_moe_gather_kernel<ik_bf16>                                                               48     8.50     177.1  8/0/256
+   ink_blend_norm_kernel                                                                       384     5.92      15.4  8/512/256
+   gemm_wmma_kernel<4, 2, 2, 4, float>                                                          48     1.73      36.1  224/40960/256
+   ink_moe_group_kernel                                                                         48     1.12      23.3  16/4096/1024
+   ink_kv_write_k                                                                               48     1.05      21.8  16/0/256
+   moe_route_kernel<true>                                                                       48     0.67      13.9  24/512/32
+   ink_ring_write_k                                                                             48     0.48      10.0  16/0/256
+   ink_ring_kernel                                                                              96     0.18       1.9  8/0/256
+   __amd_rocclr_copyBuffer                                                                       5     0.09      17.2  16/0/512
+   rmsnorm_kernel<false, true, false>                                                            2     0.04      18.2  24/512/256
+   embedding_kernel<true>                                                                        1     0.01      10.9  16/0/256
+     gap    287.6 us before ink_moe_gather_kernel<ik_bf16>
+     gap    287.0 us before ink_kv_write_k
+     gap    285.7 us before ink_ring_write_k
+     gap    285.7 us before ink_kv_write_k
+     gap    283.6 us before ink_ring_write_k
+chunk 2: 1186 dispatches, wall 211.8 ms, busy 183.3 ms, idle 28.5 ms (13.5 %), gap before 0.01 ms, emb grid 33792; idle gaps > 50 us: 92 (25.0 ms)
+   classes ms: experts 143.7, attention 16.1, gemm 14.8, mix-row 7.5, other 0.8, router-topk 0.4, argmax 0.0, norm-embed 0.0
+     gap    287.2 us before ink_moe_gather_kernel<ik_bf16>
+     gap    286.3 us before ink_moe_dn_kernel<0, 2, ik_bf16, 3, 8, true, 3>
+     gap    285.1 us before ink_moe_gather_kernel<ik_bf16>
+     gap    284.8 us before ink_moe_gather_kernel<ik_bf16>
+     gap    283.6 us before ink_moe_gather_kernel<ik_bf16>
+all prefill chunks, classes ms: experts 769.1, attention 311.4, mix-row 185.3, gemm 122.7, router-topk 1.7, other 0.9, norm-embed 0.2, argmax 0.0
+
+chunk 0: 2388 dispatches, wall 667.4 ms, busy 589.2 ms, idle 78.2 ms (11.7 %), gap before 0.34 ms, emb grid 524288; idle gaps > 50 us: 177 (70.5 ms)
+   classes ms: experts 312.6, attention 132.9, mix-row 88.8, gemm 54.0, router-topk 0.7, norm-embed 0.1, other 0.1
+   kernel                                                                                        n       ms   us/call  vgpr/lds/wg
+   ink_moe_wmma_kernel<0, 2, true, 64>                                                          44   186.69    4242.9  224/34816/256
+   ink_moe_wmma_kernel<0, 2, false, 64>                                                         44    89.60    2036.3  224/18432/256
+   ink_prologue_k<4, false>                                                                     48    80.14    1669.6  160/512/256
+   gemm_wmma_kernel<4, 2, 2, 4, ik_bf16>                                                       192    52.29     272.4  224/40960/256
+   ink_flash_k<128, 3>                                                                          48    51.04    1063.3  256/35840/384
+   ink_row_kernel<3, false, true>                                                              460    42.77      93.0  104/14848/768
+   ink_ctl_gemv_kernel                                                                         384    23.65      61.6  40/0/256
+   ink_moe_wmma_kernel<1, 2, true, 64>                                                           4    17.96    4489.5  240/34816/256
+   ink_blend_gate_kernel<false, true>                                                          384    16.47      42.9  192/9728/128
+   ink_moe_wmma_kernel<1, 2, false, 64>                                                          4     8.74    2185.3  240/18432/256
+   ink_moe_gather_kernel<ik_bf16>                                                               48     8.44     175.9  8/0/256
+   ink_blend_norm_kernel                                                                       384     5.93      15.4  8/512/256
+   gemm_wmma_kernel<4, 2, 2, 4, float>                                                          48     1.75      36.5  224/40960/256
+   ink_moe_group_kernel                                                                         48     1.13      23.5  16/4096/1024
+   ink_kv_write_k                                                                               48     1.04      21.6  16/0/256
+   moe_route_kernel<true>                                                                       48     0.68      14.1  24/512/32
+   ink_ring_write_k                                                                             48     0.49      10.3  16/0/256
+   ink_ring_kernel                                                                              96     0.18       1.8  8/0/256
+   rmsnorm_kernel<false, true, false>                                                            2     0.09      45.5  24/512/256
+   __amd_rocclr_copyBuffer                                                                       5     0.09      17.3  16/0/512
+   embedding_kernel<true>                                                                        1     0.03      31.1  16/0/256
+     gap  19203.3 us before ink_moe_group_kernel
+     gap   2977.3 us before gemm_wmma_kernel<4, 2, 2, 4, ik_bf16>
+     gap    638.1 us before rmsnorm_kernel<false, true, false>
+     gap    300.9 us before ink_kv_write_k
+     gap    300.4 us before ink_kv_write_k
+chunk 1: 2388 dispatches, wall 678.8 ms, busy 618.6 ms, idle 60.2 ms (8.9 %), gap before 0.01 ms, emb grid 524288; idle gaps > 50 us: 192 (52.8 ms)
+   classes ms: experts 313.1, attention 162.2, mix-row 88.8, gemm 53.7, router-topk 0.7, other 0.1, norm-embed 0.0
+     gap    288.2 us before ink_ring_write_k
+     gap    287.2 us before ink_kv_write_k
+     gap    286.9 us before ink_moe_gather_kernel<ik_bf16>
+     gap    286.6 us before ink_moe_gather_kernel<ik_bf16>
+     gap    286.1 us before ink_moe_gather_kernel<ik_bf16>
+chunk 2: 2388 dispatches, wall 689.0 ms, busy 629.2 ms, idle 59.9 ms (8.7 %), gap before 0.01 ms, emb grid 524288; idle gaps > 50 us: 191 (52.4 ms)
+   classes ms: experts 311.3, attention 174.3, mix-row 89.0, gemm 53.8, router-topk 0.7, other 0.1, norm-embed 0.0
+     gap    287.0 us before ink_moe_gather_kernel<ik_bf16>
+     gap    286.9 us before ink_kv_write_k
+     gap    286.4 us before ink_moe_gather_kernel<ik_bf16>
+     gap    282.9 us before ink_kv_write_k
+     gap    282.4 us before ink_moe_wmma_kernel<0, 2, false, 64>
+chunk 3: 2388 dispatches, wall 700.8 ms, busy 640.7 ms, idle 60.1 ms (8.6 %), gap before 0.01 ms, emb grid 524288; idle gaps > 50 us: 192 (52.6 ms)
+   classes ms: experts 311.6, attention 185.7, mix-row 88.9, gemm 53.8, router-topk 0.7, other 0.1, norm-embed 0.1
+     gap    291.4 us before ink_moe_wmma_kernel<0, 2, false, 64>
+     gap    286.2 us before ink_moe_gather_kernel<ik_bf16>
+     gap    286.2 us before ink_moe_gather_kernel<ik_bf16>
+     gap    282.9 us before ink_kv_write_k
+     gap    282.5 us before ink_kv_write_k
+chunk 4: 2388 dispatches, wall 710.9 ms, busy 651.1 ms, idle 59.8 ms (8.4 %), gap before 0.01 ms, emb grid 524288; idle gaps > 50 us: 191 (52.3 ms)
+   classes ms: experts 310.7, attention 197.0, mix-row 88.9, gemm 53.8, router-topk 0.7, other 0.1, norm-embed 0.0
+     gap    285.0 us before ink_moe_wmma_kernel<0, 2, false, 64>
+     gap    283.0 us before ink_kv_write_k
+     gap    282.4 us before ink_moe_wmma_kernel<1, 2, false, 64>
+     gap    282.3 us before ink_ring_write_k
+     gap    281.9 us before ink_ring_write_k
+chunk 5: 2388 dispatches, wall 724.5 ms, busy 664.3 ms, idle 60.1 ms (8.3 %), gap before 0.01 ms, emb grid 524288; idle gaps > 50 us: 192 (52.7 ms)
+   classes ms: experts 311.6, attention 209.2, mix-row 88.9, gemm 53.8, router-topk 0.7, other 0.1, norm-embed 0.0
+     gap    298.6 us before ink_moe_gather_kernel<ik_bf16>
+     gap    287.5 us before ink_ring_write_k
+     gap    286.8 us before ink_ring_write_k
+     gap    286.4 us before ink_moe_gather_kernel<ik_bf16>
+     gap    282.5 us before ink_ring_write_k
+chunk 6: 2388 dispatches, wall 733.5 ms, busy 673.5 ms, idle 60.1 ms (8.2 %), gap before 0.01 ms, emb grid 524288; idle gaps > 50 us: 192 (52.6 ms)
+   classes ms: experts 310.2, attention 219.7, mix-row 88.9, gemm 53.9, router-topk 0.7, other 0.1, norm-embed 0.0
+     gap    291.7 us before ink_moe_wmma_kernel<0, 2, false, 64>
+     gap    287.0 us before ink_moe_wmma_kernel<0, 2, false, 64>
+     gap    286.2 us before ink_moe_gather_kernel<ik_bf16>
+     gap    282.4 us before ink_ring_write_k
+     gap    282.4 us before ink_kv_write_k
+chunk 7: 2388 dispatches, wall 745.9 ms, busy 685.9 ms, idle 59.9 ms (8.0 %), gap before 0.01 ms, emb grid 524288; idle gaps > 50 us: 192 (52.4 ms)
+   classes ms: experts 311.2, attention 231.4, mix-row 88.9, gemm 53.7, router-topk 0.7, other 0.1, norm-embed 0.0
+   kernel                                                                                        n       ms   us/call  vgpr/lds/wg
+   ink_moe_wmma_kernel<0, 2, true, 64>                                                          44   186.53    4239.3  224/34816/256
+   ink_flash_k<128, 3>                                                                          48   149.69    3118.5  256/35840/384
+   ink_moe_wmma_kernel<0, 2, false, 64>                                                         44    89.23    2027.9  224/18432/256
+   ink_prologue_k<4, false>                                                                     48    79.99    1666.4  160/512/256
+   gemm_wmma_kernel<4, 2, 2, 4, ik_bf16>                                                       192    51.95     270.6  224/40960/256
+   ink_row_kernel<3, false, true>                                                              460    42.77      93.0  104/14848/768
+   ink_ctl_gemv_kernel                                                                         384    23.69      61.7  40/0/256
+   ink_moe_wmma_kernel<1, 2, true, 64>                                                           4    17.33    4333.2  240/34816/256
+   ink_blend_gate_kernel<false, true>                                                          384    16.50      43.0  192/9728/128
+   ink_moe_gather_kernel<ik_bf16>                                                               48     8.48     176.8  8/0/256
+   ink_moe_wmma_kernel<1, 2, false, 64>                                                          4     8.44    2109.9  240/18432/256
+   ink_blend_norm_kernel                                                                       384     5.92      15.4  8/512/256
+   gemm_wmma_kernel<4, 2, 2, 4, float>                                                          48     1.73      36.1  224/40960/256
+   ink_moe_group_kernel                                                                         48     1.17      24.3  16/4096/1024
+   ink_kv_write_k                                                                               48     1.06      22.1  16/0/256
+   moe_route_kernel<true>                                                                       48     0.67      14.0  24/512/32
+   ink_ring_write_k                                                                             48     0.48       9.9  16/0/256
+   ink_ring_kernel                                                                              96     0.18       1.9  8/0/256
+   __amd_rocclr_copyBuffer                                                                       5     0.09      17.4  16/0/512
+   rmsnorm_kernel<false, true, false>                                                            2     0.04      18.0  24/512/256
+   embedding_kernel<true>                                                                        1     0.01      10.5  16/0/256
+     gap    283.3 us before ink_moe_wmma_kernel<0, 2, false, 64>
+     gap    282.4 us before ink_kv_write_k
+     gap    282.4 us before ink_moe_gather_kernel<ik_bf16>
+     gap    282.2 us before ink_ring_write_k
+     gap    280.6 us before ink_kv_write_k
+chunk 8: 1570 dispatches, wall 369.3 ms, busy 336.5 ms, idle 32.7 ms (8.9 %), gap before 0.01 ms, emb grid 135936; idle gaps > 50 us: 103 (28.1 ms)
+   classes ms: experts 213.1, attention 75.2, mix-row 24.8, gemm 22.2, other 0.8, router-topk 0.4, norm-embed 0.0, argmax 0.0
+     gap    282.5 us before ink_moe_wmma_kernel<0, 2, false, 64>
+     gap    281.7 us before ink_moe_wmma_kernel<0, 2, false, 64>
+     gap    281.2 us before ink_moe_gather_kernel<ik_bf16>
+     gap    280.8 us before ink_moe_gather_kernel<ik_bf16>
+     gap    278.0 us before ink_moe_wmma_kernel<0, 2, false, 64>
+all prefill chunks, classes ms: experts 2705.3, attention 1587.5, mix-row 735.9, gemm 452.6, router-topk 5.8, other 1.5, norm-embed 0.5, argmax 0.0

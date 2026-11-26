@@ -1,0 +1,16 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-pf2/.scratch/stage_prof.sh; cap 270s; stopping radiance 2026-11-26 11:49:34
+[window] radiance stopped 2026-11-26 11:49:38 (inactive)
+[stage] rocprof 4k 2026-11-26 11:49:38
+finish=length prompt=4228 (cached 0) completion=2 | prefill 1575 ms (2685.0 tok/s) | decode 25 ms (39.44 tok/s)
+kernel trace 4k: /home/josef/intarsiaml-ink-hip-pf2/logs/w1/rp-4k/run_kernel_trace.csv 7039 lines
+[stage] rocprof 16k 2026-11-26 11:49:44
+finish=length prompt=16915 (cached 0) completion=2 | prefill 6021 ms (2809.3 tok/s) | decode 19 ms (52.33 tok/s)
+kernel trace 16k: /home/josef/intarsiaml-ink-hip-pf2/logs/w1/rp-16k/run_kernel_trace.csv 21751 lines
+[stage] unprofiled 4k 2026-11-26 11:49:55
+finish=length prompt=4228 (cached 0) completion=2 | prefill 1550 ms (2727.6 tok/s) | decode 16 ms (62.13 tok/s)
+[stage] unprofiled 16k 2026-11-26 11:50:01
+finish=length prompt=16915 (cached 0) completion=2 | prefill 6008 ms (2815.3 tok/s) | decode 17 ms (58.29 tok/s)
+[stage] done 2026-11-26 11:50:12
+[window] stage done 2026-11-26 11:50:13 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 11:50:13
+[window] radiance answers 2026-11-26 11:50:23 (after 15 s)
