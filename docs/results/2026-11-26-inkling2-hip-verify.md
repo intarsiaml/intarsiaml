@@ -13,7 +13,7 @@ per row and by checking the draft length; greedy output stays identical to `--sp
 | spec-default decode, 1k | 90.06 | 90.16 | 1.001 [1.000-1.002] |
 | spec-default decode, 4k | 114.97 | 121.81 | **1.059** [1.058-1.061] |
 | spec-default decode, 16k | 91.74 | 94.93 | **1.034** [1.034-1.035] |
-| plain decode (`--spec off`), short / 4k, 256 tokens | 76.86 / 74.04 | 76.81 / 74.04 | same code (`--spec off` does not read `mtp_default_k`) |
+| plain decode (`--spec off`), short / 4k, 256 tokens | 76.86 / 74.04 | 76.81 / 74.04 | single runs; the 4 + 4 plain ABBA was **not run** (radiance budget: 5 windows, 12:44); `--spec off` runs the same code (does not read `mtp_default_k`) |
 
 - **Change:** `recipes/inkling2.toml` `[tuning.hip] mtp_default_k` 3 -> 4 (and the unit test that pins it). No kernel or engine code
   changed (`kernels/` identical to main). Gates: greedy md5 = main at short / 4k x 64 / 256, spec off and default; verify probe rows
@@ -23,6 +23,9 @@ per row and by checking the draft length; greedy output stays identical to `--sp
   was reverted, section 2). The row-dependent excess with a flat floor is the verify attention (+1.20 ms at 4 rows, one decode call
   per row) and the loop blend (+0.85 ms, `kFuseRowsMax = 2`): lane ink-hip-batch's files, reported, not touched (section 3).
 - k5 is the alternative: 1.006 / 1.008 / 1.080 / 1.051, short within noise (section 4).
+- Caveat: the k4 / k3 table was measured on main `3226af2b9`; the branch ships on `80719483a`, whose verify-path kernel forms are
+  the same (#529 only adds row-table instantiations, section 4). Window 4's single runs on the merged head (other prompts) read
+  0.995 / 0.992 / 0.983 / 1.021; a 4 + 4 confirmation there needs a radiance window beyond this lane's budget.
 
 ## Briefs received
 
@@ -170,7 +173,8 @@ the 1k prompt, `PROBE_TIME_MIN`, ms): main's grid 16.52 / 19.93 / 22.26 at 2 / 3
 sliced only 16.41 / 19.83 / 22.08: <= 0.18 ms a pass (< 1 %). At 5..8 rows the rule broke outputs: `ink_moe_rows_exact` failed at T = 5
 and the bitwise probe failed (rc 101). Cause: every grid-y block runs `group_pairs` itself, whose expert numbering comes from atomics,
 deterministic only while all pairs sit in one wave (P <= 32); above that, blocks number the experts differently, so the slices
-overlap and miss experts (the 5-8-row passes ran in 13.7-16.1 ms, the k4 / k5 screen arms on that binary accepted 40 of 120 drafts).
+overlap and miss experts (the 5-8-row passes ran in 13.7-16.1 ms; the k4 / k5 screen arms on that binary accepted 40 of 120 and 43
+of 125 drafts).
 A fix needs a deterministic numbering pass in `group_pairs` for a gain below 1 % of a pass, so the code is **reverted**:
 `kernels/` is identical to main on this branch. Kept: the bench's real-text union mode and the probe's timing knobs.
 
@@ -195,8 +199,13 @@ this lane's files hold a comparable row cost.
 
 ## 4. Window 3: the draft length on the ship path (4 + 4 processes)
 
-fleetq #12152, radiance down 15:05:04-15:08:58 EST (**3:54**), both cards. Binary `main` (main `3226af2b9`; main `80719483a`, #529
-merged meanwhile, changes no solo-decode code: its results doc, "solo device code = main's"). No `--spec`, no TAU / CUT env: the spec
+fleetq #12152, radiance down 15:05:04-15:08:58 EST (**3:54**), both cards. Binary `main` = main `3226af2b9`. The branch ships on main
+`80719483a` (#529 merged meanwhile). `git diff 3226af2b9 80719483a -- kernels/hip/ink_attn.hip kernels/hip/ink_mix.hip`: #529 adds
+row-table (`RT`) instantiations of `ink_attn_dec_k` and `ink_row_kernel` behind a template flag that defaults to the solo form
+(`RT = false`: the same arguments, byte for byte, and the same body), plus their own translation units (`ink_attn_rows.hip`,
+`ink_mix_rows.hip`); `kFuseRowsMax`, the blend kernels and the launch selection of the solo forms are unchanged, so a verify pass
+launches the same forms on both mains. The 4 + 4 table below was measured on `3226af2b9`, not re-measured on the merged head (no
+radiance budget left; window 4's single runs on the merged head are below the table). No `--spec`, no TAU / CUT env: the spec
 default (DSpark, cut 0.5) with the recipe's `[tuning.hip] mtp_default_k` from `--recipe` copies of `recipes/inkling2.toml` (k3 verbatim;
 k4 / k5 with only that line changed). Card 1's k3 arm ran with the built-in recipe (no `--recipe`): its counters equal card 0's
 verbatim-copy k3 arm, so the copy is the default path. speed.json = a warm-up + the 12 short golden prompts + 1021 / 4108 / 16455
@@ -217,6 +226,12 @@ Ids identical in all 12 processes (and to `--spec off`: the verify pass is bitwi
 branch ships k4** (`recipes/inkling2.toml` `[tuning.hip] mtp_default_k = 4`), the length that clears the bar at every length by both
 intervals; k5 is a one-line alternative for the coordinator (numbers above). Plain decode (`--spec off`) never reads
 `mtp_default_k`, so it runs the same code as main.
+
+Non-gate data on the merged head (window 4's md5 runs, other prompts: `short-0.txt` / `4k-0.txt`, one process each, 64 / 256
+tokens, 21-106 verify passes a run): spec-default decode k4 (branch) / k3 (main2) 0.995 (short, 64), 0.992 (short, 256), 0.983 (4k,
+64), 1.021 (4k, 256). Three of four below 1 by 0.5-1.7 %; single runs this short sit inside the per-prompt spread of the table
+(0.978-1.089 at short), but they are the only numbers on the shipped binary. A confirmation window (k3 vs k4 via `--recipe` on
+`verify1`, 4 + 4) needs the coordinator's go: this lane's radiance budget is spent.
 
 Why HIP takes a longer draft than Metal (where k5 / k7 lost): a verify row costs ~2.3 ms against a 13.4 ms decode step here (section
 1: r / P ~0.17), against ~2.1 ms for a k3 draft (`2026-11-26-inkling2-hip-spec.md`).
@@ -252,7 +267,8 @@ Nothing set in the environment. Logs: `raw/window4-12164.log`, `raw/w4/`.
 5. CPU tests (job #12161): `load::dspark_default_tests::dspark_default_only_where_the_recipe_sets_it` (now pins HIP k4) ok;
    `docs_env_vars` 2 / 2 ok.
 
-Plain decode (`--spec off`) in the md5 runs, single runs: short 256 76.86 (main2) / 76.81 (branch), 4k 256 74.04 / 74.04 tok/s; the
+Gate 5's plain-decode 4 + 4 ABBA was **not run** (radiance budget spent; `--spec off` never reads `mtp_default_k`, so it runs
+main's code). Plain decode (`--spec off`) in the md5 runs, single runs: short 256 76.86 (main2) / 76.81 (branch), 4k 256 74.04 / 74.04 tok/s; the
 spec default at 256 tokens: short 91.07 / 90.36, 4k 97.49 / 99.51 (single runs; the 4 + 4 table is section 4).
 
 ## 6. Window 5: main's tiny suite
@@ -274,4 +290,4 @@ tree in CPU job #12168), the same command as the branch's in window 4: **14 pass
 
 Radiance answered after every window (15 s after the restart; checked with `/v1/models`). CPU jobs (tatooine `--load cpu`): #12110
 (seed volume, main `3226af2b9`), #12117 (probe dry run), #12131 (split1), #12147 (`--recipe` flag check), #12153 (main2), #12161
-(verify1 + test targets + cpu tests), #12168 (main's tiny test). Pushes (endor): #12162.
+(verify1 + test targets + cpu tests), #12168 (main's tiny test). Pushes (endor): #12162 and the final push of the PR head.
