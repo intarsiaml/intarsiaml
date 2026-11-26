@@ -1,0 +1,22 @@
+W20261126 21:08:04.271065 125621377903360 simple_timer.cpp:55] [rocprofv3] tool initialization ::     0.001436 sec
+W20261126 21:08:04.272576 125621377903360 simple_timer.cpp:55] [rocprofv3] '/work/.scratch/bin/t-verify2/verify_rows_real --nocapture' ::     0.000000 sec
+
+running 1 test
+PROBE_CONFIG dir=/models/Inkling-2-Mini rows=8 lens=unset backend=hip INTARSIA_VERIFY_GRAPH=unset profile_every=0
+W20261126 21:08:04.293953 125621358724800 tool.cpp:2422] HSA version 8.20.4 initialized (instance=0)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.2 s
+plan notes: []
+PROBE_TIME_CONFIG time_only=true reps=8 prompt=4108 ids, greedy continuation
+PROBE_TIME decode1 14.42 ms, verify2 17.90 ms (1.24x), verify3 20.44 ms (1.42x), verify4 22.62 ms (1.57x), verify5 25.79 ms (1.79x), verify6 28.27 ms (1.96x), verify7 30.30 ms (2.10x), verify8 32.11 ms (2.23x)
+PROBE_TIME_MIN len=4108 decode1 14.34 ms, verify2 17.81 ms, verify3 20.30 ms, verify4 22.55 ms, verify5 25.67 ms, verify6 28.14 ms, verify7 30.12 ms, verify8 31.95 ms
+PROBE_GRAPHS GraphStats { enabled: true, captures: 2, replays: 17, batch_captures: 0, batch_replays: 0, spec_captures: 7, spec_replays: 56 }
+PROBE_RESULT rows=0 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+W20261126 21:08:12.120943 125621377903360 simple_timer.cpp:55] [rocprofv3] '/work/.scratch/bin/t-verify2/verify_rows_real --nocapture' ::     7.848367 sec
+test verify_rows_are_bitwise_the_single_row_steps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.85s
+
+E20261126 21:08:12.130854 125621377903360 output_stream.cpp:111] Opened result file: /work/logs/w7/rp4k/run_kernel_trace.csv
+E20261126 21:08:12.185995 125621377903360 output_stream.cpp:111] Opened result file: /work/logs/w7/rp4k/run_agent_info.csv
+W20261126 21:08:12.186641 125621377903360 simple_timer.cpp:55] [rocprofv3] output generation ::     0.057887 sec
+W20261126 21:08:12.186724 125621377903360 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.057988 sec

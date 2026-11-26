@@ -51,7 +51,8 @@ constexpr int kBlendRows = 256;                  // rows per blend chunk
 constexpr int kGateCh = 128;                     // channels per gate block (one thread each)
 constexpr int kGateRows = 16;                    // rows per gate block
 constexpr int kFastRowsMax = 16;                 // launches of at most this many rows take the fast row kernel (mask bit 1)
-constexpr int kFuseRowsMax = 2;                  // default: blend chunks of at most this many rows take the fused row-kernel launch (blend_fuse_rows)
+constexpr int kFuseRowsMax = 8;                  // default: blend chunks of at most this many rows take the fused row-kernel launch (blend_fuse_rows;
+                                                 // main 2; lane ink-hip-vrow: LoopBlend 3..8 rows 36-53 -> 22-30 us, ConvMix + blend 39-58 -> 35-57 us)
 constexpr int kFnormRowsMax = 2;                 // default: blend chunks of at most this many rows take the gate kernel's fused norm (blend_fnorm_rows)
 constexpr int kFuseD = 2304;                     // widest row of the fused blend (the pair lives in shared memory)
 
@@ -843,7 +844,7 @@ bool mix_dec_tail() {
 
 // INTARSIA_HIP_INK_BLEND_FUSE (lane ink-hip-vrow): "r" or "r:n", the most rows of a blend chunk that take the fused row-kernel launch
 // (pair + controller rows in the row kernel, r) and the gate kernel's fused norm (n); "0" never; read once. Unset or anything
-// else: kFuseRowsMax / kFnormRowsMax. Every value gives the same bits (tests/ink_mix.rs); mask bit 2 (INTARSIA_INK_MIX_FAST) still
+// else: kFuseRowsMax / kFnormRowsMax (8:2; main was 2:2: `=2` reverts). Every value gives the same bits (tests/ink_mix.rs); mask bit 2 (INTARSIA_INK_MIX_FAST) still
 // turns both off.
 int blend_fuse_env(int which) {
     static int v[2] = {-2, -2};

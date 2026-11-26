@@ -1065,9 +1065,10 @@ int64_t dec_fused_keys() {
 }
 
 // INTARSIA_HIP_INK_DEC_FUSED_ROWS (lane ink-hip-vrow): op 75 takes its fused kernel only for calls of at most this many rows (verify
-// passes of more rows take the split path, whose prologue forms q / r once per row instead of once per split block); unset: 16 (all,
-// main's rule). Both paths give the pair's bits.
-constexpr int kDecFusedRowsDefault = 16;
+// passes of more rows take the split path, whose prologue forms q / r once per row instead of once per split block); unset: 1 (the
+// decode step fused, verify passes split: 2..8-row passes 0.2-1.0 ms faster at a 1k context; main took the fused kernel for all, `=16`).
+// Both paths give the pair's bits.
+constexpr int kDecFusedRowsDefault = 1;
 int g_dec_fused_rows = -1;  // tests (ik_ink_attn_dec_fused_rows): >= 0 overrides the env / the default
 int dec_fused_rows() {
     if (g_dec_fused_rows >= 0) return g_dec_fused_rows;

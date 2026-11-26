@@ -1,0 +1,22 @@
+
+running 1 test
+test ink_blend_fuse_bench ... FUSEBENCH loop_blend S3 G64 T=1: | r2:n2 18.10 us | r0:n0 27.18 us | r2:n16 17.90 us | r16:n0 19.39 us | r16:n16 18.14 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=1: | r2:n2 21.15 us | r0:n0 31.34 us | r2:n16 21.97 us | r16:n0 24.73 us | r16:n16 21.60 us
+FUSEBENCH loop_blend S3 G64 T=2: | r2:n2 22.04 us | r0:n0 30.64 us | r2:n16 19.79 us | r16:n0 20.50 us | r16:n16 20.73 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=2: | r2:n2 28.89 us | r0:n0 35.37 us | r2:n16 28.04 us | r16:n0 29.68 us | r16:n16 28.94 us
+FUSEBENCH loop_blend S3 G64 T=3: | r2:n2 36.13 us | r0:n0 34.08 us | r2:n16 35.62 us | r16:n0 22.12 us | r16:n16 23.90 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=3: | r2:n2 39.17 us | r0:n0 38.69 us | r2:n16 39.40 us | r16:n0 34.94 us | r16:n16 35.82 us
+FUSEBENCH loop_blend S3 G64 T=4: | r2:n2 39.28 us | r0:n0 37.96 us | r2:n16 39.87 us | r16:n0 24.44 us | r16:n16 26.82 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=4: | r2:n2 41.66 us | r0:n0 42.19 us | r2:n16 45.24 us | r16:n0 36.25 us | r16:n16 39.69 us
+FUSEBENCH loop_blend S3 G64 T=5: | r2:n2 41.79 us | r0:n0 41.68 us | r2:n16 46.18 us | r16:n0 24.73 us | r16:n16 30.19 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=5: | r2:n2 46.36 us | r0:n0 45.22 us | r2:n16 50.63 us | r16:n0 42.34 us | r16:n16 47.23 us
+FUSEBENCH loop_blend S3 G64 T=6: | r2:n2 45.15 us | r0:n0 45.59 us | r2:n16 51.93 us | r16:n0 27.32 us | r16:n16 34.07 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=6: | r2:n2 49.52 us | r0:n0 48.88 us | r2:n16 56.58 us | r16:n0 49.04 us | r16:n16 55.81 us
+FUSEBENCH loop_blend S3 G64 T=8: | r2:n2 53.30 us | r0:n0 53.27 us | r2:n16 62.68 us | r16:n0 30.00 us | r16:n16 40.43 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=8: | r2:n2 57.64 us | r0:n0 57.58 us | r2:n16 66.59 us | r16:n0 57.20 us | r16:n16 66.73 us
+FUSEBENCH loop_blend S3 G64 T=16: | r2:n2 56.88 us | r0:n0 56.95 us | r2:n16 113.94 us | r16:n0 44.61 us | r16:n16 101.82 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=16: | r2:n2 61.29 us | r0:n0 61.23 us | r2:n16 117.40 us | r16:n0 96.81 us | r16:n16 153.23 us
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 4.03s
+

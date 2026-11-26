@@ -1,0 +1,7 @@
+
+running 2 tests
+test ink_attn_res_mix_and_blend_rows_exact ... ok
+test ink_conv_mix_rows_exact ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 7.21s
+
