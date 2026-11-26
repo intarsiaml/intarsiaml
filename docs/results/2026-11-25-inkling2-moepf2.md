@@ -3,6 +3,21 @@
 Branch `ink/moepf2` from main 072dd0863. Not pushed. **Status: stopped before any code or GPU work. Both levers of the
 brief were already built and measured on the unmerged branch `ink/prefill`, and both were slower.** No fleetq slot taken.
 
+## Briefs received
+
+2. 2026-11-25 ~21:30 EST (coordinator): **go ahead with the small-expert tile idea.**
+   1. Bitwise form first: per-expert M tile size (experts with few rows get a 16- or 32-row M tile instead of 64) in the
+      same kernel family, same K loop, same per-element accumulation order. Before building, read the kernel and confirm
+      the MMA fragment order per output element does not depend on the M tile size; if it does, say so and stop this form.
+   2. Probe first, cheap: kernel bench with real routing captured from a 4k prompt; time per call of the current form vs
+      the small-tile form vs the balanced-routing floor (the ~1.05 ms / call gap). Under ~2 % of a chunk: write up, stop.
+   3. If it wins: admission cases, `ink_prefill_moe` / `inkmoe` tests, same greedy ids at 1k / 4k / 16k, prefill ABBA A/B
+      at 1k / 4k / 16k with >= 6 runs per arm. Default-on only if bitwise and faster than noise; else env knob + tuning row.
+   4. If the bitwise form is impossible: a GEMV-style path for experts under 16 rows, opt-in only, with the KL gate.
+   - endor: 10-20 min `--exclusive` kernel-bench slots; #11871, #11856, #11857 untouchable. Report by 08:00 EST with a
+     table, the bitwise result, tests, branch head, fleetq ids. The coordinator moves the `ink/prefill` doc to main;
+     this lane does not touch it.
+
 ## Blocker: the two levers are already measured (overlap check, step 0 of the brief)
 
 The brief took its levers from "Next ideas" item 1 of `docs/results/2026-11-21-inkling2-prefill.md` as it stands on main.
