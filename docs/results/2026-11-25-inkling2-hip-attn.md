@@ -15,6 +15,17 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
   and own container name. No need to re-merge ink/hip. Lead merges lanes after their unit window, then admission + G1 + G2 in one window.
   Window rules unchanged (takes-down radiance, <= 20 min, <= 3 windows, none after 06:00, radiance up before release).
 
+- 2026-11-25 (after 70/71 landed), coordinator, speed round: build fused `InkAttnDecode` (op 75) now, then flash prefill
+  attention. Start from `ink/hip` head (has adc5b83a0 + all three lanes; whole model passes G2 there). Lead's profile
+  #11945/#11947, one decode token 16.0 ms vs 8.76 ms floor: attention 1.05 ms/token at short context (prologue 0.49, s1 0.51,
+  comb 0.05) in 144 dispatches; idle between all 712 dispatches 2.56 ms (~3.6 us each). Op 75 = one dispatch per visit instead
+  of three (-96 dispatches). Prefill 4k (chunk 256): RelSinkAttn 12.9 %, becomes largest after the moe lane's WMMA experts.
+  Rules: keep op 75's Exactness class from the port map; admission vs cpu-ref must pass; if 75 serves T=1 only, say how T>1
+  stays consistent for rows-exact and verify. Op 75 needs a lead-owned line in `model/inkling2.rs` (backend-name rule, hip
+  only): don't edit, report when admitted. Flash prefill: admission + G2 must pass, rows-exact stays bitwise where the op
+  promises it. 2 windows left (<= 20 min, none after 06:00, radiance up before release). Decode bench before/after; whole-model
+  decode number if a window allows. Report each landing as "ready to merge at <commit>" with us before/after.
+
 ## Step 0
 
 `git log --all -i --grep=hip` and a grep of every `ink/*` branch for `ink_kv_prologue` / `rel_sink_attn` under `kernels/hip` and
