@@ -8,7 +8,7 @@ S=$REPO/.scratch
 OUT=$REPO/logs/speed
 rm -rf "$OUT"; mkdir -p "$OUT"
 M=/models/Inkling-2-Mini
-BR=${BR:-pf2d}
+BR=${BR:-pf2e}
 MASK=${MASK:-}  # unset: the branch default
 PS="$(cat "$REPO/scripts/cmx/ids-prompts/short-0.txt")"
 P4="$(cat "$REPO/scripts/cmx/ids-prompts/4k-0.txt")"

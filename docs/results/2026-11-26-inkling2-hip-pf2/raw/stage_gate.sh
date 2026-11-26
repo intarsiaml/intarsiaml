@@ -11,7 +11,7 @@ S=$REPO/.scratch
 OUT=$REPO/logs/gate
 rm -rf "$OUT"; mkdir -p "$OUT"
 M=/models/Inkling-2-Mini
-BR=${BR:-pf2d}
+BR=${BR:-pf2e}
 PS="$(cat "$REPO/scripts/cmx/ids-prompts/short-0.txt")"
 P4="$(cat "$REPO/scripts/cmx/ids-prompts/4k-0.txt")"
 P16="$P4
@@ -32,7 +32,7 @@ card0() {
     case $p in short) PR="$PS"; N=64 ;; 4k) PR="$P4"; N=64 ;; *) PR="$P16"; N=16 ;; esac
     gen M main2 $p "$PR" $N "INK_ARM=M"
     gen B $BR $p "$PR" $N "INK_ARM=B"
-    gen B0 $BR $p "$PR" $N "INTARSIA_HIP_INK_PF2=0"
+    [ $p = 16k ] || gen B0 $BR $p "$PR" $N "INTARSIA_HIP_INK_PF2=0"
   done
   for g in short long; do
     echo "G2 $g branch [$(now)] $(HIP_VISIBLE_DEVICES=0 bash "$S/run.sh" env $NEW /work/.scratch/bin/intarsia-$BR accuracy -m $M --backend hip --max-seq 4096 --mode prefill --golden golden/oracle/inkling2-mini-oracle-w4a16-$g-top20.safetensors 2>&1 | grep -aE "prefill floor|floor verdict|Error|panicked" | cut -c1-400)"

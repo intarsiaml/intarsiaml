@@ -174,3 +174,20 @@ Radiance down 12:52:26 - 12:56:00 (3:34). Log `raw/window4-12071-ab.log`, stage 
 - `=0` matches main2 (the revert). The default 23 is +11.5 % / +12.5 % over main2's mean; bit 128 adds +0.9 % / +0.8 % (one
   sample each, above the 0.2 - 0.7 % spread of the repeats) and is bitwise, so the final default is 151 (pf2e). The pair-tile
   count is flat from 16 to 64; 8 is 0.6 % lower.
+
+## 7. Window 5: gate on pf2e (final defaults, mask 151; fleetq #12077)
+
+Radiance down 13:04:34 - 13:07:35 (3:01). Binary pf2e `6fb63f30a` (CPU job #12074, md5 `2e6379f2…`); main2 = main `40b85a391`.
+Log `raw/window5-12077-gate.log`, stage `raw/stage_gate.sh`. All at the defaults (no env, recipe chunk 2048).
+
+- Greedy md5 (card 0): short 64 tokens M = B = B0 `04cdb28a…`; 4k 64 tokens M = B = B0 `2252566a…`; 16k 16 tokens M = B
+  `363ebce0…` (M main2, B the branch default, B0 the branch at `INTARSIA_HIP_INK_PF2=0`). The 256-token md5s at short and 4k
+  are in the speed window (section 8).
+- G2 (branch default, `accuracy --mode prefill`): short 21-way KL 4.491e-3, long 4.083e-3 (limit 3.0e-2), both PASS; the same
+  values lane ink-hip-pfflip recorded for main's defaults.
+- Admission (branch default): `ink_kv_prologue_bf16` 117 cases, `rel_sink_attn_bf16` 63, `moe_experts_situ_bf16` 10 (and
+  the bf16 / v2 / v3 / rows names), `moe_experts_mxfp8_bf16` 19 / `_rows` 14: all ADMITTED.
+- hip crate tests (card 1, the branch's test binaries): `ink_attn` 5 passed (`pf2_bitwise_prefill` 196 cases bitwise `=0`,
+  incl. bit 128 and the 8-byte rel table; `rows_exact_real_shapes` 63; `flash_prefill_default_and_revert`; quick admission
+  sweep), `ink_moe` 7 passed (`ink_moe_pf2_pieces` 60 cases bitwise one launch; `ink_moe_wmma_default_and_revert`; rows-exact).
+- `cargo test -p intarsia-cli --test docs_env_vars` (endor CPU job #12078): 2 passed (the four new `docs/tuning.md` rows).

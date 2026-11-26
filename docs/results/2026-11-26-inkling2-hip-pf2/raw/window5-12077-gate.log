@@ -1,0 +1,53 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-pf2/.scratch/stage_gate.sh; cap 285s; stopping radiance 2026-11-26 13:04:34
+[window] radiance stopped 2026-11-26 13:04:38 (inactive)
+[stage] gate start 13:04:38
+---- card 0
+MD5 M short 64 04cdb28a6849728e8aa5be39bf65c07e | prefill 99 ms (312.1 tok/s) | decode 825 ms (76.37 tok/s) [13:04:44]
+MD5 B short 64 04cdb28a6849728e8aa5be39bf65c07e | prefill 98 ms (314.9 tok/s) | decode 824 ms (76.42 tok/s) [13:04:50]
+MD5 B0 short 64 04cdb28a6849728e8aa5be39bf65c07e | prefill 100 ms (310.4 tok/s) | decode 824 ms (76.45 tok/s) [13:04:56]
+MD5 M 4k 64 2252566a5c54cf52cb564bd214c9af2b | prefill 1558 ms (2713.0 tok/s) | decode 859 ms (73.36 tok/s) [13:05:03]
+MD5 B 4k 64 2252566a5c54cf52cb564bd214c9af2b | prefill 1379 ms (3066.4 tok/s) | decode 859 ms (73.37 tok/s) [13:05:09]
+MD5 B0 4k 64 2252566a5c54cf52cb564bd214c9af2b | prefill 1560 ms (2709.7 tok/s) | decode 858 ms (73.42 tok/s) [13:05:17]
+MD5 M 16k 16 363ebce0f779b7aedea50e19c3da3709 | prefill 6036 ms (2802.5 tok/s) | decode 219 ms (68.56 tok/s) [13:05:28]
+MD5 B 16k 16 363ebce0f779b7aedea50e19c3da3709 | prefill 5306 ms (3188.0 tok/s) | decode 219 ms (68.59 tok/s) [13:05:38]
+G2 short branch [13:05:38] prefill floor [4bit]: top-1 (all rows) 99.47% (not gated for this class) ok | 21-way KL (scored rows, n=569) 4.491e-3 (need <= 3.0e-2) ok [all rows, n=569: 4.491e-3, reported only] | tail mass (all rows) ours 0.0665 vs ref 0.0679, excess -0.0014 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+G2 long branch [13:05:45] prefill floor [4bit]: top-1 (all rows) 98.98% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 4.083e-3 (need <= 3.0e-2) ok [all rows, n=1569: 4.083e-3, reported only] | tail mass (all rows) ours 0.0405 vs ref 0.0407, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+ADMIT ink_kv_prologue [13:05:54]
+ADMIT ink_kv_prologue: ink_kv_prologue ink_kv_prologue_bf16          117      0    5.464e-3    4.346e-4  ADMITTED
+ADMIT rel_sink_attn [13:05:57]
+ADMIT rel_sink_attn: rel_sink_attn  rel_sink_attn_bf16             63      0    5.952e-3    1.581e-3  ADMITTED
+ADMIT moe_experts [13:06:03]
+ADMIT moe_experts: moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_bf16_v2            12      0    4.149e-3    3.160e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_bf16_v3            12      0    4.149e-3    3.160e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_bf16_rows           4      0    4.149e-3    3.160e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_situ_bf16          10      0    3.472e-3    2.084e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_situ_bf16_rows      7      0    1.748e-3    1.266e-4  ADMITTED
+ADMIT moe_experts_mxfp8 [13:07:05]
+ADMIT moe_experts_mxfp8: moe_experts_mxfp8 moe_experts_mxfp8_bf16         19      0    3.378e-3    2.428e-4  ADMITTED
+ADMIT moe_experts_mxfp8: moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows     14      0    2.058e-3    1.634e-4  ADMITTED
+---- card 1
+TEST ink_attn [13:04:38]
+test admission_full_sweep ... flash 0:
+test bench_decode ... ignored
+test bench_pf2_prefill ... ok
+test bench_prefill ... ignored
+test flash_prefill_default_and_revert ... skipping: INK_PF2_BENCH unset
+test pf2_bitwise_prefill ... 196 INTARSIA_HIP_INK_PF2 attention cases bitwise =0
+test rows_exact_real_shapes ... 63 rows-exact cases bitwise
+test result: ok. 5 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 14.89s
+TEST ink_moe [13:04:53]
+test ink_moe_bench ... skipping: INK_MOE_BENCH unset
+test ink_moe_matches_cpu_reference ... moe_experts_situ_bf16        T=1 E=16 K=4 H=64 I=32 bf16 situ                     max_abs 0.000e0 rel_l2 0.000e0 ok
+test ink_moe_pf2_pieces ... 60 INTARSIA_HIP_INK_PF2 expert cases bitwise one launch
+test ink_moe_rows_exact ... ok
+test ink_moe_wave_grouping_odd_ids ... ink_moe_wave_grouping_odd_ids: 60 cases bitwise
+test ink_moe_wmma_default_and_revert ... ok
+test ink_moe_wmma_prefill ... wmma tile 32 mx=false situ T=140 E=16 K=4 H=128 I=64: vs cpu max_abs 0.000e0 rel_l2 0.000e0 ok; vs decode kernels rel_l2 0.000e0
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.94s
+[stage] gate done 13:07:24
+[window] stage done 2026-11-26 13:07:25 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 13:07:25
+[window] radiance answers 2026-11-26 13:07:35 (after 15 s)
