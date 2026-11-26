@@ -684,3 +684,40 @@ INK_DN_U_NB(ink_moe_dn_u3_mx_u, 1, false, 3u)
     }
 INK_GATHER(ink_moe_gather_bf16, ushort)
 INK_GATHER(ink_moe_gather_f32, float)
+
+// ---- mixed-tile grouping (lane ink-moepf2, `INTARSIA_INK_MOE_MIX`) ---------------------------------------------------
+// moe.metal's `moe_group` with one change to the tile table: an expert's last (count mod f) rows get a tile of the f-row
+// kernels only when there are more than g of them; the smaller remainders go to the remainder kernels of
+// inkling2_moe_nax.metal, which find them from `off` alone. a = T, b = E (<= 1024), c = K, f = rows per tile, g = the
+// largest remainder left to the small tiles.
+kernel void ink_moe_group_mix(device const int* ids [[buffer(0)]], device int* pairs [[buffer(1)]],
+                              device int* off [[buffer(2)]], device int* tiles [[buffer(3)]], constant OpP& p [[buffer(4)]],
+                              uint tid [[thread_index_in_threadgroup]], uint nt [[threads_per_threadgroup]]) {
+    threadgroup atomic_uint cnt[1024];
+    const uint E = p.b, P = p.a * p.c, TM = p.f, G = p.g;
+    for (uint e = tid; e < E; e += nt) atomic_store_explicit(&cnt[e], 0u, memory_order_relaxed);
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint i = tid; i < P; i += nt) {
+        const int id = ids[i];
+        if (id >= 0 && (uint)id < E) atomic_fetch_add_explicit(&cnt[id], 1u, memory_order_relaxed);
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (tid == 0) {
+        uint o = 0u, tl = 0u;
+        for (uint e = 0; e < E; ++e) {
+            const uint c = atomic_load_explicit(&cnt[e], memory_order_relaxed);
+            off[e] = (int)o;
+            tiles[e] = (int)tl;
+            atomic_store_explicit(&cnt[e], o, memory_order_relaxed);  // scatter cursor
+            o += c;
+            tl += c / TM + (c % TM > G ? 1u : 0u);
+        }
+        off[E] = (int)o;
+        tiles[E] = (int)tl;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint i = tid; i < P; i += nt) {
+        const int id = ids[i];
+        if (id >= 0 && (uint)id < E) pairs[atomic_fetch_add_explicit(&cnt[id], 1u, memory_order_relaxed)] = (int)i;
+    }
+}

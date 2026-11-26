@@ -10,6 +10,10 @@
 //! `INKMOE_ROUTES=<file>:<P1>,<P2>,...` (lane ink-mtp): real routing instead of the random one. The file is i16 expert ids
 //! `[48 visits, P_i positions, 8]` per text, one after another (the oracle's `expert_ids`, tools/inkling2_dspark_ref.py); a
 //! T-row call takes T consecutive positions of one visit of one text, as a verify pass does.
+//! `INKMOE_COUNTS=<file>` (lane ink-moepf2, prefill rows): rows per expert of real prefill calls, lines
+//! `<nv|mx> T=<rows> <count of expert 0> .. <count of expert 127>`, cycled over the calls; `INKMOE_ACTIVE=<n>`: n experts,
+//! balanced. `INKMOE_MIX=<form>,<form>,...`: the mixed-tile forms to time (`inkmoe::Mix`; default `0`), each with an
+//! FNV hash of the first call's output.
 //! `INKMOE_POOL=<u>`: draw every token's experts from one random pool of u per call (smaller unions, more pairs per expert).
 //!
 //! Run it inside a fleetq slot (`fleetq run --host endor --quiet gpu,cpu --mem 8 ...`).
@@ -151,6 +155,9 @@ fn main() {
                             (HostTensor::from_i32(&[tr, K], &mapped), ws)
                         }
                     };
+                    if let Some(cnt) = synth_counts(tr, c, mx) {
+                        ids = HostTensor::from_i32(&[tr, K], &ids_from_counts(&cnt, tr));
+                    }
                     if let Some(rs) = &routes {
                         // T consecutive positions of one visit of one text
                         let (p, seg) = &rs[(rng.next_u64() as usize) % rs.len()];
@@ -200,9 +207,11 @@ fn main() {
                 let forms = list("INKMOE_NAX2_FORMS", "0");
                 let skips = list("INKMOE_NAXSKIPS", "0");
                 let flops = (tr * K) as f64 * 2.0 * (H * 2 * I + I * H) as f64;
-                for form in forms.split(',') {
+                let mixes = list("INKMOE_MIX", "0");
+                for (form, mixf) in forms.split(',').flat_map(|f| mixes.split(',').map(move |m| (f, m))) {
                     for skip in skips.split(',') {
                         set_form(Some(form));
+                        intarsia_backend_metal::inkmoe::set_mix(Some(mixf));
                         #[cfg(feature = "ink-probe")]
                         set_skip(skip.parse().unwrap());
                         #[cfg(not(feature = "ink-probe"))]
@@ -221,8 +230,13 @@ fn main() {
                             v.push(t0.elapsed().as_secs_f64() / 12.0 * 1e6);
                         }
                         v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        be.launch(kname, &calls[0], 0).unwrap();
+                        be.synchronize(0).unwrap();
+                        let mut raw = vec![0u8; tr * H * 2];
+                        be.download(&out, 0, &mut raw, 0).unwrap();
+                        let hash = raw.iter().fold(0xcbf29ce484222325u64, |h, &b| (h ^ b as u64).wrapping_mul(0x100000001b3));
                         println!(
-                            "{fmt} T={tr:5} form {form:14} skip {skip} {:9.1} us/call (min {:8.1})  {:5.1} TFLOP/s of the full call",
+                            "{fmt} T={tr:5} form {form:14} mix {mixf:8} skip {skip} {:9.1} us/call (min {:8.1})  {:5.1} TFLOP/s of the full call  out {hash:016x}",
                             v[2],
                             v[0],
                             flops / (v[2] * 1e-6) / 1e12
@@ -230,6 +244,7 @@ fn main() {
                     }
                 }
                 set_form(None);
+                intarsia_backend_metal::inkmoe::set_mix(None);
                 #[cfg(feature = "ink-probe")]
                 set_skip(0);
                 continue;
@@ -268,4 +283,39 @@ fn main() {
             set_policy(Policy::Auto);
         }
     }
+}
+
+/// Rows per expert for the diagnostic routings (`INKMOE_ACTIVE` / `INKMOE_COUNTS`), or None for the random routing.
+#[cfg(target_os = "macos")]
+fn synth_counts(tr: usize, call: usize, mx: bool) -> Option<Vec<usize>> {
+    const E: usize = 128;
+    let pairs = tr * 8;
+    if let Some(n) = std::env::var("INKMOE_ACTIVE").ok().and_then(|v| v.parse::<usize>().ok()) {
+        let n = n.clamp(8, E);
+        return Some((0..E).map(|e| if e < n { pairs / n + usize::from(e < pairs % n) } else { 0 }).collect());
+    }
+    let path = std::env::var("INKMOE_COUNTS").ok()?;
+    let (tag, tt) = (if mx { "mx" } else { "nv" }, format!("T={tr}"));
+    let lines: Vec<Vec<usize>> = std::fs::read_to_string(&path)
+        .expect("INKMOE_COUNTS file")
+        .lines()
+        .filter_map(|l| {
+            let mut it = l.split_whitespace();
+            (it.next()? == tag && it.next()? == tt).then(|| it.filter_map(|v| v.parse().ok()).collect::<Vec<usize>>())
+        })
+        .filter(|c| c.len() == E && c.iter().sum::<usize>() == pairs && c.iter().all(|&v| v <= tr))
+        .collect();
+    (!lines.is_empty()).then(|| lines[call % lines.len()].clone())
+}
+
+/// Top-8 ids with `cnt` rows per expert: the experts' pairs laid out slot-major (index j * T + r), so an expert (at most
+/// T rows) never lands twice in one row.
+#[cfg(target_os = "macos")]
+fn ids_from_counts(cnt: &[usize], tr: usize) -> Vec<i32> {
+    let flat: Vec<i32> = cnt.iter().enumerate().flat_map(|(e, &c)| std::iter::repeat_n(e as i32, c)).collect();
+    let mut ids = vec![0i32; tr * 8];
+    for (i, &e) in flat.iter().enumerate() {
+        ids[(i % tr) * 8 + i / tr] = e;
+    }
+    ids
 }

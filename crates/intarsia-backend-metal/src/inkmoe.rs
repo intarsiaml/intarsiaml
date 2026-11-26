@@ -37,11 +37,13 @@ pub const KERNELS: [(&str, intarsia_core::Op); 5] = [
 ];
 
 const ROUTE: &str = "ink_moe_route";
+const GROUP_MIX: &str = "ink_moe_group_mix";
 const GATHER: [&str; 2] = ["ink_moe_gather_bf16", "ink_moe_gather_f32"];
 
 /// Shader entry points of kernels/metal/inkling2_moe.metal.
-pub const SHADERS: [&str; 35] = [
+pub const SHADERS: [&str; 36] = [
     ROUTE,
+    GROUP_MIX,
     "ink_moe_gu_nv_a_x",
     "ink_moe_gu_nv_a",
     "ink_moe_gu_nv_u_x",
@@ -91,9 +93,62 @@ pub const NAX_DN: [[&str; 4]; 2] = [
     ["ink_moe_nax_dn_mx_m8", "ink_moe_nax_dn_mx_m16", "ink_moe_nax_dn_mx_m32", "ink_moe_nax_dn_mx_m64"],
 ];
 
+/// Remainder tiles of the mixed-tile prefill form ([`Mix`]), by format, then 16 / 32 rows at K step 128, 16 / 32 at 64.
+pub const MIX_GU: [[&str; 4]; 2] = [
+    ["ink_moe_nax_gu_nv_r16", "ink_moe_nax_gu_nv_r32", "ink_moe_nax_gu_nv_r16k64", "ink_moe_nax_gu_nv_r32k64"],
+    ["ink_moe_nax_gu_mx_r16", "ink_moe_nax_gu_mx_r32", "ink_moe_nax_gu_mx_r16k64", "ink_moe_nax_gu_mx_r32k64"],
+];
+pub const MIX_DN: [[&str; 4]; 2] = [
+    ["ink_moe_nax_dn_nv_r16", "ink_moe_nax_dn_nv_r32", "ink_moe_nax_dn_nv_r16k64", "ink_moe_nax_dn_nv_r32k64"],
+    ["ink_moe_nax_dn_mx_r16", "ink_moe_nax_dn_mx_r32", "ink_moe_nax_dn_mx_r16k64", "ink_moe_nax_dn_mx_r32k64"],
+];
+
 /// Entry points of the metal4.0 library (`kernels::metal4_shaders`).
 pub fn metal4_shaders() -> impl Iterator<Item = &'static str> {
-    NAX_GU.iter().chain(NAX_DN.iter()).flatten().copied()
+    NAX_GU.iter().chain(NAX_DN.iter()).chain(MIX_GU.iter()).chain(MIX_DN.iter()).flatten().copied()
+}
+
+/// The mixed-tile prefill form (lane ink-moepf2): in a call on 64-row tiles, an expert's last (rows mod 64) rows run on a
+/// 16- or 32-row tile when they fit one, instead of a zero-padded 64-row tile. `r16`: remainders of 1..=16 rows take the
+/// 16-row tile; `r32`: remainders up to 32 rows (above 16 when `r16`) take the 32-row tile; `k64`: the small tiles step K
+/// by 64 as the 64-row tile does (else 128).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Mix {
+    pub r16: bool,
+    pub r32: bool,
+    pub k64: bool,
+}
+
+impl Mix {
+    /// `16`, `32`, `16+32`, each with an optional `k64` suffix; `0`, empty or anything else: off.
+    pub fn parse(v: &str) -> Option<Mix> {
+        let (c, k64) = v.strip_suffix("k64").map_or((v, false), |c| (c, true));
+        let (r16, r32) = match c {
+            "16" => (true, false),
+            "32" => (false, true),
+            "16+32" => (true, true),
+            _ => return None,
+        };
+        Some(Mix { r16, r32, k64 })
+    }
+}
+
+static MIX: std::sync::Mutex<Option<Option<Mix>>> = std::sync::Mutex::new(None);
+static MIX_SERVED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// `INTARSIA_INK_MOE_MIX=<form>` (default off): see [`Mix`].
+fn mix() -> Option<Mix> {
+    *MIX.lock().unwrap().get_or_insert_with(|| std::env::var("INTARSIA_INK_MOE_MIX").ok().and_then(|v| Mix::parse(&v)))
+}
+
+/// Tests and benchmarks: select the mixed-tile form for this process (`None` / "0": off), overriding the environment.
+pub fn set_mix(v: Option<&str>) {
+    *MIX.lock().unwrap() = Some(v.and_then(Mix::parse));
+}
+
+/// How many prefill calls took the mixed-tile form.
+pub fn mix_served() -> usize {
+    MIX_SERVED.load(Ordering::Relaxed)
 }
 
 /// `INTARSIA_INK_MOE_NAX=0` keeps every call on the decode kernels (no grouped prefill GEMMs).
@@ -477,14 +532,38 @@ impl MetalBackend {
             let (gu_k, dn_k, tm) = form.map_or((NAX_GU[fi][ti], NAX_DN[fi][ti], tm), |f| (f.gu, f.dn, f.tm));
             let bn3 = form.and_then(|f| f.bn3);
             crate::inkprefill::trace(gu_k);
+            // lane ink-moepf2: remainder tiles (64-row first-generation calls only), as (gate+up, down, p with g = the
+            // class's lower bound)
+            let mixf = mix().filter(|m| {
+                let i0 = 2 * m.k64 as usize;
+                form.is_none()
+                    && tm == 64
+                    && self.pso(GROUP_MIX).is_some()
+                    && (0..2).all(|c| self.pso(MIX_GU[fi][i0 + c]).is_some() && self.pso(MIX_DN[fi][i0 + c]).is_some())
+            });
+            let mut small: Vec<(&str, &str, OpP)> = Vec::new();
+            if let Some(m) = mixf {
+                MIX_SERVED.fetch_add(1, Ordering::Relaxed);
+                let i0 = 2 * m.k64 as usize;
+                for (c, lo) in [(0, 0u32), (1, if m.r16 { 16 } else { 0 })] {
+                    if [m.r16, m.r32][c] {
+                        let mut ps = p;
+                        ps.dims[6] = lo;
+                        crate::inkprefill::trace(MIX_GU[fi][i0 + c]);
+                        small.push((MIX_GU[fi][i0 + c], MIX_DN[fi][i0 + c], ps));
+                    }
+                }
+            }
             let mut pg = p;
             pg.dims[5] = tm as u32;
-            let gt = self.pso("moe_group").map_or(256, |s| {
+            pg.dims[6] = mixf.map_or(0, |m| if m.r32 { 32 } else { 16 });
+            let group_k = if mixf.is_some() { GROUP_MIX } else { "moe_group" };
+            let gt = self.pso(group_k).map_or(256, |s| {
                 use objc2_metal::MTLComputePipelineState;
                 s.maxTotalThreadsPerThreadgroup().min(1024)
             });
             self.ink_dispatch(
-                "moe_group",
+                group_k,
                 &[&ib, &pb, &offb, &tb],
                 &pg,
                 MTLSize { width: 1, height: 1, depth: 1 },
@@ -504,10 +583,18 @@ impl MetalBackend {
             };
             if skip & 1 == 0 {
                 self.ink_dispatch(gu_k, &[&ab, &pb, &offb, &tb, &w13, &s13, &gb, &wb, &hb], &p, ggu, 128)?;
+                for (k, _, ps) in &small {
+                    let g = MTLSize { width: ggu.width, height: e, depth: 1 };
+                    self.ink_dispatch(k, &[&ab, &pb, &offb, &tb, &w13, &s13, &gb, &wb, &hb], ps, g, 128)?;
+                }
             }
             let gdn = MTLSize { width: h.div_ceil(cd), height: max_tiles, depth: 1 };
             if skip & 2 == 0 {
                 self.ink_dispatch(dn_k, &[&hb, &pb, &offb, &tb, &w2, &s2, &gb, &wb, &yb], &p, gdn, 128)?;
+                for (_, k, ps) in &small {
+                    let g = MTLSize { width: gdn.width, height: e, depth: 1 };
+                    self.ink_dispatch(k, &[&hb, &pb, &offb, &tb, &w2, &s2, &gb, &wb, &yb], ps, g, 128)?;
+                }
             }
             if skip & 4 != 0 {
                 return Ok(());

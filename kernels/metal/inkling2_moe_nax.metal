@@ -59,7 +59,11 @@ inline void inx_blk_mx(uint4 v, uint s, threadgroup bfloat* dst) {
     d[1] = uint4(o[4], o[5], o[6], o[7]);
 }
 
-template <uint FMT, uint MODE, uint BM, uint BK>
+// REM (lane ink-moepf2, the mixed-tile form): the threadgroup row is an expert, and the tile is that expert's last
+// (c mod 64) rows when their count lies in (p.g, BM]; the 64-row kernels then run only the tiles of ink_moe_group_mix's
+// table (full tiles and remainders above the largest small class). The K loop and each element's accumulation are those of
+// the 64-row tile, on a smaller M tile.
+template <uint FMT, uint MODE, uint BM, uint BK, uint REM>
 inline void inx_mm_impl(device const ushort* A, device const int* pairs, device const int* off, device const int* tiles,
                         device const uchar* W, device const uchar* S, device const float* gsc, device const float* wts,
                         device ushort* out, constant OpP& p, threadgroup float* smem, uint2 tg, uint tid, uint sg) {
@@ -73,7 +77,15 @@ inline void inx_mm_impl(device const ushort* A, device const int* pairs, device 
     const uint E = p.b, K = p.c, H = p.d, I = p.e;
     const uint KD = MODE == 0 ? H : I;
     uint e, s0, rows;
-    if (!moe_tile(off, tiles, E, BM, tg.y, e, s0, rows)) return;
+    if (REM != 0) {
+        e = tg.y;
+        const uint c = (uint)off[e + 1] - (uint)off[e], r = c % 64u;
+        if (r <= p.g || r > BM) return;
+        s0 = (uint)off[e] + c - r;
+        rows = r;
+    } else if (!moe_tile(off, tiles, E, BM, tg.y, e, s0, rows)) {
+        return;
+    }
     threadgroup bfloat* As = (threadgroup bfloat*)smem;
     threadgroup bfloat* Bs = As + TM * LD;
     if (BM < TM) {
@@ -168,7 +180,9 @@ inline void inx_mm_impl(device const ushort* A, device const int* pairs, device 
 #define INX_SMEM(TM, BK) \
     ((((TM) + MOE_WR) * ((BK) + 8) * 2 > (TM) * MOE_LC * 4 ? ((TM) + MOE_WR) * ((BK) + 8) * 2 : (TM) * MOE_LC * 4) / 16)
 
-#define INX_MM(NAME, FMT, MODE, BM, BK)                                                                                 \
+#define INX_MM(NAME, FMT, MODE, BM, BK) INX_MMR(NAME, FMT, MODE, BM, BK, 0)
+
+#define INX_MMR(NAME, FMT, MODE, BM, BK, REM)                                                                               \
     kernel void NAME(device const ushort* A [[buffer(0)]], device const int* pairs [[buffer(1)]],                       \
                      device const int* off [[buffer(2)]], device const int* tiles [[buffer(3)]],                        \
                      device const uchar* W [[buffer(4)]], device const uchar* S [[buffer(5)]],                          \
@@ -177,7 +191,7 @@ inline void inx_mm_impl(device const ushort* A, device const int* pairs, device 
                      uint2 tg [[threadgroup_position_in_grid]], uint tid [[thread_index_in_threadgroup]],               \
                      uint sg [[simdgroup_index_in_threadgroup]]) {                                                      \
         threadgroup float4 smem[INX_SMEM(BM < 16 ? 16 : BM, BK)];                                                       \
-        inx_mm_impl<FMT, MODE, BM, BK>(A, pairs, off, tiles, W, S, gsc, wts, out, p, (threadgroup float*)smem, tg, tid, sg); \
+        inx_mm_impl<FMT, MODE, BM, BK, REM>(A, pairs, off, tiles, W, S, gsc, wts, out, p, (threadgroup float*)smem, tg, tid, sg); \
     }
 
 // Keep in step with NAX_GU / NAX_DN in src/inkmoe.rs (tiles of 8 / 16 / 32 / 64 rows; K step 128, 64 at 64 rows).
@@ -197,3 +211,22 @@ INX_MM(ink_moe_nax_dn_mx_m8, 1, 1, 8, 128)
 INX_MM(ink_moe_nax_dn_mx_m16, 1, 1, 16, 128)
 INX_MM(ink_moe_nax_dn_mx_m32, 1, 1, 32, 128)
 INX_MM(ink_moe_nax_dn_mx_m64, 1, 1, 64, 64)
+
+// Remainder tiles of the mixed-tile form (`INTARSIA_INK_MOE_MIX`, src/inkmoe.rs MIX_GU / MIX_DN): 16 / 32 rows, K step 128
+// (the small tiles' schedule above) or 64 (the 64-row tile's).
+INX_MMR(ink_moe_nax_gu_nv_r16, 0, 0, 16, 128, 1)
+INX_MMR(ink_moe_nax_gu_nv_r16k64, 0, 0, 16, 64, 1)
+INX_MMR(ink_moe_nax_gu_nv_r32, 0, 0, 32, 128, 1)
+INX_MMR(ink_moe_nax_gu_nv_r32k64, 0, 0, 32, 64, 1)
+INX_MMR(ink_moe_nax_dn_nv_r16, 0, 1, 16, 128, 1)
+INX_MMR(ink_moe_nax_dn_nv_r16k64, 0, 1, 16, 64, 1)
+INX_MMR(ink_moe_nax_dn_nv_r32, 0, 1, 32, 128, 1)
+INX_MMR(ink_moe_nax_dn_nv_r32k64, 0, 1, 32, 64, 1)
+INX_MMR(ink_moe_nax_gu_mx_r16, 1, 0, 16, 128, 1)
+INX_MMR(ink_moe_nax_gu_mx_r16k64, 1, 0, 16, 64, 1)
+INX_MMR(ink_moe_nax_gu_mx_r32, 1, 0, 32, 128, 1)
+INX_MMR(ink_moe_nax_gu_mx_r32k64, 1, 0, 32, 64, 1)
+INX_MMR(ink_moe_nax_dn_mx_r16, 1, 1, 16, 128, 1)
+INX_MMR(ink_moe_nax_dn_mx_r16k64, 1, 1, 16, 64, 1)
+INX_MMR(ink_moe_nax_dn_mx_r32, 1, 1, 32, 128, 1)
+INX_MMR(ink_moe_nax_dn_mx_r32k64, 1, 1, 32, 64, 1)
