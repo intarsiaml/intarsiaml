@@ -1,0 +1,35 @@
+fleetq: #11911 running on endor: /opt/code/intarsiaml/.worktrees/ink-pfgap2/.scratch/gen.sh
+fleetq: #11911 went ahead of the line and must end within 2h31m (by Wed 23:00); it is stopped then
+tree 55a6e2d3e 0 changed 20:28:21
+run 1 4k start 954643.342819458 end 954655.923882625 rc 0
+INTARSIA_INK_HEAD_SCREEN: gathers through the serving head kernel 'matmul_p12_logits_gemv'
+INTARSIA_INK_HEAD_SCREEN: first screened head step served (1 row)
+finish=length prompt=4138 (cached 0) completion=1 | prefill 2575 ms (1607.0 tok/s) | decode 0 ms (0.00 tok/s)
+steps=3 graph replays=0 (captures 0) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+run 2 4k start 954656.046762958 end 954665.804317333 rc 0
+INTARSIA_INK_HEAD_SCREEN: gathers through the serving head kernel 'matmul_p12_logits_gemv'
+INTARSIA_INK_HEAD_SCREEN: first screened head step served (1 row)
+finish=length prompt=4216 (cached 0) completion=1 | prefill 1847 ms (2283.1 tok/s) | decode 0 ms (0.00 tok/s)
+steps=3 graph replays=0 (captures 0) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+run 3 8k start 954665.874880958 end 954675.887619125 rc 0
+INTARSIA_INK_HEAD_SCREEN: gathers through the serving head kernel 'matmul_p12_logits_gemv'
+INTARSIA_INK_HEAD_SCREEN: first screened head step served (1 row)
+finish=length prompt=7976 (cached 0) completion=1 | prefill 3243 ms (2459.8 tok/s) | decode 0 ms (0.00 tok/s)
+steps=4 graph replays=0 (captures 0) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+run 4 8k start 954676.030520875 end 954687.062531833 rc 0
+INTARSIA_INK_HEAD_SCREEN: gathers through the serving head kernel 'matmul_p12_logits_gemv'
+INTARSIA_INK_HEAD_SCREEN: first screened head step served (1 row)
+finish=length prompt=8054 (cached 0) completion=1 | prefill 3098 ms (2599.3 tok/s) | decode 0 ms (0.00 tok/s)
+steps=4 graph replays=0 (captures 0) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+run 5 16k start 954687.1052455 end 954698.0350925 rc 0
+INTARSIA_INK_HEAD_SCREEN: gathers through the serving head kernel 'matmul_p12_logits_gemv'
+INTARSIA_INK_HEAD_SCREEN: first screened head step served (1 row)
+finish=length prompt=15975 (cached 0) completion=1 | prefill 6283 ms (2542.5 tok/s) | decode 0 ms (0.00 tok/s)
+steps=8 graph replays=0 (captures 0) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+run 6 16k start 954698.076635791 end 954708.768852625 rc 0
+INTARSIA_INK_HEAD_SCREEN: gathers through the serving head kernel 'matmul_p12_logits_gemv'
+INTARSIA_INK_HEAD_SCREEN: first screened head step served (1 row)
+finish=length prompt=15980 (cached 0) completion=1 | prefill 6083 ms (2627.2 tok/s) | decode 0 ms (0.00 tok/s)
+steps=8 graph replays=0 (captures 0) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+== done 20:29:26
+fleetq: #11911 done (exit 0)
