@@ -84,3 +84,32 @@ inside each kernel plus ~1 us per dependent dispatch, with no single bitwise lev
   processes per arm, all three lengths per process. Default on if (1)'s CI lies above 1.0 at 143 and the median is >= 1.0 at
   1k and 4k, and (2) does not contradict it (candidate median not below base at any length beyond the process spread).
   Otherwise the knob stays and the default goes off.
+
+## Lever 2: the decode attention's rel bias, one distance per thread (`INTARSIA_INK_BIAS_PRE`, `_BIAS_EARLY`; bb8457ccf)
+
+Built before any timing, default off. Fable's option (b) ("relproj stored transposed at load: a bias element is one 32-byte
+load, not 16 strided loads") without a weight copy: in `ink_attn_dec` the split's bias loop ran `x` over GP x nb elements
+(192 at 3 heads x 64 distances, 2 rounds over 128 threads), each a runtime-`dr` loop of a load and a dependent fma, 16 strided
+loads per element. The new form (InkP flag 64, d_rel 16 and at most 128 distances per split) gives each thread one distance:
+its 16 relproj values are loaded in one unrolled round and reused by the GP heads' fma chains, each chain in the same order
+(j ascending, `fma(rsh[h][j], w_j, a)`) and rounded as before, so the bias table is bit for bit the old one. Flag 128 issues
+those loads at kernel entry, next to CONV_PRE's, since they depend only on the split geometry. Wider splits (more than 128
+distances: the 8 full visits from ~4k on, every visit at 16k) keep the old loop. The prefill prologue already uses a
+preloaded vector form (flag 8), so this only brings decode in line with it.
+
+Rule (same as CONV_PRE): bitwise first (greedy ids base == diag arms C and D, `--spec off` and spec default; inkling2_attn
+and rows_exact with the knobs on; inkling2_batch with both on: the row-table form; G2 short self-golden byte-equal), then the
+within-process ratio C / B and D / C at 143 / 1k / 4k. Default on only if the CI of C / B (or D / B for EARLY) lies above 1.0
+at 143 and the median is >= 1.0 at 1k and 4k.
+
+## Jobs
+
+| fleetq | what | state |
+|---|---|---|
+| #11930 | build base d8c3c7148 / cand bb8457ccf / diag (cand + the uncommitted arm patch, `.scratch/diag`), test binaries, docs_env_vars (`--load cpu`) | queued |
+| #11936 | gates (ids, Metal tests, G2) + fresh profile of main (exclusive, `.scratch/jobG.sh`) | queued |
+| #11941 | A/B: within-process 4 arms x 3 processes + cross-process ABBA 6 x 2 (exclusive, `.scratch/jobA.sh`) | queued |
+
+Diag patch (`.scratch/diag`, never committed): `generate --prompt-ids` reads `INTARSIA_DIAG_ARMS` (one letter per prompt) and
+sets the Switch overrides before each prompt: A all off, B CONV_PRE, C + BIAS_PRE, D + BIAS_EARLY; it prints per prompt how
+many attention launches carried flags 32 / 64 / 128, so an arm that does not engage shows up as zero.
