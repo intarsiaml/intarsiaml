@@ -5855,7 +5855,7 @@ impl Model {
         let Some(hs) = self.head_screen.as_ref() else { return Ok(false) };
         // bf16 activations (the screen ops' contract), 16-byte aligned (the head kernels' vector form); 1..=SCREEN_ROWS_MAX rows
         // (a longer group: the full head)
-        if c == 0 || c > hs.rows || self.vocab_par || x.dtype != DType::Bf16 || x.offset % 16 != 0 || hs.disabled.load(std::sync::atomic::Ordering::Relaxed) {
+        if c == 0 || c > hs.rows || (c > 1 && !crate::screen::verify_wanted()) || self.vocab_par || x.dtype != DType::Bf16 || x.offset % 16 != 0 || hs.disabled.load(std::sync::atomic::Ordering::Relaxed) {
             return Ok(false);
         }
         // a plan dry run records the screen calls too (so `serve`, admitted kernels only, admits their kernels on the plan
@@ -6416,10 +6416,11 @@ impl Drop for HeadScreenW {
     fn drop(&mut self) {
         if std::env::var(crate::screen::STATS_ENV).is_ok_and(|v| v.trim() == "1") {
             eprintln!(
-                "{}: {} screened launch(es), {} gathered here, {} full-head fallback pass(es)",
+                "{}: {} screened launch(es), {} gathered here ({} verify groups), {} full-head fallback pass(es)",
                 crate::screen::ENV,
                 crate::screen::LAUNCHES.load(std::sync::atomic::Ordering::Relaxed),
                 self.gathers.load(std::sync::atomic::Ordering::Relaxed),
+                self.verify_groups.load(std::sync::atomic::Ordering::Relaxed),
                 self.fallback_passes.load(std::sync::atomic::Ordering::Relaxed)
             );
         }

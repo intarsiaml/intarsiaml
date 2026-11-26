@@ -140,6 +140,29 @@ pub const W_NORM_MAX: f64 = 1048576.0;
 /// kernels, the cpu reference ops included); unset or anything else: on for Metal, off elsewhere. See [`wanted`].
 pub const ENV: &str = "INTARSIA_INK_HEAD_SCREEN";
 
+/// `INTARSIA_INK_VERIFY_SCREEN` (lane ink-verify): the screened head on greedy verify groups of 2..=4 rows (`Model::verify_head`),
+/// where the screen itself is loaded ([`ENV`]). `0` / `off` / `false`: those groups run the full head; `1` / `on` / `true`: on;
+/// unset or anything else: [`VERIFY_DEFAULT_ON`]. The picks are bitwise the full head's either way.
+pub const VERIFY_ENV: &str = "INTARSIA_INK_VERIFY_SCREEN";
+
+/// What an unset [`VERIFY_ENV`] means.
+pub const VERIFY_DEFAULT_ON: bool = true;
+
+/// The value of [`VERIFY_ENV`] (read once).
+pub fn verify_wanted() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| verify_wanted_from(std::env::var(VERIFY_ENV).ok().as_deref()))
+}
+
+/// [`verify_wanted`] for a given value of [`VERIFY_ENV`].
+pub fn verify_wanted_from(env: Option<&str>) -> bool {
+    match env.map(|v| v.trim().to_ascii_lowercase()) {
+        Some(v) if matches!(v.as_str(), "0" | "off" | "false") => false,
+        Some(v) if matches!(v.as_str(), "1" | "on" | "true") => true,
+        _ => VERIFY_DEFAULT_ON,
+    }
+}
+
 /// Whether the screen is asked for: the value of [`ENV`] (if set) and the backend's name.
 pub fn wanted(env: Option<&str>, backend: &str) -> bool {
     match env.map(|v| v.trim().to_ascii_lowercase()) {
@@ -466,6 +489,18 @@ pub fn sweep(op: Op, cfg: &crate::admission::SweepConfig) -> Vec<crate::admissio
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn verify_screen_knob() {
+        assert_eq!(super::verify_wanted_from(None), super::VERIFY_DEFAULT_ON);
+        for off in ["0", "off", " FALSE "] {
+            assert!(!super::verify_wanted_from(Some(off)), "{off}");
+        }
+        for on in ["1", "on", "True"] {
+            assert!(super::verify_wanted_from(Some(on)), "{on}");
+        }
+        assert_eq!(super::verify_wanted_from(Some("x")), super::VERIFY_DEFAULT_ON);
+    }
+
     use super::*;
 
     struct Rng(u64);

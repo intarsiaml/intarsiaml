@@ -108,8 +108,34 @@ pub(super) struct Dspark {
     /// `INTARSIA_DSPARK_CUT` (default off): also stop once the product of the kept drafts' top-1 probabilities (an estimate of
     /// P(all accepted)) falls below this; with `INTARSIA_DSPARK_TAU=0` it is the only gate. The draft length cap is `--spec-k`.
     cut: Option<f32>,
+    /// `INTARSIA_DSPARK_ATTN_ROWS` (lane ink-verify): the block attention of a draft layer as one row-table launch over the
+    /// block's rows (see [`Model::ds_attn_rows`]) instead of one decode call per row.
+    attn_rows: bool,
+    /// The row-table launch's device tables: per draft layer `ATAB_LAYER` bytes, the rows' positions (i32) then the rows' K / V
+    /// cache addresses (u64 pairs), rewritten once per block pass.
+    attn_tab: Buffer,
     bufs: DsBufs,
 }
+
+/// Bytes of one layer's position vector in [`Dspark::attn_tab`] (up to 16 i32 rows).
+const ATAB_POS: usize = 64;
+/// Bytes of one layer's address table (16 rows of a K and a V address).
+const ATAB_ADDR: usize = 16 * 2 * 8;
+/// Bytes of one layer's region.
+const ATAB_LAYER: usize = ATAB_POS + ATAB_ADDR;
+
+/// `INTARSIA_DSPARK_ATTN_ROWS` (lane ink-verify): `0` / `off` / `false` keeps one decode call per block row, `1` / `on` / `true` takes
+/// the row-table launch where the backend has one, unset or anything else: [`ATTN_ROWS_DEFAULT_ON`].
+fn attn_rows_wanted(env: Option<&str>) -> bool {
+    match env.map(|v| v.trim().to_ascii_lowercase()) {
+        Some(v) if matches!(v.as_str(), "0" | "off" | "false") => false,
+        Some(v) if matches!(v.as_str(), "1" | "on" | "true") => true,
+        _ => ATTN_ROWS_DEFAULT_ON,
+    }
+}
+
+/// What an unset `INTARSIA_DSPARK_ATTN_ROWS` means.
+const ATTN_ROWS_DEFAULT_ON: bool = false;
 
 /// Where a DSpark ingest reads its taps: one pass's staging buffer (tap-major, `Model::ink_pass`) or a sequence's stash of
 /// decode rows (row-major `[rows, taps, H]`, `Model::dflash_stash`).
@@ -446,6 +472,9 @@ pub(super) fn load(
         host_topk: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DSPARK_DEVICE_TOPK").is_ok_and(|v| v == "0")),
         tau,
         cut: std::env::var("INTARSIA_DSPARK_CUT").ok().and_then(|v| v.trim().parse::<f32>().ok()).filter(|c| *c > 0.0),
+        // Metal only: its row-table decode kernel is the one-row kernel's arithmetic per row, and the window is a cache offset there
+        attn_rows: attn_rows_wanted(std::env::var("INTARSIA_DSPARK_ATTN_ROWS").ok().as_deref()) && b.name() == "metal" && b.supports_row_tables(),
+        attn_tab: b.alloc((c.n_layers * ATAB_LAYER).max(16), MemKind::Device)?,
         bufs,
     };
     Ok((ds, feat))
@@ -477,6 +506,22 @@ impl Dspark {
 fn dspark_dump() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var("INTARSIA_DSPARK_DUMP").is_ok_and(|v| v.trim() == "1"))
+}
+
+/// `INTARSIA_DSPARK_ATTN_ROWS_CHECK=1`, read once.
+fn ds_attn_check() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_DSPARK_ATTN_ROWS_CHECK").is_ok_and(|v| v == "1"))
+}
+
+/// Said once per reason on stderr (`grep 'dspark attention rows' ` in a run's log tells whether the path engaged or fell back).
+fn note_ds_attn_once(what: &str) {
+    static SEEN: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+    let mut seen = SEEN.lock().unwrap();
+    if !seen.iter().any(|w| w == what) {
+        eprintln!("dspark attention rows: {what}");
+        seen.push(what.to_string());
+    }
 }
 
 fn dspark_profile() -> bool {
@@ -609,6 +654,135 @@ impl Model {
         Ok(())
     }
 
+    /// The window of draft layer `li`'s block attention at query position `last`, as the call's attributes name it (`window` is the
+    /// draft window plus the block for a local layer, 0 where the query sees every key), and the first key it sees.
+    fn ds_attn_start(ds: &Dspark, li: usize, last: usize) -> usize {
+        let win = if ds.layers[li].local { ds.c.window + BLOCK } else { 0 };
+        let win = if win == 0 || last < win { 0 } else { win };
+        if win > 0 && last + 1 > win {
+            last + 1 - win
+        } else {
+            0
+        }
+    }
+
+    /// Write the row-table launches' tables for a block pass at query position `last` (`t` rows): per draft layer the rows' position
+    /// (`last - start`, `start` the first key the layer's window sees) and the K / V cache addresses moved to `start`, the same
+    /// operands the per-row windowed call binds (`launch_attn_window` of the Metal backend).
+    fn ds_attn_tab_fill(&self, ds: &Dspark, st: &SequenceState, last: usize, t: usize) -> Result<()> {
+        let kv = &st.dflash.as_ref().ok_or_else(|| Error::invalid("sequence without DFlash state"))?.kv;
+        let mut bytes = vec![0u8; ds.layers.len() * ATAB_LAYER];
+        for li in 0..ds.layers.len() {
+            let slot = Self::attn_slot_at(kv, li)?;
+            let (Some(ka), Some(va)) = (self.backend.device_address(&slot.k), self.backend.device_address(&slot.v)) else {
+                return Err(Error::invalid("no device address for a draft KV cache buffer"));
+            };
+            let start = Self::ds_attn_start(ds, li, last);
+            let off = (start * ds.c.head_dim * slot.dtype.size_bytes()) as u64;
+            let base = li * ATAB_LAYER;
+            for r in 0..t {
+                bytes[base + r * 4..base + r * 4 + 4].copy_from_slice(&((last - start) as i32).to_le_bytes());
+                let a = base + ATAB_POS + r * 16;
+                bytes[a..a + 8].copy_from_slice(&(ka + off).to_le_bytes());
+                bytes[a + 8..a + 16].copy_from_slice(&(va + off).to_le_bytes());
+            }
+        }
+        self.backend.upload(&ds.attn_tab, 0, &bytes, self.stream)
+    }
+
+    /// The `t` block rows of draft layer `li`'s attention as one row-table `AttnDecode` launch (`OpCall::rows`, the batched-decode
+    /// kernel, bitwise the one-row call per row): every row reads the same cache pair, at the same position and window, so the
+    /// table names the cache moved to the window's first key and the position inside it. `Ok(false)`, nothing launched: the knob is
+    /// off, or the call has no kernel or the scratch it needs (the caller launches per row). A plan dry run records this call too
+    /// (as `extra`, so the plan admits its kernel and sizes its scratch) and returns `false`, so the per-row calls are recorded as
+    /// before.
+    #[allow(clippy::too_many_arguments)]
+    fn ds_attn_rows(
+        &self,
+        ds: &Dspark,
+        li: usize,
+        slot: &crate::state::AttnKvState,
+        q: &TensorRef,
+        kc: &TensorRef,
+        vc: &TensorRef,
+        ao: &TensorRef,
+        attrs: &OpAttrs,
+        t: usize,
+        rec: bool,
+        profile: bool,
+    ) -> Result<bool> {
+        if !ds.attn_rows || !(2..=16).contains(&t) || self.tp.world != 1 || !self.peers.is_empty() {
+            return Ok(false);
+        }
+        let mut tab = self.view(&ds.attn_tab, DType::U8, &[t, 2, 8]);
+        tab.offset = li * ATAB_LAYER + ATAB_POS;
+        let mut pos = self.view(&ds.attn_tab, DType::I32, &[t]);
+        pos.offset = li * ATAB_LAYER;
+        // the position and the window are in the table, as in the Metal windowed call: the call itself is a plain decode
+        let mut at = attrs.clone();
+        at.pos0 = 0;
+        at.window = 0;
+        let mut call = OpCall::new(Op::AttnDecode, vec![q.clone(), kc.clone(), vc.clone()], vec![ao.clone()], at);
+        call.pos = Some(pos);
+        call.rows = Some(crate::ops::RowTab { ptrs: tab, rows: t, stride: 2, index: 0, byte_off: 0 });
+        call.exact_rows = self.verifying();
+        let _ = slot;
+        let need = match call.check().and_then(|_| self.registry.select(&call).map(|k| k.scratch_bytes(&ShapeInfo::from_call(&call)))) {
+            Ok(n) => n,
+            Err(e) => {
+                note_ds_attn_once(&format!("no kernel for the row-table call: {e}"));
+                return Ok(false);
+            }
+        };
+        if rec {
+            let set_extra = |v: bool| -> bool { self.recorder.lock().unwrap().as_mut().map_or(false, |r| std::mem::replace(&mut r.extra, v)) };
+            let prev = set_extra(true);
+            let r = self.exec_call(call, profile);
+            set_extra(prev);
+            r?;
+            return Ok(false);
+        }
+        if need > self.scratch.as_ref().map_or(0, |b| b.bytes()) {
+            note_ds_attn_once("scratch smaller than the row-table call needs");
+            return Ok(false);
+        }
+        note_ds_attn_once("engaged (one row-table attention launch per draft layer)");
+        if ds_attn_check() {
+            return self.ds_attn_rows_checked(call, q, kc, vc, ao, attrs, t, profile).map(|()| true);
+        }
+        self.exec_call(call, profile)?;
+        Ok(true)
+    }
+
+    /// `INTARSIA_DSPARK_ATTN_ROWS_CHECK=1` (diagnostic): run the row-table launch and the per-row calls into the same output one
+    /// after the other, compare the two outputs byte for byte after each (a synchronise and a download per layer), and fail the pass
+    /// on a difference. The per-row result stays in `ao`.
+    #[allow(clippy::too_many_arguments)]
+    fn ds_attn_rows_checked(&self, call: OpCall, q: &TensorRef, kc: &TensorRef, vc: &TensorRef, ao: &TensorRef, attrs: &OpAttrs, t: usize, profile: bool) -> Result<()> {
+        let n = ao.numel() * ao.dtype.size_bytes();
+        let mut rows = vec![0u8; n];
+        let mut each = vec![0u8; n];
+        self.exec_call(call, profile)?;
+        self.backend.synchronize(self.stream)?;
+        self.backend.download(&ao.buf, ao.offset, &mut rows, self.stream)?;
+        for rr in 0..t {
+            self.exec(Op::AttnDecode, vec![q.rows(rr, 1), kc.clone(), vc.clone()], vec![ao.rows(rr, 1)], attrs.clone(), profile)?;
+        }
+        self.backend.synchronize(self.stream)?;
+        self.backend.download(&ao.buf, ao.offset, &mut each, self.stream)?;
+        static CHECKS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        static BAD: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let c = CHECKS.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+        if rows != each {
+            let bad = BAD.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+            let first = rows.iter().zip(&each).position(|(a, b)| a != b).unwrap_or(0);
+            eprintln!("dspark attn rows check: MISMATCH at byte {first} of {n} (check {c}, {bad} bad so far)");
+        } else if c % 500 == 0 {
+            eprintln!("dspark attn rows check: {c} checks, {} mismatches", BAD.load(std::sync::atomic::Ordering::Relaxed));
+        }
+        Ok(())
+    }
+
     /// q / k norm then neox rope at positions `pos0 ..` (the draft's theta, full rotary): `x` -> `tmp` -> `out`.
     #[allow(clippy::too_many_arguments)]
     fn ds_qk(&self, ds: &Dspark, x: &TensorRef, w: &TensorRef, tmp: &TensorRef, out: &TensorRef, pos0: usize, profile: bool) -> Result<()> {
@@ -671,6 +845,10 @@ impl Model {
             self.backend.copy(&mrows.buf, mrows.offset, &ds.masks.buf, ds.masks.offset, ds.masks.nbytes(), self.stream)?;
         }
         let last = p0 + t - 1;
+        // the row-table launches' tables of this block pass, one upload (not in a plan dry run)
+        if ds.attn_rows && !rec {
+            self.ds_attn_tab_fill(ds, st, last, t)?;
+        }
         for (li, l) in ds.layers.iter().enumerate() {
             let slot = Self::attn_slot_at(&st.dflash.as_ref().unwrap().kv, li)?;
             self.exec(Op::RmsNorm, vec![x.clone(), l.ln1.clone()], vec![n.clone()], eps_d.clone(), profile)?;
@@ -686,18 +864,22 @@ impl Model {
             let vc = self.view(&slot.v, slot.dtype, &shape);
             let win = if l.local { ds.c.window + t } else { 0 };
             let win = if win == 0 || last < win { 0 } else { win };
-            for rr in 0..t {
-                let attrs = OpAttrs {
-                    pos0: last,
-                    scale: 1.0 / (hd as f32).sqrt(),
-                    n_heads: nh,
-                    n_kv_heads: nkv,
-                    head_dim: hd,
-                    kv_cap: slot.cap,
-                    window: win,
-                    ..Default::default()
-                };
-                self.exec(Op::AttnDecode, vec![q3(0).rows(rr, 1), kc.clone(), vc.clone()], vec![ao.rows(rr, 1)], attrs, profile)?;
+            let attrs = OpAttrs {
+                pos0: last,
+                scale: 1.0 / (hd as f32).sqrt(),
+                n_heads: nh,
+                n_kv_heads: nkv,
+                head_dim: hd,
+                kv_cap: slot.cap,
+                window: win,
+                ..Default::default()
+            };
+            // every row is the same decode call (position `last`, the same window): one row-table launch where the backend has it
+            // (bitwise the per-row calls), else one call per row
+            if !self.ds_attn_rows(ds, li, slot, &q3(0), &kc, &vc, &ao, &attrs, t, rec, profile)? {
+                for rr in 0..t {
+                    self.exec(Op::AttnDecode, vec![q3(0).rows(rr, 1), kc.clone(), vc.clone()], vec![ao.rows(rr, 1)], attrs.clone(), profile)?;
+                }
             }
             self.proj(&ao.reshaped(&[t, nh * hd]), &l.wo, &o, profile)?;
             add(&x, &o, &xn)?;
@@ -880,5 +1062,25 @@ impl Model {
             prev = best;
         }
         Ok(out)
+    }
+}
+
+#[cfg(test)]
+mod attn_rows_tests {
+    use super::*;
+
+    #[test]
+    fn attn_rows_knob() {
+        assert_eq!(attn_rows_wanted(None), ATTN_ROWS_DEFAULT_ON);
+        assert!(!attn_rows_wanted(Some("0")) && !attn_rows_wanted(Some(" Off ")) && !attn_rows_wanted(Some("false")));
+        assert!(attn_rows_wanted(Some("1")) && attn_rows_wanted(Some("ON")) && attn_rows_wanted(Some("true")));
+        assert_eq!(attn_rows_wanted(Some("maybe")), ATTN_ROWS_DEFAULT_ON);
+    }
+
+    #[test]
+    fn tab_layout_holds_a_block() {
+        assert!(BLOCK <= 16 && BLOCK * 4 <= ATAB_POS && BLOCK * 16 <= ATAB_ADDR);
+        assert_eq!(ATAB_POS % 8, 0, "the address table (8-byte aligned) follows the position vector");
+        assert_eq!(ATAB_LAYER % 8, 0);
     }
 }
