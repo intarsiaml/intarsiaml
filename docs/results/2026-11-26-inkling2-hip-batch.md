@@ -13,17 +13,20 @@ Raw: `docs/results/2026-11-26-inkling2-hip-batch/raw/`.
 | Prefill 16k | not run (COMMON-1126 baseline 2793 predates #528) | not run; solo device code identical to main (section 12) | 0 expected |
 | Decode short (`--spec off`, 256 tok) | 76.90 | 76.83 | -0.1 % (single run; ABBA on b7 vs main3: 1.0003 ± 0.0003) |
 | Decode 4k (`--spec off`, 256 tok) | 74.09 | 74.03 | -0.1 % (single run; ABBA on b7 vs main3: 1.0001 ± 0.0006) |
-| Serve, 16 real prompts one at a time (solo server, 128 tok each, prefill included) | 54.4 | 54.4 (same engine) | |
-| Serve, real prompts at once: 4 / 8 / 16 (128 tok each, prefill included, 2 reps each) | refused (NoKernel) | **94.2 / 106.0 / 116.2** | 16 at once: **2.14x** the same 16 one at a time |
-| Serve aggregate, localeval 1k filler: 1 / 4 / 8 / 16 streams (256 tok, 3 reps) | refused at > 1 | 66.6 / **130.0 / 168.4 / 189.9** | new |
-| Pure batched decode B 16 (`batch_step`, real text), short / 4k | refused | **289.1 / 253.0** (3.77x / 3.45x the solo step; measured on b5, section 5.3) | new |
+| Serve, 16 real prompts one at a time (solo server `--spec off`, 128 tok each, prefill included; b7, solo device code = main's) | 54.4 | 54.4 (same engine) | baseline is plain decode; HIP's default solo since #527 is DSpark, faster one at a time |
+| Serve, real prompts at once: 4 / 8 / 16 (128 tok each, prefill included, 2 reps each; **b7**) | refused (NoKernel) | **94.2 / 106.0 / 116.2** | 16 at once: **2.14x** the same 16 one at a time (`--spec off`) |
+| Serve aggregate, localeval 1k filler: 1 / 4 / 8 / 16 streams (256 tok, 3 reps; **b7**) | refused at > 1 | 66.6 / **130.0 / 168.4 / 189.9** | new |
+| Pure batched decode B 16 (`batch_step`, real text), short / 4k (**b5**: same kernel source, built before the TU split, so the RT kernels' code may differ slightly) | refused | **289.1 / 253.0** (3.77x / 3.45x the solo step; section 5.3) | new |
 
 - **Verdict: ships, opt-in by `--max-batch`.** Two bar items are short (below), both for lack of radiance time, not for a failure.
   - Batched == solo holds bitwise at every level:
-    - kernels: 645 + 40 row-table calls (b5, b6, b7, b8);
-    - model: 2800 tokens at B 1 / 4 / 8 / 16 (section 5.2);
+    - kernels: 645 + 40 row-table calls (b5, b6, b7, **b8**);
+    - model: 2800 tokens at B 1 / 4 / 8 / 16 (section 5.2, **b5**); the tiny-fixture batch suite on **b8**;
     - server: the real prompts sent at once against the solo server's replies: 16 / 16 (window 8), and 4 / 4, 8 / 8, 16 / 16
-      (window 10).
+      (window 10), all on **b7**.
+  - **The shipped head (b8, on #528) has no real-model batched == solo run.** Its evidence: the row-table unit test, the tiny
+    batch suite, solo md5 = main and solo device ISA = main. #528's PF2 prefill forms also run in the busy chunks of a batching
+    server; the real-model and serve checks ran on b7, before #528 (no window was left).
   - The solo path is main's:
     - solo device code identical to main 3226af2b9, kernel for kernel (31 / 31, 32 / 32);
     - greedy md5 at 64 / 256, short and 4k, equal to main on b8;
