@@ -43,7 +43,11 @@ fn inkling2_sampled_dspark_real_model_runs() {
         eprintln!("SKIP: INTARSIA_INK_MODEL unset");
         return;
     };
-    let temps: Vec<f32> = var("INTARSIA_SS_TEMPS").unwrap_or_else(|| "1.0,0.6".into()).split(',').map(|t| t.trim().parse().unwrap()).collect();
+    let temps: Vec<f32> = var("INTARSIA_SS_TEMPS")
+        .unwrap_or_else(|| "1.0,0.6".into())
+        .split(',')
+        .map(|t| t.trim().parse().unwrap())
+        .collect();
     let seeds: Vec<(u64, u64)> = var("INTARSIA_SS_SEEDS")
         .unwrap_or_else(|| "0..20".into())
         .split(',')
@@ -65,7 +69,11 @@ fn inkling2_sampled_dspark_real_model_runs() {
     let t_load = std::time::Instant::now();
     let loaded = intarsia_models::load_engine(&dir, backend(), &opts).unwrap();
     let e = loaded.engine;
-    eprintln!("loaded in {:.1} s, INTARSIA_SPEC_SAMPLED_DFLASH={:?}", t_load.elapsed().as_secs_f64(), var("INTARSIA_SPEC_SAMPLED_DFLASH"));
+    eprintln!(
+        "loaded in {:.1} s, INTARSIA_SPEC_SAMPLED_DFLASH={:?}",
+        t_load.elapsed().as_secs_f64(),
+        var("INTARSIA_SPEC_SAMPLED_DFLASH")
+    );
     let prompt = e.tokenize("Once upon a time, in a small village by the sea, there lived", false).unwrap();
     let mut f = out.map(|p| std::fs::OpenOptions::new().create(true).append(true).open(p).unwrap());
     let t0 = std::time::Instant::now();

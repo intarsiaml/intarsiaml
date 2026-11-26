@@ -31,8 +31,17 @@ fn sampled_dspark_is_opt_in_and_leaves_greedy_alone() {
         return;
     }
     gate_off();
-    assert_eq!(std::env::var("INTARSIA_SPEC_SAMPLED_DFLASH").ok(), None, "run without INTARSIA_SPEC_SAMPLED_DFLASH set");
-    let greedy = |p: &[u32], n: usize| intarsia_core::GenRequest { prompt: p.to_vec(), max_tokens: n, ignore_eos: true, ..Default::default() };
+    assert_eq!(
+        std::env::var("INTARSIA_SPEC_SAMPLED_DFLASH").ok(),
+        None,
+        "run without INTARSIA_SPEC_SAMPLED_DFLASH set"
+    );
+    let greedy = |p: &[u32], n: usize| intarsia_core::GenRequest {
+        prompt: p.to_vec(),
+        max_tokens: n,
+        ignore_eos: true,
+        ..Default::default()
+    };
     let (off, _) = engine(None, None, None);
     for sampled in [None, Some(false)] {
         let (e, tel) = engine(Some(3), sampled, None);

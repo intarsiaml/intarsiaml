@@ -1,6 +1,23 @@
 # Inkling-2: exact speculative decoding for sampled requests with the DSpark draft (lane ink-sampled)
 
-Branch `ink/sampled-dspark` from `origin/main` `3226af2b9`. Status: in progress.
+Branch `ink/sampled-dspark` from `origin/main` `3226af2b9`; the PR head also merges main up to `80719483a` (#529, HIP batching kernels).
+
+**Result: sampled requests can now draft with DSpark, exactly, opt-in (`INTARSIA_SPEC_SAMPLED_DFLASH=1`); no default changed.** The rule is
+`SampledSpec::Match` in its seed-exact keyed form (section 1): a seeded request emits the same ids with drafting on or off, so the output
+is plain sampling's exactly. Sampled decode, DSpark default draft, spec on / off, T 1.0 and 0.7 (top-p 1.0), 4 + 4 paired processes:
+
+| backend | T | short | 1k | 4k | acceptance short / 1k / 4k |
+|---|---|---|---|---|---|
+| hip (R9700) | 1.0 | 70.1 -> 82.1 tok/s, **1.172** (1.163-1.181) | 68.6 -> 73.5, **1.070** (1.049-1.092) | 67.4 -> 95.8, **1.422** (1.386-1.458) | 49 / 50 / 73 % |
+| hip (R9700) | 0.7 | 70.3 -> 83.2, **1.184** (1.179-1.189) | 68.5 -> 73.5, **1.074** (1.060-1.088) | 67.3 -> 94.0, **1.396** (1.378-1.414) | 51 / 52 / 77 % |
+| Metal (M5 Max) | 1.0 / 0.7 | **not measured**: exclusive slot queued (#12167, behind ~7 h of cpu jobs) | | | |
+
+Gates: 1 law test pass on the fixture (cpu, n 1500 + 1500, 3 configurations) and on the real model on Metal and hip (T 1.0 / 0.6, about
+500 + 900 requests per temperature; no p below 0.06 in 20 tests per backend); 2 seed equality exact (tiny fixtures on cpu / Metal / hip;
+real model on hip: 250 shared seeds and 16 speed processes; **real model on Metal pending**); 3 greedy md5 main = branch on Metal and hip
+(short + 4k, 64 / 256 tokens, spec off and default), tiny suites as on main on all three backends; 4 hip measured, **Metal pending**.
+Commits: every GPU gate ran on the pre-merge branch (`3226af2b9` + this lane: binaries `br1` / `br2`); the fixture law test on `br3`
+(same core code); the PR head's cpu tiny suites on `br4` (2.1).
 
 ## Briefs received
 
@@ -114,7 +131,7 @@ and the host path for the top-k one.
 
 | suite | cpu (endor `--load cpu`, #12122) | Metal (endor `--exclusive`, #12134) | hip (tatooine, card 0) |
 |---|---|---|---|
-| `inkling2` | 17 / 17 | 17 / 17 | see below |
+| `inkling2` | 17 / 17 | 17 / 17 | 14 / 17, main 14 / 17 (W3, one test thread; same 3 failures) |
 | `inkling2_dspark` | 4 / 4 | 4 / 4 | 4 / 4 (W1a) |
 | `inkling2_dspark_cut` | 1 / 1 | 1 / 1 | 1 / 1 (W1a) |
 | `inkling2_verify_softcap` | 1 / 1 | 1 / 1 | 1 / 1 (W1a) |
@@ -125,7 +142,10 @@ HIP `inkling2`: with the default parallel test threads both trees fail a varying
 12 / 17 in W1a, branch 12 / 17 and main 6 / 17 in W2 (card 0 alone). Every failing load is `NoKernel` for `head_screen` /
 `logits_gather` / `screen_argmax`: the screened-head tests set `INTARSIA_INK_HEAD_SCREEN=1` process-wide (`load_screen`,
 tests/inkling2.rs:90) and other threads' loads race into it (HIP has no screen kernels; ink-hip-spec recorded the screened pair as
-failing by design and got 15 / 17). A harness race, the same on main; W3 runs both trees with `--test-threads=1`.
+failing by design and got 15 / 17). A harness race, the same on main. W3, `--test-threads=1`, card 0 alone: **branch 14 / 17, main
+14 / 17, the same three failures**: the screened pair (`screened_head_one_row_only`, `screen_keeps_batching`: no screen kernels on
+hip, by design) and `inkling2_tiny_g1b_teacher_forced_bf16`, a third failure compared with ink-hip-spec's 15 / 17 that fails identically
+on main (not investigated; outside this lane).
 
 ### 2.1b Law test on the fixture (gate 1, cpu)
 
@@ -155,7 +175,7 @@ over the five positions of one temperature (a summary: the positions are depende
 
 | backend | T | n off + n on | p at positions 2 / 3 / 4 / 5 / 6 | Fisher p | shared seeds with identical ids |
 |---|---|---|---|---|---|
-| Metal (device sampler: `forward_verify_gumbel`) | 1.0 | 506 + 917 | 0.382 / 0.098 / 0.785 / 0.753 / 0.746 | 0.608 | (none in this run; see the speed A/B: 8 / 8 processes per temperature) |
+| Metal (device sampler by the code path: plain temperature, recipe `gumbel_sampling`; not trace-checked on the real model yet) | 1.0 | 506 + 917 | 0.382 / 0.098 / 0.785 / 0.753 / 0.746 | 0.608 | none (the run stopped before its shared seeds; pending, slot B) |
 | Metal | 0.6 | 506 + 917 | 0.607 / 0.778 / 0.906 / 0.916 / 0.896 | 0.996 | |
 | hip (host sampler, lazy cap) | 1.0 | 489 + 719 | 0.535 / 0.061 / 0.668 / 0.486 / 0.675 | 0.452 | 150 / 150 |
 | hip | 0.6 | 489 + 528 | 0.407 / 0.598 / 0.879 / 0.883 / 0.968 | 0.971 | 100 / 100 |
@@ -170,10 +190,12 @@ lines), arm on 15:10:34-15:23:53 (stopped at the slot's end, 1834 lines). hip: a
 
 The rule is seed-exact, so the check is ids equality, not only equality in law:
 
-- Tiny fixtures (2.1): every seeded request on cpu, Metal and hip, both samplers, k 2 / 3 / 7.
+- Tiny fixtures (2.1): every seeded request on cpu, Metal and hip; host sampler on all three, device sampler on cpu (reference op)
+  and Metal (recipe); k 2 / 3 / 7 (cpu, hip) or 3 / 7 (Metal).
 - Real model, hip: the 250 shared (seed, temperature) pairs of 2.2, identical between arms and between cards; the speed A/B (3.1): for
   each temperature all 8 processes (4 off, 4 on, two cards) emit identical ids on all 6 prompts x 128 tokens.
-- Real model, Metal: the speed A/B (3.2), same check.
+- Real model, Metal: **pending** (slot B, 3.2: seeds 0..100 in both arms with a trace of the device-drawn passes, then the speed A/B's
+  ids check). On Metal so far: the tiny fixtures (both samplers) and the law test.
 - Run-to-run within a backend: the 4 processes of an arm emit the same ids (speed A/B), on both backends.
 
 ### 2.4 Greedy is unchanged (gate 3)
@@ -187,7 +209,9 @@ branch (`br`, before the merge of #529), `--spec off` and the recipe default (DS
 - **hip** (W3, card 0 main, card 1 branch): all 7 identical across the four runs at 64 and 256 (`raw/hip-w3/md5-table.txt`; len4k
   `0f621a97` / `d575dd13`). Spec counters main-def = br-def (508 passes, 853 of 1274 accepted).
 
-(Two chat prompts stop at EOS before 256 tokens, the same length in every run.)
+(Two chat prompts stop at EOS before 256 tokens, the same length in every run.) The md5 processes ran back to back without idle gaps:
+their decode rates are not a timing comparison (Metal main 77.4 / 94.8 vs branch 72.9 / 91.5 tok/s is the power-history effect of
+docs/results/2026-11-25-inkling2-mode.md; on hip, where main and branch ran at the same time on the two cards, they are within 0.6 %).
 
 ## 3. Speed (gate 4)
 
@@ -234,15 +258,15 @@ them). The Metal path's correctness is in (tiny suites, the law test with the de
 | #12122 | endor `--load cpu` | cpu tiny gates (6 suites) + fixture law test | see section 2 |
 | #12124, #12132, #12142 | tatooine `--load cpu` | HIP builds (branch `br1`, main, branch tests `br2`) | ok |
 | #12129, #12141 | endor `--load cpu` | Metal CLI branch + main, Metal test binaries | ok |
-| #12136 | tatooine, radiance down | W1a (tiny suites hip + real-model law, arm on) | **aborted by me**: I released the job (meant to requeue it) seconds after it had started; fleetq stopped the local ssh, the remote window kept running without a slot; stopped in #12139 (`--load none`). Radiance down 14:43:37 to 14:45:58 (then held down by #12138, ink-hip-p12's own window): **2:21** on this lane's account |
+| #12136 | tatooine, radiance down | W1a (tiny suites hip + real-model law, arm on) | **aborted by me**: I released the job at 14:45:05 (meant to requeue it with new binaries) without noticing it had started at 14:43:37; fleetq stopped the local ssh, the remote window kept running **without a slot for about 45 s**; stopped in #12139 (`--load none`, 14:45:41), whose TERM ran the window's trap (its log lines were lost with the dead ssh pipe, the restore itself ran). fleetq: radiance back at 14:45:54; the next job on the cards, ink-hip-p12's #12138, started at 14:46:34, after this lane's processes were gone (last write 14:45:43), so no overlap. Radiance down 14:43:37-14:45:54: **2:17**. W1a's data (tiny suites, 759 law lines of arm on) was partly collected after the slot was released |
 | #12139 | tatooine `--load none` | stop the orphaned W1a window | done; no ink-sampled process or container left |
 | #12134 | endor `--exclusive` slot 1 (14:55:11-15:23:53, 28:42) | Metal tiny suites, greedy md5 main / branch, real-model law (arm off stopped 15:10:34, arm on at the slot's end) | all pass; 2.1, 2.2, 2.4. My orphaned cpu law process from #12122 (released at 14:54) ran on until 14:56, inside this slot's first 1.5 min (killed; it only touched the CPU, during the tiny suites, not during md5 or law) |
-| #12138 | (ink-hip-p12) | held radiance down after W1a | radiance came back at its end (fleetq: radiance-rank0 `up` at 14:54) |
 | #12146 | tatooine, radiance down (W2) | inkling2 tiny alone (parallel threads), speed A/B both cards | radiance down 15:00:37-15:03:52: **3:15**; back ("radiance answers ... after 15 s") |
 | #12156 | tatooine, radiance down (W3) | inkling2 tiny `--test-threads=1` branch / main, greedy md5 main / branch, real-model law | radiance down 15:16:04-15:19:29: **3:25**; back |
 | #12159 | tatooine `--load cpu` | fixture law tests (cpu backend) | 3 / 3 pass; 2.1b |
-| #12165 | endor `--load cpu` | host checks on the merged branch: `docs_env_vars` 2 / 2, `recipes_doc` 3 / 3, core lib 268 / 268 (4 ignored), models `--tests` check | ok (`cargo fmt --check` reports only files this lane does not touch; the repo is not rustfmt-clean) |
+| #12165 | endor `--load cpu` | host checks on the merged branch: `docs_env_vars` 2 / 2, `recipes_doc` 3 / 3, core lib 268 / 268 (4 ignored), models `--tests` check | ok. `cargo fmt --check` fails on main already (files this lane does not touch); the lane's four new test files were then run through rustfmt (repo config) and compile (#12170) |
 | #12157 / #12167 | endor `--exclusive` slot 2 | Metal speed A/B | queued (#12157 cancelled for a reservation that fleetq refused; requeued as #12167) |
 
-Radiance: 3 windows (W1a, W2, W3), **9:01 in total** (2:21 + 3:15 + 3:25), each under 5:00; radiance answered after every window.
+Radiance: 3 windows (W1a, W2, W3), **8:57 in total** (2:17 + 3:15 + 3:25), each under 5:00; radiance was back after every window
+(fleetq health checks).
 endor exclusive slots: 1 used (28:42), 1 queued.

@@ -46,8 +46,13 @@ pub fn engine(k: Option<usize>, sampled: Option<bool>, script: Option<DraftScrip
         Some(k) => SpecConfig { mode: SpecMode::Dflash, k, k_min: None },
         None => SpecConfig::default(),
     };
-    let e = LocalEngine::new(m, Arc::new(super::common::ByteCodec), EngineMeta { id: "tiny-dspark".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
-        .unwrap();
+    let e = LocalEngine::new(
+        m,
+        Arc::new(super::common::ByteCodec),
+        EngineMeta { id: "tiny-dspark".into(), eos_ids: vec![], spec, ..Default::default() },
+        tel.clone(),
+    )
+    .unwrap();
     (e, tel)
 }
 
@@ -55,7 +60,8 @@ pub fn engine(k: Option<usize>, sampled: Option<bool>, script: Option<DraftScrip
 pub fn model(k: Option<usize>, sampled: Option<bool>, script: Option<DraftScript>) -> (Model, Arc<Telemetry>) {
     let (tdir, ddir) = dirs().unwrap();
     let recipe = intarsia_models::parse_recipe(include_str!("../../../../recipes/inkling2.toml")).unwrap();
-    let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(tdir.join("config.json")).unwrap()).unwrap();
+    let cfg: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(tdir.join("config.json")).unwrap()).unwrap();
     let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
     let src = SafeTensors::open_dir(&tdir).unwrap();
     let dflash = k.map(|_| intarsia_models::load::open_dflash(Some(&ddir), false).unwrap());
@@ -84,7 +90,16 @@ pub const PROMPTS: [&[u32]; 3] = [
 pub const CFGS: [(f32, usize, f32); 3] = [(1.0, 0, 1.0), (0.6, 0, 1.0), (0.7, 20, 0.9)];
 
 pub fn sreq(prompt: &[u32], n: usize, seed: u64, (temperature, top_k, top_p): (f32, usize, f32)) -> GenRequest {
-    GenRequest { prompt: prompt.to_vec(), max_tokens: n, temperature, top_k, top_p, seed: Some(seed), ignore_eos: true, ..Default::default() }
+    GenRequest {
+        prompt: prompt.to_vec(),
+        max_tokens: n,
+        temperature,
+        top_k,
+        top_p,
+        seed: Some(seed),
+        ignore_eos: true,
+        ..Default::default()
+    }
 }
 
 pub fn run(e: &LocalEngine, req: GenRequest) -> Vec<u32> {
@@ -131,14 +146,21 @@ pub fn seeded_ids_equal_spec_off(label: &str) -> (u64, u64, u64) {
                     let b = run(&on, sreq(p, n, seed, cfg));
                     assert_eq!(a, b, "{label}: random draft, cfg {cfg:?} n {n} seed {seed} prompt {p:?}");
                     // (a held-back text tail goes out after the last token as one more `Token` event repeating the last id)
-                    assert!(a.len() == n || (a.len() == n + 1 && a[n] == a[n - 1]), "{label}: {} ids for max_tokens {n}", a.len());
+                    assert!(
+                        a.len() == n || (a.len() == n + 1 && a[n] == a[n - 1]),
+                        "{label}: {} ids for max_tokens {n}",
+                        a.len()
+                    );
                 }
             }
         }
     }
     let t = tel_on.snapshot();
     assert!(t.spec_steps > 0, "{label}: sampled requests never drafted (vacuous)");
-    eprintln!("{label}: random draft: passes {} proposed {} accepted {}", t.spec_steps, t.spec_proposed, t.spec_accepted);
+    eprintln!(
+        "{label}: random draft: passes {} proposed {} accepted {}",
+        t.spec_steps, t.spec_proposed, t.spec_accepted
+    );
     let (mut steps, mut prop, mut acc) = (0, 0, 0);
     for k in [3usize, 7] {
         let full = Arc::new(Mutex::new(Vec::new()));
@@ -148,9 +170,17 @@ pub fn seeded_ids_equal_spec_off(label: &str) -> (u64, u64, u64) {
                 let seed = 11;
                 let reference = run(&off, sreq(p, 48, seed, cfg));
                 *full.lock().unwrap() = p.iter().chain(&reference).copied().collect();
-                assert_eq!(run(&sc, sreq(p, 48, seed, cfg)), reference, "{label}: scripted k {k} cfg {cfg:?} prompt {p:?}");
+                assert_eq!(
+                    run(&sc, sreq(p, 48, seed, cfg)),
+                    reference,
+                    "{label}: scripted k {k} cfg {cfg:?} prompt {p:?}"
+                );
                 // another seed with the same proposals: they are mostly wrong for it
-                assert_eq!(run(&sc, sreq(p, 30, 12, cfg)), run(&off, sreq(p, 30, 12, cfg)), "{label}: scripted k {k} cfg {cfg:?} seed 12");
+                assert_eq!(
+                    run(&sc, sreq(p, 30, 12, cfg)),
+                    run(&off, sreq(p, 30, 12, cfg)),
+                    "{label}: scripted k {k} cfg {cfg:?} seed 12"
+                );
             }
         }
         let t = tel.snapshot();
@@ -304,13 +334,19 @@ pub fn law_test(label: &str, n: u64, cfgs: &[(f32, usize, f32)]) -> Vec<String> 
         let plen = prompt.len();
         let script: DraftScript = Box::new(move |seq: &[u32], kk: usize| {
             // the drafts start at absolute position seq.len(); generated token g (1-based) sits at plen + g - 1
-            (0..kk).map(|j| seq.len() + j).map(|at| at.checked_sub(plen + 1).and_then(|i| mode.get(i).copied()).unwrap_or(5)).collect()
+            (0..kk)
+                .map(|j| seq.len() + j)
+                .map(|at| at.checked_sub(plen + 1).and_then(|i| mode.get(i).copied()).unwrap_or(5))
+                .collect()
         });
         let (on, tel) = engine(Some(3), Some(true), Some(script));
         let base = draw(&off, 0, n);
         let got = draw(&on, 1_000_000, n);
         let t = tel.snapshot();
-        assert!(t.spec_steps > 0 && t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "{label} cfg {cfg:?}: both branches must run ({t:?})");
+        assert!(
+            t.spec_steps > 0 && t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed,
+            "{label} cfg {cfg:?}: both branches must run ({t:?})"
+        );
         for pos in 0..positions {
             let (stat, df, p) = chi2_homogeneity(&base[pos], &got[pos]);
             let line = format!(
@@ -335,7 +371,12 @@ pub fn law_test(label: &str, n: u64, cfgs: &[(f32, usize, f32)]) -> Vec<String> 
     // gate is no single p below 1e-3 and the combined p above 1e-3
     let x2: f64 = ps.iter().map(|p| -2.0 * p.max(1e-300).ln()).sum();
     let pf = gammq(ps.len() as f64, x2 / 2.0);
-    let line = format!("{label}: Fisher over {} tests X2 {x2:.2} df {} p {pf:.4}; min p {:.4}", ps.len(), 2 * ps.len(), ps.iter().cloned().fold(1.0, f64::min));
+    let line = format!(
+        "{label}: Fisher over {} tests X2 {x2:.2} df {} p {pf:.4}; min p {:.4}",
+        ps.len(),
+        2 * ps.len(),
+        ps.iter().cloned().fold(1.0, f64::min)
+    );
     eprintln!("{line}");
     assert!(ps.iter().all(|&p| p > 1e-3) && pf > 1e-3, "{line}: the law differs");
     lines.push(line);
