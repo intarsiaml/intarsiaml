@@ -98,4 +98,60 @@ skip there; the real-model runs above are the Metal coverage of lever 1); `inkli
 
 ## Gate 2, speed
 
-(A/B sections follow.)
+Prompts as in gate 1 (143 / 1021 / 4108 ids), `generate --temperature 0 --max-tokens 256 --ignore-eos`, spec on (DSpark k 3, tau 0.8),
+decode tok/s from the engine's own decode clock, TTFT = the engine's prefill ms. Every arm proposes and accepts the same tokens
+(identical `verify passes / proposed / accepted` in every process), so the arms differ in time only.
+
+**The box is not quiet.** Fleet slots are exclusive among fleet jobs, but other lanes run CPU builds and tests on endor at the same time
+(load average 19-42 during the runs; `rustc`, `rsync`, `python` and desktop apps in `ps`). Decode is host-launch bound at these sizes,
+so the same arm ran at 116 tok/s (143-token prompt) in one slot and 75-83 tok/s in another an hour later. Cross-process runs also carry the
+per-process fast / slow mode L8 found (10-14 % at 16k). Both are bigger than either lever. I therefore ran the A/B twice, in two ways.
+
+### A/B 1: cross-process ABBA against the base binary (fleetq #11914, exclusive, 20:49-21:06)
+
+Arms: A = base binary (`b2afb4eaa`), B = new binary, lever 1 on (`INTARSIA_INK_VERIFY_SCREEN=1` at the time of the run, when the
+default was on), C = new binary, lever 2 only (`INTARSIA_DSPARK_ATTN_ROWS=1 INTARSIA_INK_VERIFY_SCREEN=0`), D = both. Eight rounds,
+order A B C D / D C B A alternating, each process runs the three prompts twice (so 2 samples per length per round, 16 per arm, and
+**14 with round 4 dropped: a release build of mine ran on the box during it (20:55-20:57) and r04-B fell to 68 / 50 tok/s**).
+Medians over the 14 samples; "ratio" is the median of the per-round, per-repeat ratio to arm A of the same round.
+
+| decode tok/s (median, [min-max]) | 143 | 1k | 4k |
+|---|---|---|---|
+| A base | 116.3 [89-125] | 70.6 [64-80] | 84.3 [79-99] |
+| B lever 1 | 111.9 [98-125] | 67.8 [62-80] | 85.6 [81-96] |
+| C lever 2 | 116.2 [101-125] | 71.1 [65-80] | 85.7 [81-98] |
+| D both | 116.5 [98-126] | 70.9 [66-80] | 86.1 [81-96] |
+| B / A ratio | 1.003 | 1.001 | 1.002 |
+| C / A ratio | 1.008 | 1.011 | 1.013 |
+| D / A ratio | 1.009 | 1.014 | 1.023 |
+
+Per-sample ratios range from 0.8 to 1.2 for every arm (min-max in the raw summary), the per-process mode shows plainly (round 1: A
+96.8 and 97.3 tok/s at 4k, B / C / D 84.8-87.9; round 8: A 98.9 / 82.1 against 92-98 for the rest). TTFT (prefill ms) medians
+within +-2 % of A for every arm and length, ratio medians 0.98-1.02, i.e. noise (1k and 4k B means are pulled up by single slow
+processes, medians are not).
+
+### A/B 2: within one process (fleetq #11916 and #11929; diag binary, levers flipped per request through run-time overrides)
+
+One process alternates the four arms request by request (A = both levers off, the base code paths; B; C; D), cycle `c` runs each length with the
+arms in order A B C D (even `c`) or D C B A (odd `c`), cycle 0 is warm-up, so a sample is compared with the A sample of the same length a few
+seconds away. This removes the per-process mode and most of the drift. Nine cycles of 3 lengths x 4 arms per process; processes
+p1-p3 (#11916, 21:15-21:44) JOB4POOL.
+
+JOB3TABLE
+
+Reading: no arm is faster than A by more than the noise at any length. Lever 1 (B) is, if anything, 1-3 % slower in the within-process
+pairs (median 0.98 / 0.97 / 0.99), lever 2 (C) and both (D) sit between 0.97 and 1.05 depending on the length, with confidence intervals
+that include 1.0 everywhere. TTFT cannot be affected by either lever (verify and draft only), and its pairs show the same +-5 % scatter
+(one cell, lever 1 at 1k, reaches p = 0.02 in the favourable direction: chance among 24 cells).
+
+### Why the estimates did not hold
+
+- Lever 1: Neon's +8-12 % needs 2-3 ms per verify pass. A pass is about 25-35 ms (2.84 tokens per pass at 85-120 tok/s). The default head
+  is P12 (`matmul_p12_logits_gemv`, 1-row 1.2 ms, 1.58 ms for bf16: `docs/results/2026-11-21-inkling2-fp8.md` 1b), and the screen's fp8
+  copy is 0.46 GB against P12's roughly 0.7 GB. The screen can therefore save about a third of 1.2 ms (0.4 ms, ~1.2 % of a pass) before
+  it pays for the extra launches (one fp8 matmul, a screen, an argmax and one gather per row, against one head launch plus an argmax).
+  The measurement agrees: no gain, a hint of a loss.
+- Lever 2: it removes `(t - 1) x layers` host launches per draft step (7 x draft layers; the one-row calls were 2 dispatches each). The
+  cross-process ratios (+0.8 to +1.3 % alone) point the right way and the within-process ones (-2.5 % to +3 %) do not contradict them, but
+  neither excludes zero.
+
