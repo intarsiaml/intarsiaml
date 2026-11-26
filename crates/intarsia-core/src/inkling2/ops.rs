@@ -160,6 +160,15 @@
 //! in-call history. The call's state tensors (rings, caches; `State(j)` in [`row_roles`]) describe row 0's buffers and are
 //! shape / dtype / offset carriers: state tensor `j` of row `r` lives at `tab[r, index + j] + carrier.offset`. The calls
 //! without a row table are unchanged.
+//!
+//! # Segment tables (packed prefill of several sequences; lane ink-hip-bpf, docs/results/2026-11-26-inkling2-hip-bpf.md)
+//!
+//! `ConvMix` also takes a segment-table form: `OpCall::segs` = a [`crate::ops::SegTab`]. The call's `T` rows are consecutive
+//! segments; segment `s` (rows `r0 .. r0 + n`, positions `p0 ..`) is then, bit for bit, the solo call (no row table, host
+//! `pos0 = p0`) over its rows of every row-indexed tensor ([`row_roles`]: its rows of the `[T, ..]` tensors and of every plane of
+//! the `[N, T, D]` sources, messages and mix) on its own state (`State(j)`: `tab[s, index + j] + carrier.offset`): its conv reads
+//! history from its own rows and its own ring only, and its ring ends as the solo call leaves it. `attrs.pos0` is the largest
+//! first position (bounds only). The calls without a segment table are unchanged.
 
 use crate::backend::TensorRef;
 use crate::dtype::DType;
@@ -238,6 +247,10 @@ pub const ATTN_DECODE_MAX_ROWS: usize = 16;
 
 /// The ops with a row-table form (module doc, "Row tables").
 pub const ROW_TABLE_OPS: [Op; 5] = [Op::SconvRes, Op::InkKvPrologue, Op::RelSinkAttn, Op::ConvMix, Op::InkAttnDecode];
+
+/// The ops with a segment-table form (module doc, "Segment tables"; packed prefill). Their stateful siblings (`InkKvPrologue`,
+/// `RelSinkAttn`) have only `[T, ..]` row tensors, so a packed pass runs them once per segment on row slices instead.
+pub const SEG_TABLE_OPS: [Op; 1] = [Op::ConvMix];
 
 /// What a tensor of a row-table call is (module doc, "Row tables").
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

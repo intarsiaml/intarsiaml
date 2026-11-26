@@ -1140,15 +1140,17 @@ impl Backend for HipBackend {
         let sc = scr.as_ref().map_or(std::ptr::null(), |x| x as *const ffi::IkScratch);
         // optional device-side position (rope / kv_append / attn_decode); null = the host `pos0`. The kernel reads the
         // i32 element when it runs, so the tensor view (and its device buffer) must outlive the launch: `pos_t` does.
-        let pos_t: Option<IkTensor> = call.pos.as_ref().map(Self::tensor).transpose()?;
+        // a segment-table call (`OpCall::segs`, packed prefill; lane ink-hip-bpf) takes no device position: its segment rows go as `pos`
+        let pos_t: Option<IkTensor> = call.pos.as_ref().or(call.segs.as_ref().map(|g| &g.meta)).map(Self::tensor).transpose()?;
         let pos = pos_t.as_ref().map_or(std::ptr::null(), |t| t as *const IkTensor);
         // row table (batched decode, `OpCall::rows`): the device addresses of the rows' state buffers; null for an ordinary call, which
         // the row-table launchers refuse
-        let rows_t: Option<(IkTensor, i64, i64, i64)> = call
-            .rows
-            .as_ref()
-            .map(|r| Self::tensor(&r.ptrs).map(|t| (t, r.stride as i64, r.index as i64, r.byte_off as i64)))
-            .transpose()?;
+        let rows_t: Option<(IkTensor, i64, i64, i64)> = match (&call.rows, &call.segs) {
+            (Some(r), _) => Some(Self::tensor(&r.ptrs).map(|t| (t, r.stride as i64, r.index as i64, r.byte_off as i64))).transpose()?,
+            // the segment table's addresses (one row per segment)
+            (None, Some(g)) => Some(Self::tensor(&g.ptrs).map(|t| (t, g.stride as i64, g.index as i64, 0))).transpose()?,
+            (None, None) => None,
+        };
         let tab = rows_t.as_ref().map_or(std::ptr::null(), |t| &t.0 as *const IkTensor);
         let (tab_stride, tab_index, tab_off) = rows_t.as_ref().map_or((0, 0, 0), |t| (t.1, t.2, t.3));
         // INTARSIA_HIP_TRACE: a start event on this stream right before the launch (not while a graph is being captured)
@@ -1644,6 +1646,11 @@ impl Backend for HipBackend {
     /// `--tp 2` and dense models are unchanged. `INTARSIA_PACK_PREFILL=0` turns it off.
     fn pack_prefill_default(&self) -> bool {
         true
+    }
+
+    /// The Inkling-2 experts' tensor-core prefill threshold (lane ink-hip-bpf): `kernels/hip/ink_moe.hip`, `ik_ink_moe_split_rows`.
+    fn moe_split_rows(&self, experts: usize, top_k: usize, hidden: usize, inter: usize) -> Option<usize> {
+        crate::inkmoe::split_rows(experts, top_k, hidden, inter)
     }
 
     fn graph_capture(&self, stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {

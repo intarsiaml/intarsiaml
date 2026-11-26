@@ -1,0 +1,8 @@
+fleetq: #12199 waiting (#1 in line): #12198 "ink-hip-vrow: W9 spec-default decode 4+4 ABBA vrow2 new rules vs main rules (+k5 2+2), both cards, radiance down <= 5:00" (claude-04c0e1cd) needs cpu quiet on tatooine-r9700, and this job loads it
+fleetq:   #12198 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12198 set, or it will wait for #12198 to be released.
+fleetq: #12199 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-hip-bpf/.scratch/build.sh b1 m:inkling2_packed m:inkling2_batch'
+For more information about this error, try `rustc --explain E0616`.
+error: could not compile `intarsia-core` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+cli build exit 101
+fleetq: #12199 done (exit 101)

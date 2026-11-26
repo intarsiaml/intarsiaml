@@ -268,6 +268,8 @@ fn shape_str(s: &ShapeInfo) -> String {
 fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize, usize))> {
     // the opt-in long-prompt chunk runs passes of its rows: probe (and size scratch for) those too
     let chunk = model.long_prefill_chunk().map_or(model.prefill_chunk(), |(_, c)| c);
+    // an Inkling-2 packed-prefill workspace larger than the chunk (lane ink-hip-bpf, `INTARSIA_INK_PACK_ROWS`): its passes too
+    let chunk = if model.ink_pack_capable() { chunk.max(model.ink_pack_rows_max()) } else { chunk };
     let cap = model.plan.kv_cap_tokens.max(1);
     let sizes = probe_sizes(chunk);
     let mut probes: Vec<(Phase, usize, usize)> = vec![(Phase::Decode, 1, 0), (Phase::Decode, 1, cap - 1)];
