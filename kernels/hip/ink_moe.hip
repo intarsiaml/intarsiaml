@@ -1051,8 +1051,8 @@ int moe_wmma_pairs(int64_t P, int E) {
 // pieces of consecutive feature tiles (grid y) under the R9700's ~1 ms dispatch stall line (ik_hip.h), bit 8 = gate_up too (opt-in:
 // on the 35B its pieces each paid the hot experts' load-imbalance tail, moe.hip round 8). A block of a piece is the block of the
 // one launch with the same feature tile. Bit 16 = more pair-tile blocks per expert (wm_zp). Bits 1 / 2 / 128 are ink_attn.hip's.
-// Unset = kPf2Default (1 | 2 | 4 | 16); 0 = main's forms.
-constexpr int kPf2Default = 23;
+// Unset = kPf2Default (1 | 2 | 4 | 16 | 128); 0 = main's forms.
+constexpr int kPf2Default = 151;
 int pf2_mask() {
     const char* e = getenv("INTARSIA_HIP_INK_PF2");
     return e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : kPf2Default;

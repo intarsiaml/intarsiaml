@@ -76,9 +76,9 @@ struct InkP {
 
 // INTARSIA_HIP_INK_PF2 (lane ink-hip-pf2; prefill chunks only, every bit keeps the output bits): bit 1 = the prologue's rel tail
 // as its own pass (ink_rel_table_k), bit 2 = flash attention in pieces of query tiles under the R9700 dispatch stall line
-// (ik_hip.h), bit 128 = with bit 1, the prologue's OCC form (12 waves per SIMD; opt-in); the experts' bits 4 / 8 / 16 are in
-// ink_moe.hip. Unset = kPf2Default (1 | 2 | 4 | 16, the same constant there); 0 = main's forms. Read at every launch.
-constexpr int kPf2Default = 23;
+// (ik_hip.h), bit 128 = with bit 1, the prologue's OCC form (12 waves per SIMD); the experts' bits 4 / 8 / 16 are in
+// ink_moe.hip. Unset = kPf2Default (1 | 2 | 4 | 16 | 128, the same constant there); 0 = main's forms. Read at every launch.
+constexpr int kPf2Default = 151;
 int pf2_mask() {
     const char* e = getenv("INTARSIA_HIP_INK_PF2");
     return e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : kPf2Default;
@@ -257,8 +257,8 @@ IK_DEVI float k_out(float v, float ss, const InkP& p) { return rA(fmul(v, ink_cl
 IK_DEVI float v_out(float v, float ss, const InkP& p) { return rA(fmul(v, ink_inv_rms(ss, p))); }
 
 // InkKvPrologue. Grid (Hk, T, rel slices), 256 threads (8 waves): waves take the jobs k, v, q_0 .., r_0 .. in turn, then all
-// threads the rel tail. OCC (INTARSIA_HIP_INK_PF2 bit 128, prefill calls with bit 1): compiled for 12 waves per SIMD (at most
-// 128 VGPRs; 160 otherwise, 9 waves): the same instructions on the same values, the same bits.
+// threads the rel tail. OCC (INTARSIA_HIP_INK_PF2 bit 128, prefill calls with bit 1): compiled for 12 waves per SIMD (a 128-VGPR
+// cap; the plain form takes 160, 9 waves): the same instructions on the same values, the same bits. Window 4: +0.9 % prefill.
 template <int J, bool DPP = false, bool OCC = false>
 __global__ void __launch_bounds__(256) __attribute__((amdgpu_waves_per_eu(OCC ? 12 : 1))) ink_prologue_k(InkP p) {
     __shared__ float rsh[4][32];
