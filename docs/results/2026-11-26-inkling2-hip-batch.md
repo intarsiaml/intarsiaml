@@ -237,3 +237,28 @@ same as section 4.
 
 - Moving the row-table data out of the solo kernels' arguments did not remove the gap: b3 was 0.9964 and b5 is 0.9957.
 - The gap is in graph-replayed decode only. Prefill, which runs the same row kernel eagerly, is equal.
+
+## 7. Where the 0.43 % went: the RT instantiations changed the solo kernels' code (fleetq #12083, #12086, #12087, cpu)
+
+Logs: `raw/isa-12083-12086-12087.log`. Scripts: `raw/isa.sh`, `raw/isa2.sh`, `raw/isa3.sh`, `raw/isa_cmp.py`. Method: build.rs's flags, device
+assembly only (`--cuda-device-only -S`), then per kernel the instruction stream (labels normalised) and the descriptor (VGPR / SGPR
+count, LDS, scratch, kernarg size), main against the branch; a branch kernel's trailing `RT = false` template argument is dropped to
+pair it with main's.
+
+| Module | Form | main's kernels identical in the branch | Kernels that differ |
+|---|---|---|---|
+| ink_mix.hip | b5 (RT instantiations in the module) | 31 / 31 | none (24 RT kernels added) |
+| ink_attn.hip | b5 (RT instantiations in the module) | 24 / 30 | all six `ink_attn_dec_k<GP, DPP>` (the fused decode kernel) |
+| ink_attn.hip | b5 without the row-table launcher (no RT instantiation) | 30 / 30 | none |
+| ink_mix.hip / ink_attn.hip | **b6**: row-table launchers in their own TUs | **31 / 31, 30 / 30, no kernel added** | none |
+
+- The six differing kernels had the same VGPR / SGPR / LDS counts and 2 to 7 instructions more or fewer, in a different register
+  assignment and order around the LDS loads of the attention body. Their source is unchanged for `RT = false`: the difference comes
+  from the RT instantiations sharing the module. Without them the code is main's.
+- The solo decode visits that kernel 40-48 times a step, so that difference is the likely cause of the 0.9957 ratio of sections 4 and 6.
+- **b6** (`ff352fc37`): the row-table launchers move to two new translation units, `kernels/hip/ink_mix_rows.hip` and
+  `kernels/hip/ink_attn_rows.hip`. Each one includes its base file with `IK_INK_MIX_ROWS_TU` / `IK_INK_ATTN_ROWS_TU` defined. The guard
+  leaves out the base file's launchers, and in ink_mix.hip also the RT launch branch of `launch_rows`, which there returns
+  `IK_ERR_UNSUPPORTED`. The kernels, the RT template parameter and the helpers stay in the base files, so nothing is copied. The
+  solo modules now compile to main's device code, kernel for kernel. The RT kernels live in modules that the solo path never loads
+  a kernel from.

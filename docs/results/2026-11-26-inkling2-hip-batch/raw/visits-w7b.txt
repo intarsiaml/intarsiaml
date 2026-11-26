@@ -1,0 +1,1 @@
+mb16-bcdef;b6;--max-batch 16 --max-seq 4608 --kv-fraction 0.9 --spec off;--sizes 1024 --gen 256 --reps 1 --concurrency 8,16
