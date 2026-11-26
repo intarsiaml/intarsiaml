@@ -1,0 +1,26 @@
+fleetq:   #12146 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12146 set, or it will wait for #12146 to be released.
+fleetq:   #12147 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12147 set, or it will wait for #12147 to be released.
+fleetq:   #12147 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12147 set, or it will wait for #12147 to be released.
+fleetq: #12148 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=60 bash ~/intarsiaml-ink-hip-batch/.scratch/window.sh ~/intarsiaml-ink-hip-batch/.scratch/stage_w11.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-batch/.scratch/stage_w11.sh; cap 60s; stopping radiance 2026-11-26 15:04:34
+[window] radiance stopped 2026-11-26 15:04:38 (inactive)
+[stage] ink_rows (fix) 2026-11-26 15:04:38
+test attn_decode_rows_bitwise_solo ... ink_attn_decode_bf16_rows: 40 row-table calls bitwise the solo calls (every row, every cache / ring byte)
+test conv_mix_rows_bitwise_solo ... conv_mix_bf16_rows: mix mode 3, dec3 -1: the row-table TU reads switches 259 (mask 3)
+conv_mix_bf16_rows: mix mode 0, dec3 -1: the row-table TU reads switches 256 (mask 0)
+conv_mix_bf16_rows: mix mode 3, dec3 0: the row-table TU reads switches 259 (mask 3)
+conv_mix_bf16_rows: 645 row-table calls bitwise the solo calls (every row, every ring byte)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.59s
+[stage] ink_rows-neg conv_mix (control: must fail at mode 0) 2026-11-26 15:04:51
+test conv_mix_rows_bitwise_solo ... conv_mix_bf16_rows: mix mode 3, dec3 -1: the row-table TU reads switches 259 (mask 3)
+conv_mix_bf16_rows: mix mode 0, dec3 -1: the row-table TU reads switches 259 (mask 3)
+thread 'conv_mix_rows_bitwise_solo' panicked at crates/intarsia-backend-hip/tests/ink_rows.rs:331:9:
+assertion `left == right` failed: set_mix_mode(0) does not reach the row-table TU (its switches 259)
+  left: 3
+ right: 0
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.14s
+[stage] done 2026-11-26 15:04:52
+[window] stage done 2026-11-26 15:04:53 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 15:04:53
+[window] radiance answers 2026-11-26 15:05:03 (after 15 s)
+fleetq: #12148 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
