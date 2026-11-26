@@ -42,7 +42,7 @@ index 54b49b3e1..ec938e685 100644
              window: u(a.window, "window")?,
              nq: u(i[0].shape[1], "Nq")?,
 diff --git a/crates/intarsia-cli/src/cmd/generate.rs b/crates/intarsia-cli/src/cmd/generate.rs
-index 596cf38de..0b3f0556d 100644
+index 596cf38de..6c31ad684 100644
 --- a/crates/intarsia-cli/src/cmd/generate.rs
 +++ b/crates/intarsia-cli/src/cmd/generate.rs
 @@ -106,7 +106,26 @@ fn run_ids(args: &GenerateArgs, engine: &dyn intarsia_core::engine::Engine, f: &
@@ -63,9 +63,9 @@ index 596cf38de..0b3f0556d 100644
 +            #[cfg(all(target_os = "macos", feature = "metal"))]
 +            {
 +                use intarsia_backend_metal::inkctrl::{BIAS_EARLY, BIAS_PRE, CONV_PRE};
-+                // A all off, B CONV_PRE, C + BIAS_PRE, D + BIAS_EARLY
-+                CONV_PRE.set(Some(a != "A"));
-+                BIAS_PRE.set(Some(a == "C" || a == "D"));
++                // A all off, B CONV_PRE, C + BIAS_PRE, D + BIAS_EARLY, E BIAS_PRE alone
++                CONV_PRE.set(Some(a != "A" && a != "E"));
++                BIAS_PRE.set(Some(a == "C" || a == "D" || a == "E"));
 +                BIAS_EARLY.set(Some(a == "D"));
 +            }
 +            eprintln!("arm[{name}]: {a}");

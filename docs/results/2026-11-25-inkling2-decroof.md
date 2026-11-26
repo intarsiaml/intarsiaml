@@ -3,7 +3,9 @@
 Status (2026-11-26 00:25): three bitwise levers on branch `ink/decroof` (tip eceba6809 + docs), all default on, every gate
 green at the tip (#11992). Plain decode (`--spec off`) within one process, vs main's code paths: **+2.1 % at 143, +2.4 % at
 1k, +2.0 % at 4k** (CONV_PRE + BIAS_PRE, #11981), plus **+0.8 % at 4k, +0.9 % at 8k, +0.6 % at 16k** from the fused-attention
-threshold (#11983). Greedy ids equal to main at 143 / 1k / 4k (spec off and spec default) and 8k / 16k. Branch from
+threshold (#11983). **Tip binary vs main's binary across processes (#11995, 8 + 8 processes ABBA, every process in the fast
+mode, no overlap between the arms at any length): 77.65 -> 79.03 tok/s at 143 (+1.8 %), 75.28 -> 76.45 at 1k (+1.6 %),
+72.86 -> 74.64 at 4k (+2.4 %)**; fused attention per dispatch 30.4 -> 26.2 us at short context. Greedy ids equal to main at 143 / 1k / 4k (spec off and spec default) and 8k / 16k. Branch from
 origin/main d8c3c7148, worktree `.worktrees/ink-decroof`, not pushed.
 
 | lever | commit | knob (`=0` reverts) | gain (within-process, paired, 95 % CI above 1) |
@@ -121,6 +123,7 @@ at 143 and the median is >= 1.0 at 1k and 4k.
 | #11981 | A2: within-process A / E (BIAS_PRE alone) / C (both), 3 processes; tip build, ids vs base, docs_env_vars, attn tests (23:11-23:25) | done |
 | #11983 | A3: fused attention above 4096 keys, within-process C / F at 4k / 8k / 16k (23:25-23:32) | done |
 | #11992 | T: tip gates after the threshold change (00:18-00:21) | done, all pass |
+| #11995 | X: tip binary vs main binary, cross-process ABBA 8 x 2 + interleaved per-dispatch traces (01:14-01:23) | done |
 
 Diag patch (`.scratch/diag`, never committed): `generate --prompt-ids` reads `INTARSIA_DIAG_ARMS` (one letter per prompt) and
 sets the Switch overrides before each prompt: A all off, B CONV_PRE, C + BIAS_PRE, D + BIAS_EARLY; it prints per prompt how
@@ -266,6 +269,30 @@ was timed above it. Below ~4.1k context nothing changes (every visit was already
   inkling2_batch 25 / 25; intarsia-core lib inkling2 4 / 4; docs_env_vars 2 / 2.
 - Single runs (one process each, not an A/B): tip `--spec off` 79.2 / 77.0 / 75.1 tok/s at 143 / 1k / 4k; 8k base 70.9 vs
   tip 72.6, 16k base 67.7 vs tip 69.4; spec default 126.7 / 80.6 / 100.6.
+
+## Tip vs main's binary (#11995, 01:14-01:23; `raw/jobX.log`, `raw/ab_proc2.py`)
+
+The in-process ratios above compare the new binary's arms, so its "off" arm still runs the new kernel source. This job compares
+the shipped tip binary (e6c4494a) against main's (c887ead6) directly: 16 processes in the order base tip tip base ..., each
+running the three prompts twice (`--spec off`, 256 greedy tokens), per-process mean per length:
+
+| length | base, median [range], n = 8 | tip, median [range], n = 8 | tip / base |
+|---|---|---|---:|
+| 143 | 77.65 [77.41-78.00] | 79.03 [78.94-79.19] | **1.0178** |
+| 1021 | 75.28 [74.88-75.63] | 76.45 [75.89-76.59] | **1.0156** |
+| 4108 | 72.86 [72.66-73.06] | 74.64 [74.06-74.75] | **1.0245** |
+
+Every process ran in the fast mode (all within 1 % of their arm's best), and the arms do not overlap at any length: the
+slowest tip process is faster than the fastest base process. So the shipped state is **+1.6-2.5 % over main**, matching the
+in-process +2.0-2.4 % (+ the threshold's +0.8 % at 4k).
+
+Per-dispatch traces, interleaved, 3 per arm (`ink_attn_decode` us per dispatch): 143 base 30.50 / 30.38 / 30.46, tip
+26.12 / 26.33 / 26.04 (-4.3 us x 48 visits = -0.21 ms per token); 4k base 39.25 / 38.75 / 39.00 on 40 visits + 8 x
+(66.6 + 22.0) us on the pair, tip 34.21 / 34.25 / 34.00 on all 48 visits (attention 2.33 -> 1.96 ms per token per-dispatch).
+
+Serve: `serve --max-batch 1` (the default) runs the single-sequence engine (`Seqs::One`, `model.rs` ~4443), the same solo path
+as `generate`, so all three levers reach it. With `--max-batch` > 1 decode runs the batched step: CONV_PRE and BIAS_PRE apply
+(row-table form, inkling2_batch passes with them on), the fused threshold stays at 4096 there. No localeval run was made.
 
 ## What is left (ranked by the fresh profile, short context)
 
