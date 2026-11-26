@@ -208,8 +208,9 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
             }
         }
         Op::InkKvPrologue => {
-            // (H, Hk, Dh, dr, E)
-            let mut shapes: Vec<(usize, usize, usize, usize, usize)> = vec![(H, HK, DH, DR, 8), (H, HK, DH, DR, 12)];
+            // (H, Hk, Dh, dr, E); the third: d_rel above the rel extent (the tiny Inkling-2 fixture's 16 > 12, golden/inkling2-tiny),
+            // which broke the HIP prologue's rel-table pass on prefill rows (lane ink-hip-pf2-tiny)
+            let mut shapes: Vec<(usize, usize, usize, usize, usize)> = vec![(H, HK, DH, DR, 8), (H, HK, DH, DR, 12), (H, HK, DH, 16, 12)];
             if !quick {
                 shapes.push((24, 8, 128, 16, 1024));
             }
