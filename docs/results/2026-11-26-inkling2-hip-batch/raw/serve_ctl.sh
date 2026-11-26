@@ -54,5 +54,5 @@ case "$cmd" in
     docker rm -f $C >/dev/null 2>&1
     t0=$(cat "$OUT/$name.t0" 2>/dev/null || echo 0)
     awk -v t0="$t0" -v n="$name" '$1 >= t0 { if ($2 > m0) m0 = $2; if ($3 > m1) m1 = $3 } END { printf "VRAM peak %s: card0 %.0f MiB, card1 %.0f MiB\n", n, m0 / 1048576, m1 / 1048576 }' "$REPO/logs/vram.log"
-    grep -aE 'continuous batching|prefill chunk|context|KV|kv cache|memory|budget|Error|error' "$OUT/$name.log" | head -14 ;;
+    grep -aE 'continuous batching|prefill chunk|context|KV|kv cache|memory|budget|spec|DSpark|draft|Error|error' "$OUT/$name.log" | head -14 ;;
 esac

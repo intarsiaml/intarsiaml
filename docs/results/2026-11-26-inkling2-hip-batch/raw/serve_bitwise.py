@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -47,13 +48,19 @@ def main():
         for k in a:
             eq = a[k]["md5"] == b[k]["md5"] and a[k]["completion_tokens"] == b[k]["completion_tokens"]
             same += eq
+            ta, tb = a[k]["text"], b[k]["text"]
+            first = next((i for i in range(min(len(ta), len(tb))) if ta[i] != tb[i]), min(len(ta), len(tb)))
+            div = "" if eq else f", first differing character {first} of {len(ta)} / {len(tb)}"
+            cache = " CACHED" if (a[k]["cached_tokens"] or 0) or (b[k]["cached_tokens"] or 0) else ""
             print(f"{'EQUAL' if eq else 'DIFF '} {k:>14}: prompt {a[k]['prompt_tokens']:>5} tok, {a[k]['completion_tokens']} / "
-                  f"{b[k]['completion_tokens']} out, md5 {a[k]['md5'][:12]} / {b[k]['md5'][:12]}, cached {a[k]['cached_tokens']} / {b[k]['cached_tokens']}")
+                  f"{b[k]['completion_tokens']} out, md5 {a[k]['md5'][:12]} / {b[k]['md5'][:12]}, cached {a[k]['cached_tokens']} / "
+                  f"{b[k]['cached_tokens']}{cache}{div}")
         print(f"{same} / {len(a)} replies equal")
         sys.exit(0 if same == len(a) else 1)
     url, mode, out = sys.argv[1:4]
     ps = prompts()
     res = {}
+    t0 = time.time()
     if mode == "solo":
         for k, t in ps:
             res[k] = ask(url, t)
@@ -61,7 +68,9 @@ def main():
         with cf.ThreadPoolExecutor(len(ps)) as ex:
             futs = {k: ex.submit(ask, url, t) for k, t in ps}
             res = {k: f.result() for k, f in futs.items()}
+    wall = time.time() - t0
     json.dump(res, open(out, "w"), indent=1)
+    print(f"wall {wall:.2f} s")
     print(f"{mode}: {len(res)} replies, {sum(r['completion_tokens'] or 0 for r in res.values())} tokens -> {out}")
 
 

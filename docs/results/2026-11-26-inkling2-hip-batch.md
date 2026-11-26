@@ -94,6 +94,17 @@ Raw: `docs/results/2026-11-26-inkling2-hip-batch/raw/`.
   - `examples/batch_step.rs` runs on HIP too (`--backend hip`, plus `--model`, `--mem-budget`, `--prefill-chunk`, `--batched-only`
     and a p99 column; the Metal output keeps its columns).
 
+### 1.4 Final form (b7; it differs from 1.3 in two steps)
+
+- b5 (section 6): `RowArgs` and `InkP` are main's. The row-table data lives in derived structs, `RowArgsRT` (`RowRt`) and `InkPR`
+  (`InkRt`), and only the RT instantiations take them. The solo kernels' arguments are main's, byte for byte.
+- b6 / b7 (sections 7-8): the row-table launchers live in two new translation units, `kernels/hip/ink_mix_rows.hip`
+  (`ik_conv_mix_bf16_rows`) and `kernels/hip/ink_attn_rows.hip` (`ik_ink_attn_decode_bf16_rows`). Each includes its base file
+  with a guard macro. In the base files the guards wrap the extern "C" launchers and, in ink_mix.hip, the RT launch branch of
+  `launch_rows`. The solo modules compile to main's device code, kernel for kernel.
+- `batch_step` adds `--solo-replay` and `--kv-fraction` (section 3).
+- No change to `docs/tuning.md`, `recipes/inkling2.toml`, `inkling2::ink_rows_exact` or any core / server code.
+
 ## 2. Window 1: bitwise tests (fleetq #12049; radiance down 12:18:04 - 12:20:00, 1:56)
 
 Log: `raw/window1-12049-unit.log`. Stage: `raw/stage_unit.sh`. Binary b2 = `d7c6a90f7` + the ring-write fix, on main `87c9745c0`.

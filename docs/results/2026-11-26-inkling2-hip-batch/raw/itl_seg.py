@@ -4,8 +4,8 @@ OUT_DIR/VISIT.poll: tatooine time, metric, value (serve_ctl.sh poll-start, every
 between two tokens of one request), intarsia_batch_step_seconds_bucket (a scheduler iteration that ran a decode step),
 intarsia_batch_decode_rows_total{rows=N}. OUT_DIR/VISIT-rK-le.out: localeval speed's lines with the Mac's time in front. Each
 concurrency level runs between the line before it (the size rep, or the previous level's "N streams: aggregate") and its own
-"N streams: aggregate" line; the histograms' deltas over that span are the level's (clock offset from VISIT-clock.txt). Percentiles
-interpolate linearly inside the server's buckets (1, 2, 5, 10, 20, 35, 50, 75, 100, 150, 250, 500, 1000 ms), so they are bucket-coarse."""
+"N streams: aggregate" line; the histograms' deltas over that span are the level's (clock offset from VISIT-clock.txt). A percentile
+is reported as the server bucket it falls in (bounds 1, 2, 5, 10, 20, 35, 50, 75, 100, 150, 250, 500, 1000 ms)."""
 import collections
 import glob
 import json
@@ -58,8 +58,7 @@ def pct(h, q):
         if c >= want:
             if le == float("inf"):
                 return f">{prev_le * 1e3:.0f}"
-            f = (want - prev_c) / (c - prev_c) if c > prev_c else 1.0
-            return f"{(prev_le + f * (le - prev_le)) * 1e3:.0f}"
+            return f"{prev_le * 1e3:g}-{le * 1e3:g}"  # the server bucket the percentile falls in (ms)
         prev_le, prev_c = le, c
     return None
 
@@ -106,5 +105,13 @@ for le in sorted(glob.glob(os.path.join(out, f"{visit}-r*-le.out"))):
                     "itl_ms_p50": pct(itl, 0.5), "itl_ms_p99": pct(itl, 0.99), "itl_gaps": int(itl[-1][1]) if itl else 0,
                     "step_ms_p50": pct(step, 0.5), "step_ms_p99": pct(step, 0.99), "decode_rows": rows(a, b)})
         start = t
+bw0, bw1 = (os.path.join(out, f"{visit}-bw.t{i}") for i in (0, 1))
+if os.path.exists(bw0) and os.path.exists(bw1):
+    t0, t1 = float(open(bw0).read()), float(open(bw1).read())
+    a, b = at(t0 + off), at(t1 + off)
+    itl, step = delta(a, b, "intarsia_batch_itl_seconds"), delta(a, b, "intarsia_batch_step_seconds")
+    res.insert(0, {"rep": 0, "streams": "bitwise (16 real prompts)", "span_s": round(t1 - t0, 2), "itl_ms_p50": pct(itl, 0.5),
+                   "itl_ms_p99": pct(itl, 0.99), "itl_gaps": int(itl[-1][1]) if itl else 0, "step_ms_p50": pct(step, 0.5),
+                   "step_ms_p99": pct(step, 0.99), "decode_rows": rows(a, b)})
 for r in res:
     print(json.dumps(r))

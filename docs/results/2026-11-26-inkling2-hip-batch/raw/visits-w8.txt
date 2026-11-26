@@ -1,7 +1,5 @@
-# W8 (b6): the solo reference server (no --max-batch: the same 16 prompts one at a time; single-stream VRAM), then 4k context at
-# B 4 / 8 / 16 (--max-batch B --max-seq 4608, KV fraction 0.9, busy chunk 2048): localeval 4k prompts, 256 forced tokens, B streams once;
-# each visit's VRAM peak is that B's.
-solo;b6;--max-seq 4608 --spec off;bitwise:solo
-mb4-4k;b6;--max-batch 4 --max-seq 4608 --kv-fraction 0.9 --busy-chunk 2048 --spec off;--sizes 4096 --gen 256 --reps 1 --concurrency 4
-mb8-4k;b6;--max-batch 8 --max-seq 4608 --kv-fraction 0.9 --busy-chunk 2048 --spec off;--sizes 4096 --gen 256 --reps 1 --concurrency 8
-mb16-4k;b6;--max-batch 16 --max-seq 4608 --kv-fraction 0.9 --busy-chunk 2048 --spec off;--sizes 4096 --gen 256 --reps 1 --concurrency 16
+# name;bin;serve args;localeval speed args | bitwise:<mode>[,localeval args]
+# W8 (b7): one --max-batch 16 server (KV fraction 0.9, context 4608, busy chunk 2048 = the solo chunk, no --spec: the default, which
+# loads no draft at --max-batch > 1): the 16 real prompts at once (compared with W9's solo server), then localeval 1k prompts, 256 forced
+# tokens, 1/4/8/16 streams, LEREPS=3 (metrics poller on: per-level ITL / step histograms).
+mb16-bc2048;b7;--max-batch 16 --max-seq 4608 --kv-fraction 0.9 --busy-chunk 2048;bitwise:conc,--sizes 1024 --gen 256 --reps 1 --concurrency 1,4,8,16

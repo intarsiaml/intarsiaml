@@ -17,6 +17,7 @@ say() { echo "[$(date +%T)] $*" | tee -a "$LOG"; }
 to() { local s=$1; shift; perl -e 'alarm shift; exec @ARGV or die "exec: $!"' "$s" "$@"; }
 t0=$(date +%s)
 left() { echo $(( CAP - ($(date +%s) - t0) )); }
+mt() { perl -MTime::HiRes=time -e 'printf "%.3f\n", time'; }
 ssh -o BatchMode=yes "$T" "CAP=$CAP bash $RR/.scratch/window.sh $RR/.scratch/hold.sh" < /dev/null > "$OUT/win.out" 2>&1 &
 WP=$!
 TUN=
@@ -45,17 +46,19 @@ while IFS=';' read -r name bin sargs largs; do
   ip=$(awk '/^IP /{print $2}' "$OUT/$name-start.out")
   say "$name: up ($(cat "$OUT/$name-start.out" | tr '\n' ' '); $(left) s left)"
   ssh -o BatchMode=yes "$T" "bash $RR/.scratch/serve_ctl.sh metrics" < /dev/null > "$OUT/$name-metrics0.txt" 2>&1
+  ssh -o BatchMode=yes "$T" "bash $RR/.scratch/serve_ctl.sh poll-start $name" < /dev/null > "$OUT/$name-poll.out" 2>&1
+  # the two clocks (Mac before / tatooine / Mac after) for the poll log's segmentation (itl_seg.py)
+  { mt; ssh -o BatchMode=yes "$T" "bash $RR/.scratch/serve_ctl.sh clock" < /dev/null; mt; } > "$OUT/$name-clock.txt" 2>&1
   case "$largs" in
     bitwise:*)  # bitwise:<solo|conc>[,<localeval speed args>]: the serve-level batched == solo check (serve_bitwise.py) first
       bm=${largs#bitwise:}; largs=none
       case "$bm" in *,*) largs=${bm#*,}; bm=${bm%%,*} ;; esac
+      mt > "$OUT/$name-bw.t0"
       to 200 python3 "$SD/serve_bitwise.py" "http://$T:$PORT/v1" "$bm" "$OUT/$name-bitwise.json" < /dev/null > "$OUT/$name-bitwise.out" 2>&1
+      mt > "$OUT/$name-bw.t1"
       say "$name: bitwise $bm exit $? ($(left) s left): $(tail -n 1 "$OUT/$name-bitwise.out")" ;;
   esac
   if [ "$largs" != none ]; then
-    ssh -o BatchMode=yes "$T" "bash $RR/.scratch/serve_ctl.sh poll-start $name" < /dev/null > "$OUT/$name-poll.out" 2>&1
-    # the two clocks (Mac before / tatooine / Mac after) for the poll log's segmentation
-    { perl -MTime::HiRes=time -e 'printf "%.3f\n", time'; ssh -o BatchMode=yes "$T" "bash $RR/.scratch/serve_ctl.sh clock" < /dev/null; perl -MTime::HiRes=time -e 'printf "%.3f\n", time'; } > "$OUT/$name-clock.txt" 2>&1
     for r in $(seq 1 "${LEREPS:-1}"); do
       date +%s.%N > "$OUT/$name-r$r.t0"
       if (( $(left) < 40 )); then say "$name: SKIP localeval rep $r: $(left) s left"; break; fi
