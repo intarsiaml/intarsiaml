@@ -234,3 +234,19 @@ fused kernel is bitwise the pair (tests/inkling2_attn.rs), so a new threshold ch
 on every visit through a diag override of `INTARSIA_INK_ATTN_FUSED`), prompts 4108 / 8216 / 16432 tokens (the 4k prompt
 repeated), 5 cycles CF / FC, 2 processes; ids per length must be one list across arms. Rule: raise the 1-row threshold to the
 largest measured length whose F / C CI lies above 1 (and every shorter one's median >= 1); none above 1 -> no change.
+
+### #11983 results (23:25-23:32; `raw/jobA3.log`)
+
+Both processes: 3 distinct id lists (one per length across C and F), F's launches all fused (12240 at 4k / 8k, 12288 at 16k)
+against C's 10200 (the 8 full visits on the pair). 8 pairs per length:
+
+| length | C (tok/s) | F (tok/s) | F / C, 95 % CI | pairs above 1 | per process |
+|---|---:|---:|---|---|---|
+| 4108 | 73.90 | 74.52 | **1.0083 [1.0061-1.0099]** | 8 / 8 | 1.0085, 1.0079 |
+| 8216 | 72.03 | 72.66 | 1.0086 [1.0000-1.0111] | 6 / 8 | 1.0045, 1.0087 |
+| 16432 | 69.06 | 69.54 | **1.0059 [1.0007-1.0085]** | 7 / 8 | 1.0069, 1.0048 |
+
+By the rule the largest length whose CI lies above 1 is 16.4k (8k's lower bound touches 1.0000, its median is above 1), so
+the one-row threshold goes to **16896 keys** for solo steps (eceba6809: the 16.4k prompt plus 256 tokens, rounded up; the
+pair stays above it, where ink-m-attn measured it faster at 32k). Batched steps' one-row calls keep 4096: no batched run
+was timed above it. Below ~4.1k context nothing changes (every visit was already fused). Tip gates: #11992 (`raw/jobT.sh`).

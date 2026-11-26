@@ -1,0 +1,17 @@
+fleetq: #11983 running on endor: bash /opt/code/intarsiaml/.worktrees/ink-decroof/.scratch/jobA3.sh
+fleetq: #11983 went ahead of the line and must end within 3h34m (by Thu 03:00); it is stopped then
+jobA3 start 23:25:30 diag3 4a453131ca91b93db6432b84e170fda3 tree bb8457ccf dirty 4
+within p1 exit 0 211 s, launch counts:   15 10200/10200/0   10 12240/12240/0    5 12288/12288/0  distinct id lists: 3
+within p2 exit 0 210 s, launch counts:   15 10200/10200/0   10 12240/12240/0    5 12288/12288/0  distinct id lists: 3
+within-process, processes ['1', '2'], arms ['C', 'F'], cycle 0 dropped (decode tok/s, 256 tokens)
+  4k C: median 73.90 [72.78-74.14] n=8
+  4k F: median 74.52 [73.08-74.85] n=8
+  4k F/C: median 1.0083, 95% CI [1.0061-1.0099], min-max [1.0041-1.0103], 8/8 above 1, sign p=0.008, per-process [1.0085, 1.0079]
+  8k C: median 72.03 [71.43-72.25] n=8
+  8k F: median 72.66 [71.29-73.05] n=8
+  8k F/C: median 1.0086, 95% CI [1.0000-1.0111], min-max [0.9980-1.0111], 6/8 above 1, sign p=0.289, per-process [1.0045, 1.0087]
+  16k C: median 69.06 [68.71-69.24] n=8
+  16k F: median 69.54 [68.58-69.67] n=8
+  16k F/C: median 1.0059, 95% CI [1.0007-1.0085], min-max [0.9981-1.0096], 7/8 above 1, sign p=0.070, per-process [1.0069, 1.0048]
+jobA3 done 23:32:31
+fleetq: #11983 done (exit 0)
