@@ -43,6 +43,29 @@ Branch `ink/hip-moe`, base origin/main `d8c3c7148` + `ink/hip` `6c5ee5d67` (lead
   still pass, rows-exact stays bitwise where the op promises it. Windows: 2 left, none after 06:00. Report each landing as
   "ready to merge at <commit>" with before / after us per call (decode) or ms per chunk (prefill).
 
+- Coordinator message after landing 1 (`afd58ae34` noted; the defaults being bit-checked as explicit settings is enough, no
+  PRE=3 pin). Window rule change for all HIP lanes: the count cap becomes a time budget: each window keeps radiance down 5 min
+  or less; this lane's total radiance-down time from now on 20 min or less; none after 06:00; radiance must answer
+  `/v1/models` before release; log each window's down time in this doc. Go on: (1) decode round 2, LDS sized by the call,
+  bitwise against `29b71ac67`; (2) S2 WMMA prefill tested on the GPU, admission + rows-exact where the op promises it, report
+  ms per chunk at 2048 before and after. Integration: PR #516 (the correctness form) stays as it is until it merges; speed
+  heads go in a follow-up branch after that, so do not merge into `ink/hip`; send each as "ready to merge at <commit>".
+
+- Coordinator message after landing 1 (`afd58ae34` noted; the defaults being bit-checked as explicit settings is enough, no
+  PRE=3 pin). Window rule change for all HIP lanes: the count cap becomes a time budget: each window keeps radiance down 5 min
+  or less; this lane's total radiance-down time from now on 20 min or less; none after 06:00; radiance must answer
+  `/v1/models` before release; log each window's down time in this doc. Go on: (1) decode round 2, LDS sized by the call,
+  bitwise against `29b71ac67`; (2) S2 WMMA prefill tested on the GPU, admission + rows-exact where the op promises it, report
+  ms per chunk at 2048 before and after. Integration: PR #516 (the correctness form) stays as it is until it merges; speed
+  heads go in a follow-up branch after that, so do not merge into `ink/hip`; send each as "ready to merge at <commit>".
+
+## 0b. Radiance down time under the time budget (20 min from the rule change; windows 1 and 2 predate it: 52 s, 63 s)
+
+| Window | fleetq | Down | Budget used |
+|---|---|---|---|
+| 3 | #11951 | 22:09:18 - 22:10:15, 57 s | 0:57 |
+| 4 | #11957 | 22:14:14 - 22:15:12, 58 s | 1:55 |
+
 ## 1. Status
 
 | Step | State |
@@ -51,7 +74,8 @@ Branch `ink/hip-moe`, base origin/main `d8c3c7148` + `ink/hip` `6c5ee5d67` (lead
 | Rows-exact at every T (shared-memory path, pair-table path, every load window) | done, bitwise (window 1) |
 | Decode bench vs 627 GB/s | NVFP4 T=1 100.8 us = 355 GB/s (57 %); MXFP8 T=1 135.1 us = 486 GB/s (78 %); section 3 |
 | Decode speed round 1 (lean step, window 2) | NVFP4 T=1 100.8 -> 83.8 us (427 GB/s, 68 %), MXFP8 135.1 -> 126.1 us (521 GB/s, 83 %); bitwise |
-| Decode speed round 2 (LDS sized by the call) | open |
+| Decode speed round 2 (LDS by the call, load windows; windows 3 and 4) | NVFP4 T=1 81.6 us (439 GB/s, 70 %), T=16 623.5 us (587 GB/s, 94 %); MXFP8 T=1 122.6 us (536 GB/s, 85 %); bitwise |
+| Decode speed round 3 (grouping without barriers at decode sizes) | open |
 | Prefill | correct (pair-table SIMT path); slow: T=256 6.8 ms / call; WMMA is speed package S2, not started |
 
 ## 2. Design (kernels/hip/ink_moe.hip)
@@ -144,8 +168,39 @@ Reading: gate_up gained 20 %, down nothing (342 GB/s). The down kernel holds 32.
 + terms 16 KB), gate_up 16.4 KB: with 64 KB of LDS per workgroup processor that is one down block (8 waves) and three gate_up
 blocks resident, whatever the registers allow. Next: LDS sized by the call (decode needs under 3 KB).
 
+### Windows 3 and 4 (fleetq #11951, #11957; logs `raw/window3-11951.log`, `raw/window4-11957.log`): LDS by the call, windows, fixed cost
+
+Tests (same command): 2 passed in each window. `ink_moe_rows_exact` now also checks the lean form in every LDS size class
+(0 / 1 / 2) at windows 1 / 3 / 6 / 9 against the window-1 form, bitwise.
+
+LDS sized by the call (class 0: 2.3 KB per down block instead of 32.8 KB): a small gain, not the explanation I gave after
+window 2. NVFP4 down at T = 1: 34.9 -> 31.8 us (window 3), gate_up unchanged.
+
+What did move down: all nine lane steps requested up front (window 9). Down, NVFP4, us: T=2 58.0 -> 49.0, T=4 106.5 -> 84.2,
+T=16 298.8 -> 223.2 (546 GB/s). The same window costs gate_up at T = 1 (202 VGPRs: 57.5 against 48.9 us) and wins from T = 16
+(408 against 456), and MXFP8 gate_up spills at 9 (110 against 75 us). Defaults since window 4: NVFP4 gate_up 6 below 8 rows,
+9 from 8 rows, down 9; MXFP8 gate_up 1, down 9.
+
+Window 4, the defaults (us per call; GB/s of 627):
+
+| T | NVFP4 window-1 form | NVFP4 now | | MXFP8 window-1 form | MXFP8 now | |
+|---|---|---|---|---|---|---|
+| 1 | 100.1 | 81.6 (gate_up 48.9, down 31.0) | 439 GB/s, 70 % | 144.8 | 122.6 (74.7, 47.8) | 536 GB/s, 85 % |
+| 2 | 175.4 | 139.5 | 503, 80 % | 253.9 | 216.8 | 571, 91 % |
+| 4 | 308.7 | 244.2 | 533, 85 % | 417.7 | 353.0 | 589, 94 % |
+| 16 | 844.5 | 623.5 | 587, 94 % | 918.7 | 810.0 | 571, 91 % |
+| 64 (512 pairs, LDS class 2) | 2040 (window 1) | 1617 | | 1658 (window 1) | 2354 | |
+| 256 (pair table) | 6780 (window 1) | 5347 | | 6125 (window 1) | 5590 | |
+
+MXFP8 at T = 64 is slower than the window-1 form (2354 against 1658 us): 4 pairs per batch against 8 at 4 pairs per expert.
+Not a decode size; prefill goes to S2.
+
+Fixed cost of a call (window 4 probes, T = 1): both launches with every thread returning at once 5.9 us; returning after
+the in-block grouping 11.8 us. So of the 81.6 us at T = 1: 57.1 us is the bandwidth line, 5.9 the two launches, 5.9 the
+grouping (six barriers per block), about 12.7 everything else (the last round of blocks, the term barrier and token sum).
+
 ## 4. Next steps
 
-1. Decode speed round: VGPR count per kernel (asm), word-at-a-time decode + fma (smaller live set), per-kernel load window,
-   the grouping moved out of the blocks (one table launch) if it pays; one window to compare, bitwise against this form.
-2. S2 (WMMA prefill with a SiTU epilogue, I = 1152) is not started.
+1. Decode round 3: grouping inside the wave (no LDS, no barriers) for up to 32 pairs: up to 5.9 us of the 81.6.
+2. S2: WMMA prefill with a SiTU epilogue (I = 1152), not started.
+3. Not planned tonight: one launch for gate_up + down (the `moe_experts_bf16_v3` scheme; saves one launch, about 3 us).

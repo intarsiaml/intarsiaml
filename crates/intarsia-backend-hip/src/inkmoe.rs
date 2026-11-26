@@ -76,7 +76,8 @@ pub fn all() -> Vec<KernelImpl> {
         .collect()
 }
 
-/// Benchmarks only: 1 launches only the gate+up kernel of an experts call, 2 only the down kernel (the output is garbage), 0 both.
+/// Benchmarks only: 1 launches only the gate+up kernel of an experts call, 2 only the down kernel, 3 both with every thread
+/// returning at once, 4 both returning after the grouping (the output is garbage); 0 both, in full.
 pub fn set_probe(v: i32) {
     #[cfg(ik_hip)]
     {
@@ -90,7 +91,7 @@ pub fn set_probe(v: i32) {
     let _ = v;
 }
 
-/// Tests / benchmarks: the load windows of gate_up and of down (lane steps requested ahead: 1, 2, 3, 4 or 6; bitwise the same
+/// Tests / benchmarks: the load windows of gate_up and of down (lane steps requested ahead: 1, 3, 6 or 9; bitwise the same
 /// output); `-1` = the env (`INTARSIA_HIP_INK_MOE_PRE`) or the format's default.
 pub fn set_pre(gu: i32, dn: i32) {
     #[cfg(ik_hip)]
@@ -120,15 +121,16 @@ pub fn set_lean(v: i32) {
     let _ = v;
 }
 
-/// Tests / benchmarks: pairs per accumulator batch on the shared-memory path (2 | 4, bitwise the same output); anything else = the default.
-pub fn set_nb(v: i32) {
+/// Tests / benchmarks: the smallest LDS size class of the expert kernels a call may take (0 = sized by the call, the default;
+/// 1; 2 = the largest, the tables of the first form). Bitwise the same output.
+pub fn set_sz(v: i32) {
     #[cfg(ik_hip)]
     {
         extern "C" {
-            fn ik_ink_moe_set_nb(v: std::ffi::c_int);
+            fn ik_ink_moe_set_sz(v: std::ffi::c_int);
         }
         // SAFETY: sets a plain int of the kernel library.
-        unsafe { ik_ink_moe_set_nb(v) }
+        unsafe { ik_ink_moe_set_sz(v) }
     }
     #[cfg(not(ik_hip))]
     let _ = v;
