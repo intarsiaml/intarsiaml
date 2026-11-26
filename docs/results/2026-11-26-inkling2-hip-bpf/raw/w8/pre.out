@@ -1,0 +1,13 @@
+[pre] real-shape inkling2_packed (card 1) 2026-11-26 17:53:38
+[pre] real exit 0 2026-11-26 17:54:06
+[pre real] test inkling2_packed_equals_solo_real ... pack12 off: the model is loaded to batch (--max-batch > 1); the bf16 weights serve every row
+[pre real] inkling2_packed_equals_solo_real: moe_split_rows = Some(256), pack_rows_max = 4096, kv cap 2791
+[pre real] 17 + 2048: 2 segments, 2065 rows: packed == solo
+[pre real] around the split: 4 segments, 785 rows: packed == solo
+[pre real] blend tails: 3 segments, 1032 rows: packed == solo
+[pre real] 2 x 2048: 2 segments, 4096 rows: packed == solo
+[pre real] 6 mixed, 4029 rows: 6 segments, 4029 rows: packed == solo
+[pre real] 16 mixed: 16 segments, 3512 rows: packed == solo
+[pre real] 2 x 1024: 2 segments, 2048 rows: packed == solo
+[pre real] test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 27.67s
+[pre] done 2026-11-26 17:54:06

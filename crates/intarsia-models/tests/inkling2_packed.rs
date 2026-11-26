@@ -62,7 +62,8 @@ fn load_on(dir: &Path, be: Arc<dyn Backend>, rows: usize, chunk: usize, max_seq:
     let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
     let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
     let src = SafeTensors::open_dir(dir).unwrap();
-    let opts = LoadOptions { max_seq, prefill_chunk: chunk, graphs: false, ..Default::default() };
+    // `batched` as the engine loader sets it for `serve --max-batch` > 1 (#533: no P12 copies, whose residency would shrink the KV)
+    let opts = LoadOptions { max_seq, prefill_chunk: chunk, graphs: false, batched: rows > 1, ..Default::default() };
     let mut m = Model::load(be, &recipe, &dims, &src, &opts, Arc::new(Telemetry::new())).unwrap();
     if rows > 1 {
         m.enable_batch(rows).unwrap();

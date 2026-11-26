@@ -2,7 +2,7 @@
 # Background stage W4 (lane ink-hip-bpf) on card 1 during the gate-2 serve window (card 0 runs the branch's solo and packed servers):
 #   (1) gate 3, server level: main's solo server (no --max-batch, --spec off), the 16 real prompts one at a time (serve_bitwise.py
 #       solo, run here on tatooine against the container), compared later with the branch's solo replies (card 0);
-#   (2) the branch's hip tiny suites (b9 test builds): inkling2_batch + inkling2, inkling2_packed at the defaults and with
+#   (2) the branch's hip tiny suites (b10 test builds): inkling2_batch + inkling2, inkling2_packed at the defaults and with
 #       INTARSIA_HIP_INK_PF2=0;
 #   (3) the real-shape inkling2_packed test (2 x 2048 in the 4096-row workspace, 6 and 16 segments, resumed);
 #   (4) G2 short / long of the branch if time is left. All within BG_CAP s.
@@ -12,7 +12,7 @@ S=$REPO/.scratch
 L=$REPO/logs/w4
 mkdir -p "$L"
 M=/models/Inkling-2-Mini
-MA=${MA:-main3}; BR=${BR:-b9}
+MA=${MA:-main3}; BR=${BR:-b10}
 C=ink-hip-bpf-run2
 now() { date '+%F %T'; }
 T0=$(date +%s); CAPT=${BG_CAP:-230}
@@ -36,8 +36,11 @@ for i in $(seq 1 120); do
 done
 echo "[bg] solo $MA up after ${up}s (0 = not up) $(now)"
 if [ "$up" != 0 ]; then
-  timeout 100 python3 "$S/serve_bitwise.py" "http://$ip:8133/v1" solo "$L/solo-$MA-bitwise-solo.json" > "$L/solo-$MA-bitwise-solo.out" 2>&1
-  echo "[bg] solo $MA bitwise solo exit $? $(now): $(head -n 1 "$L/solo-$MA-bitwise-solo.out")"
+  for m in solo reuse-solo:6; do
+    ms=${m//:/_}
+    timeout 100 python3 "$S/serve_bitwise.py" "http://$ip:8133/v1" $m "$L/solo-$MA-bitwise-$ms.json" > "$L/solo-$MA-bitwise-$ms.out" 2>&1
+    echo "[bg] solo $MA bitwise $m exit $? $(now): $(head -n 1 "$L/solo-$MA-bitwise-$ms.out")"
+  done
 fi
 grep -aE 'continuous batching|packed prefill|admission|admitted|Error|error' "$L/solo-$MA.log" | head -5 | sed 's/^/[bg solo] /'
 docker rm -f $C >/dev/null 2>&1

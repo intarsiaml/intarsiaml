@@ -1,0 +1,2 @@
+wall 5.61 s, aggregate 136.8 tok/s, latency median 5.57 s max 5.61 s, prompt tokens 4358, cached 0, ttft median 1.5007 max 2.0965609550476074, itl p50 0.028 p99 0.3709
+reuse2-conc: 6 replies, 768 tokens -> /opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/w6/A-bitwise-reuse2-conc_6.json

@@ -1,0 +1,6 @@
+# W7 speed (R A B): R = the branch packing with the 4096-row workspace (INTARSIA_INK_PACK_ROWS=4096: ~1k prompts pack in threes;
+# with the default 2048 rows two 1k prompts (~1040 tokens each) never fit one pass), A = main3, B = the branch packing at 2048 rows
+# (real levels + pure prefill only). Same flags otherwise, card 0, tag w7 (nonce in every real / pp request).
+R;b10;INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;real:4,8,16:1:w7 && le:--sizes 1024 --gen 128 --reps 1 --concurrency 1,4,8,16@fill && bitwise:pp:16:49:w7+pp:8:512:w7+pp:4:1024:w7+pp:2:2048:w7
+A;main3;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;real:4,8,16:1:w7 && le:--sizes 1024 --gen 128 --reps 1 --concurrency 1,4,8,16@fill && bitwise:pp:16:49:w7+pp:8:512:w7+pp:4:1024:w7+pp:2:2048:w7
+B;b10;INTARSIA_INK_PACK=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;real:4,8,16:1:w7 && bitwise:pp:16:49:w7+pp:8:512:w7+pp:4:1024:w7+pp:2:2048:w7

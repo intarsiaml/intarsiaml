@@ -9,6 +9,9 @@
                                                   then B (A's text plus a longer instruction): B resumes from A's cached prefix;
                                                   records B
   python3 serve_bitwise.py URL reuse-conc OUT.json  all 16 A at once, then all 16 B at once (B's resumed chunks prefill together)
+  python3 serve_bitwise.py URL reuse2-conc[:K] OUT.json  K conversations' first turns at once, then their second turns (first prompt,
+                                                  reply, a new user message) at once: those resume from the first prompt's ring
+                                                  snapshot (cached tokens > 0) and their resumed chunks prefill together
   python3 serve_bitwise.py URL pp:K:L[:tag] OUT.json   pure prefill: K distinct prompts of about L tokens (pieces of the two 4k
                                                   documents, a tag in front) at once, 1 token each: prompt tok/s = their
                                                   prompt tokens / (last reply - first request)
@@ -24,7 +27,16 @@ import time
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-P = os.path.join(HERE, "..", "scripts", "cmx", "ids-prompts")
+def _prompts_dir():
+    # .scratch/ on tatooine (../scripts), docs/results/<lane>/raw/ in the worktree (../../../../scripts)
+    for up in ("..", os.path.join("..", "..", "..", "..")):
+        d = os.path.join(HERE, up, "scripts", "cmx", "ids-prompts")
+        if os.path.isdir(d):
+            return d
+    return os.path.join(HERE, "..", "scripts", "cmx", "ids-prompts")
+
+
+P = _prompts_dir()
 N = 128
 
 
@@ -49,10 +61,13 @@ EXT = ("\n\nSummarize the above in a few sentences. Then list three keywords fro
        "why, and end with one question a careful reader might still have after reading it.")
 
 
-def ask(url, text, ext=False, ntok=None, raw=False):
+TURN2 = "Now list three keywords from the text and say which of them matters most."
+
+
+def ask(url, text, ext=False, ntok=None, raw=False, msgs=None):
     content = text if raw else text + (EXT if ext else "\n\nSummarize the above in a few sentences.")
     nt = ntok or N
-    body = {"model": "ink", "messages": [{"role": "user", "content": content}],
+    body = {"model": "ink", "messages": msgs or [{"role": "user", "content": content}],
             "temperature": 0, "max_tokens": nt, "min_tokens": nt, "ignore_eos": True, "stream": True,
             "stream_options": {"include_usage": True}}
     req = urllib.request.Request(url.rstrip("/") + "/chat/completions", data=json.dumps(body).encode(),
@@ -136,7 +151,7 @@ def main():
     if mode.startswith("pool:"):
         # all 16, at most N in flight (a worker takes the next prompt as its reply ends)
         workers = int(mode.split(":")[1])
-    if mode.startswith("reuse-"):
+    if mode.startswith("reuse-") or mode.startswith("reuse2-"):
         # reuse-solo[:K] / reuse-conc[:K]: K of the prompts spread by length (default all)
         f = mode.split(":")
         if len(f) > 1:
@@ -149,6 +164,19 @@ def main():
         for k, t in ps:
             ask(url, t)
             res[k] = ask(url, t, ext=True)
+    elif mode == "reuse2-conc":
+        # lane ink-hip-bpf: a second turn on each conversation (its first prompt, the reply, a new user message), all at once: the
+        # second request starts with the first's whole prompt, so a free slot holding it resumes there (ring snapshot) and the
+        # resumed chunks prefill together; records the second turn
+        with cf.ThreadPoolExecutor(len(ps)) as ex:
+            first = dict(zip([k for k, _ in ps], [f.result() for f in [ex.submit(ask, url, t) for k, t in ps]]))
+        t0 = time.time()
+        conv = {k: [{"role": "user", "content": t + "\n\nSummarize the above in a few sentences."},
+                    {"role": "assistant", "content": first[k]["text"].split("\x00", 1)[1]},
+                    {"role": "user", "content": TURN2}] for k, t in ps}
+        with cf.ThreadPoolExecutor(len(ps)) as ex:
+            futs = {k: ex.submit(ask, url, "", False, None, False, conv[k]) for k, _ in ps}
+            res = {k: f.result() for k, f in futs.items()}
     elif mode == "reuse-conc":
         with cf.ThreadPoolExecutor(len(ps)) as ex:
             [f.result() for f in [ex.submit(ask, url, t) for k, t in ps]]
