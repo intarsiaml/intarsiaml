@@ -84,9 +84,23 @@ From section 2, ms left per chunk, largest first: experts (~230 at the hipBLASLt
    consecutive query tiles cut by key tiles, highest first; a piece keeps >= 128 blocks or the call stays one launch. A block of a
    piece is the block of the one launch with the same query tile (`qhi`). In practice the 40 sliding-window visits split in two;
    the full-attention visits need more pieces than the block floor allows and stay one launch (8 stalls per chunk, ~2 ms).
-3. **The experts' down / gate_up in pieces of feature tiles** (bits 4 / 8; opt-in, see window 2 and 3) and the **OCC form** of
-   the experts kernel (bits 16 / 32: compiled for 8 waves per SIMD, gate_up's up accumulators on the activation tiles' LDS, as
-   the 35B's `moe_wmma_r7.h` kMwOcc). `INTARSIA_HIP_INK_PF2_ZP` sets the pair-tile blocks per expert (tuning).
+3. **The experts' down / gate_up in pieces of feature tiles** (bits 4 / 8), and **more pair-tile blocks per expert** (bit 16)
+   so a hot expert's tiles run side by side instead of 2 - 3 per block one after another.
+4. **The prologue compiled for 12 waves per SIMD** (bit 128).
+
+**Final bit map** (`INTARSIA_HIP_INK_PF2`, default 151 = 1 | 2 | 4 | 16 | 128; `=0` is main's forms; every bit keeps the bits):
+
+| Bit | Form | Default |
+|---|---|---|
+| 1 | prologue's rel tail as its own pass (`ink_rel_table_k`, 8-byte stores) | on |
+| 2 | flash attention in pieces of query tiles under the stall line | on |
+| 4 | experts' down in pieces of feature tiles under the stall line | on |
+| 8 | experts' gate_up in pieces (no gain: window 3) | off |
+| 16 | experts' pair-tile grid eight times the average pairs per expert over the tile, 1 to 64 (main: twice, 1 to 8) | on |
+| 128 | with bit 1, the prologue compiled for 12 waves per SIMD | on |
+
+Tried and removed (window 3, pf2c only): the experts kernel's OCC form (then bits 16 / 32) and the experts in pair-count order
+(then bit 64). In windows 2 and 3 the bit numbers above 8 meant those removed forms; window 4 on uses the map above.
 
 Not levers: the unembed (last row only), the gaps between chunks (0.01 ms), the row kernel (at the bandwidth line).
 
@@ -106,7 +120,7 @@ stage `raw/stage_unit.sh`, profile split `raw/w2-split-mask7.txt`.
   gate_up 5) and re-measured in window 3. The profile at mask 7 also shows the rest working: prologue 29.6 ms + rel table 15.2
   ms per chunk (80.1 before), flash 88 launches with no stall after the sliding ones, idle 27.3 ms (60.1).
 
-## 5. Window 3: the bits one by one (pf2c `b61cd1315`; fleetq #12056)
+## 5. Window 3: the bits one by one (pf2c `b61cd1315`; fleetq #12056; pf2c-era bit numbers)
 
 Radiance down 12:29:41 - 12:33:13 (3:32). Binary pf2c (CPU job #12052), still on main `87c9745c0` with the new settings set by
 env + `--prefill-chunk 2048`. Log `raw/window3-12056-ab.log`, stage `raw/stage_ab.sh`, profile split `raw/w3-split-mask3.txt`.
@@ -118,9 +132,9 @@ One process per configuration, so single samples (the two mask-0 and mask-3 repe
 | 3 (rel pass + flash pieces; two runs) | 2900.0 / 2882.3 | 3015.6 / 3007.3 | +6.9 % / +7.6 % |
 | 7 (+ down in 3 pieces) | 2923.8 | 3041.1 | +7.9 % / +8.6 % |
 | 15 (+ gate_up in 5 pieces) | 2904.1 | 3010.0 | +7.2 % / +7.5 % |
-| 19 (3 + the OCC gate_up) | 2613.1 | 2681.1 | -3.6 % / -4.2 % |
-| 51 (3 + OCC gate_up and down) | 2498.8 | 2552.9 | -7.8 % / -8.8 % |
-| 67 (3 + experts in pair-count order) | 2874.9 | 3000.1 | +6.1 % / +7.2 % |
+| 19 (3 + the OCC gate_up; removed) | 2613.1 | 2681.1 | -3.6 % / -4.2 % |
+| 51 (3 + OCC gate_up and down; removed) | 2498.8 | 2552.9 | -7.8 % / -8.8 % |
+| 67 (3 + experts in pair-count order; removed) | 2874.9 | 3000.1 | +6.1 % / +7.2 % |
 | 3, `INTARSIA_HIP_INK_PF2_ZP=16` | 2969.7 | 3107.4 | +9.6 % / +11.0 % |
 | 3, `INTARSIA_HIP_INK_MOE_WMMA=32` (32-pair tile) | 2638.6 | 2813.1 | -2.6 % / +0.4 % |
 
