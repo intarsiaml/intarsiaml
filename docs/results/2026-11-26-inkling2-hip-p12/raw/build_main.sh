@@ -10,9 +10,11 @@ mkdir -p "$LANE/.scratch/bin" "$LANE/logs" "$SRC/.scratch"
 export INTARSIA_REPO=$SRC INTARSIA_TARGET_VOL=intarsia-cargo-target-ink-hip-p12 INTARSIA_CONTAINER_NAME=ink-hip-p12-build-main
 trap 'docker rm -f ink-hip-p12-build-main >/dev/null 2>&1' EXIT
 DEV="$LANE/deploy/tatooine/dev.sh"
+if [ "${SKIP_CLI:-0}" != 1 ]; then
 $DEV cargo build --release -j8 --features hip -p intarsia-cli --target-dir /target/main < /dev/null > "$LANE/logs/build-main-$NAME.log" 2>&1
 rc=$?; tail -2 "$LANE/logs/build-main-$NAME.log"; echo "main cli build exit $rc"; [ $rc -ne 0 ] && exit $rc
 $DEV cp /target/main/release/intarsia /work/.scratch/intarsia < /dev/null && cp "$SRC/.scratch/intarsia" "$LANE/.scratch/bin/intarsia-$NAME" && md5sum "$LANE/.scratch/bin/intarsia-$NAME"
+fi
 $DEV cargo test --release -j8 -p intarsia-models --test inkling2 --no-run --target-dir /target/main < /dev/null > "$LANE/logs/build-main-test-$NAME.log" 2>&1
 rc=$?; tail -1 "$LANE/logs/build-main-test-$NAME.log"; echo "main inkling2 test build exit $rc"; [ $rc -ne 0 ] && exit $rc
 exe=$(grep -aoE '/target/main/release/deps/inkling2-[0-9a-f]+' "$LANE/logs/build-main-test-$NAME.log" | tail -1)
