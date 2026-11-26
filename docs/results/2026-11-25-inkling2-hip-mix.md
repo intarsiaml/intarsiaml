@@ -30,6 +30,12 @@ Ops: SconvRes 69, AttnResMix 67, LoopBlend 68, ConvMix 74, InkInProj 73 (+ `_row
   if bits change; G2 must still pass). 2 windows left, <= 20 min each, none after 06:00, radiance back up before release; own `INTARSIA_TARGET_VOL` and container name;
   tatooine `/` is 88% full: clean the own build volume between windows if tight. Report each landing as "ready to merge at <commit>" with us before / after per kernel.
 
+- **Window rule change (coordinator, during the speed round):** the count cap is replaced by a time budget. Each window keeps radiance down 5 min or less; this lane's
+  total radiance-down time from then on is 20 min or less; none after 06:00; radiance must answer `/v1/models` before release. Log each window's down time here.
+  PR #516 (`ink/hip` -> main, the correctness form) stays as it is until it merges: do not merge into `ink/hip`; send speed heads as "ready to merge at <commit>" (the
+  lead integrates them in a follow-up branch).
+  Down-time log (speed round): (none yet; window 1 of the first round was 60 s, before the rule).
+
 ## Status (2026-11-25 21:45 EST)
 
 All five ops ported and ADMITTED on the R9700 in the first unit window; rows-exact (bitwise) tests pass; bench below. Branch `ink/hip-mix`.
