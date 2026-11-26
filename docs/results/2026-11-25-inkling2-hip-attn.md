@@ -36,6 +36,7 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
 | Window | fleetq | Down | Counts toward the 20 min budget |
 |---|---|---|---|
 | 1 (70/71 unit) | #11939 | 21:47:58-21:48:32, 34 s | no (before the rule) |
+| 2 (op 75 v1: admission, bitwise pair, bench, model decode) | #11952 | 22:10:16-22:12:09, 1 min 53 s | yes (total 1:53 of 20:00) |
 
 ## Step 0
 
@@ -93,6 +94,24 @@ for real decode, where 24 layers' KV do not fit.
 Per decode token at ~4k context: 20 SWA layers x (11.7 + 20.7) + 4 full x (12.3 + 36.9) = 0.85 ms of attention. Speed levers
 (after G2): fuse prologue + attention (op 75, removes a launch and the q / rel round trip), more splits on SWA rows (more
 blocks for the 1024-key case), a combine-free path for one split.
+
+## Op 75 v1 (commit 27ea64c7e; window 2 #11952, raw/window2-11952.log)
+
+- Admission (full sweep): `ink_attn_decode_bf16` 70/70 ADMITTED (max_abs 1.0e-3); 70 117/117, 71 63/63 unchanged.
+- Bitwise: R-row and 1-row op 75 calls (host and device positions) equal the pair at T 2..16 (63 cases, all pass).
+- Kernel bench (eager back-to-back, cache-warm), pair = prologue + attention, us:
+
+| Case | Pair | Op 75 v1 |
+|---|---|---|
+| SWA 1024 keys | 32.2 | 33.7 |
+| full 4k | 49.0 | 61.5 |
+| full 8k | 69.5 | 95.0 |
+| full 16k | 113.7 | 164.0 |
+
+- Whole model (`generate`, graphs, 256 tokens, `INTARSIA_INK_ATTN_FUSED=0` vs `1`): short prompt 62.50 / 62.38 -> 63.72 / 63.69
+  tok/s (+1.9 %, -0.3 ms / token); 4k prompt 60.47 -> 60.28 tok/s (flat). The fused kernel is slower than the pair's kernels at
+  long context (every split block redoes the q / r / k / v jobs in two rounds, one block merges all splits), which eats the
+  dispatch savings on the full layers. Next: v2 (8 waves for the prologue jobs, a faster ticket merge, split-size sweep).
 
 ## Next
 
