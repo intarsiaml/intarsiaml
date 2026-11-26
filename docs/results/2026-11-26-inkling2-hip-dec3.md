@@ -11,7 +11,8 @@ one launch) as 3 pieces under the R9700's dispatch stall line, which removes a 2
 76.89 tok/s short (+3.61 %, 95 % CI of the ratio [1.0355, 1.0367]), 71.69 -> 74.02 at 4k (+3.26 %, [1.0324, 1.0327])**. Greedy
 md5 equal to main at 64 and 256 tokens, short and 4k (and at `=0`); G2 short / long PASS at main's values; admission of the 8
 touched ops and the rows-exact / bitwise tests pass; graphs 1 capture + 255 replays, 0 eager. Radiance down 13 min 42 s in 5
-windows.
+windows. Follow-up (window 6): Qwen3.6-35B-A3B-NVFP4 md5 equal for main / branch / `=0` at 256 tokens, short and 4k; its NVFP4
+lm_head does not take the split; matmul / logits / argmax admission 0 failing (total down 14 min 55 s).
 
 ## Brief (coordinator, 2026-11-26 ~03:50 EST, in substance)
 
@@ -200,3 +201,34 @@ The split also honours `INTARSIA_HIP_SPLIT_US` / `INTARSIA_HIP_SPLIT_MIN_US` (`0
   an ISA check first), the experts' epilogue `gs` / `wts` loads after the weight stream (scalar loads via `readfirstlane`).
 - tatooine: `~/intarsiaml-ink-hip-dec3` (binaries in `.scratch/bin`) and volume `intarsia-cargo-target-ink-hip-dec3` are kept
   until the PR merges; remove both then.
+
+## Follow-up brief (coordinator, 2026-11-26 ~04:40 EST, in substance)
+
+Before merging #524 (argmax and the split one-row bf16 GEMV reach every HIP model): one radiance window, <= 5 min down,
+starting before 06:00 EST (window.sh pattern, card 0, `--takes-down radiance --quiet gpu,cpu`): `intarsia kernels test --backend
+hip --op matmul` (and `logits` / `argmax` again if cheap) on the branch binary, 0 FAIL; one non-Inkling HIP model already on
+tatooine (the Qwen3.5/3.6-35B MoE the HIP lanes bench, or the smallest Qwen the HIP baselines use; whichever loads fastest):
+256 greedy ids, short and ~4k prompt, main vs branch default vs branch `INTARSIA_HIP_INK_DEC3=0`, ids / md5 equal across all
+three; note whether the GEMV split triggers on that model's unembed (trace or log line). If it does not fit before 06:00 or no
+such model is on tatooine: no window, say so. Report <= 10 lines; commit and push the doc update to `ink/hip-dec3` (hook's tests
+on tatooine if endor's quiet slot is still on); don't merge.
+
+## Window 6: the follow-up on a non-Inkling model (fleetq #12018; radiance down 04:39:50 - 04:41:03, 1:13; lane total 14:55)
+
+Log `raw/window6-12018-x35.log`, stage `raw/stage_x35.sh`, trace `raw/w6-ktrace-35b-short.csv.gz` (`raw/tailtrace.py`). Model
+Qwen3.6-35B-A3B-NVFP4 (on tatooine; lm_head 248320 x 2048), `generate -m /models/Qwen3.6-35B-A3B-NVFP4 --backend hip --max-seq
+8192 --mem-budget 29 --spec off --ignore-eos --profile-every 0 --max-tokens 256`, card 0, md5 of the generated text:
+
+| Prompt | main | branch dec3c (default 7) | branch `INTARSIA_HIP_INK_DEC3=0` | graphs (all three) |
+|---|---|---|---|---|
+| short (29 tokens) | df397a9b4285… (166.30 tok/s) | df397a9b4285… (167.88) | df397a9b4285… (167.18) | 256 replays, 1 capture, 0 eager |
+| 4k (3858 tokens) | a368b17d386c… (161.06) | a368b17d386c… (161.67) | a368b17d386c… (160.94) | 256 / 1 / 0 |
+
+- The GEMV split does **not** trigger on this model: its lm_head runs `nvfp4_gemv_v2_kernel<1, float, false>` (458.7 us, one
+  launch, gap before argmax 3.1 us), not the bf16 GEMV, and is under the stall line anyway. What reaches it is argmax
+  (`argmax_kernel<float, true, true>`, 18.0 us): bits 1 and 2.
+- Admission on the branch (`intarsia kernels test --backend hip --op <op>`), 0 failing: matmul (matmul_bf16 21,
+  matmul_bf16_gemv 14, matmul_bf16_gemv_rows 14 ADMITTED; matmul_bf16_wmma / _wmma_rows NO CASES, as on main), logits (4 / 4 /
+  4 ADMITTED), argmax (f32 8, bf16 8 ADMITTED).
+- Not covered: a model whose lm_head is a bf16 GEMV over the stall line other than Inkling-2 (Qwen3-8B on tatooine has a
+  151936 x 4096 bf16 head if run unquantised; not run, the brief asked for one model).
