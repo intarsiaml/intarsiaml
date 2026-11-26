@@ -1,6 +1,6 @@
 # Inkling-2 HIP: `INTARSIA_HIP_INK_PF2` on tiny shapes (lane ink-hip-pf2-tiny, one R9700, 2026-11-26)
 
-Branch `ink/hip-pf2-tiny` from origin/main `b7450223e`. Tatooine, card 0. Follows lane ink-hip-p12 window 7
+Branch `ink/hip-pf2-tiny` from origin/main `b7450223e`, rebased onto `6517d98f4` (#533) before the PR. Tatooine, card 0. Follows lane ink-hip-p12 window 7
 (`docs/results/2026-11-26-inkling2-hip-p12.md` on `ink/hip-p12`, PR #533): on main's own test binary,
 `inkling2_tiny_g1b_teacher_forced_bf16` fails on HIP with the default `INTARSIA_HIP_INK_PF2` (mask 151) and passes with `=0`; the
 failing errors differ run to run (`v00.attn_out` rel err 0.81 - 0.86).
@@ -36,7 +36,8 @@ fixed on this branch; every gate of brief 1 item 3 passes (window 2). PR: see `d
 
 Log `raw/windowW2.log`, stage `raw/stage_w2.sh`. Binaries: `main3` = origin/main `b7450223e` (md5 cecc952a), `pf2a` = the new
 admission case on main's kernel (`6e69bdf3e`, f7fa2de1), `pf2b` = case + fix (`c75cfbe64`, 96795283); the branch's `inkling2` test
-binary (case + fix). Card 0 and card 1 at the same time (radiance is down on both in a window; this halves the downtime; the
+binary (case + fix). The ids are from before the rebase onto `6517d98f4` (#533, P12 on HIP; it shares only `docs/decisions/LOG.md`
+with this branch, the gates were not rerun on the rebased head: P12 is lossless and does not touch the prologue). Card 0 and card 1 at the same time (radiance is down on both in a window; this halves the downtime; the
 fleet note's `HIP_VISIBLE_DEVICES=0` is not followed for card 1, as in lane ink-hip-p12's window 6).
 
 | Gate | Result |
