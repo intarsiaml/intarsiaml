@@ -503,7 +503,7 @@ fn ink_mix_bench() {
         let bias = rnd(&mut rng, DType::F32, &[e], 0.1);
         let mut a = OpAttrs { top_k: k, scale: 8.0, norm_topk: true, temperature: 1.0, ..OpAttrs::default() };
         a.dsv.score_func = intarsia_core::dsv41::ops::ScoreFunc::Sigmoid;
-        for t in [1usize, 4, 16] {
+        for t in [1usize, 4] {
             let x = rnd(&mut rng, bf, &[t, d], 1.0);
             let lk = if t <= 4 { "logits_bf16_gemv" } else { "logits_bf16_gemv_rows" };
             let us_l = bench(&rig, lk, Op::Logits, &[x.clone(), w.clone()], &[(DType::F32, vec![t, e], None)], &OpAttrs::default(), 300);
@@ -516,8 +516,9 @@ fn ink_mix_bench() {
     }
 }
 
-/// InkRoute (76) is BITWISE its pair on the same call: `logits_bf16_gemv` (T <= 4) / `logits_bf16_gemv_rows` (the `exact_rows` form, T <= 16) +
-/// `moe_route`, for the real router (D 2304, 128 experts, top-8, route_scale 8, sigmoid) and the other score functions, T 1..=16, with and
+/// InkRoute (76) is BITWISE its pair on the same call: `logits_bf16_gemv` +
+/// `moe_route`, for the real router (D 2304, 128 experts, top-8, route_scale 8, sigmoid) and the other score functions, T 1..=4 (the registered range: above it the
+/// fused kernel is slower than the pair), with and
 /// without the logits output; a row is bitwise the one-row call.
 #[test]
 fn ink_route_bitwise_pair() {
@@ -527,7 +528,7 @@ fn ink_route_bitwise_pair() {
     for &(d, e, k, scale) in &[(2304usize, 128usize, 8usize, 8.0f32), (64, 40, 6, 1.0), (72, 17, 3, 1.5)] {
         let w = rnd(&mut rng, bf, &[e, d], (d as f32).powf(-0.5));
         let bias = rnd(&mut rng, DType::F32, &[e], 0.1);
-        for t in [1usize, 2, 3, 4, 5, 8, 13, 16] {
+        for t in [1usize, 2, 3, 4] {
             let x = rnd(&mut rng, bf, &[t, d], 1.0);
             for (sf, norm, temp) in [(1u8, true, 1.0f32), (0, true, 1.0), (2, true, 1.0), (1, false, 0.7)] {
                 let mut a = OpAttrs { top_k: k, scale, norm_topk: norm, temperature: temp, ..OpAttrs::default() };
