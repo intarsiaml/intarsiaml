@@ -1,6 +1,6 @@
 # Inkling-2-Mini MoE experts prefill, round 2 (lane ink-moepf2, endor M5 Max, 2026-11-25)
 
-Branch `ink/moepf2` from main 072dd0863. Not pushed. **Status: stopped before any code or GPU work. Both levers of the
+Branch `ink/moepf2` from main 072dd0863. Not pushed. **Status (final): the two levers of brief 1 were already measured slower on `ink/prefill` (below); brief 2's mixed-tile form is built, bitwise, opt-in, about 1.8 % of prefill GPU time.** Brief 1 status was: stopped before any code or GPU work, both levers of the
 brief were already built and measured on the unmerged branch `ink/prefill`, and both were slower.** No fleetq slot taken.
 
 ## Briefs received
@@ -150,6 +150,63 @@ Reading:
   not shrink with M. The 47 remainders above 32 rows keep their 64-row tile. Smaller M tiles cannot give more than this.
 - `k64` forms were not timed on MXFP8, balanced or random routing.
 
+### End to end (fleetq #11955, exclusive, 23:00-23:11; one binary at f615aa551, md5 56081f24...)
+
+Arm A = knob unset (the uniform 64-row tiles, main's code path), arm B = `INTARSIA_INK_MOE_MIX=32k64`. One binary for both
+arms, not a separate main build. `intarsia generate --backend metal --max-seq 20480 --temperature 0`, prompts of lane
+ink-relbias-mma (`p4k.txt`, `p16k.txt`; 1k = the first 3100 characters of the 4k prompt). Raw: `raw/e2e-11955.log`.
+
+**Greedy output, 32 tokens:** md5 the same in both arms at 1k (a5aa3433...), 4k (50799fe1...) and 16k (cdbf7d72...). The
+trace in arm B shows the remainder kernels ran at every length.
+
+**Kernel trace, 4k prompt, warm second run, order A B B A (GPU ms over the prefill):**
+
+| op | A (1) | B (2) | B (3) | A (4) | B / A (means) |
+|---|---:|---:|---:|---:|---:|
+| moe_experts_situ_bf16 (NVFP4) | 1349.8 | 1294.6 | 1284.3 | 1328.6 | **0.963** |
+| moe_experts_mxfp8_bf16 | 128.7 | 128.5 | 127.5 | 126.5 | 1.003 |
+| ink_in_proj_bf16_nax (untouched, reference) | 261.3 | 261.6 | 257.7 | 256.9 | 1.002 |
+| all ops | 2603 | 2546 | 2526 | 2561 | **0.982** |
+
+In the stream the NVFP4 experts are 3.7 % faster (the bench said 4.0 %), MXFP8 is unchanged, and the whole prefill's GPU
+time drops 1.8 %. The experts are 52 % of the GPU time in arm A, still the top item. (This run was in a slow state: 2.6 s
+of GPU time for a 4k prefill against 1.34 s in the Metal lane's #11757 profile.)
+
+**Prefill wall time, ms, ABBA x 3 (warm third run of `--repeat 3`), in run order:**
+
+| length | A | B | median A / B | best A / B |
+|---|---|---|---:|---:|
+| 4k | 1466 1595 1447 1774 1957 1841 | 1440 1571 1857 1663 1911 1761 | 1684 / 1712 (+1.6 %) | 1447 / 1440 |
+| 16k | 7924 10075 8726 7442 6761 6977 | 9680 9492 8110 6888 6825 6843 | 7683 / 7499 (-2.4 %) | 6761 / 6825 |
+| 1k | 348 344 343 471 345 383 | 328 535 520 327 397 329 | 346 / 363 (+4.8 %) | 343 / 327 |
+
+**Not faster than noise.** The spread inside one arm is 30-50 % (4k: 1447 to 1957 ms; the usual 4k figure on this box is
+about 1250 ms), against an expected gain of 1.8 %. Six runs per arm cannot show it either way, and no rest was taken
+between runs.
+
+### Verdict
+
+- **Bitwise: yes.** 36 kernel cases, 0 differing elements; same greedy output at 1k / 4k / 16k.
+- **Speed: -3.7 % on the NVFP4 experts in the stream, -1.8 % of prefill GPU time at 4k.** That is at or just under the
+  brief's stop line of ~2 % of a chunk, and the wall-time A/B does not resolve it.
+- **Stays opt-in** (`INTARSIA_INK_MOE_MIX=32k64`, row in `docs/tuning.md`). Not default-on: the rule was bitwise and
+  faster than noise, and only the first holds. No merge asked.
+- Brief 2 step 4 (a GEMV-style path for experts under 16 rows) was for the case that the bitwise form is impossible; it
+  is possible, so that path was not built.
+- What would settle a default: a within-process A/B (lane ink-verify's method) or a rested ABBA with far more runs, in a
+  quiet window. The form's ceiling is known either way: about 2 % of a chunk.
+
 ## Tests
 
-None run: no code changed.
+- `tests/ink_moe_mix.rs` (new): pass in #11920 and again in #11955.
+- #11955: `cargo test --release -p intarsia-backend-metal --lib --test inkmoe --test ink_prefill_moe --test ink_moe_mix`:
+  lib 18 passed, inkmoe 2, ink_prefill_moe 1, ink_moe_mix 1; `-p intarsia-cli --test docs_env_vars`: 2 passed.
+- #11955: `intarsia kernels test --backend metal --quick --op moe_experts` and `--op moe_experts_mxfp8` with the knob on:
+  all ADMITTED (12 and 21 cases). These cases are at most 40 rows and never reach 64-row tiles, so they show only that the
+  knob leaves the other paths alone; the mixed path itself is covered by `ink_moe_mix`.
+- Not run: the full workspace `cargo test`, G2 / G3 (not needed for a bitwise form), localeval `speed-plain`.
+
+## fleetq jobs
+
+#11919 build (cpu), #11920 probe 1 (exclusive), #11933 build (cpu), #11934 probe 2 (exclusive), #11955 end to end + tests
+(exclusive). All exit 0, none overlapped a reservation (#11955 started at 23:00 in the slot #11871 vacated when it died).

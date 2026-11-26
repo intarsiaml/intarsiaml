@@ -1,0 +1,70 @@
+fleetq: #11955 running on endor: /opt/code/intarsiaml/.worktrees/ink-moepf2/.scratch/e2e.sh
+fleetq: #11955 went ahead of the line and must end within 3h59m (by Thu 03:00); it is stopped then
+binary 56081f247e23e35bdef89c0d497230ba at f615aa551, mix form 32k64, 23:00:00
+-- greedy output md5 (32 tokens)
+ids 1k: A a5aa34339b41b03404f3ac82523a4b97 B a5aa34339b41b03404f3ac82523a4b97 SAME; B trace: 2 remainder kernels; prompt tokens prompt chunk off (INTARSIA_INK_LONG_CHUNK=1 turns it on: 4096 rows from 4097 tokens
+ids 4k: A 50799fe110c1decf957722cfc2af53b6 B 50799fe110c1decf957722cfc2af53b6 SAME; B trace: 2 remainder kernels; prompt tokens prompt chunk off (INTARSIA_INK_LONG_CHUNK=1 turns it on: 4096 rows from 4097 tokens
+ids 16k: A cdbf7d721b5c9ce17c4c892e528f9886 B cdbf7d721b5c9ce17c4c892e528f9886 SAME; B trace: 2 remainder kernels; prompt tokens prompt chunk off (INTARSIA_INK_LONG_CHUNK=1 turns it on: 4096 rows from 4097 tokens
+-- prefill 4k 23:00:49
+prefill 4k A: 1466 ms
+prefill 4k B: 1440 ms
+prefill 4k B: 1571 ms
+prefill 4k A: 1595 ms
+prefill 4k A: 1447 ms
+prefill 4k B: 1857 ms
+prefill 4k B: 1663 ms
+prefill 4k A: 1774 ms
+prefill 4k A: 1957 ms
+prefill 4k B: 1911 ms
+prefill 4k B: 1761 ms
+prefill 4k A: 1841 ms
+-- prefill 16k 23:02:45
+prefill 16k A: 7924 ms
+prefill 16k B: 9680 ms
+prefill 16k B: 9492 ms
+prefill 16k A: 10075 ms
+prefill 16k A: 8726 ms
+prefill 16k B: 8110 ms
+prefill 16k B: 6888 ms
+prefill 16k A: 7442 ms
+prefill 16k A: 6761 ms
+prefill 16k B: 6825 ms
+prefill 16k B: 6843 ms
+prefill 16k A: 6977 ms
+-- prefill 1k 23:08:32
+prefill 1k A: 348 ms
+prefill 1k B: 328 ms
+prefill 1k B: 535 ms
+prefill 1k A: 344 ms
+prefill 1k A: 343 ms
+prefill 1k B: 520 ms
+prefill 1k B: 327 ms
+prefill 1k A: 471 ms
+prefill 1k A: 345 ms
+prefill 1k B: 397 ms
+prefill 1k B: 329 ms
+prefill 1k A: 383 ms
+-- kernel traces 4k (A B B A) 23:09:43
+kt 4k 1A: all 2603 ms; moe_experts_situ_bf16 1349.8; ink_in_proj_bf16_nax 261.3; conv_mix_bf16 242.9; rel_sink_attn_bf16_nax 224.5; ink_kv_prologue_bf16 200.9; moe_experts_mxfp8_bf16 128.7; matmul_bf16_nax 93.6; logits_bf16 61.4; attn_res_mix_bf16 16.5
+kt 4k 2B: all 2546 ms; moe_experts_situ_bf16 1294.6; ink_in_proj_bf16_nax 261.6; conv_mix_bf16 241.3; rel_sink_attn_bf16_nax 224.9; ink_kv_prologue_bf16 200.6; moe_experts_mxfp8_bf16 128.5; matmul_bf16_nax 93.8; logits_bf16 61.6; attn_res_mix_bf16 16.4
+kt 4k 3B: all 2526 ms; moe_experts_situ_bf16 1284.3; ink_in_proj_bf16_nax 257.7; conv_mix_bf16 240.2; rel_sink_attn_bf16_nax 223.6; ink_kv_prologue_bf16 199.8; moe_experts_mxfp8_bf16 127.5; matmul_bf16_nax 92.7; logits_bf16 61.1; attn_res_mix_bf16 16.1
+kt 4k 4A: all 2561 ms; moe_experts_situ_bf16 1328.6; ink_in_proj_bf16_nax 256.9; conv_mix_bf16 240.5; rel_sink_attn_bf16_nax 220.5; ink_kv_prologue_bf16 197.0; moe_experts_mxfp8_bf16 126.5; matmul_bf16_nax 91.9; logits_bf16 60.5; attn_res_mix_bf16 16.0
+-- tests 23:10:16
+moe_experts    moe_experts_bf16_rows           1      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_situ_bf16           4      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_situ_bf16_rows      3      0     0.000e0     0.000e0  ADMITTED
+4 kernels, 12 cases in 0.4s
+moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows      9      0     0.000e0     0.000e0  ADMITTED
+2 kernels, 21 cases in 0.3s
+     Running unittests src/lib.rs (.scratch/target-mix/release/deps/intarsia_backend_metal-52ae18ab87ff48e8)
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/ink_moe_mix.rs (.scratch/target-mix/release/deps/ink_moe_mix-55a8f418863e9349)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.35s
+     Running tests/ink_prefill_moe.rs (.scratch/target-mix/release/deps/ink_prefill_moe-732cb12fbfa98345)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.13s
+     Running tests/inkmoe.rs (.scratch/target-mix/release/deps/inkmoe-4d64a73e8c7e2141)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.53s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+    Finished `release` profile [optimized] target(s) in 0.09s
+== done 23:10:45
+fleetq: #11955 done (exit 0)
