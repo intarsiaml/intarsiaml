@@ -1,0 +1,41 @@
+fleetq: #12218 waiting (#2 in line): in line behind #12217 "ink-hip-vrow: W10 vrow3 (merged main b7450223e, k5) spec-default 4+4 ABBA new vs main rules + gate-1 md5 short/4k 64, both cards, radiance down <= 4:45" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12217 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12217 set, or it will wait for #12217 to be released.
+fleetq: #12218 waiting (#1 in line): radiance-rank0 is also taken down by #12217 "ink-hip-vrow: W10 vrow3 (merged main b7450223e, k5) spec-default 4+4 ABBA new vs main rules + gate-1 md5 short/4k 64, both cards, radiance down <= 4:45" (claude-04c0e1cd)
+fleetq:   #12217 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12217 set, or it will wait for #12217 to be released.
+fleetq: #12218 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 100% busy with work fleetq does not track
+fleetq: #12218 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12218 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=80 bash ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/window.sh ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w7.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w7.sh; cap 80s; stopping radiance 2026-11-26 16:50:04
+[window] radiance stopped 2026-11-26 16:50:08 (inactive)
+G1B [control] 16:50:08
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+v00.attn_out: rel err 8.590e-1 > budget 1.801e-2
+v00.attn_proj: rel err 8.636e-1 > budget 1.769e-2
+v00.expert_w: rel err 1.525e-1 > budget 4.204e-3
+v00.mlp_in: rel err 7.436e-1 > budget 1.678e-2
+G1B [moe_wmma0] 16:50:08
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+v00.attn_out: rel err 8.395e-1 > budget 1.801e-2
+v00.attn_proj: rel err 8.449e-1 > budget 1.769e-2
+v00.expert_w: rel err 1.847e-1 > budget 4.204e-3
+v00.mlp_in: rel err 7.576e-1 > budget 1.678e-2
+G1B [pf2_0] 16:50:09
+test inkling2_tiny_g1b_teacher_forced_bf16 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.23s
+G1B [all3] 16:50:09
+test inkling2_tiny_g1b_teacher_forced_bf16 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.23s
+G1B [flash0] 16:50:10
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+v00.attn_out: rel err 8.073e-1 > budget 1.801e-2
+v00.attn_proj: rel err 8.116e-1 > budget 1.769e-2
+v00.expert_w: rel err 1.724e-1 > budget 4.204e-3
+v00.mlp_in: rel err 7.005e-1 > budget 1.678e-2
+G1B [all3_rowsexact0] 16:50:10
+test inkling2_tiny_g1b_teacher_forced_bf16 ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.23s
+[stage] done 16:50:11 (3s)
+[window] stage done 2026-11-26 16:50:12 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 16:50:12
+[window] radiance answers 2026-11-26 16:50:22 (after 15 s)
+fleetq: #12218 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

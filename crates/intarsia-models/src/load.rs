@@ -1047,6 +1047,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         // a rank in another process (lane d2r): a dense MTP head runs whole on rank 0 (`serve_remote_rank` sets the same)
         mtp_whole: opts.load.mtp_whole || matches!(group, Group::Remote { .. }),
         dflash,
+        // a model loaded to batch packs no P12 copies (its plan drops them; lane ink-hip-p12)
+        batched: max_batch.value > 1,
         ..opts.load.clone()
     };
     // The prefix store with `--max-batch` > 1 runs without macro prefill (`BatchedEngine::new`): decide it here, so the workspace

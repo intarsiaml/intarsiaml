@@ -1,0 +1,17 @@
+fleetq: #12182 running on endor: bash -c 'cd /opt/code/intarsiaml/.worktrees/ink-hip-p12 && cargo test -q --locked -p intarsia-core --lib p12 2>&1 | tail -4 && cargo check -q --locked -p intarsia-models -p intarsia-cli --tests 2>&1 | grep -E "^error|warning: unused" | head -20; echo check-exit=${PIPESTATUS[0]}; cargo test -q --locked -p intarsia-models --test inkling2_batch 2>&1 | tail -6'
+fleetq: #12182 went ahead of the line and must end within 4h51m (by Thu 20:37); it is stopped then
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 267 filtered out; finished in 0.00s
+
+error[E0063]: missing field `batched` in initializer of `LoadOptions`
+error: could not compile `intarsia-cli` (lib) due to 1 previous error; 1 warning emitted
+error: could not compile `intarsia-cli` (lib test) due to 1 previous error; 1 warning emitted
+check-exit=101
+failures:
+    inkling2_loaded_to_batch_packs_no_p12
+
+test result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 89.02s
+
+error: test failed, to rerun pass `-p intarsia-models --test inkling2_batch`
+fleetq: #12182 done (exit 0)

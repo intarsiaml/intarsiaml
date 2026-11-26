@@ -1,0 +1,41 @@
+fleetq: #12191 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12190 "ink-hip-vrow: save verify2 test exes, build vrow1 (blend fuse limits) + ink_mix / verify_rows_real (cpu)" (claude-04c0e1cd) loads it
+fleetq:   #12190 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12190 set, or it will wait for #12190 to be released.
+fleetq: #12191 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=175 bash ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/window.sh ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w6.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w6.sh; cap 175s; stopping radiance 2026-11-26 16:02:43
+[window] radiance stopped 2026-11-26 16:02:47 (inactive)
+[stage] serve --max-batch 16, round 1 (cold admission): main2 card 1, p12d card 0 16:02:47
+SERVE main2-c1 | loaded ink on hip (AMD Radeon Graphics) in 112.2s, context 3285 tokens | admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached [16:04:40]
+SERVE p12d-c0 | loaded ink on hip (AMD Radeon Graphics) in 112.3s, context 3285 tokens | admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached [16:04:40]
+pack12 off: the model is loaded to batch (--max-batch > 1); the bf16 weights serve every row
+MD5 p12d default-short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 616 ms (102.26 tok/s) [16:04:49]
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.3 s)
+[stage] g1b, flash off, main2's test binary 16:04:49
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+v00.attn_out: rel err 8.148e-1 > budget 1.801e-2
+v00.attn_proj: rel err 8.255e-1 > budget 1.769e-2
+v00.expert_w: rel err 1.662e-1 > budget 4.204e-3
+v00.mlp_in: rel err 7.471e-1 > budget 1.678e-2
+v00.moe_out: rel err 1.027e0 > budget 2.676e-2
+v00.partial_out: rel err 9.883e-1 > budget 2.844e-2
+v00.rel: rel err 1.024e0 > budget 1.086e-2
+[stage] serve --max-batch 16, round 2 (warm, cards swapped): main2 card 0, p12d card 1 16:04:49
+SERVE main2-c0 | loaded ink on hip (AMD Radeon Graphics) in 16.4s, context 3285 tokens | admission on plan shapes: 23 kernel(s) checked, 0 case(s) run, 134 cached [16:05:07]
+SERVE p12d-c1 | loaded ink on hip (AMD Radeon Graphics) in 16.2s, context 3285 tokens | admission on plan shapes: 23 kernel(s) checked, 0 case(s) run, 134 cached [16:05:07]
+pack12 off: the model is loaded to batch (--max-batch > 1); the bf16 weights serve every row
+[stage] inkling2_batch on hip, p12d 16:05:07
+test inkling2_batch_argmax_equals_solo ... ok
+test inkling2_batch_equals_solo_2_5_16 ... ok
+test inkling2_batch_failed_pass_resets_every_sequence ... ok
+test inkling2_batch_membership_changes ... ok
+test inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo ... ok
+test inkling2_batch_rollback_per_sequence ... ok
+test inkling2_batch_sampler_rows_are_softcapped ... ok
+test inkling2_batched_engine_equals_solo_engine ... ok
+test inkling2_loaded_to_batch_packs_no_p12 ... ok
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.70s
+[stage] done 16:05:13 (146s)
+[window] stage done 2026-11-26 16:05:14 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 16:05:14
+[window] radiance answers 2026-11-26 16:05:24 (after 15 s)
+fleetq: #12191 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
