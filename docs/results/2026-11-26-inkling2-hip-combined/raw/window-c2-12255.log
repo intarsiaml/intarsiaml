@@ -1,0 +1,31 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-verify/.scratch/stage_c2.sh; cap 230s; stopping radiance 2026-11-26 18:29:00
+[window] radiance stopped 2026-11-26 18:29:04 (inactive)
+[stage] start 18:29:04 PF=plain-s4-4k-16k.json LIMIT=175 OLIMIT=200
+---- card 0
+MD5 comb dflt short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | up to 5 drafts | decode 638 ms (98.77 tok/s) | t+12s
+MD5 comb off short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 |  | decode 760 ms (82.92 tok/s) | t+19s
+MD5 comb dflt short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | up to 5 drafts | decode 2725 ms (93.56 tok/s) | t+31s
+MD5 comb off short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 |  | decode 3062 ms (83.29 tok/s) | t+39s
+[plain] old@c0a rc 0 t+75s | decode overall: 1785 tokens after the first, 23630 ms (75.54 tok/s)
+[plain] new@c0a rc 0 t+109s | decode overall: 1785 tokens after the first, 21831 ms (81.77 tok/s)
+[plain] new@c0b rc 0 t+144s | decode overall: 1785 tokens after the first, 21841 ms (81.73 tok/s)
+[plain] old@c0b rc 0 t+179s | decode overall: 1785 tokens after the first, 23629 ms (75.54 tok/s)
+MD5 main2 dflt short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | up to 3 drafts | decode 674 ms (93.45 tok/s) | t+187s
+MD5 main2 off short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 |  | decode 824 ms (76.42 tok/s) | t+194s
+[c0] done 18:32:18
+---- card 1
+MD5 comb dflt 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | up to 5 drafts | decode 730 ms (86.36 tok/s) | t+13s
+MD5 comb off 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 |  | decode 791 ms (79.65 tok/s) | t+21s
+MD5 comb dflt 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | up to 5 drafts | decode 2355 ms (108.27 tok/s) | t+34s
+MD5 comb off 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 |  | decode 3175 ms (80.32 tok/s) | t+45s
+[plain] new@c1a rc 0 t+79s | decode overall: 1785 tokens after the first, 21741 ms (82.10 tok/s)
+[plain] old@c1a rc 0 t+114s | decode overall: 1785 tokens after the first, 23567 ms (75.74 tok/s)
+[plain] old@c1b rc 0 t+149s | decode overall: 1785 tokens after the first, 23566 ms (75.75 tok/s)
+[plain] new@c1b rc 0 t+183s | decode overall: 1785 tokens after the first, 21782 ms (81.95 tok/s)
+MD5 main2 dflt 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | up to 3 drafts | decode 779 ms (80.91 tok/s) | t+194s
+MD5 main2 off 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 |  | decode 857 ms (73.52 tok/s) | t+201s
+[c1] done 18:32:25
+[stage] done 18:32:25
+[window] stage done 2026-11-26 18:32:26 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 18:32:26
+[window] radiance answers 2026-11-26 18:32:36 (after 15 s)

@@ -1,0 +1,20 @@
+
+
+---
+
+## 3. The piece contract
+
+Every piece is a Rust trait (or a C ABI entry for kernels) with a fixed shape. This is the whole modularity story.
+
+### 3.1 Backend trait (the one seam that matters)
+
+```rust
+trait Backend: Send + Sync {
+    fn name(&self) -> &'static str;                 // "cuda" | "hip" | "metal" | "cpu-ref"
+    fn arch(&self) -> Arch;                          // sm_121, gfx1201, ...
+    fn device_memory(&self) -> u64;
+    fn alloc(&self, bytes: u64) -> DeviceBuf;
+    fn free(&self, buf: DeviceBuf);
+    fn launch(&self, kernel: KernelId, args: &[KernelArg], stream: Stream) -> Result<()>;
+    fn graph_capture(&self, ops: &[GraphOp]) -> CapturedGraph;   // CUDA graphs / HIP graphs
+    fn graph_replay(&self, g: CapturedGraph, stream
