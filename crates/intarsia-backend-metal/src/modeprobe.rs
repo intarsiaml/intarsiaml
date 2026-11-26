@@ -202,17 +202,47 @@ impl MetalBackend {
             add(&mut line, "gather_file2g", run(&gat, &[(big, 0)], &g(ANON / PAGE - 1), threads, 5)?, String::new());
         }
         add(&mut line, "gather_anon", run(&gat, &[(&anon, 0)], &g(ANON / PAGE - 1), threads, 5)?, String::new());
-        // sustained back-to-back alu (lane ink-moepf2 saw a 2x slow-down within ~4 s of back-to-back MoE dispatch):
-        // INTARSIA_METAL_MODE_PROBE_SUSTAIN_MS=<ms> repeats the alu buffer that long and logs the times of 8 equal slices
+        // sustained back-to-back load (lane ink-moepf2: MoE calls start ~7.2 ms and settle ~25 % slower after 0.4-2 s of GPU
+        // work; a new process starts fast again). INTARSIA_METAL_MODE_PROBE_SUSTAIN_MS=<ms> alternates the alu buffer (clock) and
+        // a 2 GiB anonymous streaming read (memory) that long and logs each series in 8 equal slices; then the alu on a fresh
+        // command queue (does a new queue reset it), and again after 2 s of GPU idle.
         if let Some(ms) = std::env::var("INTARSIA_METAL_MODE_PROBE_SUSTAIN_MS").ok().and_then(|v| v.parse::<u64>().ok()) {
             let ts0 = std::time::Instant::now();
-            let mut ts = vec![];
+            let (mut ta, mut tm) = (vec![], vec![]);
             while ts0.elapsed().as_millis() < ms as u128 {
-                ts.push(run(&alu, &[], &16384u32.to_le_bytes(), threads, 1)?.0);
+                ta.push(run(&alu, &[], &16384u32.to_le_bytes(), threads, 1)?.0);
+                tm.push(run(&seq, &[(&anon, 0)], &((ANON / 16) as u64).to_le_bytes(), threads, 1)?.0);
             }
-            let k = ts.len().div_ceil(8).max(1);
-            let sl: Vec<String> = ts.chunks(k).map(|c| format!("{:.2}", med_min(c.to_vec()).0)).collect();
-            line += &format!(" sustain_n={} sustain={}", ts.len(), sl.join(","));
+            let sl = |ts: &[f64]| -> String {
+                let k = ts.len().div_ceil(8).max(1);
+                ts.chunks(k).map(|c| format!("{:.2}", med_min(c.to_vec()).0)).collect::<Vec<_>>().join(",")
+            };
+            line += &format!(" sustain_n={} sustain={} sustain_mem={}", ta.len(), sl(&ta), sl(&tm));
+            // fresh queue right after the sustained load
+            let q2 = dev.newCommandQueue().ok_or_else(|| Error::backend("queue"))?;
+            let mut t2 = vec![];
+            for _ in 0..3 {
+                let cb = q2.commandBuffer().ok_or_else(|| Error::backend("cb"))?;
+                let enc = cb.computeCommandEncoder().ok_or_else(|| Error::backend("enc"))?;
+                enc.setComputePipelineState(&alu);
+                let it = 16384u32.to_le_bytes();
+                // SAFETY: as in `run`
+                unsafe {
+                    enc.setBuffer_offset_atIndex(Some(&out), 0, 0);
+                    enc.setBytes_length_atIndex(NonNull::new_unchecked(it.as_ptr() as *mut c_void), 4, 1);
+                }
+                enc.dispatchThreads_threadsPerThreadgroup(
+                    MTLSize { width: threads, height: 1, depth: 1 },
+                    MTLSize { width: 256, height: 1, depth: 1 },
+                );
+                enc.endEncoding();
+                cb.commit();
+                MetalBackend::wait(&cb)?;
+                t2.push((cb.GPUEndTime() - cb.GPUStartTime()) * 1e3);
+            }
+            add(&mut line, "alu_newq", med_min(t2), String::new());
+            std::thread::sleep(std::time::Duration::from_millis(2000));
+            add(&mut line, "alu_idle2s", run(&alu, &[], &16384u32.to_le_bytes(), threads, 3)?, String::new());
         }
         let copy = crate::bench::measure_copy_gbs(self, 1 << 30, 3, 7).unwrap_or(-1.0);
         line += &format!(" copy_gbs={copy:.1} probe_ms={}", t0.elapsed().as_millis());

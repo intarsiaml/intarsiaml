@@ -47,7 +47,12 @@ for err in sorted(glob.glob(f"{d}/*.err")):
     for m in re.finditer(r"^modeprobe (end|load) (.*)$", t, re.M):
         site = m.group(1)
         for k, v in re.findall(r"(\w+)=([^ ]+)", m.group(2)):
-            if k == "sustain":
+            if k in ("sustain", "sustain_mem"):
+                sv = [float(x) for x in v.split(",")]
+                pre = "sus" if k == "sustain" else "susm"
+                r[f"{site}.{pre}_first"], r[f"{site}.{pre}_last"], r[f"{site}.{pre}_ratio"] = sv[0], sv[-1], sv[-1] / sv[0]
+                continue
+            if k == "never":
                 sv = [float(x) for x in v.split(",")]
                 r[f"{site}.sus_first"], r[f"{site}.sus_last"], r[f"{site}.sus_ratio"] = sv[0], sv[-1], sv[-1] / sv[0]
                 continue
@@ -143,7 +148,7 @@ def rho(x, y):
 
 
 feats = [c for c in cols if c not in ("tag", "arm", "foreign_top", "p16k")] + ["va_m2m", "gpu_m2m", "va_m1g", "gpu_m1g", "file_order", "cmp_gb0", "wired_gb0",
-                                                                            "idle_util_pre", "temp_max", "end.sus_first", "end.sus_last", "end.sus_ratio", "load.sus_ratio", "d_decompr", "d_swapin", "load.alu", "dec0", "dec1"]
+                                                                            "idle_util_pre", "temp_max", "end.sus_first", "end.sus_last", "end.sus_ratio", "load.sus_ratio", "end.susm_ratio", "end.alu_newq", "end.alu_idle2s", "load.alu_newq", "d_decompr", "d_swapin", "load.alu", "dec0", "dec1"]
 for arm in sorted(set(r["arm"] for r in rows)) + ["all"]:
     rs = [r for r in rows if r["tag"] not in ("warm", "warmN") and (arm == "all" or r["arm"] == arm)]
     fast = [r for r in rs if r["p16k"] < cut]
