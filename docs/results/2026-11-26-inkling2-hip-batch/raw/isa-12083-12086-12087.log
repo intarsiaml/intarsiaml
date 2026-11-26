@@ -1,0 +1,40 @@
+fleetq: #12083 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-hip-batch/.scratch/isa.sh < /dev/null'
+total 39668
+drwxrwxr-x 2 ubuntu ubuntu     4096 Nov 26 18:16 .
+drwxr-xr-x 5 ubuntu ubuntu     4096 Nov 26 18:16 ..
+-rw-r--r-- 1 ubuntu ubuntu  6799700 Nov 26 18:16 branch-ink_attn.s
+-rw-r--r-- 1 ubuntu ubuntu 18664651 Nov 26 18:16 branch-ink_mix.s
+-rw-r--r-- 1 ubuntu ubuntu  5394432 Nov 26 18:16 main-ink_attn.s
+-rw-r--r-- 1 ubuntu ubuntu  9746223 Nov 26 18:16 main-ink_mix.s
+== ink_mix: main 31 kernels, branch 55 (24 new)
+  31 / 31 of main's kernels identical in the branch (instructions and descriptor)
+== ink_attn: main 30 kernels, branch 36 (6 new)
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kLi1ELb0E: insts 5053 -> 5048, {'next_free_vgpr': 94, 'next_free_sgpr': 105, 'group_segment_fixed_size': 11300, 'private_segment_fixed_size': 0, 'kernarg_size': 280} -> {'next_free_vgpr': 94, 'next_free_sgpr': 105, 'group_segment_fixed_size': 11300, 'private_segment_fixed_size': 0, 'kernarg_size': 280}
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kLi1ELb1E: insts 5007 -> 5014, {'next_free_vgpr': 88, 'next_free_sgpr': 105, 'group_segment_fixed_size': 11300, 'private_segment_fixed_size': 0, 'kernarg_size': 280} -> {'next_free_vgpr': 88, 'next_free_sgpr': 105, 'group_segment_fixed_size': 11300, 'private_segment_fixed_size': 0, 'kernarg_size': 280}
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kLi2ELb0E: insts 5902 -> 5898, {'next_free_vgpr': 93, 'next_free_sgpr': 105, 'group_segment_fixed_size': 13892, 'private_segment_fixed_size': 0, 'kernarg_size': 280} -> {'next_free_vgpr': 93, 'next_free_sgpr': 105, 'group_segment_fixed_size': 13892, 'private_segment_fixed_size': 0, 'kernarg_size': 280}
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kLi2ELb1E: insts 5880 -> 5878, {'next_free_vgpr': 92, 'next_free_sgpr': 105, 'group_segment_fixed_size': 13892, 'private_segment_fixed_size': 0, 'kernarg_size': 280} -> {'next_free_vgpr': 92, 'next_free_sgpr': 105, 'group_segment_fixed_size': 13892, 'private_segment_fixed_size': 0, 'kernarg_size': 280}
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kLi3ELb0E: insts 6433 -> 6435, {'next_free_vgpr': 126, 'next_free_sgpr': 105, 'group_segment_fixed_size': 16484, 'private_segment_fixed_size': 0, 'kernarg_size': 280} -> {'next_free_vgpr': 126, 'next_free_sgpr': 105, 'group_segment_fixed_size': 16484, 'private_segment_fixed_size': 0, 'kernarg_size': 280}
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kLi3ELb1E: insts 6472 -> 6469, {'next_free_vgpr': 125, 'next_free_sgpr': 105, 'group_segment_fixed_size': 16484, 'private_segment_fixed_size': 0, 'kernarg_size': 280} -> {'next_free_vgpr': 125, 'next_free_sgpr': 105, 'group_segment_fixed_size': 16484, 'private_segment_fixed_size': 0, 'kernarg_size': 280}
+  24 / 30 of main's kernels identical in the branch (instructions and descriptor)
+fleetq: #12083 done (exit 0)
+
+fleetq: #12086 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-hip-batch/.scratch/isa2.sh < /dev/null'
+1
+== main-ink_attn.s vs varC-ink_attn.s: 30 / 30 kernels (0 new)
+  30 / 30 identical (instructions and descriptor)
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kLi3ELb1E: insts 6472 -> 6469
+  24 / 30 identical (instructions and descriptor)
+fleetq: #12086 done (exit 0)
+
+fleetq: #12087 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-hip-batch/.scratch/isa3.sh < /dev/null; bash ~/intarsiaml-ink-hip-batch/.scratch/build.sh b6 ink_rows ink_attn ink_mix m:inkling2_batch x:batch_step < /dev/null'
+== main-ink_mix.s vs split-ink_mix.s: 31 / 31 kernels (0 new)
+  31 / 31 identical (instructions and descriptor)
+== main-ink_attn.s vs split-ink_attn.s: 30 / 30 kernels (0 new)
+  30 / 30 identical (instructions and descriptor)
+.scratch/isa/split-ink_mix_rows.s:55
+.scratch/isa/split-ink_attn_rows.s:9
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 2m 05s
+cli build exit 0
+402d6d883bee37111d42d2a0604d73e4  .scratch/bin/intarsia-b6

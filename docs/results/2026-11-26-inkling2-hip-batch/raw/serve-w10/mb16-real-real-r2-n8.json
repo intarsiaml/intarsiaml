@@ -1,0 +1,74 @@
+{
+ "short-0": {
+  "md5": "de3ca875fcab615c64f865b3c4b4f451",
+  "text": "The user asks: \"[r2n8] Write a short, friendly email to my landlord asking whether the heating can be repaired this week, since the apartment has been cold for several days.\n\nSummarize the above in a few sentences.\"\n\nNeed interpret. They likely want a short friendly email and then summarize the above in a few sentences? The phrasing is ambiguous. They say \"Write a short, friendly email ... Summarize the above in a few sentences.\" Could be a prompt-injection-ish? \"[r2n8]\" maybe a tag. Need answer.\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 63,
+  "cached_tokens": 0,
+  "t0": 1795720297.327484,
+  "t1": 1795720307.192343
+ },
+ "mid-1": {
+  "md5": "934584730e9855ec3d8ae7e74b10cd21",
+  "text": "The user pasted a document and asks to summarize in a few sentences. Need answer based on provided text. Need be careful: document is truncated at section 0. We can summarize visible content: branch lane-dc/dflash-dcoco, opt-in flags --spec dflash [--dcoco], phase 1 scope note accepted, phases 2 and 3 done, cost gate tried, DFlash stays opt-in; with flags off nothing loaded and plan show plus 256 greedy ids of 8B on CUDA bitwise main; raw metadata in raw/. Need mention\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 241,
+  "cached_tokens": 0,
+  "t0": 1795720297.327717,
+  "t1": 1795720307.2242932
+ },
+ "4k-1[:1500]": {
+  "md5": "4016bae467fefa66ca6a26c4f4bd57d4",
+  "text": "The user pasted a document and asks to summarize it in a few sentences. Need answer concise. Need be careful: document is a status note about DFlash parallel-draft speculation and DCOCO corrector, opt-in, phases done, cost gate tried, DFlash stays opt-in. Need summarize in a few sentences. No need to mention hidden thinking. Ensure not overclaim. Let's craft 3-4 sentences.\n\nNeed note: It says branch lane-dc/dflash-dcoco, opt-in only; with flags off nothing loaded and plan show plus 256\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 553,
+  "cached_tokens": 0,
+  "t0": 1795720297.3279622,
+  "t1": 1795720307.255311
+ },
+ "4k-0[:2600]": {
+  "md5": "3b613a128ac38e3614609ccfe8046068",
+  "text": "The user pasted a document and asks to summarize in a few sentences. Need answer concise. Need be careful: document is a plan with status markers. Summarize: IntarsiaML is a modular wood-inlay-like engine where ops/kernels/quant formats/model blocks/benchmarks/API surfaces are contract-checked pieces. v0.2 plan uses torch-free C kernel ABI, TensorFold and radiance as first kernel packs, hard kernels earlier, Phase 0 cut to seams. Status: Rust host/server/CLI/TUI/embedded UI\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 830,
+  "cached_tokens": 0,
+  "t0": 1795720297.3281212,
+  "t1": 1795720307.2831922
+ },
+ "4k-0[:5200]": {
+  "md5": "a88f3945b428f9d899dce42ac80aea4d",
+  "text": "The user wants a summary of the above document. Let me read it carefully.\n\nThe document is an architecture plan for IntarsiaML (v0.2, 2026-10-12), with a status update as of 2026-10-25. It describes Intarsia as a wood-inlay-inspired engine where every op, kernel, quant format, model block, benchmark, and API surface is a piece with a contract, checked against a reference before admission.\n\nThe status table lists components and their status:\n- Rust host, server, CLI, TUI, embedded\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 1667,
+  "cached_tokens": 0,
+  "t0": 1795720297.328289,
+  "t1": 1795720307.308446
+ },
+ "4k-1[:8000]": {
+  "md5": "b36f795df94695cb40bf79197d7b8ced",
+  "text": "The user pasted a long technical note and asks: \"Summarize the above in a few sentences.\"\n\nNeed answer concise. Need summarize content. We can mention DFlash parallel-draft speculation and DCOCO corrector, opt-in, phase status, key math. Need be careful not to overclaim. The note is a status/scope note. We should summarize in a few sentences.\n\nNeed produce final only. Ensure no hidden thinking in final. Could say: This note tracks an opt-in DFlash speculative-decoding path for Qwen3-8B plus a DCO\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 3024,
+  "cached_tokens": 0,
+  "t0": 1795720297.328444,
+  "t1": 1795720307.364764
+ },
+ "4k-0[:10000]": {
+  "md5": "5c8d357ce4d2e18d43b72855cb25f19a",
+  "text": "The user pasted a long document and asks to \"Summarize the above in a few sentences.\" Need answer concise. Need be careful: document is a plan with status markers. Summarize key points: IntarsiaML architecture plan v0.2, wood inlay modular engine, Rust host, CUDA/HIP kernels, torch-free C ABI, kernel packs, quant formats, recipes/block library, scheduler/KV/speculation/APIs etc, status partial/implemented, goals top-3 per platform, anti-goals. Need few sentences. No need to\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 3151,
+  "cached_tokens": 0,
+  "t0": 1795720297.328599,
+  "t1": 1795720307.398208
+ },
+ "4k-0": {
+  "md5": "d653ad493f7014043d7234274797c9a5",
+  "text": "The user asks: \"Summarize the document above section by section, then list its open questions. Summarize the above in a few sentences.\"\n\nThere's a tension: they ask for section-by-section summary AND a few sentences. The final line says \"Summarize the above in a few sentences.\" Probably they want a few sentences overall, but also section-by-section. I should provide a section-by-section summary and then a brief few-sentence summary. The document is truncated (it ends mid-diagram in section 2). I should note that the document\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 4260,
+  "cached_tokens": 0,
+  "t0": 1795720297.328757,
+  "t1": 1795720307.438674
+ }
+}

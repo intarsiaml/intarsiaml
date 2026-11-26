@@ -1,0 +1,8 @@
+16k   prefill: main 2786.0-2793.3 (mean 2790.4), branch 3174.0-3181.3 (mean 3177.8) tok/s; paired ratio 1.1389 (+13.89 %), 95 % CI [1.1361, 1.1416], n=4
+4k    prefill: main 2686.5-2698.9 (mean 2692.2), branch 3034.4-3047.8 (mean 3040.4) tok/s; paired ratio 1.1293 (+12.93 %), 95 % CI [1.1273, 1.1313], n=4
+4k    decode : main 74.0-74.1 (mean 74.1), branch 74.0-74.1 (mean 74.0) tok/s; paired ratio 0.9996 (-0.04 %), 95 % CI [0.9996, 0.9996], n=2
+short decode : main 76.9-76.9 (mean 76.9), branch 76.9-76.9 (mean 76.9) tok/s; paired ratio 0.9999 (-0.01 %), 95 % CI [0.9982, 1.0015], n=2
+   md5 16k 2 tokens: branch=ea9b8c8e, main=ea9b8c8e
+   md5 4k 2 tokens: branch=af870cf4, main=af870cf4
+   md5 4k 256 tokens: branch=9675bbb9, main=9675bbb9
+   md5 short 256 tokens: branch=9a27c21b, main=9a27c21b

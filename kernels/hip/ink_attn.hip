@@ -30,6 +30,7 @@
 #include "ik_hip.h"
 #include "ik_hip_abi_inkattn.h"
 #include <math.h>
+#include <type_traits>
 
 #pragma clang fp contract(off)
 
@@ -60,6 +61,8 @@ constexpr int F_DIAG_NOMERGE = 512;  // diagnostic (INTARSIA_INK_DEC_DIAG bit 1)
 constexpr int F_DPP = 1024;          // INTARSIA_HIP_INK_DEC3 bit 1 (lane ink-hip-dec3): op 75's launcher takes the <.., DPP = true>
                                      // kernels, whose butterflies take the partner from DPP / v_permlanex16 (ik_xor_f) instead of
                                      // ds_bpermute: the same partners in the same order, same bits (the kernels do not read the flag)
+constexpr int F_R_ROW = 2048;        // prologue (INTARSIA_HIP_INK_PF2 bit 1, lane ink-hip-pf2): write r (rounded) into the first dr entries
+                                     // of each rel row and skip the rel tail; ink_rel_table_k forms the rows from it right after
 
 struct InkP {
     const bf16 *pq, *pk, *pv, *kt, *vt, *qs, *rs, *rp;
@@ -69,7 +72,42 @@ struct InkP {
     const int* pos;
     int t, h, hk, d, dr, e, k, rr, cr, pos0, flags, tau_floor, window, nq, pw, sk, toff;
     float qk_clip, rel_clip, eps, tau_alpha, scale, cscale;
+    int qhi;  // flash in pieces (INTARSIA_HIP_INK_PF2 bit 2): one past the piece's last query tile; 0 = gridDim.x (one launch)
 };
+
+// The row-table form (lane ink-hip-batch, `OpCall::rows`): the table's device addresses ([rows][rts] entries), this call's first entry,
+// and each state tensor's byte offset in its row's buffer (k cache, v cache, k ring, v ring: the carriers' offsets). Only the RT
+// instantiation of ink_attn_dec_k takes `InkPR`, so every solo kernel's arguments stay `InkP`, byte for byte.
+struct InkRt {
+    const unsigned long long* rtab;
+    int rts, rti;
+    long long roff[4];
+};
+struct InkPR : InkP {
+    InkRt rt;
+};
+
+// INTARSIA_HIP_INK_PF2 (lane ink-hip-pf2; prefill chunks only, every bit keeps the output bits): bit 1 = the prologue's rel tail
+// as its own pass (ink_rel_table_k), bit 2 = flash attention in pieces of query tiles under the R9700 dispatch stall line
+// (ik_hip.h), bit 128 = with bit 1, the prologue's OCC form (12 waves per SIMD); the experts' bits 4 / 8 / 16 are in
+// ink_moe.hip. Unset = kPf2Default (1 | 2 | 4 | 16 | 128, the same constant there); 0 = main's forms. Read at every launch.
+constexpr int kPf2Default = 151;
+int pf2_mask() {
+    const char* e = getenv("INTARSIA_HIP_INK_PF2");
+    return e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : kPf2Default;
+}
+// pieces of a launch estimated at est_us: one below the trigger, else ceil(est / budget), at most max_pieces. Budget
+// INTARSIA_HIP_INK_PF2_US (default 900 us: one piece stays under the ~1 ms stall line with margin); the trigger is 950 us, or the
+// budget if that is lower (tests set a tiny budget to force the most pieces).
+int pf2_pieces(double est_us, int64_t max_pieces) {
+    const char* e = getenv("INTARSIA_HIP_INK_PF2_US");
+    const double budget = e && *e ? atof(e) : 900.0;
+    const double trigger = budget < 950.0 ? budget : 950.0;
+    if (!(budget > 0.0) || est_us <= trigger || max_pieces <= 1) return 1;
+    const double n = est_us / budget;
+    const int64_t p = n >= (double)max_pieces ? max_pieces : (int64_t)n + ((double)(int64_t)n < n ? 1 : 0);
+    return (int)(p < 1 ? 1 : p);
+}
 
 // explicit, unfused arithmetic (the CUDA source's _rn intrinsics)
 IK_DEVI float fadd(float a, float b) { return a + b; }
@@ -232,9 +270,10 @@ IK_DEVI float k_out(float v, float ss, const InkP& p) { return rA(fmul(v, ink_cl
 IK_DEVI float v_out(float v, float ss, const InkP& p) { return rA(fmul(v, ink_inv_rms(ss, p))); }
 
 // InkKvPrologue. Grid (Hk, T, rel slices), 256 threads (8 waves): waves take the jobs k, v, q_0 .., r_0 .. in turn, then all
-// threads the rel tail.
-template <int J, bool DPP = false>
-__global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
+// threads the rel tail. OCC (INTARSIA_HIP_INK_PF2 bit 128, prefill calls with bit 1): compiled for 12 waves per SIMD (a 128-VGPR
+// cap; the plain form takes 160, 9 waves): the same instructions on the same values, the same bits. Window 4: +0.9 % prefill.
+template <int J, bool DPP = false, bool OCC = false>
+__global__ void __launch_bounds__(256) __attribute__((amdgpu_waves_per_eu(OCC ? 12 : 1))) ink_prologue_k(InkP p) {
     __shared__ float rsh[4][32];
     const unsigned tid = threadIdx.x, lane = tid & 31, warp = tid >> 5, nw = blockDim.x >> 5;
     const unsigned kvh = blockIdx.x, t = blockIdx.y;
@@ -284,11 +323,60 @@ __global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
         for (unsigned x = tid; x < G * dr; x += blockDim.x) p.relo[((size_t)t * H + kvh * G + x / dr) * dr + x % dr] = f2b(rsh[x / dr][x % dr]);
         return;
     }
+    if (p.flags & F_R_ROW) {
+        // INTARSIA_HIP_INK_PF2 bit 1: r into its own rel row (entries 0 .. dr); ink_rel_table_k reads it before it writes the row
+        for (unsigned x = tid; x < G * dr; x += blockDim.x) p.relo[((size_t)t * H + kvh * G + x / dr) * E + x % dr] = f2b(rsh[x / dr][x % dr]);
+        return;
+    }
     const unsigned per = (E + gridDim.z - 1) / gridDim.z, e1 = min(E, (blockIdx.z + 1) * per);
     for (unsigned e = blockIdx.z * per + tid; e < e1; e += blockDim.x) {
         float rv[4];
         ink_rel_g(rsh, G, p.rp, dr, E, e, rv);
         for (unsigned g = 0; g < G; ++g) p.relo[((size_t)t * H + kvh * G + g) * E + e] = f2b(rv[g]);
+    }
+}
+
+// The prologue's rel tail as its own pass (INTARSIA_HIP_INK_PF2 bit 1, prefill chunks; lane ink-hip-pf2). In ink_prologue_k
+// a block of one (kv head, row) forms G x E entries, each with 16 relproj loads, and the 100 MB table of a 2048-row chunk took
+// 1.67 ms (94 GB/s). Here a block takes RT_ROWS call rows (all H heads): it stages their r (left by the prologue in the first dr
+// entries of each rel row, F_R_ROW) in LDS before any write, and each thread holds the relproj columns of its entries
+// e = 4 tid .. 4 tid + 3 in registers (one 8-byte store per row). Every entry is ink_rel_g's chain (from 0, j ascending, ffma) on
+// the same r and relproj values, then the bf16 round: bitwise the prologue's tail. Launcher: dr <= RT_DR, E a multiple of 4 and
+// <= 1024, the table 8-byte aligned.
+constexpr int RT_ROWS = 8;  // call rows per block
+constexpr int RT_EPT = 4;   // consecutive entries per thread (one 8-byte store per row)
+constexpr int RT_DR = 16;   // most d_rel
+__global__ void __launch_bounds__(256) ink_rel_table_k(InkP p) {
+    extern __shared__ float rts[];  // r of the block's rows [RT_ROWS * H][dr]
+    const int H = p.h, E = p.e, dr = p.dr, tid = threadIdx.x;
+    const int t0 = (int)blockIdx.x * RT_ROWS;
+    const int nrow = (p.t - t0 < RT_ROWS ? p.t - t0 : RT_ROWS) * H;
+    bf16* rel = p.relo + (size_t)t0 * H * E;
+    for (int x = tid; x < nrow * dr; x += blockDim.x) rts[x] = b2f(rel[(size_t)(x / dr) * E + x % dr]);
+    const int e0 = RT_EPT * tid;
+    float w[RT_EPT][RT_DR];
+#pragma unroll
+    for (int u = 0; u < RT_EPT; ++u)
+#pragma unroll
+        for (int j = 0; j < RT_DR; ++j) w[u][j] = (e0 + u < E && j < dr) ? b2f(p.rp[(size_t)j * E + e0 + u]) : 0.0f;
+    __syncthreads();  // every r of the block is staged before the first entry of its rows is overwritten
+    if (e0 >= E) return;
+    for (int row = 0; row < nrow; ++row) {
+        float r[RT_DR];
+#pragma unroll
+        for (int j = 0; j < RT_DR; ++j) r[j] = j < dr ? rts[row * dr + j] : 0.0f;
+        float acc[RT_EPT];
+#pragma unroll
+        for (int u = 0; u < RT_EPT; ++u) {
+            acc[u] = 0.0f;
+#pragma unroll
+            for (int j = 0; j < RT_DR; ++j)
+                if (j < dr) acc[u] = ffma(r[j], w[u][j], acc[u]);
+        }
+        uint2 o;
+        o.x = (uint32_t)f2b(acc[0]).bits | ((uint32_t)f2b(acc[1]).bits << 16);
+        o.y = (uint32_t)f2b(acc[2]).bits | ((uint32_t)f2b(acc[3]).bits << 16);
+        *reinterpret_cast<uint2*>(rel + (size_t)row * E + e0) = o;
     }
 }
 
@@ -570,19 +658,41 @@ __global__ void ink_attn_comb_k(InkP p) {
 // zero before and after every launch (stream order serialises launches; graph replays alike).
 __device__ unsigned ink_dec_tick[MAXROWS * MAXHK_TICK];
 
+// Row-table form (lane ink-hip-batch): `p` becomes the T = 1 call of sequence r at device position pos[r]: its row-indexed
+// operands shifted by r rows, its own scratch block of one row, its caches / rings from table entries rti .. rti + 3 (+ the carriers'
+// offsets). The kernels then run that call's code at row 0.
+IK_DEVI void ink_rt_row(InkPR& p, unsigned r) {
+    const unsigned long long* e = p.rt.rtab + (size_t)r * p.rt.rts + p.rt.rti;
+    p.pos0 = max(p.pos[r], 0);
+    p.pos = nullptr;
+    p.pq += (size_t)r * p.nq;
+    p.pk += (size_t)r * p.pw;
+    p.pv += (size_t)r * p.pw;
+    p.out += (size_t)r * p.h * p.d;
+    p.scr += (size_t)r * p.h * MAXS * (p.d + 2);
+    p.kc = (bf16*)(e[0] + p.rt.roff[0]);
+    p.vc = (bf16*)(e[1] + p.rt.roff[1]);
+    p.kr = (bf16*)(e[2] + p.rt.roff[2]);
+    p.vr = (bf16*)(e[3] + p.rt.roff[3]);
+    p.t = 1;
+}
+
 // InkAttnDecode. Grid (Hk, max splits, T <= 16), DEC_WAVES waves: all of them take the prologue jobs (one round for the 2 G + 2
 // jobs of a decode row), the bias and the merge; waves 0 .. NSG-1 run the attention body (the pair's key map). Dynamic LDS: the
 // split's bias [GP][nb] f32. Diagnostic p.flags F_DIAG_*: timing only, wrong output.
+// RT (`ink_attn_decode_bf16_rows`, lane ink-hip-batch): grid z = the rows of a row-table call, block row r runs the T = 1 call of
+// sequence r (ink_rt_row); its ticket is row r's. RT = false is the solo kernel.
 constexpr int DEC_WAVES = 8;
-template <int GP, bool DPP = false>
-__global__ void __launch_bounds__(DEC_WAVES * 32) ink_attn_dec_k(InkP p) {
+template <int GP, bool DPP = false, bool RT = false>
+__global__ void __launch_bounds__(DEC_WAVES * 32) ink_attn_dec_k(std::conditional_t<RT, InkPR, InkP> p) {
     __shared__ InkTg<GP> S;
     __shared__ float rsh[4][32];
     __shared__ __align__(16) bf16 kvt[2 * MAXROWS * 128];
     __shared__ unsigned is_last;
     extern __shared__ float tb[];
     const unsigned tid = threadIdx.x, lane = tid & 31, sg = tid >> 5;
-    const unsigned kvh = blockIdx.x, split = blockIdx.y, t = blockIdx.z;
+    const unsigned kvh = blockIdx.x, split = blockIdx.y, t = RT ? 0u : blockIdx.z;
+    if constexpr (RT) ink_rt_row(p, blockIdx.z);
     const unsigned D = p.d, Hk = p.hk, E = p.e, Cr = p.cr, ckv = Hk * D;
     const bool ring = (p.flags & F_RING) != 0;
     const unsigned pos0 = ink_pos0(p);
@@ -664,7 +774,7 @@ __global__ void __launch_bounds__(DEC_WAVES * 32) ink_attn_dec_k(InkP p) {
     // the partials of this split are written; the last split of (row, kv head) to arrive merges them all
     __threadfence();
     __syncthreads();
-    unsigned* tick = &ink_dec_tick[t * MAXHK_TICK + kvh];
+    unsigned* tick = &ink_dec_tick[(RT ? blockIdx.z : t) * MAXHK_TICK + kvh];
     if (tid == 0) {
         const unsigned old = atomicAdd(tick, 1u);
         is_last = old == g.ns - 1;
@@ -728,7 +838,7 @@ __global__ void __launch_bounds__(128 * G) ink_flash_k(InkP p) {
 
     const int tid = threadIdx.x, warp = tid >> 5, lane = tid & 31;
     const int lr = lane & 15, lk = (lane >> 4) * 8;
-    const int qt = (int)gridDim.x - 1 - (int)blockIdx.x;  // longest blocks first
+    const int qt = (p.qhi > 0 ? p.qhi : (int)gridDim.x) - 1 - (int)blockIdx.x;  // longest blocks first (a piece: its own tiles)
     const int kvh = blockIdx.y, h = kvh * G + (warp >> 2);
     const int T = p.t, H = p.h, Hk = p.hk, E = p.e;
     const int64_t Cr = p.cr;
@@ -878,13 +988,60 @@ __global__ void __launch_bounds__(128 * G) ink_flash_k(InkP p) {
 }
 
 template <int D>
-void launch_flash_d(const InkP& p, hipStream_t st) {
-    const dim3 grid((p.t + FBQ - 1) / FBQ, p.hk);
+void launch_flash_grid(const InkP& p, dim3 grid, hipStream_t st) {
     switch (p.h / p.hk) {
         case 1: ink_flash_k<D, 1><<<grid, 128, 0, st>>>(p); break;
         case 2: ink_flash_k<D, 2><<<grid, 256, 0, st>>>(p); break;
         default: ink_flash_k<D, 3><<<grid, 384, 0, st>>>(p); break;
     }
+}
+
+// INTARSIA_HIP_INK_PF2 bit 2 (lane ink-hip-pf2): a call estimated over the R9700's ~1 ms dispatch stall line (ik_hip.h) runs as
+// pieces of consecutive query tiles, highest first, balanced by their key tiles; a block of a piece is the block of the one
+// launch with the same query tile, so the bits are the same. Pieces keep at least kFlashPieceBlocks blocks (a 2048-row call is
+// 256 blocks, about 64 resident; INTARSIA_HIP_INK_PF2_BLOCKS sets it, for tests): a call that would need more pieces than that
+// allows stays one launch. Host position only.
+constexpr double kFlashUsPerTile = 0.30;  // us per (block, 64-key tile), from window 1's profile (sliding layers ~0.31, full ~0.2-0.27)
+constexpr int kFlashPieceBlocks = 128;
+template <int D>
+void launch_flash_d(const InkP& p, hipStream_t st) {
+    const int nqt = (p.t + FBQ - 1) / FBQ;
+    int pieces = 1;
+    int tiles[1024];
+    if ((pf2_mask() & 2) && !p.pos && nqt <= 1024) {
+        double sum = 0.0;
+        for (int qt = 0; qt < nqt; ++qt) {
+            const int q0 = qt * FBQ, q_last = (q0 + FBQ < p.t ? q0 + FBQ : p.t) - 1;
+            const int64_t kv_end = (int64_t)p.pos0 + q_last + 1;
+            const int64_t lo_first = ink_lo((unsigned)(p.pos0 + q0), p.window);
+            tiles[qt] = (int)((kv_end + FBK - 1) / FBK - lo_first / FBK);
+            sum += tiles[qt];
+        }
+        const char* eb = getenv("INTARSIA_HIP_INK_PF2_BLOCKS");  // tests: fewer blocks per piece (1 = a query tile per piece)
+        const int minb = eb && *eb ? (atoi(eb) > 0 ? atoi(eb) : 1) : kFlashPieceBlocks;
+        const int maxp = (int)((int64_t)nqt * p.hk / minb);
+        const int want = pf2_pieces(sum * p.hk * kFlashUsPerTile, nqt);
+        pieces = want <= (maxp < 1 ? 1 : maxp) ? want : 1;
+        if (pieces > 1) {
+            // cut by cumulative key tiles, from the top query tile down
+            int hi = nqt;
+            double left = sum;
+            for (int i = 0; i < pieces; ++i) {
+                int lo = hi;
+                const double goal = left / (pieces - i);
+                double acc = 0.0;
+                while (lo > (pieces - 1 - i) && (acc < goal || lo == hi)) acc += tiles[--lo];
+                if (i == pieces - 1) lo = 0;
+                InkP pp = p;
+                pp.qhi = hi;
+                launch_flash_grid<D>(pp, dim3((unsigned)(hi - lo), p.hk), st);
+                left -= acc;
+                hi = lo;
+            }
+            return;
+        }
+    }
+    launch_flash_grid<D>(p, dim3(nqt, p.hk), st);
 }
 
 // ------------------------------------------------------------------------------------------------------------------------
@@ -984,6 +1141,10 @@ int prologue_params(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* p
 }
 }  // namespace
 
+// The solo launchers. kernels/hip/ink_attn_rows.hip includes this file with IK_INK_ATTN_ROWS_TU defined and defines the row-table
+// launcher (ink_attn_decode_bf16_rows) in its own translation unit: with the RT instantiations of ink_attn_dec_k in this module, its
+// RT = false instantiations compiled to different code than main's (register allocation; lane ink-hip-batch), apart they are main's.
+#ifndef IK_INK_ATTN_ROWS_TU
 extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,
                                        const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp, const ik_ink_attn_attrs* a, ik_tensor* q,
                                        ik_tensor* rel, ik_tensor* k, ik_tensor* v, ik_tensor* kring, ik_tensor* vring, const ik_tensor* pos,
@@ -1009,8 +1170,18 @@ extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk,
     unsigned nz = p.t <= 4 ? (unsigned)((p.e + 255) / 256) : 1u;
     if (nz > 8) nz = 8;
     if (nz < 1) nz = 1;
-    if (p.d <= 128) ink_prologue_k<4><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
+    // prefill chunks (INTARSIA_HIP_INK_PF2 bit 1): the rel tail as its own pass (ink_rel_table_k), the same bits
+    const size_t rt_lds = (size_t)RT_ROWS * p.h * p.dr * sizeof(float);
+    const bool rel_pass = (pf2_mask() & 1) && p.t > MAXROWS && p.dr <= RT_DR && p.e % RT_EPT == 0 && p.e <= 256 * RT_EPT && rt_lds <= 32768 &&
+                          (reinterpret_cast<uintptr_t>(p.relo) & 7u) == 0;
+    if (rel_pass) p.flags |= F_R_ROW;
+    if (p.d <= 128 && rel_pass && (pf2_mask() & 128)) ink_prologue_k<4, false, true><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
+    else if (p.d <= 128) ink_prologue_k<4><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
     else ink_prologue_k<JMAX><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
+    if (rel_pass) {
+        ink_rel_table_k<<<(unsigned)((p.t + RT_ROWS - 1) / RT_ROWS), 256, rt_lds, st>>>(p);
+        p.flags &= ~F_R_ROW;
+    }
     if (!fused) {
         const size_t n = (size_t)p.t * p.hk * p.d;
         ink_ring_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p);
@@ -1232,4 +1403,4 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
     }
     return ik_launch_status();
 }
-
+#endif  // IK_INK_ATTN_ROWS_TU

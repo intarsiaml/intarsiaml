@@ -1,0 +1,38 @@
+{
+ "short-0": {
+  "md5": "9d91b6a30672fb3e5ee931c1e62a612c",
+  "text": "The user asks: \"[r2n4] Write a short, friendly email to my landlord asking whether the heating can be repaired this week, since the apartment has been cold for several days.\n\nSummarize the above in a few sentences.\"\n\nNeed interpret. They likely want a short friendly email and summarize above in a few sentences. There is a tag [r2n4] maybe from benchmark? Need consider safety? This is benign. Need produce final answer. Need maybe include email and summary. Need be careful: \"Summarize the above in a few sentences\" could mean summarize the request,\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 63,
+  "cached_tokens": 0,
+  "t0": 1795720291.9514182,
+  "t1": 1795720297.2007139
+ },
+ "4k-1[:1500]": {
+  "md5": "b42c2fd88ac0e4911b75485b4cdcb1e6",
+  "text": "The user pasted a document and asks to summarize in a few sentences. Need answer concise. Need be careful: document is a status note about DFlash parallel-draft speculation and DCOCO corrector, opt-in, phases done, cost gate tried, DFlash stays opt-in. Need summarize decision/sources and status. No need to mention hidden thinking. Ensure not overclaim. Mention sources and licensing: paper, HF checkpoint Apache-2.0, GitHub no license so no code copied, vLLM Apache-2.0, MLX reference maybe vendored?\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 553,
+  "cached_tokens": 0,
+  "t0": 1795720291.951755,
+  "t1": 1795720297.2183821
+ },
+ "4k-0[:5200]": {
+  "md5": "a1450cf008fa4552d2a4bffcd0fb7a43",
+  "text": "The user wants a summary of the above document in a few sentences. Let me read it carefully.\n\nThe document is an architecture plan for IntarsiaML (v0.2, 2026-10-12), with a status update as of 2026-10-25. It describes Intarsia as a wood-inlay-inspired engine where every op, kernel, quant format, model block, benchmark, and API surface is a piece with a contract, checked against a reference before admission.\n\nKey points:\n- Status vs plan table: Rust host/server/CLI/T\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 1667,
+  "cached_tokens": 0,
+  "t0": 1795720291.951985,
+  "t1": 1795720297.1804328
+ },
+ "4k-0[:10000]": {
+  "md5": "1c4365e3b696ec17de02129b4f7ba44f",
+  "text": "The user pasted a long architecture plan document and asks to \"Summarize the above in a few sentences.\"\n\nI should summarize the document in a few sentences. The document is an architecture plan for \"Intarsia\" \u2014 a wood-inlay-inspired modular LLM inference engine. Key points:\n\n- Goals: modular, easy to use, accurate, fast, reproducible, OpenAI/Anthropic APIs, built-in UI/TUI, metrics, live diagram, Spark, R9700, TP=X, Intel Arc later.\n- Rust host, CUDA/HIP\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 3151,
+  "cached_tokens": 0,
+  "t0": 1795720291.9521742,
+  "t1": 1795720297.248924
+ }
+}

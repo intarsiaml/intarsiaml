@@ -14,6 +14,9 @@
 //!   the launcher picks (`INTARSIA_INK_DEC_FUSED_KEYS`, default 2048): visits that read at most that many keys (window layers;
 //!   full layers at a host position up to that context) take the fused kernel (`ink_attn_dec_k`, one dispatch); others the
 //!   split path (prologue writing r, stage 1 forming its split's bias from r, combine). Above 16 rows the model runs the pair.
+//! * `ink_attn_decode_bf16_rows` (lane ink-hip-batch): op 75's row-table form (batched decode, `OpCall::rows`): row r is the T = 1
+//!   call of sequence r at its own position on its own caches / rings, the RT instantiation of the fused kernel; bitwise the solo
+//!   call per row (tests/ink_rows.rs; results docs/results/2026-11-26-inkling2-hip-batch.md).
 //! Results: docs/results/2026-11-25-inkling2-hip-attn.md.
 
 use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
@@ -22,6 +25,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("ink_kv_prologue_bf16", Op::InkKvPrologue),
     ("rel_sink_attn_bf16", Op::RelSinkAttn),
     ("ink_attn_decode_bf16", Op::InkAttnDecode),
+    ("ink_attn_decode_bf16_rows", Op::InkAttnDecode),
 ];
 
 /// The ops this module is the home of (a lane's kernels register only these).
@@ -107,6 +111,11 @@ pub fn decode_scratch(s: &ShapeInfo) -> usize {
     s.m * s.n_heads * MAX_SPLIT * (s.head_dim + 2) * 4 + 2 * s.m * s.n_kv_heads * s.head_dim * 2 + s.m * s.n_heads * (s.head_dim + 32) * 2
 }
 
+/// The row-table form's scratch: the partials of every row (one T = 1 block each).
+pub fn decode_rows_scratch(s: &ShapeInfo) -> usize {
+    s.m * s.n_heads * MAX_SPLIT * (s.head_dim + 2) * 4
+}
+
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
     TABLE
@@ -119,6 +128,8 @@ pub fn all() -> Vec<KernelImpl> {
                 "rel_sink_attn_bf16" => k.weights(bf).when(attn_ok).scratch(attn_scratch),
                 // bitwise the pair (prologue + rel_sink_attn_bf16)
                 "ink_attn_decode_bf16" => k.weights(bf).when(decode_ok).scratch(decode_scratch),
+                // batched decode (`OpCall::rows`): row r bitwise the solo call of sequence r (takes the base kernel's admission)
+                "ink_attn_decode_bf16_rows" => k.weights(bf).when(decode_ok).scratch(decode_rows_scratch).row_table(),
                 other => unreachable!("inkattn kernel {other} has no registration"),
             }
         })
@@ -200,6 +211,31 @@ pub(crate) mod launch {
             pos: T,
             s: S,
         ) -> c_int;
+        fn ik_ink_attn_decode_bf16_rows(
+            pq: T,
+            pk: T,
+            pv: T,
+            kt: T,
+            vt: T,
+            qs: T,
+            rs: T,
+            rp: T,
+            kc_in: T,
+            vc_in: T,
+            a: A,
+            o: TM,
+            kc: TM,
+            vc: TM,
+            kr: TM,
+            vr: TM,
+            sc: SC,
+            pos: T,
+            tab: T,
+            stride: i64,
+            index: i64,
+            roff: *const i64,
+            s: S,
+        ) -> c_int;
     }
 
     /// The launcher status of `kernel` when it is one of this module's, `None` otherwise. Called from `HipBackend::launch` with
@@ -209,7 +245,7 @@ pub(crate) mod launch {
     /// # Safety
     /// As the launchers of `ffi`: the tensors are bounds-checked views of live device buffers held by `a.call`.
     pub(crate) unsafe fn launch(kernel: &str, a: &InkArgs) -> Option<c_int> {
-        if !matches!(kernel, "ink_kv_prologue_bf16" | "rel_sink_attn_bf16" | "ink_attn_decode_bf16") {
+        if !matches!(kernel, "ink_kv_prologue_bf16" | "rel_sink_attn_bf16" | "ink_attn_decode_bf16" | "ink_attn_decode_bf16_rows") {
             return None;
         }
         let at = &a.call.attrs;
@@ -276,6 +312,39 @@ pub(crate) mod launch {
                 a.pos,
                 a.s,
             ),
+            "ink_attn_decode_bf16_rows" => {
+                // the state carriers' byte offsets in their row's buffer (k cache, v cache, k ring, v ring: outputs 1..5); a row table
+                // of the Inkling-2 ops has no byte offset of its own
+                if a.tab.is_null() || a.tab_off != 0 || a.call.outputs.len() < 5 {
+                    return Some(1); // IK_ERR_INVALID_ARG
+                }
+                let roff: [i64; 4] = std::array::from_fn(|j| a.call.outputs[1 + j].offset as i64);
+                ik_ink_attn_decode_bf16_rows(
+                    a.i(0),
+                    a.i(1),
+                    a.i(2),
+                    a.i(3),
+                    a.i(4),
+                    a.i(5),
+                    a.i(6),
+                    a.i(7),
+                    a.i(8),
+                    a.i(9),
+                    ap,
+                    a.o(0),
+                    a.o(1),
+                    a.o(2),
+                    a.o(3),
+                    a.o(4),
+                    a.sc,
+                    a.pos,
+                    a.tab,
+                    a.tab_stride,
+                    a.tab_index,
+                    roff.as_ptr(),
+                    a.s,
+                )
+            }
             _ => ik_rel_sink_attn_bf16(a.i(0), a.i(1), a.i(2), a.i(3), a.i(4), a.i(5), a.i(6), ap, a.o(0), a.o(1), a.o(2), a.sc, a.pos, a.s),
         })
     }

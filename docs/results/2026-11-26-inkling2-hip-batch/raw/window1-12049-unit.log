@@ -1,0 +1,51 @@
+fleetq:   #12048 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12048 set, or it will wait for #12048 to be released.
+fleetq: #12049 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=290 BR=b2 bash ~/intarsiaml-ink-hip-batch/.scratch/window.sh ~/intarsiaml-ink-hip-batch/.scratch/stage_unit.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-batch/.scratch/stage_unit.sh; cap 290s; stopping radiance 2026-11-26 12:18:04
+[window] radiance stopped 2026-11-26 12:18:08 (inactive)
+[stage] ink_rows 2026-11-26 12:18:08
+test attn_decode_rows_bitwise_solo ... ink_attn_decode_bf16_rows: 40 row-table calls bitwise the solo calls (every row, every cache / ring byte)
+test conv_mix_rows_bitwise_solo ... conv_mix_bf16_rows: 645 row-table calls bitwise the solo calls (every row, every ring byte)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.37s
+[stage] ink_attn rows_exact_real_shapes 2026-11-26 12:18:20
+test rows_exact_real_shapes ... 63 rows-exact cases bitwise
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 7.68s
+[stage] ink_mix (no bench) 2026-11-26 12:18:28
+test argmax_dec3_bitwise ... argmax_dec3_bitwise: 130 cases bitwise
+test gemv_split_bitwise ... gemv_split_bitwise: 7 cases bitwise
+test ink_attn_res_mix_and_blend_rows_exact ... ok
+test ink_conv_mix_rows_exact ... ok
+test ink_in_proj_rows_exact ... ok
+test ink_mix_ops_match_the_reference ... 
+thread 'ink_mix_ops_match_the_reference' panicked at crates/intarsia-backend-hip/tests/ink_mix.rs:385:85:
+ink_in_proj    ink_in_proj_bf16_gemv          24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_gemv_rows     24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_matmul         5      0    3.125e-3    4.706e-5  ADMITTED
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+attn_res_mix   attn_res_mix_bf16              93      0    2.016e-3    4.909e-5  ADMITTED
+sconv_res      sconv_res_bf16                 64      0    1.880e-3    1.234e-5  ADMITTED
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.637e-4  ADMITTED
+ink_route      ink_route_bf16                 40      0    2.037e-7    1.450e-7  ADMITTED
+FAILED
+test ink_route_bitwise_pair ... ok
+test moe_route_fast_tail_bitwise ... moe_route_fast_tail_bitwise: 256 cases bitwise
+test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 62.21s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test ink_mix`
+[stage] kernels test conv_mix 2026-11-26 12:19:31
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+[stage] kernels test ink_attn_decode 2026-11-26 12:19:37
+ink_attn_decode ink_attn_decode_bf16           70      0    1.033e-3    7.283e-5  ADMITTED
+[stage] inkling2_batch tiny on hip 2026-11-26 12:19:43
+test inkling2_batch_argmax_equals_solo ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_equals_solo_2_5_16 ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_failed_pass_resets_every_sequence ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_membership_changes ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_rollback_per_sequence ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_sampler_rows_are_softcapped ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batched_engine_equals_solo_engine ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.54s
+[stage] done 2026-11-26 12:19:49
+[window] stage done 2026-11-26 12:19:50 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 12:19:50
+[window] radiance answers 2026-11-26 12:20:00 (after 15 s)
+fleetq: #12049 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

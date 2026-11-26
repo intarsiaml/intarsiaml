@@ -1,0 +1,16 @@
+fleetq: #12113 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-hip-batch/.scratch/mixmode_check.sh < /dev/null; bash ~/intarsiaml-ink-hip-batch/.scratch/build.sh b9 ink_rows ink_mix < /dev/null'
+== nm ink_mix.o (g_mix)
+0000000000000000 D ik_inkmix::g_mix_mask
+0000000000000004 D ik_inkmix::g_mix_dec
+== nm ink_mix_rows.o (g_mix)
+                 U ik_inkmix::g_mix_mask
+                 U ik_inkmix::g_mix_dec
+== head-ink_mix.s vs fix-ink_mix.s: 31 / 31 kernels (0 new)
+  31 / 31 identical (instructions and descriptor)
+== head-ink_mix_rows.s vs fix-ink_mix_rows.s: 55 / 55 kernels (0 new)
+  55 / 55 identical (instructions and descriptor)
+cli build exit 0
+76984ca786ef9ae0e849ff190af218d3  .scratch/bin/intarsia-b9
+test ink_rows build exit 0
+test ink_mix build exit 0
+fleetq: #12113 done (exit 0)

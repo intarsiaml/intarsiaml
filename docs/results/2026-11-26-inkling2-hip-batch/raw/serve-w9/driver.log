@@ -1,0 +1,21 @@
+[13:49:38] radiance down
+[13:49:38] solo: start (b7; --max-seq 4608 --spec off)
+[13:49:55] solo: up (IP 172.17.0.2 after 17s ; 233 s left)
+[13:50:34] solo: bitwise solo exit 0 (194 s left): solo: 16 replies, 2048 tokens -> .scratch/serve-w9/solo-bitwise.json
+[13:50:36] solo: stopped: VRAM peak solo: card0 19662 MiB, card1 57 MiB
+[13:50:36] mb16-def: start (b7; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[13:50:54] mb16-def: up (IP 172.17.0.2 after 18s ; 174 s left)
+[13:51:49] mb16-def r1: localeval exit 0 (119 s left): [localeval] 1 streams: aggregate 67.0 tok/s [localeval] 4 streams: aggregate 127.8 tok/s [localeval] 8 streams: aggregate 168.5 tok/s [localeval] 16 streams: aggregate 190.2 tok/s 
+[13:51:51] mb16-def: stopped: VRAM peak mb16-def: card0 28518 MiB, card1 57 MiB
+[13:51:51] mb16-bc256: start (b7; --max-batch 16 --max-seq 4608 --kv-fraction 0.9 --busy-chunk 256)
+[13:52:09] mb16-bc256: up (IP 172.17.0.2 after 17s ; 99 s left)
+[13:52:45] mb16-bc256: bitwise conc exit 0 (63 s left): conc: 16 replies, 2048 tokens -> .scratch/serve-w9/mb16-bc256-bitwise.json
+[13:53:23] mb16-bc256 r1: localeval exit 142 (25 s left): [localeval] 8 streams: aggregate 126.4 tok/s 
+[13:53:26] mb16-bc256: stopped: VRAM peak mb16-bc256: card0 28518 MiB, card1 57 MiB
+[13:53:26] visits done (22 s left)
+[13:53:37] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-batch/.scratch/hold.sh; cap 250s; stopping radiance 2026-11-26 13:49:34
+[window] radiance stopped 2026-11-26 13:49:38 (inactive)
+[window] stage done 2026-11-26 13:53:27 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 13:53:27
+[window] radiance answers 2026-11-26 13:53:37 (after 15 s)

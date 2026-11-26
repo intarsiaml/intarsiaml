@@ -6,6 +6,9 @@
 //!   (`rows_exact`). `ink_in_proj_bf16_matmul`: prefill (T > 16), three `matmul_bf16` WMMA GEMMs.
 //! * The row kernels (ConvMix, AttnResMix, SconvRes): one block per row, the same code for every row count, so rows-exact and
 //!   chunk-invariant (no twin needed). The blend (LoopBlend, ConvMix with msg) adds the h wave-GEMV, the gate and the norm.
+//! * `conv_mix_bf16_rows` (lane ink-hip-batch): ConvMix's row-table form (batched decode, `OpCall::rows`): row t is the T = 1 call of
+//!   sequence t at its own position on its own ring (the RT instantiations of the row kernel); bitwise the solo call per row
+//!   (tests/ink_rows.rs; results docs/results/2026-11-26-inkling2-hip-batch.md).
 //!
 //! An op of `OPS` counts as ported once `TABLE` lists it (until then it stays in `kernels::UNIMPLEMENTED`).
 
@@ -17,6 +20,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("ink_in_proj_bf16_gemv_rows", Op::InkInProj),
     ("ink_in_proj_bf16_matmul", Op::InkInProj),
     ("conv_mix_bf16", Op::ConvMix),
+    ("conv_mix_bf16_rows", Op::ConvMix),
     ("attn_res_mix_bf16", Op::AttnResMix),
     ("sconv_res_bf16", Op::SconvRes),
     ("loop_blend_bf16", Op::LoopBlend),
@@ -88,6 +92,15 @@ pub fn all() -> Vec<KernelImpl> {
                 "conv_mix_bf16" => {
                     k.weights(bf).when(|s| s.k > 0 && s.k <= MIX_D_MAX && s.n <= MIX_QUERIES_MAX).tol(BF16_TOL).tol_f32(F32_TOL).scratch(conv_mix_scratch)
                 }
+                // batched decode (`OpCall::rows`): row t bitwise the solo call of sequence t (takes the base kernel's admission); a batched
+                // step has at most 16 rows
+                "conv_mix_bf16_rows" => k
+                    .weights(bf)
+                    .when(|s| s.k > 0 && s.k <= MIX_D_MAX && s.n <= MIX_QUERIES_MAX && (1..=crate::kernels::ROWS_MAX).contains(&s.m))
+                    .tol(BF16_TOL)
+                    .tol_f32(F32_TOL)
+                    .scratch(conv_mix_scratch)
+                    .row_table(),
                 "attn_res_mix_bf16" => k
                     .when(|s| s.k > 0 && s.k <= MIX_D_MAX && s.kv_len <= MIX_SOURCES_MAX && s.n <= MIX_QUERIES_MAX)
                     .tol(BF16_TOL)
@@ -151,6 +164,32 @@ pub(crate) mod launch {
             sc: SC,
             s: S,
         ) -> c_int;
+        #[allow(clippy::too_many_arguments)]
+        fn ik_conv_mix_bf16_rows(
+            x: T,
+            taps: T,
+            res: T,
+            add: T,
+            src: T,
+            q: T,
+            norm: T,
+            msg: T,
+            down: T,
+            gain: T,
+            forget: T,
+            pos: T,
+            eps: f32,
+            y: TM,
+            ring: TM,
+            sum: TM,
+            mix: TM,
+            sc: SC,
+            tab: T,
+            tstride: i64,
+            tindex: i64,
+            roff: i64,
+            s: S,
+        ) -> c_int;
         fn ik_loop_blend_bf16(dest: T, msg: T, down: T, gain: T, forget: T, norm: T, eps: f32, out: TM, sc: SC, s: S) -> c_int;
         #[allow(clippy::too_many_arguments)]
         fn ik_ink_route_bf16(
@@ -205,6 +244,33 @@ pub(crate) mod launch {
                 a.o(2),
                 a.o(3),
                 a.sc,
+                a.s,
+            ),
+            // the ring carrier's byte offset in its row's buffer (output 1); a row table of the Inkling-2 ops has no byte offset of its own
+            "conv_mix_bf16_rows" if a.tab.is_null() || a.tab_off != 0 || a.call.outputs.len() < 2 => 1, // IK_ERR_INVALID_ARG
+            "conv_mix_bf16_rows" => ik_conv_mix_bf16_rows(
+                a.i(0),
+                a.i(1),
+                a.i(2),
+                a.i(3),
+                a.i(4),
+                a.i(5),
+                a.i(6),
+                a.i(7),
+                a.i(8),
+                a.i(9),
+                a.i(10),
+                a.pos,
+                at.eps,
+                a.o(0),
+                a.o(1),
+                a.o(2),
+                a.o(3),
+                a.sc,
+                a.tab,
+                a.tab_stride,
+                a.tab_index,
+                a.call.outputs[1].offset as i64,
                 a.s,
             ),
             "loop_blend_bf16" => ik_loop_blend_bf16(a.i(0), a.i(1), a.i(2), a.i(3), a.i(4), a.i(5), at.eps, a.o(0), a.sc, a.s),
