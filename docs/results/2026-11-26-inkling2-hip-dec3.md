@@ -3,7 +3,7 @@
 Branch `ink/hip-dec3` from origin/main `f3a150646` (#523 merged). Tatooine, card 0, dev image ROCm 7.2.4; repo
 `~/intarsiaml-ink-hip-dec3`, target volume `intarsia-cargo-target-ink-hip-dec3`. Scripts and logs: `2026-11-26-inkling2-hip-dec3/raw/`.
 
-Status (2026-11-26 04:35 EST): **ships: +3.6 % decode short, +3.3 % at 4k, bitwise; PR opened, not merged.** Two bitwise levers
+Status (2026-11-26 04:35 EST): **ships: +3.6 % decode short, +3.3 % at 4k, bitwise; PR #524 (https://github.com/intarsiaml/intarsiaml/pull/524), not merged.** Two bitwise levers
 behind `INTARSIA_HIP_INK_DEC3` (bit mask, default 7, `=0` = main's forms): (1) the wave butterflies of `moe_route`, the mix
 row / gate kernels, op 75 and argmax via DPP / `v_permlanex16` instead of `ds_bpermute` (+1.6 %); (4) the unembed GEMV (1.44 ms,
 one launch) as 3 pieces under the R9700's dispatch stall line, which removes a 271 us idle hole before argmax every token
