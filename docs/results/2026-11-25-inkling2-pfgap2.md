@@ -48,13 +48,13 @@ embedding buffer that opens each later chunk), tail (before the head), other.
 - **Total idle, back-to-back requests:** 0.27-0.33 % (4k), 0.11 % (16k). Under the 2 % rule at both lengths.
 - **After a few seconds of GPU idle:** 2.7-4.7 % at 4k, 0.6-0.65 % at 16k. All of it but 5-9 ms is one stall of 30-61 ms in six of six such requests
   and none of four back-to-back ones: the first compute buffer (`moe_experts_situ_bf16`, 128 dispatches) starts 30-60 ms after the 4-dispatch embedding buffer
-  before it ends, although `commit` of that buffer returned 7-10 ms *before* the embedding buffer ended (`hc - prev_e` is -7 to -10 ms in the trace). The host has nothing
+  before it ends, although `commit` of that buffer returned 7-12 ms *before* the embedding buffer ended (`hc - prev_e` is -7 to -12 ms in the trace; back-to-back it is -1.3 to -1.9 ms and the GPU does not idle). The host has nothing
   left to do in that window, so it is GPU-side start latency after idle (clock / power state or per-buffer residency work; not told apart here). The first embedding
-  buffer runs 4.8-6.5 ms against 0.3 ms for later chunks, which points the same way.
+  buffer runs 4.8-6.9 ms after idle against 1.4-1.6 ms back-to-back and 1.4-2.2 ms for the later chunks, which points the same way.
 - It does not cost wall time overall: the after-idle 4k spans (1483-1550 ms) are *shorter* than the back-to-back ones (1545-1605 ms), because the busy time is 5-10 % lower
   after idle (1426-1482 ms against 1540-1601 ms; a cooler GPU or higher clock is the likely reason, not measured here). A fix for the stall would trade against that.
 - Other idle, once per request: 3.2-3.5 ms before the head buffers after the last chunk, and 0.8-6 ms before the first embedding buffer. Outside the prefill, per request, the
-  host spends 10-24 ms before the first buffer starts and 15-21 ms after the last buffer ends (tokenise / admit / read back / HTTP), consistent with the 20-48 ms
+  host spends 10-29 ms before the first buffer starts and 15-23 ms after the last buffer ends (tokenise / admit / read back / HTTP), consistent with the 20-48 ms
   client-minus-engine difference in `2026-11-21-inkling2-mtp.md`.
 
 ## Earlier lane on the same question (11-22, `ink-pf-gap`)
@@ -72,7 +72,7 @@ at best recover 0.3 ms x (chunks - 1). "Batch the prefill command buffers" shoul
 
 Open, not pursued (outside the prefill command-buffer and encode path, and not host work): the 30-60 ms first-buffer start latency after idle, worth 2-4 % of a cold 4k TTFT and
 0.5 % of a 16k one. A direction if someone wants it: a small compute buffer committed when the request is admitted, so the GPU leaves its low state while the host tokenises
-(10-24 ms available). Whether that helps depends on the cause (a dummy kernel does not ramp a clock by itself), and the 5-10 % lower busy time after idle suggests the gain could be partly
+(10-29 ms available). Whether that helps depends on the cause (a dummy kernel does not ramp a clock by itself), and the 5-10 % lower busy time after idle suggests the gain could be partly
 paid back. Measure with `gap.sh` (idle 0 / 1 / 5 s arms) before building anything.
 
 ## Commands
