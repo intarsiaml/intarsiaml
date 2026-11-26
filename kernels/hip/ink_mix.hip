@@ -127,6 +127,11 @@ struct RowArgs {
     int fuse, np, G;
     const ik_bf16* down;
     ik_bf16* hbuf;
+    // row-table form (lane ink-hip-batch, `OpCall::rows`; only the RT instantiations read these): the table's device addresses
+    // ([rows][rts] entries), this call's entry, the ring carrier's byte offset in its row's buffer; `pos` is then i32 [T]
+    const unsigned long long* rtab;
+    int rts, rti;
+    long long roff;
 };
 
 // The row kernel. FAST = false is the first form (loads where the arithmetic needs them); FAST = true issues every load of the row
@@ -137,7 +142,10 @@ struct RowArgs {
 // Blend with `a.fuse` (rows <= kFuseRowsMax, D <= kFuseD): np = S * G / 8 blocks per row; every block of a row computes the row
 // redundantly, the block (s, gq) forms the pair of stream s in shared memory and the controller rows g = 8 gq .. 8 gq + 7 of that
 // stream (one wave per g, the wave GEMV of ink_ctl_gemv_kernel, same lane order), block part 0 writes y / ring / sum.
-template <int NE, bool FAST, bool DPP>
+// RT (`conv_mix_bf16_rows`, lane ink-hip-batch): row t is the T = 1 call of sequence t at position pos[t] on its own ring (table
+// entry rti of row t + roff): its conv history is its own x row (qp == p) and its ring (qp < p). Every other operand keeps the
+// call's row t (the planes, the mix and the blend are row-parallel). RT = false is the solo kernel.
+template <int NE, bool FAST, bool DPP, bool RT = false>
 __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
     __shared__ float red[32 * kNvMax];
     __shared__ float fin[kNvMax];
@@ -168,8 +176,10 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
     float nwv[kQMax][NE];
     float rv[NE], adv[NE], xcur[NE];
     float tv[8][NE], xr[8][NE];
-    const int64_t pos0 = a.pos ? (int64_t)*a.pos : a.pos0;
+    if constexpr (RT) a.ring = (ik_bf16*)(a.rtab[(size_t)t * a.rts + a.rti] + a.roff);
+    const int64_t pos0 = RT ? (int64_t)a.pos[t] - t : (a.pos ? (int64_t)*a.pos : a.pos0);
     const int64_t p = pos0 + t;
+    const int64_t own0 = RT ? p : pos0;  // the first position the conv reads from x (the call's own rows), older ones from the ring
     const bool fastconv = FAST && a.x && a.K <= 8;
     bool vr[8];
     if constexpr (FAST) {
@@ -180,7 +190,7 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
             for (int l = 0; l < 8; ++l) {
                 const int lc = l < a.K ? l : a.K - 1;
                 const int64_t qp = p - lc;
-                const bool inx = qp >= pos0, inr = !inx && qp >= 0;
+                const bool inx = qp >= own0, inr = !inx && qp >= 0;
                 const ik_bf16* row = inx ? a.x + (qp - pos0) * D : (inr ? a.ring + (int64_t)((int)qp % a.Rr) * D : a.taps);
                 const ik_bf16* tap = a.taps + (int64_t)lc * D;
                 vr[l] = inx || inr;
@@ -259,7 +269,7 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
             // formed once per tap instead of once per tap and element
             for (int l = 0; l < a.K; ++l) {
                 const int64_t qp = p - l;
-                const ik_bf16* row = qp >= pos0 ? a.x + (qp - pos0) * D : qp >= 0 ? a.ring + (int64_t)((int)qp % a.Rr) * D : nullptr;
+                const ik_bf16* row = qp >= own0 ? a.x + (qp - pos0) * D : qp >= 0 ? a.ring + (int64_t)((int)qp % a.Rr) * D : nullptr;
                 const ik_bf16* tap = a.taps + (int64_t)l * D;
 #pragma unroll
                 for (int j = 0; j < NE; ++j) acc[j] = fmaf(ik_b2f(tap[ix[j]]), row ? ik_b2f(row[ix[j]]) : 0.f, acc[j]);
@@ -286,7 +296,7 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
             const int64_t o = (int64_t)t * D + c;
             if (wr) {
                 a.y[o] = ik_f2b(yv[j]);
-                if (a.ring_now && p >= pos0 + T - a.Rr) a.ring[ring_off + c] = a.x[o];
+                if (a.ring_now && (RT || p >= pos0 + T - a.Rr)) a.ring[ring_off + c] = a.x[o];  // RT: every row is a T = 1 call
             }
             if (a.sum) {
                 const float s = ink_rbf((rv[j] + adv[j]) + yv[j]);
@@ -816,6 +826,22 @@ int launch_rows(const RowArgs& a, int blocks, hipStream_t st) {
     const int rows = a.fuse ? blocks / a.np : blocks;
     const bool fast = ((mix_mask() & 1) != 0 && rows <= kFastRowsMax) || (mix_mask() & 8) != 0;
     const bool dpp = (ik_hip_dec3_mask() & 1) != 0;
+    if (a.rtab) {
+        // the row-table form (conv_mix_bf16_rows): the same forms as the solo call, RT instantiations
+#define IK_ROW_RT_CASE(N)                                                                   \
+    case N:                                                                                 \
+        if (fast && dpp) ink_row_kernel<N, true, true, true><<<blocks, th, 0, st>>>(a);     \
+        else if (fast) ink_row_kernel<N, true, false, true><<<blocks, th, 0, st>>>(a);      \
+        else if (dpp) ink_row_kernel<N, false, true, true><<<blocks, th, 0, st>>>(a);       \
+        else ink_row_kernel<N, false, false, true><<<blocks, th, 0, st>>>(a);               \
+        break;
+        switch (ne) {
+            IK_ROW_RT_CASE(1) IK_ROW_RT_CASE(2) IK_ROW_RT_CASE(3) IK_ROW_RT_CASE(4) IK_ROW_RT_CASE(5) IK_ROW_RT_CASE(6)
+            default: return IK_ERR_SHAPE;
+        }
+#undef IK_ROW_RT_CASE
+        return ik_launch_status();
+    }
 #define IK_ROW_CASE(N)                                                                \
     case N:                                                                           \
         if (fast && dpp) ink_row_kernel<N, true, true><<<blocks, th, 0, st>>>(a);     \
@@ -943,6 +969,21 @@ int conv_args(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* res, c
     return IK_OK;
 }
 
+// the row-table form's arguments (conv_mix_bf16_rows): per-row positions i32 [T], the table, the ring carrier's offset; every row is
+// a T = 1 call, so its ring row is written in the row kernel (ring_after does nothing)
+int rt_args(RowArgs* a, const ik_tensor* pos, const ik_tensor* tab, int64_t tstride, int64_t tindex, int64_t roff) {
+    if (!pos || !pos->data || pos->dtype != IK_DTYPE_I32 || ik_numel(pos) != a->T) return IK_ERR_INVALID_ARG;
+    IK_TRY(ik_check_tab(tab, a->T, tstride, tindex));
+    if (roff < 0 || (roff & 1)) return IK_ERR_INVALID_ARG;
+    a->pos = (const int*)pos->data;
+    a->rtab = (const unsigned long long*)tab->data;
+    a->rts = (int)tstride;
+    a->rti = (int)tindex;
+    a->roff = roff;
+    a->ring_now = 1;
+    return IK_OK;
+}
+
 int ring_after(const RowArgs& a, hipStream_t st) {
     if (a.ring_now || a.T == 0) return IK_OK;
     const int rows = a.T < a.Rr ? a.T : a.Rr;
@@ -1012,13 +1053,15 @@ int ik_attn_res_mix_bf16(const ik_tensor* src, const ik_tensor* last, const ik_t
     return launch_rows(a, (int)R, IK_STREAM(stream));
 }
 
-int ik_conv_mix_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* res, const ik_tensor* addend,
-                     const ik_tensor* src, const ik_tensor* queries, const ik_tensor* norm, const ik_tensor* msg,
-                     const ik_tensor* down, const ik_tensor* gain, const ik_tensor* forget, int64_t pos0, const ik_tensor* pos,
-                     float eps, ik_tensor* y, ik_tensor* ring, ik_tensor* sum, ik_tensor* mix, const ik_scratch* scratch,
-                     void* stream) {
+// ConvMix, solo (tab null) or the row-table form (tab: the batched step's row table, pos i32 [T], roff the ring carrier's offset)
+static int conv_mix_run(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* res, const ik_tensor* addend,
+                        const ik_tensor* src, const ik_tensor* queries, const ik_tensor* norm, const ik_tensor* msg,
+                        const ik_tensor* down, const ik_tensor* gain, const ik_tensor* forget, int64_t pos0, const ik_tensor* pos,
+                        float eps, ik_tensor* y, ik_tensor* ring, ik_tensor* sum, ik_tensor* mix, const ik_scratch* scratch,
+                        const ik_tensor* tab, int64_t tstride, int64_t tindex, int64_t roff, void* stream) {
     RowArgs a;
-    IK_TRY(conv_args(x, taps, res, addend, pos0, pos, y, ring, sum, &a));
+    IK_TRY(conv_args(x, taps, res, addend, pos0, tab ? nullptr : pos, y, ring, sum, &a));
+    if (tab) IK_TRY(rt_args(&a, pos, tab, tstride, tindex, roff));
     a.eps = eps;
     const int64_t T = a.T, D = a.D;
     const int64_t Q = queries->ndim == 2 ? queries->shape[0] : -1;
@@ -1058,6 +1101,28 @@ int ik_conv_mix_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor*
     }
     IK_TRY(launch_rows(a, (int)T, st));
     return ring_after(a, st);
+}
+
+int ik_conv_mix_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* res, const ik_tensor* addend,
+                     const ik_tensor* src, const ik_tensor* queries, const ik_tensor* norm, const ik_tensor* msg,
+                     const ik_tensor* down, const ik_tensor* gain, const ik_tensor* forget, int64_t pos0, const ik_tensor* pos,
+                     float eps, ik_tensor* y, ik_tensor* ring, ik_tensor* sum, ik_tensor* mix, const ik_scratch* scratch,
+                     void* stream) {
+    return conv_mix_run(x, taps, res, addend, src, queries, norm, msg, down, gain, forget, pos0, pos, eps, y, ring, sum, mix, scratch,
+                        nullptr, 0, 0, 0, stream);
+}
+
+/* ConvMix row-table form (batched decode, lane ink-hip-batch): row t of the call is the T = 1 ConvMix of sequence t at position
+ * pos[t] (i32 [T]) on its own ring, the buffer at entry tindex of row t of `tab` (u8 [T, tstride, 8]) plus `roff` (the ring carrier's
+ * byte offset); `ring` is row 0's carrier (shape only). Bitwise the solo call per row (tests/ink_rows.rs). */
+int ik_conv_mix_bf16_rows(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* res, const ik_tensor* addend,
+                          const ik_tensor* src, const ik_tensor* queries, const ik_tensor* norm, const ik_tensor* msg,
+                          const ik_tensor* down, const ik_tensor* gain, const ik_tensor* forget, const ik_tensor* pos, float eps,
+                          ik_tensor* y, ik_tensor* ring, ik_tensor* sum, ik_tensor* mix, const ik_scratch* scratch,
+                          const ik_tensor* tab, int64_t tstride, int64_t tindex, int64_t roff, void* stream) {
+    if (!tab) return IK_ERR_INVALID_ARG;
+    return conv_mix_run(x, taps, res, addend, src, queries, norm, msg, down, gain, forget, 0, pos, eps, y, ring, sum, mix, scratch,
+                        tab, tstride, tindex, roff, stream);
 }
 
 int ik_loop_blend_bf16(const ik_tensor* dest, const ik_tensor* msg, const ik_tensor* down, const ik_tensor* gain,

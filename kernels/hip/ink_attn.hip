@@ -69,6 +69,12 @@ struct InkP {
     const int* pos;
     int t, h, hk, d, dr, e, k, rr, cr, pos0, flags, tau_floor, window, nq, pw, sk, toff;
     float qk_clip, rel_clip, eps, tau_alpha, scale, cscale;
+    // row-table form (lane ink-hip-batch, `OpCall::rows`; only the RT instantiations read these): the table's device addresses
+    // ([rows][rts] entries), this call's first entry, and each state tensor's byte offset in its row's buffer (k cache, v cache,
+    // k ring, v ring: the carriers' offsets)
+    const unsigned long long* rtab;
+    int rts, rti;
+    long long roff[4];
 };
 
 // explicit, unfused arithmetic (the CUDA source's _rn intrinsics)
@@ -570,11 +576,32 @@ __global__ void ink_attn_comb_k(InkP p) {
 // zero before and after every launch (stream order serialises launches; graph replays alike).
 __device__ unsigned ink_dec_tick[MAXROWS * MAXHK_TICK];
 
+// Row-table form (lane ink-hip-batch): `p` becomes the T = 1 call of sequence r at device position pos[r]: its row-indexed
+// operands shifted by r rows, its own scratch block of one row, its caches / rings from table entries rti .. rti + 3 (+ the carriers'
+// offsets). The kernels then run that call's code at row 0.
+IK_DEVI void ink_rt_row(InkP& p, unsigned r) {
+    const unsigned long long* e = p.rtab + (size_t)r * p.rts + p.rti;
+    p.pos0 = max(p.pos[r], 0);
+    p.pos = nullptr;
+    p.pq += (size_t)r * p.nq;
+    p.pk += (size_t)r * p.pw;
+    p.pv += (size_t)r * p.pw;
+    p.out += (size_t)r * p.h * p.d;
+    p.scr += (size_t)r * p.h * MAXS * (p.d + 2);
+    p.kc = (bf16*)(e[0] + p.roff[0]);
+    p.vc = (bf16*)(e[1] + p.roff[1]);
+    p.kr = (bf16*)(e[2] + p.roff[2]);
+    p.vr = (bf16*)(e[3] + p.roff[3]);
+    p.t = 1;
+}
+
 // InkAttnDecode. Grid (Hk, max splits, T <= 16), DEC_WAVES waves: all of them take the prologue jobs (one round for the 2 G + 2
 // jobs of a decode row), the bias and the merge; waves 0 .. NSG-1 run the attention body (the pair's key map). Dynamic LDS: the
 // split's bias [GP][nb] f32. Diagnostic p.flags F_DIAG_*: timing only, wrong output.
+// RT (`ink_attn_decode_bf16_rows`, lane ink-hip-batch): grid z = the rows of a row-table call, block row r runs the T = 1 call of
+// sequence r (ink_rt_row); its ticket is row r's. RT = false is the solo kernel.
 constexpr int DEC_WAVES = 8;
-template <int GP, bool DPP = false>
+template <int GP, bool DPP = false, bool RT = false>
 __global__ void __launch_bounds__(DEC_WAVES * 32) ink_attn_dec_k(InkP p) {
     __shared__ InkTg<GP> S;
     __shared__ float rsh[4][32];
@@ -582,7 +609,8 @@ __global__ void __launch_bounds__(DEC_WAVES * 32) ink_attn_dec_k(InkP p) {
     __shared__ unsigned is_last;
     extern __shared__ float tb[];
     const unsigned tid = threadIdx.x, lane = tid & 31, sg = tid >> 5;
-    const unsigned kvh = blockIdx.x, split = blockIdx.y, t = blockIdx.z;
+    const unsigned kvh = blockIdx.x, split = blockIdx.y, t = RT ? 0u : blockIdx.z;
+    if constexpr (RT) ink_rt_row(p, blockIdx.z);
     const unsigned D = p.d, Hk = p.hk, E = p.e, Cr = p.cr, ckv = Hk * D;
     const bool ring = (p.flags & F_RING) != 0;
     const unsigned pos0 = ink_pos0(p);
@@ -664,7 +692,7 @@ __global__ void __launch_bounds__(DEC_WAVES * 32) ink_attn_dec_k(InkP p) {
     // the partials of this split are written; the last split of (row, kv head) to arrive merges them all
     __threadfence();
     __syncthreads();
-    unsigned* tick = &ink_dec_tick[t * MAXHK_TICK + kvh];
+    unsigned* tick = &ink_dec_tick[(RT ? blockIdx.z : t) * MAXHK_TICK + kvh];
     if (tid == 0) {
         const unsigned old = atomicAdd(tick, 1u);
         is_last = old == g.ns - 1;
@@ -1233,3 +1261,73 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
     return ik_launch_status();
 }
 
+
+/* InkAttnDecode row-table form (batched decode, lane ink-hip-batch): row r of the call (r < T <= 16) is the T = 1 call of
+ * sequence r at device position pos[r] (i32 [T]); its K / V caches and K / V conv rings are the buffers at entries index ..
+ * index + 3 of row r of `tab` (u8 [T, stride, 8]) plus roff[0..4] (the carriers' byte offsets: k cache, v cache, k ring, v ring);
+ * kc / vc / kring / vring are row 0's carriers (shapes only). Always the fused kernel (its RT instantiation); bitwise the solo
+ * call per row, fused or split (tests/ink_rows.rs). attrs->pos0 is not read. */
+extern "C" int ik_ink_attn_decode_bf16_rows(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt,
+                                            const ik_tensor* vt, const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp,
+                                            const ik_tensor* kc_in, const ik_tensor* vc_in, const ik_ink_attn_attrs* a, ik_tensor* o,
+                                            ik_tensor* kc, ik_tensor* vc, ik_tensor* kring, ik_tensor* vring, const ik_scratch* scratch,
+                                            const ik_tensor* pos, const ik_tensor* tab, int64_t stride, int64_t index,
+                                            const int64_t* roff, void* stream) {
+    (void)kc_in;
+    (void)vc_in;
+    InkP p = {};
+    IK_TRY(prologue_params(pq, pk, pv, kt, vt, qs, rs, rp, a, kring, vring, nullptr, p));
+    IK_TRY(chk(o, 2));
+    IK_TRY(chk(kc, 3));
+    IK_TRY(chk(vc, 3));
+    if (p.t == 0) return IK_OK;
+    if (!pos || !pos->data || pos->dtype != IK_DTYPE_I32 || ik_numel(pos) != p.t || !roff) return IK_ERR_INVALID_ARG;
+    IK_TRY(ik_check_tab(tab, p.t, stride, index));
+    if (index + 3 >= stride) return IK_ERR_INVALID_ARG;
+    const int G = p.h / p.hk;
+    if (p.t > MAXROWS || G < 1 || G > 3 || p.d > 128 || !(p.d == 8 || p.d == 16 || p.d == 32 || p.d == 64 || p.d == 128) || p.hk > MAXHK_TICK)
+        return IK_ERR_SHAPE;
+    if (o->shape[0] != p.t || o->shape[1] != (int64_t)p.h * p.d || kc->shape[0] != p.hk || kc->shape[2] != p.d || vc->shape[1] != kc->shape[1])
+        return IK_ERR_SHAPE;
+    p.cr = (int)kc->shape[1];
+    p.window = (int)a->window;
+    p.scale = a->scale;
+    p.sk = split_keys(a);
+    const bool ring = a->kv_ring != 0;
+    if (ring) p.flags |= F_RING;
+    if (ring && (p.window < 1 || p.window > p.cr)) return IK_ERR_SHAPE;
+    // every row is a T = 1 call: its cache row and conv-ring row are written in the kernel (the solo launcher's rules at T = 1)
+    if (p.k > p.rr) return IK_ERR_SHAPE;
+    p.flags |= F_RING_WRITE | F_KV_WRITE;
+    // the rows' buffers are device allocations (aligned); the cache planes must stay 16-byte aligned at their offsets
+    if (!ik_aligned16(kc->data) || !ik_aligned16(vc->data) || (roff[0] & 15) || (roff[1] & 15) || (roff[2] & 1) || (roff[3] & 1) ||
+        roff[0] < 0 || roff[1] < 0 || roff[2] < 0 || roff[3] < 0 || !fits_u32((int64_t)p.hk * p.cr * p.d))
+        return IK_ERR_INVALID_ARG;
+    p.out = mb(o);
+    p.kc = mb(kc);
+    p.vc = mb(vc);
+    p.pos = (const int*)pos->data;
+    p.pos0 = 0;
+    if (a->diag & 1) p.flags |= F_DIAG_NOPRO;
+    if (a->diag & 2) p.flags |= F_DIAG_NOMERGE;
+    if (ik_hip_dec3_mask() & 1) p.flags |= F_DPP;
+    unsigned gy, nb;
+    attn_geometry(p, true, &gy, &nb);  // the device-position grid (the capacity bound), as the solo captured step
+    const int64_t part = (int64_t)p.t * p.h * MAXS * (p.d + 2) * 4;
+    if (!scratch || !scratch->data || scratch->bytes < part) return IK_ERR_INVALID_ARG;
+    p.scr = (float*)scratch->data;
+    p.rtab = (const unsigned long long*)tab->data;
+    p.rts = (int)stride;
+    p.rti = (int)index;
+    for (int j = 0; j < 4; ++j) p.roff[j] = roff[j];
+    hipStream_t st = IK_STREAM(stream);
+    const size_t tbb = (size_t)G * nb * 4;
+    const dim3 grid(p.hk, gy, p.t);
+    const bool dpp = (p.flags & F_DPP) != 0;
+    switch (G) {
+        case 1: if (dpp) ink_attn_dec_k<1, true, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); else ink_attn_dec_k<1, false, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
+        case 2: if (dpp) ink_attn_dec_k<2, true, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); else ink_attn_dec_k<2, false, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
+        default: if (dpp) ink_attn_dec_k<3, true, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); else ink_attn_dec_k<3, false, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
+    }
+    return ik_launch_status();
+}
