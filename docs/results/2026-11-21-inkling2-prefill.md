@@ -1347,3 +1347,22 @@ dropped when its two references differ by more than 2 %. Clean 03:00 slot on end
 **Verdict: directional, not confirmed (no length reached 7 kept pairs).** Every kept pair at every length is above 1.00 and bitwise equal,
 but the 16k median rests on 3 pairs spread 1.06 to 1.23, and the box drifted during the 16k and 6k pairs. Chunk 4096 stays opt-in
 (`--prefill-chunk`; the recipe default stays 2048); the default / threshold decision goes on the user's morning list.
+
+## relbias-mma thermal-fair re-A/B 2026-11-26 (#11857, ab51.sh, brief 51; branch binary 1436e3c66 built #11800, main 6fb85dce7)
+
+Arms: M6 = main at NSG 6, R6 = branch with `INTARSIA_INK_RELBIAS_MMA=1` at NSG 6, M12 = main default (NSG 12). A fixed 240 s idle before
+every arm; order per length (M6 R6 M12 M12 R6 M6) x 2, so M6 vs R6 and R6 vs M12 are both ABBA x 2; 16k then 4k; warm 3rd run of
+`generate --repeat 3` scored. Box check passed (main 4k 1245 ms, window 1186 to 1310). Speed only: no quality, md5 or decode check in this job.
+
+| length | M6 (ms, 4 arms) | R6 (ms, 4 arms) | M12 (ms, 4 arms) | R6 vs M6 | R6 vs M12 | bar |
+|---|---|---|---|---|---|---|
+| 16k | 5600 5616 5651 5599 (mean 5616.5) | 5498 5493 5434 5426 (mean 5462.8) | 5622 5620 5700 5620 (mean 5640.5) | +2.81 % | +3.25 % | +4 % |
+| 4k | 1240 1239 1240 1241 (mean 1240.0) | 1203 1204 1204 1203 (mean 1203.5) | 1246 1246 1247 1248 (mean 1246.8) | +3.03 % | +3.59 % | +2 % |
+
+Kernel traces (one run each): 16k attn+prologue / in_proj 2.111 (M6) -> 1.814 (R6), prologue 777.9 -> 629.1 ms, attn 1331.6 -> 1268.1 ms;
+4k 1.575 -> 1.318, prologue 201.6 -> 152.1 ms, attn 208.4 -> 182.8 ms. R6 is confirmed active by the prologue drop.
+
+**Verdict: the 4k bar is met (+3.0 % vs M6, +3.6 % vs M12, R6 arms within 1 ms), the 16k bar is missed (+2.8 % / +3.3 % against +4 %; R6 arms
+5426 to 5498 ms, every R6 arm faster than every M6 / M12 arm).** The result is stable (no arm dropped, the box did not drift), so this is not a
+noise miss. No flip: `INTARSIA_INK_RELBIAS_MMA` stays opt-in. Not done: bitwise / quality gate of the branch, and a decision on whether a
+mixed bar (4k yes, 16k no) justifies a length-dependent default; both go on the user's morning list.
