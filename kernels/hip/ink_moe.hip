@@ -92,6 +92,7 @@ struct MoeArgs {
     int table;
     int probe;  // benchmarks: 3 = every thread returns at once, 4 = after the grouping (the launch + start-up cost of a call)
     int wg;     // class 0 with at most 32 pairs: the one-wave grouping (group_wave) instead of group_pairs
+    int y0;     // tensor-core prefill in pieces (INTARSIA_HIP_INK_PF2 bits 4 / 8): first feature tile of this launch
 };
 
 IK_DEVI float ink_rbf(float v) { return ik_b2f(ik_f2b(v)); }
@@ -898,7 +899,7 @@ __global__ void __launch_bounds__(kMwThreads) ink_moe_wmma_kernel(MoeArgs a) {
     const int Kd = GATEUP ? a.H : a.I, Nd = GATEUP ? a.I : a.H;
     const ik_bf16* src = GATEUP ? a.x : a.h;
     ik_bf16* dst = GATEUP ? a.h : a.y;
-    const int n0 = (int)blockIdx.y * FEAT;
+    const int n0 = ((int)blockIdx.y + a.y0) * FEAT;  // y0: first feature tile of a piece (INTARSIA_HIP_INK_PF2)
     const int tid = threadIdx.x, wave = tid >> 5, lane = tid & 31;
     const int lr = lane & 15, h = lane >> 4;
     const int part = GATEUP ? (wave >> 2) : 0;  // gate_up: 0 = gate rows, 1 = up rows
@@ -1046,22 +1047,60 @@ int moe_wmma_pairs(int64_t P, int E) {
     return 0;
 }
 
+// INTARSIA_HIP_INK_PF2 (lane ink-hip-pf2; read at every launch, every bit keeps the output bits): bit 4 = the tensor-core down in
+// pieces of consecutive feature tiles (grid y) under the R9700's ~1 ms dispatch stall line (ik_hip.h), bit 8 = gate_up too (opt-in:
+// on the 35B its pieces each paid the hot experts' load-imbalance tail, moe.hip round 8). A block of a piece is the block of the
+// one launch with the same feature tile. Bits 1 / 2 are ink_attn.hip's. Unset = kPf2Default; 0 = one launch each.
+constexpr int kPf2Default = 7;
+int pf2_mask() {
+    const char* e = getenv("INTARSIA_HIP_INK_PF2");
+    return e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : kPf2Default;
+}
+// pieces of a launch estimated at est_us (as ink_attn.hip's): budget INTARSIA_HIP_INK_PF2_US (default 900 us), trigger 950 us or
+// the budget if lower
+int pf2_pieces(double est_us, int64_t max_pieces) {
+    const char* e = getenv("INTARSIA_HIP_INK_PF2_US");
+    const double budget = e && *e ? atof(e) : 900.0;
+    const double trigger = budget < 950.0 ? budget : 950.0;
+    if (!(budget > 0.0) || est_us <= trigger || max_pieces <= 1) return 1;
+    const double n = est_us / budget;
+    const int64_t p = n >= (double)max_pieces ? max_pieces : (int64_t)n + ((double)(int64_t)n < n ? 1 : 0);
+    return (int)(p < 1 ? 1 : p);
+}
+// the tensor-core projections' rate in window 1's profile (T = 2048, 64-pair tiles): gate_up 4.25 ms and down 2.04 ms for
+// 87.0 / 43.5 GMAC, ~21 GMAC per ms; MXFP8 ~20
+constexpr double kWmMacPerUs = 20e3;
+
 template <int FMT, int ACT>
-int launch_wmma(const MoeArgs& a, int pairs, hipStream_t st) {
+int launch_wmma(const MoeArgs& a_in, int pairs, hipStream_t st) {
+    MoeArgs a = a_in;
     const int64_t P = (int64_t)a.T * a.K;
     int zp = (int)((2 * P / a.E + pairs - 1) / pairs);  // pair tiles in the grid: twice the average pairs per expert
     zp = zp < 1 ? 1 : (zp > 8 ? 8 : zp);
+    const int mask = pf2_mask();
     if (g_probe != 2) {
-        const dim3 g((unsigned)zp, (unsigned)(a.I / kMwFeatGateUp), (unsigned)a.E);
-        if (pairs == 32) ink_moe_wmma_kernel<FMT, ACT, true, 32><<<g, kMwThreads, 0, st>>>(a);
-        else ink_moe_wmma_kernel<FMT, ACT, true, 64><<<g, kMwThreads, 0, st>>>(a);
-        IK_TRY(ik_launch_status());
+        const int Y = a.I / kMwFeatGateUp;
+        const int pieces = (mask & 8) ? pf2_pieces((double)P * 2 * a.I * a.H / kWmMacPerUs, Y) : 1;
+        for (int i = 0; i < pieces; ++i) {
+            const int y0 = Y * i / pieces, y1 = Y * (i + 1) / pieces;
+            a.y0 = y0;
+            const dim3 g((unsigned)zp, (unsigned)(y1 - y0), (unsigned)a.E);
+            if (pairs == 32) ink_moe_wmma_kernel<FMT, ACT, true, 32><<<g, kMwThreads, 0, st>>>(a);
+            else ink_moe_wmma_kernel<FMT, ACT, true, 64><<<g, kMwThreads, 0, st>>>(a);
+            IK_TRY(ik_launch_status());
+        }
     }
     if (g_probe != 1) {
-        const dim3 g((unsigned)zp, (unsigned)((a.H + kMwFeatDown - 1) / kMwFeatDown), (unsigned)a.E);
-        if (pairs == 32) ink_moe_wmma_kernel<FMT, ACT, false, 32><<<g, kMwThreads, 0, st>>>(a);
-        else ink_moe_wmma_kernel<FMT, ACT, false, 64><<<g, kMwThreads, 0, st>>>(a);
-        IK_TRY(ik_launch_status());
+        const int Y = (a.H + kMwFeatDown - 1) / kMwFeatDown;
+        const int pieces = (mask & 4) ? pf2_pieces((double)P * a.H * a.I / kWmMacPerUs, Y) : 1;
+        for (int i = 0; i < pieces; ++i) {
+            const int y0 = Y * i / pieces, y1 = Y * (i + 1) / pieces;
+            a.y0 = y0;
+            const dim3 g((unsigned)zp, (unsigned)(y1 - y0), (unsigned)a.E);
+            if (pairs == 32) ink_moe_wmma_kernel<FMT, ACT, false, 32><<<g, kMwThreads, 0, st>>>(a);
+            else ink_moe_wmma_kernel<FMT, ACT, false, 64><<<g, kMwThreads, 0, st>>>(a);
+            IK_TRY(ik_launch_status());
+        }
     }
     return IK_OK;
 }
