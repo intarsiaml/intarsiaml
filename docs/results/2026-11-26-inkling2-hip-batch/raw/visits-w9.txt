@@ -1,8 +1,9 @@
+# name;bin;serve args;localeval speed args | bitwise:<mode>[,localeval args]
 # W9 (b7): the solo reference server (no --max-batch, --spec off: the 16 real prompts one at a time; single-stream VRAM), then 4k context
-# at B 16 (--max-batch 16 --max-seq 4608, KV fraction 0.9, busy chunk 2048, no --spec: the default, which loads no draft at --max-batch > 1):
-# localeval 4k prompts, 256 forced tokens, 1 and 16 streams once (the VRAM peak of a B 16 server at 4k); then the busy-chunk check: HIP's
-# builtin busy chunk (256: no [tuning.hip] busy_chunk), the 16 real prompts at once (batched == solo under busy chunk 256?) and 8 / 16
-# streams of 1k prompts, once.
+# at B 16 with the defaults (--max-batch 16 --max-seq 4608, KV fraction 0.9, no --busy-chunk, no --spec): localeval 4k prompts, 256 forced
+# tokens, 16 streams once (the VRAM peak of a B 16 server at 4k; its log names the default busy chunk: the solo chunk, 2048, since HIP
+# batches Inkling-2 as a hybrid model); then the busy-chunk check: --busy-chunk 256 (the builtin of non-hybrid batching, Metal's old
+# default): the 16 real prompts at once (batched == solo under 256?) and 8 / 16 streams of 1k prompts, once.
 solo;b7;--max-seq 4608 --spec off;bitwise:solo
-mb16-4k;b7;--max-batch 16 --max-seq 4608 --kv-fraction 0.9 --busy-chunk 2048;--sizes 4096 --gen 256 --reps 1 --concurrency 16
-mb16-bcdef;b7;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc,--sizes 1024 --gen 256 --reps 1 --concurrency 8,16
+mb16-4k;b7;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;--sizes 4096 --gen 256 --reps 1 --concurrency 16
+mb16-bc256;b7;--max-batch 16 --max-seq 4608 --kv-fraction 0.9 --busy-chunk 256;bitwise:conc,--sizes 1024 --gen 256 --reps 1 --concurrency 8,16
