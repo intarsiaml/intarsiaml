@@ -209,6 +209,7 @@ Checks without a GPU (tatooine cpu slots):
 | Window | fleetq | down (stop -> answers) | what |
 |---|---|---|---|
 | W1 | #12216 | 16:44:35 -> 16:46:50 = **2:15** | unit gates on hip (b5) + admission prime |
+| W2 | #12224 | 16:59:32 -> 17:00:24 = **0:52** | packed != solo diagnosis (b7): `inkling2_packed` at the defaults and with `INTARSIA_HIP_INK_PF2=0`, main's tiny suite |
 
 ### W1 (b5): packed != solo on HIP
 
@@ -220,3 +221,26 @@ Checks without a GPU (tatooine cpu slots):
   `inkling2_batch` did not run (cargo stops after the first failing test binary; now `--no-fail-fast`).
 - Admission prime: the `--max-batch 16` server with `INTARSIA_INK_PACK=1` came up (101 s with 134 admission cases, then cached),
   logging "inkling2 packed prefill: on, up to 2048 rows per pass, segments of 17+ rows"; the solo server came up in 17 s.
+
+### W2 (b7): the PF2 tiny-shape fault, not packing
+
+Raw: `raw/w2-diag.log`. b7 = b5 + the per-op dump of a packed pass (`Model::ink_dump_packed`) keyed per pass, not per segment.
+
+| Check (card) | PF2 default (mask 151) | `INTARSIA_HIP_INK_PF2=0` |
+|---|---|---|
+| `inkling2_packed` real shapes (card 0): 17 + 2048, 4 segments around the expert split (255 / 256 / 257 / 17), blend tails (258 / 261 / 513) | **packed == solo** (head, every state byte, `restorable_len`, the decode step after) | **packed == solo** |
+| per-op dump, real 17 + 300 and 257 + 600 (one resumed) | (not reached: the tiny case before it failed) | **1636 / 1636 tensors bitwise, each** |
+| tiny 2 x 17 .. 16 mixed (card 0) | differs from visit 0 on (`v00.rel` first: the prologue) | **packed == solo** (2 x 17, 17 / 40 / 300, 2048 / 1000 / 17) |
+| per-op dump, tiny 2 x 20 and 40 + 300 | 532 of 548 tensors differ, from `v00.rel` | **548 / 548 bitwise, each** |
+| packed engine (4 slots, 9 requests) == solo engine (tiny) | differs | **equal** |
+| (card 1) main 80719483a's `inkling2` tiny suite | **g1b_teacher_forced_bf16 FAILS on main** (+ the 2 known screened-head tests) | branch: 15 / 17 (g1b passes; the 2 screened-head tests fail on main too) |
+| branch `inkling2_batch` tiny (card 1) | 8 / 8 | |
+
+So the packed pass is bitwise its solo passes wherever PF2 is off, and at real shapes with PF2 on; the tiny-shape failures with PF2 on
+are main's PF2 fault (the heads-up: run-to-run varying at tiny shapes; lane ink-hip-p12 owns the fix). Two items left from W2, both fixed
+in b8: (1) the opt-in 4096-row workspace (`INTARSIA_INK_PACK_ROWS=4096`) refused a 2 x 2048 pass at real shapes ("kernel needs 226625024
+scratch bytes but the plan reserved 113368832"): the plan skipped its 4096-row probe because one sequence's KV room (2737 tokens) is
+smaller. b8 adds a plan probe of the largest packed pass (`Phase::Pack`: fresh phantom sequences of at most a chunk each, the real
+packed layers recorded), so the scratch and admission cover it. (2) A test case summed to 4097 rows after the 4-row alignment of the
+tiny GPU runs (test fix).
+

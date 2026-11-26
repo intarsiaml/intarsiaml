@@ -1,0 +1,6 @@
+# name;bin;serve args (leading NAME=value = server env);actions (' && '-separated)
+# W4 (b8): gate 2 serve level. The branch's solo server (no --max-batch, --spec off: the batch lane's reference config), then the
+# packed --max-batch 16 server: the 16 real prompts at 4 / 8 / 16 at once (rep 1, plain prompts: compared with the solo replies),
+# then prefix reuse: 6 base prompts at once, then their extended versions at once (resumed chunks pack), compared with reuse-solo.
+solo;b8;--max-seq 4608 --spec off;bitwise:solo+reuse-solo:6
+pk16;b8;INTARSIA_INK_PACK=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;real:4,8,16:1 && bitwise:reuse-conc:6
