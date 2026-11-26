@@ -1,6 +1,6 @@
 # Inkling-2-Mini packed prefill across streams on HIP, one R9700 (lane ink-hip-bpf, 2026-11-26)
 
-Branch `ink/hip-bpf` from main `80719483a` (#529 merged). Goal (user, verbatim, 2026-11-26): "make prefill batch across streams. the
+Branch `ink/hip-bpf` (PR #538) from main `80719483a` (#529 merged), rebased onto 5367023d2. Goal (user, verbatim, 2026-11-26): "make prefill batch across streams. the
 main goal is to maximize speed while keeping accuracy high to exact". Bar: with `serve --max-batch N` on HIP, several streams' prompt
 chunks prefill in one forward pass, and every stream's reply stays bitwise its solo run's. Raw: `docs/results/2026-11-26-inkling2-hip-bpf/raw/`.
 
