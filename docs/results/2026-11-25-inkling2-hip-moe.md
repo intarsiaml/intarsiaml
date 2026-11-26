@@ -71,6 +71,10 @@ Branch `ink/hip-moe`, base origin/main `d8c3c7148` + `ink/hip` `6c5ee5d67` (lead
   sweep passes, merge `origin/main` into this branch and send "ready to merge at <commit>". The attn lane's op 75 goes to
   main first in its own PR (`ink/hip-speed`); this lane's speed work follows as a second PR.
 
+- Coordinator message after landing 3: `a154a5704` accepted; it goes into the attn lane's integration branch `ink/hip-speed`
+  (one window, one PR for both). First add `docs/tuning.md` rows for every new env knob (`INTARSIA_HIP_INK_MOE_LEAN`, others),
+  run `docs_env_vars` and the host tests, commit, send "rows at <commit>". Then S2 (WMMA prefill), based on origin/main.
+
 ## 0b. Radiance down time under the time budget (20 min from the rule change; windows 1 and 2 predate it: 52 s, 63 s)
 
 | Window | fleetq | Down | Budget used |
@@ -267,7 +271,7 @@ None of these changes a bit of the output, so none belongs in a fingerprint:
 - `INTARSIA_HIP_INK_MOE_PRE` = `v` or `gu:dn`, each 1 | 3 | 6 | 9: load window; default by format and pair density (`moe_pre`).
 - `INTARSIA_HIP_INK_MOE_LEAN=0`: the first form (the code of `29b71ac67`).
 - Test / bench setters in `inkmoe.rs`: `set_probe`, `set_pre`, `set_lean`, `set_sz`, `set_nb`.
-`docs/tuning.md` rows are not written (not this lane's file).
+`docs/tuning.md` has rows for both env knobs (PRE updated, LEAN added; `docs_env_vars` passes).
 
 ## 4. Next steps
 
