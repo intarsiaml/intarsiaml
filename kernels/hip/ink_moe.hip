@@ -29,6 +29,13 @@
 //  * shared memory sized by the call (sz_dp / sz_em): 2.3 KB per down block at decode instead of 32.8 KB, because the LDS a
 //    block holds caps the blocks resident per workgroup processor.
 //
+// Expert slices (lane ink-hip-verify, INTARSIA_HIP_INK_MOE_SPLIT): a call of 2..16 rows routes more distinct experts than a
+// block has waves (real text: 12.5 / 18.9 / 27.6 at 2 / 4 / 8 rows against 8 waves), so a wave ran 2..4 experts one after
+// another while the grid stayed as wide as at decode. With S slices the launch has S blocks per row group (grid y), block y's
+// wave w takes the experts y * 8 + w, + 8 S, ..; down's terms then go through scratch y and the gather launch (bf16-exact
+// values summed in slot order, as on the pair-table path). Which wave and block run a (pair, row) never changes its arithmetic,
+// so every slice count gives the same bits (ink_moe_rows_exact).
+//
 // Scratch: the core `moe_experts_scratch` layout: pairs int[P] | offsets int[E+1] | active int[E+1] | h bf16[P,I] | y bf16[P,H].
 #include "ik_quant.h"
 #include "ik_hip_abi_inkmoe.h"
@@ -59,6 +66,7 @@ int g_nb = 0;                      // tests / benchmarks: pairs per batch below 
 int g_wmma = -1;                   // tests / benchmarks: 0 no tensor-core prefill, 1 the rule, 32 | 64 its pair tile; < 0: INTARSIA_HIP_INK_MOE_WMMA / the default
 int g_sz = 0;                      // tests / benchmarks: the smallest LDS size class a call may take (0 | 1 | 2); 4: by the call, in-wave grouping up to 32 pairs
 int g_dec = -1;                    // tests / benchmarks: 0 | 1 the one-wave grouping of class 0; < 0: INTARSIA_HIP_INK_DEC_FAST bit 1 / the default (on)
+int g_split_gu = -1, g_split_dn = -1;  // tests / benchmarks: expert slices of gate_up / down (1 = none, >= 2 forced, 0 = the rule); < 0: INTARSIA_HIP_INK_MOE_SPLIT / the default
 
 // LDS size classes: the group tables (and down's terms) are sized by the call, because LDS per block decides how many blocks a
 // workgroup processor holds (64 KB): class 2 is 16.4 KB of tables + 16 KB of terms (one down block, three gate_up blocks per
@@ -93,6 +101,7 @@ struct MoeArgs {
     int probe;  // benchmarks: 3 = every thread returns at once, 4 = after the grouping (the launch + start-up cost of a call)
     int wg;     // class 0 with at most 32 pairs: the one-wave grouping (group_wave) instead of group_pairs
     int y0;     // tensor-core prefill in pieces (INTARSIA_HIP_INK_PF2 bits 4 / 8): first feature tile of this launch
+    int ysp;    // down in expert slices: the terms go to scratch y, the gather launch sums them (as on the table path)
 };
 
 IK_DEVI float ink_rbf(float v) { return ik_b2f(ik_f2b(v)); }
@@ -539,7 +548,7 @@ __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
     const int nch = H / 32;
     const int nit = (nch + 7) / 8;  // steps of a lane: its chunks sub, sub + 8, ..
     const int64_t wb = row_bytes<FMT>(H), sb = srow_bytes<FMT>(H);
-    for (int d = warp; d < gr.nd; d += kWarpsB) {
+    for (int d = (int)blockIdx.y * kWarpsB + warp; d < gr.nd; d += kWarpsB * (int)gridDim.y) {
         int cnt;
         const int e = gr.select(d, cnt);
         const uint8_t* wg = a.guw + ((int64_t)e * 2 * I + rr) * wb;
@@ -631,7 +640,7 @@ __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
     const int nch = I / 32;
     const int nit = (nch + 3) / 4;
     const int64_t wb = row_bytes<FMT>(I), sb = srow_bytes<FMT>(I);
-    for (int d = warp; d < gr.nd; d += kWarpsB) {
+    for (int d = (int)blockIdx.y * kWarpsB + warp; d < gr.nd; d += kWarpsB * (int)gridDim.y) {
         int cnt;
         const int e = gr.select(d, cnt);
         const uint8_t* wd = a.dnw + ((int64_t)e * H + rr) * wb;
@@ -682,7 +691,7 @@ __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
                 if (sub == 0) {
                     const float yv = ink_rbf(FMT == FMT_NV ? s * a.gs[e * 3 + 2] : s);
                     const float tv = ACT == ACT_SITU ? yv : ink_rbf(yv * a.wts[pp[b]]);
-                    if (a.table) {
+                    if (a.table || a.ysp) {
                         if (on) a.y[(int64_t)pp[b] * H + r] = ik_f2b(tv);
                     } else {
                         term[pp[b] * kDnRows + q] = tv;
@@ -691,7 +700,7 @@ __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
             }
         }
     }
-    if (a.table) return;
+    if (a.table || a.ysp) return;
     __syncthreads();
     // the one-wave grouping left the valid pairs in shared memory: the token sum reads them there, not the ids (the same terms
     // in the same slot order)
@@ -793,14 +802,54 @@ bool moe_lean() {
 }
 
 template <int FMT, int ACT, int PRE, int NB, bool LEAN, int SZ>
-void launch_gu1(const MoeArgs& a, hipStream_t st) {
-    ink_moe_gu_kernel<FMT, ACT, PRE, NB, LEAN, SZ><<<(a.I + kGuRows - 1) / kGuRows, kThreads, 0, st>>>(a);
+void launch_gu1(const MoeArgs& a, int ns, hipStream_t st) {
+    const dim3 g((unsigned)((a.I + kGuRows - 1) / kGuRows), (unsigned)ns);
+    ink_moe_gu_kernel<FMT, ACT, PRE, NB, LEAN, SZ><<<g, kThreads, 0, st>>>(a);
 }
 template <int FMT, int ACT, int PRE, int NB, bool LEAN, int SZ>
-void launch_dn1(const MoeArgs& a, int out_f32, hipStream_t st) {
-    const unsigned g = (unsigned)((a.H + kDnRows - 1) / kDnRows);
+void launch_dn1(const MoeArgs& a, int out_f32, int ns, hipStream_t st) {
+    const dim3 g((unsigned)((a.H + kDnRows - 1) / kDnRows), (unsigned)ns);
     if (out_f32) ink_moe_dn_kernel<FMT, ACT, float, PRE, NB, LEAN, SZ><<<g, kThreads, 0, st>>>(a);
     else ink_moe_dn_kernel<FMT, ACT, ik_bf16, PRE, NB, LEAN, SZ><<<g, kThreads, 0, st>>>(a);
+}
+
+// INTARSIA_HIP_INK_MOE_SPLIT (lane ink-hip-verify): expert slices of the decode / rows kernels at 2..16 rows (see the header).
+// "v" (both launches) or "g:d": 1 = none (main's grid), 0 = the rule, >= 2 that many slices (capped where no slice could hold an
+// expert); unset or anything else: the default. Every value gives the same bits.
+int split_env(bool gu) {
+    static int v[2] = {-2, -2};
+    if (v[0] == -2) {
+        v[0] = v[1] = -1;
+        const char* e = getenv("INTARSIA_HIP_INK_MOE_SPLIT");
+        if (e && e[0] >= '0' && e[0] <= '9') {
+            const char* colon = strchr(e, ':');
+            v[0] = atoi(e);
+            v[1] = colon && colon[1] >= '0' && colon[1] <= '9' ? atoi(colon + 1) : v[0];
+        }
+    }
+    return v[gu ? 0 : 1];
+}
+constexpr int kSplitDefault = 0;  // the default: the rule (`=1` = main's grid)
+// the rule: enough slices that each wave holds at most one expert of the union real text routes (8 + 3.6 per further row; the
+// table in docs/results/2026-11-21-inkling2-mtp.md section 1), at most one slice per 8 pairs
+int moe_rule_slices(int T, int64_t P, int E) {
+    const int64_t most = (P < E ? P : E);
+    const int cap = (int)((most + kWarpsB - 1) / kWarpsB);
+    const int u = (int)(8.f + 3.6f * (float)(T - 1) + 0.5f);
+    const int s = (u + kWarpsB - 1) / kWarpsB;
+    return s < 1 ? 1 : (s > cap ? cap : s);
+}
+int moe_slices(bool gu, const MoeArgs& a) {
+    if (a.table || a.T < 2 || a.T > 16) return 1;
+    const int64_t P = (int64_t)a.T * a.K;
+    int v = gu ? g_split_gu : g_split_dn;
+    if (v < 0) v = split_env(gu);
+    if (v < 0) v = kSplitDefault;
+    if (v == 1) return 1;
+    const int64_t most = (P < a.E ? P : a.E);
+    const int cap = (int)((most + kWarpsB - 1) / kWarpsB);
+    if (v == 0) return moe_rule_slices(a.T, P, a.E);
+    return v > cap ? cap : v;
 }
 
 // the lean form: every window in the call's size class (4 = grouped in the wave, 0..2 LDS tables) with NB 4 below the pair table, window 3 with NB 8 on the
@@ -844,10 +893,12 @@ int launch_pair(const MoeArgs& a0, int out_f32, hipStream_t st) {
     if (g_sz == 4 && P <= kWavePairs) sz = 4;  // opt-in: slower than the tables at T = 1, 2, 4 (window 5)
     MoeArgs a = a0;
     a.wg = (sz == 0 && !a.table && P <= kWaveGroupPairs && moe_dec_wave()) ? 1 : 0;
+    const int ns_gu = moe_slices(true, a), ns_dn = moe_slices(false, a);
+    a.ysp = ns_dn > 1 ? 1 : 0;
     if (g_probe != 2) {
         const int pre = pc.gu, nb = pc.gu_nb;
         const bool lean = moe_lean();
-#define INK_GU(P, N, L, Z) launch_gu1<FMT, ACT, P, N, L, Z>(a, st)
+#define INK_GU(P, N, L, Z) launch_gu1<FMT, ACT, P, N, L, Z>(a, ns_gu, st)
         INK_PRE_SWITCH(INK_GU)
 #undef INK_GU
         IK_TRY(ik_launch_status());
@@ -855,10 +906,16 @@ int launch_pair(const MoeArgs& a0, int out_f32, hipStream_t st) {
     if (g_probe != 1) {
         const int pre = pc.dn, nb = pc.dn_nb;
         const bool lean = moe_lean() && !(pc.dn_first && !a.table);
-#define INK_DN(P, N, L, Z) launch_dn1<FMT, ACT, P, N, L, Z>(a, out_f32, st)
+#define INK_DN(P, N, L, Z) launch_dn1<FMT, ACT, P, N, L, Z>(a, out_f32, ns_dn, st)
         INK_PRE_SWITCH(INK_DN)
 #undef INK_DN
         IK_TRY(ik_launch_status());
+        if (a.ysp) {  // the token sum of the sliced down (the table path's gather, same order and values)
+            const dim3 gg((unsigned)((a.H + 255) / 256), (unsigned)a.T);
+            if (out_f32) ink_moe_gather_kernel<float><<<gg, 256, 0, st>>>(a);
+            else ink_moe_gather_kernel<ik_bf16><<<gg, 256, 0, st>>>(a);
+            IK_TRY(ik_launch_status());
+        }
     }
     return IK_OK;
 }
@@ -1251,6 +1308,7 @@ void ik_ink_moe_set_wmma(int v) { g_wmma = v; }
 // tests: the pair tile (0 = the decode kernels) the ordinary names take for a call of P (token, expert) pairs over E experts
 int ik_ink_moe_wmma_pairs(long long P, int E) { return moe_wmma_pairs((int64_t)P, E); }
 void ik_ink_moe_set_dec(int v) { g_dec = v; }
+void ik_ink_moe_set_split(int gu, int dn) { g_split_gu = gu, g_split_dn = dn; }
 
 // The `_rows` twins are the decode kernels at every size (rows-exact, bitwise the first form); so are the ordinary names up to 512
 // pairs and below 16 pairs per expert; above that, by default (INTARSIA_HIP_INK_MOE_WMMA unset or 1) they take the tensor-core

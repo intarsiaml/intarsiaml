@@ -223,6 +223,23 @@ fn ink_moe_rows_exact() {
             intarsia_backend_hip::inkmoe::set_sz(0);
             intarsia_backend_hip::inkmoe::set_lean(-1);
             intarsia_backend_hip::inkmoe::set_pre(-1, -1);
+            // expert slices (lane ink-hip-verify): gate_up / down in 1..5 slices, the rule, in size classes 0 (both groupings), 1 and 4
+            for (sz, dec) in [(0, 1), (0, 0), (1, -1), (4, -1)] {
+                intarsia_backend_hip::inkmoe::set_sz(sz);
+                intarsia_backend_hip::inkmoe::set_dec(dec);
+                for (g, d) in [(1, 2), (2, 1), (2, 2), (3, 3), (5, 5), (0, 0)] {
+                    intarsia_backend_hip::inkmoe::set_split(g, d);
+                    let alt = run_host(&*hip, ord, &hc).unwrap();
+                    assert_eq!(first[0].data, alt[0].data, "mx={mx} T={t}: expert slices {g}:{d}, size class {sz} (one-wave grouping {dec}) change bits");
+                    if t <= 16 {
+                        let tw = run_host(&*hip, rows, &hc).unwrap();
+                        assert_eq!(first[0].data, tw[0].data, "mx={mx} T={t}: the _rows twin in expert slices {g}:{d}, size class {sz} differs");
+                    }
+                }
+            }
+            intarsia_backend_hip::inkmoe::set_split(-1, -1);
+            intarsia_backend_hip::inkmoe::set_dec(-1);
+            intarsia_backend_hip::inkmoe::set_sz(0);
             let full = run_host(&*hip, ord, &hc).unwrap();
             assert_eq!(first[0].data, full[0].data, "mx={mx} T={t}: the default form changes bits");
             if t <= 16 {
@@ -270,6 +287,12 @@ fn ink_moe_wave_grouping_odd_ids() {
                 let wave = run_host(&*hip, ord, &c).unwrap();
                 intarsia_backend_hip::inkmoe::set_dec(-1);
                 assert_eq!(tab[0].data, wave[0].data, "mx={mx} T={t} K={k} {tag}: the one-wave grouping changes bits");
+                for sp in [2, 3] {
+                    intarsia_backend_hip::inkmoe::set_split(sp, sp);
+                    let sl = run_host(&*hip, ord, &c).unwrap();
+                    intarsia_backend_hip::inkmoe::set_split(-1, -1);
+                    assert_eq!(tab[0].data, sl[0].data, "mx={mx} T={t} K={k} {tag}: {sp} expert slices change bits");
+                }
                 n += 1;
             }
         }
@@ -437,6 +460,38 @@ fn put(b: &dyn Backend, t: &HostTensor) -> TensorRef {
 }
 
 /// Microbenchmark at the real expert shape. One weight set on the device; `NR` calls with different routings (so successive calls
+/// Routing with the expert union of R consecutive real rows (lane ink-hip-verify): `INK_MOE_BENCH_REAL=1` makes the bench's T-row
+/// calls read as many distinct experts as T consecutive tokens of real text do (docs/results/2026-11-21-inkling2-mtp.md, section 1:
+/// 8.0 / 12.5 / 16.0 / 18.9 / 21.4 / 23.7 / 25.7 / 27.6 per visit at R = 1..8; past 8, +1.9 a row), not T independent top-8 draws
+/// (union 15.5 / 29 / 52 at T 2 / 4 / 8). Row 0 takes 8 new experts, the others spread the remaining new ones evenly and fill up
+/// with experts earlier rows chose.
+fn real_union_routing(rng: &mut SplitMix64, t: usize, e: usize, k: usize) -> (HostTensor, HostTensor) {
+    const U: [f32; 8] = [8.0, 12.5, 16.0, 18.9, 21.4, 23.7, 25.7, 27.6];
+    let u = if t <= 8 { U[t - 1] } else { 27.6 + 1.9 * (t - 8) as f32 };
+    let u = (u.round() as usize).clamp(k, e.min(t * k));
+    let mut pool: Vec<i32> = (0..e as i32).collect();
+    for j in 0..u {
+        let r = j + (rng.next_u64() % (e - j) as u64) as usize;
+        pool.swap(j, r);
+    }
+    let (mut ids, mut ws, mut used) = (Vec::with_capacity(t * k), Vec::with_capacity(t * k), 0usize);
+    for row in 0..t {
+        let fresh = if row == 0 { k } else { (u - k) * row / (t - 1).max(1) - (u - k) * (row - 1) / (t - 1).max(1) };
+        let mut mine: Vec<i32> = pool[used..used + fresh].to_vec();
+        let mut old: Vec<i32> = pool[..used].to_vec();
+        while mine.len() < k {
+            let r = (rng.next_u64() % old.len() as u64) as usize;
+            mine.push(old.swap_remove(r));
+        }
+        used += fresh;
+        ids.extend(&mine);
+        let raw: Vec<f32> = (0..k).map(|_| 0.2 + rng.next_f32()).collect();
+        let s: f32 = raw.iter().sum();
+        ws.extend(raw.iter().map(|v| v / s));
+    }
+    (HostTensor::from_i32(&[t, k], &ids), HostTensor::from_f32(&[t, k], &ws))
+}
+
 /// read different experts: 8 of 128 each at T = 1) run back to back, best of 5 passes. Prints us per call and GB/s over the bytes
 /// of the distinct experts a call reads (payload + scales), for both launches and for gate_up / down alone: the default form, then
 /// (T <= 16) each step form and load window.
@@ -450,6 +505,7 @@ fn ink_moe_bench() {
     let Some(hip) = device("ink_moe_bench") else { return };
     let b = &*hip;
     let (k, h, i) = (8usize, 2304usize, 1152usize);
+    let real = std::env::var_os("INK_MOE_BENCH_REAL").is_some();
     let ts: Vec<usize> =
         std::env::var("INK_MOE_BENCH_T").ok().map(|s| s.split(',').map(|x| x.parse().unwrap()).collect()).unwrap_or(vec![1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 2048]);
     for mx in [false, true] {
@@ -471,7 +527,7 @@ fn ink_moe_bench() {
             #[allow(non_snake_case)]
             let NR = nr;
             for _ in 0..NR {
-                let (ids, ws) = random_routing(&mut rng, t, e, k);
+                let (ids, ws) = if real { real_union_routing(&mut rng, t, e, k) } else { random_routing(&mut rng, t, e, k) };
                 let distinct: BTreeSet<i32> = ids.to_i32().unwrap().into_iter().collect();
                 bytes += distinct.len() * per_expert;
                 let ws = HostTensor::from_f32(&[t, k], &ws.to_f32().iter().map(|v| v * 8.0).collect::<Vec<_>>());
@@ -507,6 +563,52 @@ fn ink_moe_bench() {
                         cfgs.push((format!("lean wave nb4 pre{pre}"), 1, 4, 4, pre));
                     }
                 }
+            }
+            // expert slices (lane ink-hip-verify; 2..16 rows): gate_up:down slice counts, the defaults otherwise
+            let mut splits: Vec<(String, i32, i32)> = vec![("default".into(), -1, -1)];
+            if (2..=16).contains(&t) && std::env::var_os("INK_MOE_BENCH_NOSPLIT").is_none() {
+                for (g, d) in [(1, 1), (2, 1), (3, 1), (4, 1), (2, 2), (3, 3), (4, 4), (0, 0), (0, 1)] {
+                    splits.push((format!("split {g}:{d}"), g, d));
+                }
+            }
+            for (sname, g, dn) in &splits {
+                if sname == "default" {
+                    continue;
+                }
+                intarsia_backend_hip::inkmoe::set_split(*g, *dn);
+                let mut us = [0f64; 3];
+                for probe in [0, 1, 2] {
+                    intarsia_backend_hip::inkmoe::set_probe(0);
+                    for c in &calls {
+                        b.launch(name, c, 0).unwrap();
+                    }
+                    b.synchronize(0).unwrap();
+                    intarsia_backend_hip::inkmoe::set_probe(probe);
+                    let mut best = f64::MAX;
+                    for _ in 0..7 {
+                        let t0 = Instant::now();
+                        for _ in 0..4 {
+                            for c in &calls {
+                                b.launch(name, c, 0).unwrap();
+                            }
+                        }
+                        b.synchronize(0).unwrap();
+                        best = best.min(t0.elapsed().as_secs_f64() * 1e6 / (4 * NR) as f64);
+                    }
+                    us[probe as usize] = best;
+                }
+                intarsia_backend_hip::inkmoe::set_probe(0);
+                intarsia_backend_hip::inkmoe::set_split(-1, -1);
+                println!(
+                    "INKMOEBENCH {} T={t:<4} {sname:<20} both {:>9.1} us {:>6.0} GB/s | gate_up {:>9.1} us | down {:>9.1} us | union {:.1}{}",
+                    if mx { "mxfp8" } else { "nvfp4" },
+                    us[0],
+                    avg_bytes / us[0] / 1e3,
+                    us[1],
+                    us[2],
+                    avg_bytes / per_expert as f64,
+                    if real { " (real-text union)" } else { "" }
+                );
             }
             for (cname, lean, sz, nb, pre) in cfgs {
                 let (lean, pre, wm) = if lean == -2 { (-1, -1, pre) } else { (lean, pre, -1) };
@@ -546,7 +648,7 @@ fn ink_moe_bench() {
                 }
                 let (gu_b, dn_b) = (gu_expert as f64 * avg_bytes / per_expert as f64, dn_expert as f64 * avg_bytes / per_expert as f64);
                 println!(
-                    "INKMOEBENCH {} T={t:<4} {cname:<20} both {:>9.1} us {:>6.0} GB/s | gate_up {:>9.1} us {:>5.0} GB/s | down {:>9.1} us {:>5.0} GB/s | {:.1} MB / call",
+                    "INKMOEBENCH {} T={t:<4} {cname:<20} both {:>9.1} us {:>6.0} GB/s | gate_up {:>9.1} us {:>5.0} GB/s | down {:>9.1} us {:>5.0} GB/s | {:.1} MB / call, union {:.1}{}",
                     if mx { "mxfp8" } else { "nvfp4" },
                     us[0],
                     avg_bytes / us[0] / 1e3,
@@ -554,7 +656,9 @@ fn ink_moe_bench() {
                     gu_b / us[1] / 1e3,
                     us[2],
                     dn_b / us[2] / 1e3,
-                    avg_bytes / 1e6
+                    avg_bytes / 1e6,
+                    avg_bytes / per_expert as f64,
+                    if real { " (real-text union)" } else { "" }
                 );
             }
             intarsia_backend_hip::inkmoe::set_lean(-1);
