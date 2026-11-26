@@ -1,0 +1,103 @@
+diff --git a/crates/intarsia-cli/src/cmd/generate.rs b/crates/intarsia-cli/src/cmd/generate.rs
+index 596cf38de..f75a23327 100644
+--- a/crates/intarsia-cli/src/cmd/generate.rs
++++ b/crates/intarsia-cli/src/cmd/generate.rs
+@@ -106,7 +106,45 @@ fn run_ids(args: &GenerateArgs, engine: &dyn intarsia_core::engine::Engine, f: &
+         bail!("{}: no prompts (or an empty one)", f.display());
+     }
+     let (mut toks, mut ms, mut ptoks, mut pms) = (0usize, 0f64, 0usize, 0f64);
+-    for (name, ids) in &prompts {
++    // DIAG (lane ink-spec-cut, not shipped): INTARSIA_DIAG_ARMS="A=0.8,0;B=0,0.5" and INTARSIA_DIAG_CYCLES=n alternate the DSpark
++    // draft rule (tau, cut) per request inside this process: cycle 0 is warm-up, even cycles run the arms in order, odd reversed.
++    let arms: Vec<(String, f32, Option<f32>)> = std::env::var("INTARSIA_DIAG_ARMS")
++        .ok()
++        .map(|v| {
++            v.split(';')
++                .filter(|a| !a.is_empty())
++                .map(|a| {
++                    let (n, r) = a.split_once('=').unwrap();
++                    let (t, c) = r.split_once(',').unwrap();
++                    let c: f32 = c.parse().unwrap();
++                    (n.to_string(), t.parse().unwrap(), (c > 0.0).then_some(c))
++                })
++                .collect()
++        })
++        .unwrap_or_default();
++    let cycles: usize = std::env::var("INTARSIA_DIAG_CYCLES").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
++    let mut jobs: Vec<(usize, Option<usize>)> = vec![];
++    if arms.is_empty() {
++        jobs = (0..prompts.len()).map(|p| (p, None)).collect();
++    } else {
++        for c in 0..=cycles {
++            for p in 0..prompts.len() {
++                for k in 0..arms.len() {
++                    jobs.push((p, Some(if c % 2 == 0 { k } else { arms.len() - 1 - k }).map(|a| a + 1000 * c)));
++                }
++            }
++        }
++    }
++    for (pi, tag) in &jobs {
++        let (name, ids) = &prompts[*pi];
++        let name = &match tag {
++            Some(t) => {
++                let (c, a) = (t / 1000, t % 1000);
++                intarsia_core::model::set_dspark_rule_override(Some((arms[a].1, arms[a].2)));
++                format!("{name}|{}|c{c}", arms[a].0)
++            }
++            None => name.clone(),
++        };
+         engine.forward_script(&[]).map_err(|e| anyhow::anyhow!("{e}"))?;
+         let req = GenRequest {
+             prompt: ids.clone(),
+@@ -142,6 +180,8 @@ fn run_ids(args: &GenerateArgs, engine: &dyn intarsia_core::engine::Engine, f: &
+             ptoks += prompt_tokens - cached_tokens;
+             eprintln!("decode[{name}]: {completion_tokens} tokens, {decode_ms:.0} ms ({:.2} tok/s)", n as f64 / (decode_ms / 1e3).max(1e-9));
+             eprintln!("prefill[{name}]: {} tokens, {prefill_ms:.0} ms", prompt_tokens - cached_tokens);
++            let tt = engine.telemetry();
++            eprintln!("spec[{name}]: steps {} proposed {} accepted {}", tt.spec_steps, tt.spec_proposed, tt.spec_accepted);
+         }
+     }
+     eprintln!("decode overall: {toks} tokens after the first, {ms:.0} ms ({:.2} tok/s)", toks as f64 / (ms / 1e3).max(1e-9));
+diff --git a/crates/intarsia-core/src/model.rs b/crates/intarsia-core/src/model.rs
+index 54823591a..f3ea3a89d 100644
+--- a/crates/intarsia-core/src/model.rs
++++ b/crates/intarsia-core/src/model.rs
+@@ -52,6 +52,7 @@ pub(crate) mod dflash;
+ mod dflash2;
+ mod dspark;
+ pub use dspark::DsparkConfig;
++pub use dspark::set_rule_override as set_dspark_rule_override;
+ mod dspine;
+ pub mod dflash_tree;
+ pub(crate) mod mtp;
+diff --git a/crates/intarsia-core/src/model/dspark.rs b/crates/intarsia-core/src/model/dspark.rs
+index 046f2e365..5d8e3c264 100644
+--- a/crates/intarsia-core/src/model/dspark.rs
++++ b/crates/intarsia-core/src/model/dspark.rs
+@@ -35,6 +35,12 @@ const MIX_ROWS: usize = 512;
+ /// 80.5 at 0.6, 72% acceptance against 57%), docs/results/2026-11-21-inkling2-mtp.md.
+ const TAU_DEFAULT: f32 = 0.8;
+ 
++/// DIAG (lane ink-spec-cut, not shipped): run-time (tau, cut) rule, so one process alternates the rules request by request.
++pub static RULE_OVERRIDE: std::sync::Mutex<Option<(f32, Option<f32>)>> = std::sync::Mutex::new(None);
++pub fn set_rule_override(r: Option<(f32, Option<f32>)>) {
++    *RULE_OVERRIDE.lock().unwrap() = r;
++}
++
+ /// `mtp_config` of the target's `config.json` (the loader's `open_dflash`).
+ #[derive(Clone, Debug, Default, PartialEq)]
+ pub struct DsparkConfig {
+@@ -856,10 +862,11 @@ impl Model {
+                 let body: Vec<String> = terms.iter().map(|(j, l)| format!("{j}:{l:.6}")).collect();
+                 eprintln!("dspark-dump: pos {p0} step {i} prev {prev} draft {best} p1 {p1:.6} | {}", body.join(" "));
+             }
+-            if p1 < ds.tau {
++            let (rtau, rcut) = RULE_OVERRIDE.lock().unwrap().unwrap_or((ds.tau, ds.cut));
++            if p1 < rtau {
+                 break;
+             }
+-            if let Some(c) = ds.cut {
++            if let Some(c) = rcut {
+                 cum *= p1;
+                 if cum < c {
+                     break;

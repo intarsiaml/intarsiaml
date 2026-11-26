@@ -15,7 +15,8 @@
 //!           raw = b + W [state, w1[prev], h_{i+1}, f_rnn(P - 1)], gate / cand / out = raw thirds (rounded to bf16),
 //!           state = sigma(gate) state + (1 - sigma(gate)) tanh(cand), latent = tanh(out),
 //!           logits = 30 tanh(bf(base + fold(latent)) / 30), fold = unembed . hidden_out folded at load ([V, 256] + [V])
-//!   gate    (lane ink-mtp) drafting stops at the first step whose top-1 probability is below `INTARSIA_DSPARK_TAU`
+//!   gate    (lane ink-mtp) drafting stops at the first step whose top-1 probability is below `INTARSIA_DSPARK_TAU` (default 0.8; off on Metal) or
+//!           once the product of the kept drafts' top-1 probabilities is below `INTARSIA_DSPARK_CUT` (Metal default 0.5; lane ink-spec-cut)
 //! ```
 //!
 //! The mixes, the Markov recurrence and the logits' reduction run on the host (a few vectors per step); the projections, attention,
@@ -31,9 +32,43 @@ pub(super) const FRNN_RING: usize = 64;
 pub(super) const BLOCK: usize = 8;
 /// Rows of the device mix weights (`Dspark::mixw`): the most rows a row-major ingest (a flush of stashed decode rows) takes.
 const MIX_ROWS: usize = 512;
-/// Default confidence gate (`INTARSIA_DSPARK_TAU`): 0.8, with k3 the fastest measured on Metal (#10874: 80.6 tok/s greedy against
-/// 80.5 at 0.6, 72% acceptance against 57%), docs/results/2026-11-21-inkling2-mtp.md.
+/// Metal's default rule (lane ink-spec-cut, docs/results/2026-11-26-inkling2-spec-cut.md): no per-step gate (`INTARSIA_DSPARK_TAU`
+/// unset = 0) and the cumulative cut (`INTARSIA_DSPARK_CUT`) 0.5: stop drafting once the product of the kept drafts' top-1
+/// probabilities is below it, with k3. Before it Metal ran the gate 0.8 (k3 the fastest gate measured, #10874: 80.6 tok/s greedy
+/// against 80.5 at 0.6, docs/results/2026-11-21-inkling2-mtp.md); `INTARSIA_DSPARK_TAU=0.8` alone restores it.
+const CUT_DEFAULT_METAL: f32 = 0.5;
+/// Default per-step gate of every other backend (CUDA, cpu), unmeasured against the cut: 0.8, no cut.
 const TAU_DEFAULT: f32 = 0.8;
+
+/// The draft's stopping rule `(tau, cut)` from the backend and the two environment values (`INTARSIA_DSPARK_TAU`,
+/// `INTARSIA_DSPARK_CUT`; `None`: unset or unparsable). Metal, neither set: the cut default. TAU set, CUT not: that gate alone (the
+/// old rule). CUT set: it (`<= 0`: off). Other backends: TAU 0.8 unless set, the cut only when set.
+fn draft_rule(metal: bool, tau_env: Option<f32>, cut_env: Option<f32>) -> (f32, Option<f32>) {
+    let cut = match cut_env {
+        Some(c) => Some(c).filter(|c| *c > 0.0),
+        None => (metal && tau_env.is_none()).then_some(CUT_DEFAULT_METAL),
+    };
+    (tau_env.unwrap_or(if metal { 0.0 } else { TAU_DEFAULT }), cut)
+}
+
+#[cfg(test)]
+mod rule_tests {
+    use super::draft_rule;
+
+    #[test]
+    fn defaults_and_env_overrides() {
+        assert_eq!(draft_rule(true, None, None), (0.0, Some(0.5)), "Metal default: cut 0.5, no per-step gate");
+        assert_eq!(draft_rule(true, Some(0.8), None), (0.8, None), "TAU=0.8 alone restores the old gate");
+        assert_eq!(draft_rule(true, Some(0.0), None), (0.0, None), "TAU=0 alone: always k drafts");
+        assert_eq!(draft_rule(true, Some(0.0), Some(0.3)), (0.0, Some(0.3)), "TAU=0 CUT=0.3: the cut alone");
+        assert_eq!(draft_rule(true, None, Some(0.3)), (0.0, Some(0.3)), "CUT alone");
+        assert_eq!(draft_rule(true, None, Some(0.0)), (0.0, None), "CUT=0 turns the cut off");
+        assert_eq!(draft_rule(true, Some(0.8), Some(0.5)), (0.8, Some(0.5)), "both: both");
+        assert_eq!(draft_rule(false, None, None), (0.8, None), "other backends: the gate 0.8 as before");
+        assert_eq!(draft_rule(false, None, Some(0.3)), (0.8, Some(0.3)), "other backends: CUT as before");
+        assert_eq!(draft_rule(false, Some(0.0), None), (0.0, None));
+    }
+}
 
 /// `mtp_config` of the target's `config.json` (the loader's `open_dflash`).
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -105,8 +140,8 @@ pub(super) struct Dspark {
     /// The device top-k failed once (a backend without `topk_rows`): the host takes the candidates from then on.
     host_topk: std::sync::atomic::AtomicBool,
     tau: f32,
-    /// `INTARSIA_DSPARK_CUT` (default off): also stop once the product of the kept drafts' top-1 probabilities (an estimate of
-    /// P(all accepted)) falls below this; with `INTARSIA_DSPARK_TAU=0` it is the only gate. The draft length cap is `--spec-k`.
+    /// `INTARSIA_DSPARK_CUT` (Metal: default 0.5 while `INTARSIA_DSPARK_TAU` is unset, else off; `0` off): also stop once the product of the
+    /// kept drafts' top-1 probabilities (an estimate of P(all accepted)) falls below this. The draft length cap is `--spec-k`.
     cut: Option<f32>,
     bufs: DsBufs,
 }
@@ -425,7 +460,8 @@ pub(super) fn load(
         dflare.push(norm_w(&format!("layers.{l}.dflare_norm.weight"), h)?);
     }
     dflare.push(norm_w("markov_head.dflare_norm.weight", h)?);
-    let tau = std::env::var("INTARSIA_DSPARK_TAU").ok().and_then(|v| v.trim().parse::<f32>().ok()).unwrap_or(TAU_DEFAULT);
+    let env_f32 = |k: &str| std::env::var(k).ok().and_then(|v| v.trim().parse::<f32>().ok());
+    let (tau, cut) = draft_rule(b.name() == "metal", env_f32("INTARSIA_DSPARK_TAU"), env_f32("INTARSIA_DSPARK_CUT"));
     let ds = Dspark {
         c: c.clone(),
         layers,
@@ -445,7 +481,7 @@ pub(super) fn load(
         cand: std::env::var("INTARSIA_DSPARK_CAND").ok().and_then(|v| v.trim().parse::<usize>().ok()).unwrap_or(64).min(64),
         host_topk: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DSPARK_DEVICE_TOPK").is_ok_and(|v| v == "0")),
         tau,
-        cut: std::env::var("INTARSIA_DSPARK_CUT").ok().and_then(|v| v.trim().parse::<f32>().ok()).filter(|c| *c > 0.0),
+        cut,
         bufs,
     };
     Ok((ds, feat))
