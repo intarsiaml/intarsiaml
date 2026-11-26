@@ -1,0 +1,19 @@
+processes: 4 (4 complete, 16 prompts each); reps ['c0a', 'c1a']
+ids identical across every arm and rep: yes
+spec main5: verify passes 1388, proposed 4354, accepted 2322 (53.3 %, 2.67 tokens a pass), 2 processes
+spec new5: verify passes 1388, proposed 4354, accepted 2322 (53.3 %, 2.67 tokens a pass), 2 processes
+
+| decode, arm / main5 | short | 1k | 4k | 16k |
+|---|---:|---:|---:|---:|
+| new5 | **1.003** [0.991-1.016; boot 1.001-1.005] | **1.021** [1.020-1.022] | **1.023** [0.998-1.048] | **1.023** [0.995-1.052] |
+
+| decode tok/s, median [range] | short | 1k | 4k | 16k |
+|---|---:|---:|---:|---:|
+| main5 | 104.34 [104.11-104.56] | 90.91 [90.73-91.09] | 124.23 [123.89-124.57] | 96.31 [95.93-96.69] |
+| new5 | 104.68 [104.56-104.81] | 92.85 [92.66-93.04] | 127.05 [126.95-127.15] | 98.53 [98.35-98.70] |
+
+per process (class geomean tok/s):
+  main5@c0a: short 104.11 1k 90.73 4k 123.89 16k 95.93 | spec (694, 2177, 1161)
+  main5@c1a: short 104.56 1k 91.09 4k 124.57 16k 96.69 | spec (694, 2177, 1161)
+  new5@c0a: short 104.56 1k 92.66 4k 126.95 16k 98.35 | spec (694, 2177, 1161)
+  new5@c1a: short 104.81 1k 93.04 4k 127.15 16k 98.70 | spec (694, 2177, 1161)

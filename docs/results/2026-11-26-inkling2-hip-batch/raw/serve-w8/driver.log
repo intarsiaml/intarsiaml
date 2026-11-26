@@ -1,0 +1,15 @@
+[13:44:38] radiance down
+[13:44:38] mb16-bc2048: start (b7; --max-batch 16 --max-seq 4608 --kv-fraction 0.9 --busy-chunk 2048)
+[13:46:21] mb16-bc2048: up (IP 172.17.0.2 after 101s ; 177 s left)
+[13:46:39] mb16-bc2048: bitwise conc exit 0 (159 s left): conc: 16 replies, 2048 tokens -> .scratch/serve-w8/mb16-bc2048-bitwise.json
+[13:47:34] mb16-bc2048 r1: localeval exit 0 (104 s left): [localeval] 1 streams: aggregate 65.7 tok/s [localeval] 4 streams: aggregate 128.1 tok/s [localeval] 8 streams: aggregate 168.7 tok/s [localeval] 16 streams: aggregate 189.2 tok/s 
+[13:48:27] mb16-bc2048 r2: localeval exit 0 (51 s left): [localeval] 1 streams: aggregate 67.0 tok/s [localeval] 4 streams: aggregate 134.1 tok/s [localeval] 8 streams: aggregate 167.9 tok/s [localeval] 16 streams: aggregate 190.2 tok/s 
+[13:48:53] mb16-bc2048 r3: localeval exit 142 (25 s left): 
+[13:48:55] mb16-bc2048: stopped: VRAM peak mb16-bc2048: card0 28611 MiB, card1 57 MiB
+[13:48:55] visits done (23 s left)
+[13:49:06] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-batch/.scratch/hold.sh; cap 280s; stopping radiance 2026-11-26 13:44:34
+[window] radiance stopped 2026-11-26 13:44:38 (inactive)
+[window] stage done 2026-11-26 13:48:56 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 13:48:56
+[window] radiance answers 2026-11-26 13:49:06 (after 15 s)

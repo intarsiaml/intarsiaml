@@ -1,0 +1,26 @@
+fleetq: #12125 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/cpu.sh p12a ink_p12 ink_mix rows_exact admission'
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 2m 45s
+cli build exit 0
+df0e203d917941487fdb4375e5983e67  .scratch/bin/intarsia-p12a
+    Finished `release` profile [optimized] target(s) in 18.62s
+  Executable tests/ink_p12.rs (/target/release/deps/ink_p12-5b11bbf505793adf)
+test ink_p12 build exit 0
+    Finished `release` profile [optimized] target(s) in 1.91s
+  Executable tests/ink_mix.rs (/target/release/deps/ink_mix-75ba8a33168c1864)
+test ink_mix build exit 0
+    Finished `release` profile [optimized] target(s) in 2.40s
+  Executable tests/rows_exact.rs (/target/release/deps/rows_exact-a907226ec5b40278)
+test rows_exact build exit 0
+    Finished `release` profile [optimized] target(s) in 0.52s
+  Executable tests/admission.rs (/target/release/deps/admission-436357379a704e17)
+test admission build exit 0
+test quant::p12::tests::decide_default_metal_off_switch_and_no_kernel_backends ... ok
+test quant::p12::tests::rejects ... ok
+test quant::p12::tests::roundtrip_adversarial ... ok
+test quant::p12::tests::roundtrip_weight_like ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 268 filtered out; finished in 0.00s
+test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+fleetq: #12125 done (exit 0)

@@ -1,0 +1,4 @@
+bitwise phase: 35.12 s, ITL p50 / p99 bucket 50-75 / 250-500 ms, step p50 / p99 50-75 / 500-1000 ms, decode passes by rows {'1': 8, '2': 10, '3': 9, '4': 10, '5': 13, '6': 29, '7': 19, '8': 20, '9': 19, '10': 29, '11': 13, '12': 10, '13': 9, '14': 10, '15': 8, '16': 19}
+| rep | streams | aggregate tok/s | per-stream decode tok/s med (min-max) | TTFT s med (max) | ITL p50 / p99 bucket ms | step p50 / p99 bucket ms | passes by rows |
+|---|---|---|---|---|---|---|---|
+

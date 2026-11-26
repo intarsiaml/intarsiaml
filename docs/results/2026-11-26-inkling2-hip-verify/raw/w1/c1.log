@@ -1,0 +1,9 @@
+[sweep] k3@c1a rc 0 t+26s | decode overall: 1256 tokens after the first, 11464 ms (109.56 tok/s) | spec: verify passes=434 proposed=1057 accepted=730 (acceptance 69.1%, 2.68 tokens per pass)
+[sweep] k4@c1a rc 0 t+53s | decode overall: 1256 tokens after the first, 11099 ms (113.17 tok/s) | spec: verify passes=405 proposed=1180 accepted=765 (acceptance 64.8%, 2.89 tokens per pass)
+[sweep] k5@c1a rc 0 t+80s | decode overall: 1256 tokens after the first, 11153 ms (112.62 tok/s) | spec: verify passes=394 proposed=1285 accepted=777 (acceptance 60.5%, 2.97 tokens per pass)
+[sweep] k7@c1a rc 0 t+107s | decode overall: 1256 tokens after the first, 11301 ms (111.14 tok/s) | spec: verify passes=382 proposed=1425 accepted=790 (acceptance 55.4%, 3.07 tokens per pass)
+[sweep] k7@c1b rc 0 t+133s | decode overall: 1256 tokens after the first, 11302 ms (111.13 tok/s) | spec: verify passes=382 proposed=1425 accepted=790 (acceptance 55.4%, 3.07 tokens per pass)
+[sweep] k5@c1b rc 0 t+159s | decode overall: 1256 tokens after the first, 11157 ms (112.57 tok/s) | spec: verify passes=394 proposed=1285 accepted=777 (acceptance 60.5%, 2.97 tokens per pass)
+[sweep] k4@c1b rc 0 t+185s | decode overall: 1256 tokens after the first, 11111 ms (113.04 tok/s) | spec: verify passes=405 proposed=1180 accepted=765 (acceptance 64.8%, 2.89 tokens per pass)
+[sweep] k3@c1b rc 0 t+211s | decode overall: 1256 tokens after the first, 11431 ms (109.87 tok/s) | spec: verify passes=434 proposed=1057 accepted=730 (acceptance 69.1%, 2.68 tokens per pass)
+[c1] done 14:26:11

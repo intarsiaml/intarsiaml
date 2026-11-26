@@ -1,0 +1,43 @@
+fleetq: #12155 waiting (#5 in line): in line behind #12147 "ink-hip-verify: --recipe flag check (no GPU)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12147 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12147 set, or it will wait for #12147 to be released.
+fleetq: #12155 waiting (#4 in line): in line behind #12148 "ink-hip-batch: window 11 (last), ink_rows with the shared mix switch + negative control (radiance down <= 1:30, coordinator-approved)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12148 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12148 set, or it will wait for #12148 to be released.
+fleetq: #12155 waiting (#3 in line): in line behind #12152 "ink-hip-verify: W3 draft-length ABBA k3/k4/k5 on the ship path (both cards, radiance down <= 5:00)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12152 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12152 set, or it will wait for #12152 to be released.
+fleetq: #12155 waiting (#2 in line): in line behind #12153 "ink-hip-verify: build main2 = origin/main 80719483a (cpu)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12153 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12153 set, or it will wait for #12153 to be released.
+fleetq: #12155 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12153 "ink-hip-verify: build main2 = origin/main 80719483a (cpu)" (claude-04c0e1cd) loads it
+fleetq:   #12153 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12153 set, or it will wait for #12153 to be released.
+fleetq: #12155 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=290 bash ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/window.sh ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w4.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w4.sh; cap 290s; stopping radiance 2026-11-26 15:11:08
+[window] radiance stopped 2026-11-26 15:11:12 (inactive)
+SPD main off-1k 256 r1 8708c18d2ce2db132459cd3e20a9f00f | decode 3394 ms (75.12 tok/s) | prefill 394 ms (2626.2 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [15:11:21]
+SPD branch off-1k 256 r1 8708c18d2ce2db132459cd3e20a9f00f | decode 3129 ms (81.50 tok/s) | prefill 397 ms (2607.4 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [15:11:30]
+SPD main off-4k 256 r1 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3442 ms (74.08 tok/s) | prefill 1376 ms (3073.6 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0 [15:11:39]
+SPD branch off-4k 256 r1 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3182 ms (80.14 tok/s) | prefill 1379 ms (3066.2 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0 [15:11:49]
+SPD branch off-1k 256 r2 8708c18d2ce2db132459cd3e20a9f00f | decode 3137 ms (81.28 tok/s) | prefill 400 ms (2589.4 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [15:11:58]
+SPD main off-1k 256 r2 8708c18d2ce2db132459cd3e20a9f00f | decode 3395 ms (75.11 tok/s) | prefill 395 ms (2621.1 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [15:12:07]
+SPD branch off-4k 256 r2 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3186 ms (80.04 tok/s) | prefill 1379 ms (3066.5 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0 [15:12:17]
+SPD main off-4k 256 r2 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3443 ms (74.06 tok/s) | prefill 1386 ms (3050.9 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0 [15:12:27]
+SPD main off-1k 256 r3 8708c18d2ce2db132459cd3e20a9f00f | decode 3397 ms (75.07 tok/s) | prefill 398 ms (2601.3 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [15:12:35]
+SPD branch off-1k 256 r3 8708c18d2ce2db132459cd3e20a9f00f | decode 3135 ms (81.34 tok/s) | prefill 401 ms (2581.9 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [15:12:44]
+SPD main off-4k 256 r3 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3442 ms (74.09 tok/s) | prefill 1391 ms (3039.7 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0 [15:12:54]
+SPD branch off-4k 256 r3 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3187 ms (80.02 tok/s) | prefill 1393 ms (3036.1 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0 [15:13:04]
+SPD branch off-1k 256 r4 8708c18d2ce2db132459cd3e20a9f00f | decode 3139 ms (81.25 tok/s) | prefill 400 ms (2588.6 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [15:13:13]
+SPD main off-1k 256 r4 8708c18d2ce2db132459cd3e20a9f00f | decode 3399 ms (75.03 tok/s) | prefill 400 ms (2592.5 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [15:13:21]
+SPD branch off-4k 256 r4 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3189 ms (79.96 tok/s) | prefill 1394 ms (3033.0 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0 [15:13:31]
+SPD main off-4k 256 r4 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3444 ms (74.04 tok/s) | prefill 1395 ms (3030.0 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0 [15:13:41]
+[stage] done 15:13:41
+SPD main default-short 256 r1 9a27c21b6fdc4ea7700439c818e698d8 | decode 2804 ms (90.93 tok/s) | prefill 100 ms (308.8 tok/s) | steps=137 graph replays=136 (captures 4) eager decode steps=0 [15:13:51]
+SPD branch default-short 256 r1 9a27c21b6fdc4ea7700439c818e698d8 | decode 2638 ms (96.66 tok/s) | prefill 103 ms (301.7 tok/s) | steps=137 graph replays=136 (captures 4) eager decode steps=0 [15:14:02]
+SPD branch default-short 256 r2 9a27c21b6fdc4ea7700439c818e698d8 | decode 2624 ms (97.19 tok/s) | prefill 102 ms (303.7 tok/s) | steps=137 graph replays=136 (captures 4) eager decode steps=0 [15:14:13]
+SPD main default-short 256 r2 9a27c21b6fdc4ea7700439c818e698d8 | decode 2785 ms (91.55 tok/s) | prefill 102 ms (302.7 tok/s) | steps=137 graph replays=136 (captures 4) eager decode steps=0 [15:14:23]
+SPD main default-short 256 r3 9a27c21b6fdc4ea7700439c818e698d8 | decode 2788 ms (91.48 tok/s) | prefill 107 ms (289.8 tok/s) | steps=137 graph replays=136 (captures 4) eager decode steps=0 [15:14:33]
+SPD branch default-short 256 r3 9a27c21b6fdc4ea7700439c818e698d8 | decode 2623 ms (97.20 tok/s) | prefill 102 ms (304.6 tok/s) | steps=137 graph replays=136 (captures 4) eager decode steps=0 [15:14:44]
+SPD branch default-short 256 r4 9a27c21b6fdc4ea7700439c818e698d8 | decode 2624 ms (97.19 tok/s) | prefill 102 ms (303.7 tok/s) | steps=137 graph replays=136 (captures 4) eager decode steps=0 [15:14:55]
+SPD main default-short 256 r4 9a27c21b6fdc4ea7700439c818e698d8 | decode 2784 ms (91.58 tok/s) | prefill 103 ms (302.3 tok/s) | steps=137 graph replays=136 (captures 4) eager decode steps=0 [15:15:05]
+[stage] done 15:15:05
+[window] stage done 2026-11-26 15:15:06 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 15:15:06
+[window] radiance answers 2026-11-26 15:15:16 (after 15 s)
+fleetq: #12155 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

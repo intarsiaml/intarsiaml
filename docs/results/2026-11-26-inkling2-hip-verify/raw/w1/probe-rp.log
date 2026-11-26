@@ -1,0 +1,22 @@
+W20261126 19:22:55.982651 125852300831488 simple_timer.cpp:55] [rocprofv3] tool initialization ::     0.001350 sec
+W20261126 19:22:55.984320 125852300831488 simple_timer.cpp:55] [rocprofv3] '/target/release/deps/verify_rows_real-520c2daf27fcc6e0 --nocapture' ::     0.000000 sec
+
+running 1 test
+PROBE_CONFIG dir=/models/Inkling-2-Mini rows=8 lens=unset backend=hip INTARSIA_VERIFY_GRAPH=unset profile_every=0
+W20261126 19:22:56.004411 125852281652928 tool.cpp:2422] HSA version 8.20.4 initialized (instance=0)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.0 s
+plan notes: []
+PROBE_TIME_CONFIG time_only=true reps=8 prompt=1021 ids, greedy continuation
+PROBE_TIME decode1 14.25 ms, verify2 17.53 ms (1.23x), verify3 21.17 ms (1.49x), verify4 23.41 ms (1.64x), verify5 25.84 ms (1.81x), verify6 28.12 ms (1.97x), verify7 30.53 ms (2.14x), verify8 32.74 ms (2.30x)
+PROBE_TIME_MIN len=1021 decode1 14.21 ms, verify2 17.42 ms, verify3 21.03 ms, verify4 23.36 ms, verify5 25.74 ms, verify6 28.00 ms, verify7 30.36 ms, verify8 32.54 ms
+PROBE_GRAPHS GraphStats { enabled: true, captures: 2, replays: 17, batch_captures: 0, batch_replays: 0, spec_captures: 7, spec_replays: 56 }
+PROBE_RESULT rows=0 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test verify_rows_are_bitwise_the_single_row_steps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.04s
+
+W20261126 19:23:02.019748 125852300831488 simple_timer.cpp:55] [rocprofv3] '/target/release/deps/verify_rows_real-520c2daf27fcc6e0 --nocapture' ::     6.035428 sec
+E20261126 19:23:02.030294 125852300831488 output_stream.cpp:111] Opened result file: /work/logs/w1/rp/run_kernel_trace.csv
+E20261126 19:23:02.077525 125852300831488 output_stream.cpp:111] Opened result file: /work/logs/w1/rp/run_agent_info.csv
+W20261126 19:23:02.078273 125852300831488 simple_timer.cpp:55] [rocprofv3] output generation ::     0.050840 sec
+W20261126 19:23:02.078356 125852300831488 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.050937 sec

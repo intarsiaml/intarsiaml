@@ -1,0 +1,2 @@
+wall 10.11 s, aggregate 101.3 tok/s, latency median 9.98 s max 10.11 s, prompt tokens 13789, cached 0
+conc:8:1:r2n8: 8 replies, 1024 tokens -> .scratch/serve-w10/mb16-real-real-r2-n8.json

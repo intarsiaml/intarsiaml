@@ -1,0 +1,29 @@
+[c0] (1) bitwise verify probe rows 2..8 16:13:31 (/target/release/deps/verify_rows_real-520c2daf27fcc6e0)
+rc 0
+PROBE_GRAPHS GraphStats { enabled: true, captures: 6, replays: 382, batch_captures: 0, batch_replays: 0, spec_captures: 29, spec_replays: 121 }
+PROBE_RESULT rows=233 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.17s
+[c0] (2) md5 vrow2 16:13:45
+MD5 vrow2 off short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 825 ms (76.40 tok/s) | 
+MD5 vrow2 dflt short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 655 ms (96.17 tok/s) | spec: verify passes=23 proposed=49 accepted=31 (acceptance 63.3%, 2.35 tokens per pass)
+MD5 vrow2 off short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 3319 ms (76.84 tok/s) | 
+MD5 vrow2 dflt short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 2783 ms (91.64 tok/s) | spec: verify passes=106 proposed=232 accepted=119 (acceptance 51.3%, 2.12 tokens per pass)
+MD5 vrow2 off 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 859 ms (73.35 tok/s) | 
+MD5 vrow2 dflt 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 762 ms (82.71 tok/s) | spec: verify passes=21 proposed=39 accepted=26 (acceptance 66.7%, 2.24 tokens per pass)
+MD5 vrow2 off 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 3445 ms (74.02 tok/s) | 
+MD5 vrow2 dflt 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 2547 ms (100.11 tok/s) | spec: verify passes=92 proposed=216 accepted=143 (acceptance 66.2%, 2.55 tokens per pass)
+[c0] (3) G2 short vrow2 16:14:57
+rc 0
+prefill confident rows (golden p1 - p2 >= 0.5, all rows): 363 of 569, top-1 misses 0 (reported, not gated)
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 4.491e-3 PASS
+[c0] (3) G2 long vrow2 16:15:07
+rc 0
+prefill confident rows (golden p1 - p2 >= 0.5, all rows): 1206 of 1569, top-1 misses 1 (reported, not gated)
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 4.083e-3 PASS
+[c0] (4) timing probe 1k rows 1..8, main rules 16:15:19
+rc 0
+PROBE_TIME decode1 13.37 ms, verify2 16.62 ms (1.24x), verify3 20.10 ms (1.50x), verify4 22.38 ms (1.67x), verify5 24.77 ms (1.85x), verify6 27.02 ms (2.02x), verify7 29.37 ms (2.20x), verify8 31.77 ms (2.38x)
+[c0] (4) timing probe 1k rows 1..8, dflt rules 16:15:26
+rc 0
+PROBE_TIME decode1 13.39 ms, verify2 16.46 ms (1.23x), verify3 19.49 ms (1.46x), verify4 21.49 ms (1.60x), verify5 23.63 ms (1.76x), verify6 25.82 ms (1.93x), verify7 28.05 ms (2.09x), verify8 30.27 ms (2.26x)
+[c0] done 16:15:34

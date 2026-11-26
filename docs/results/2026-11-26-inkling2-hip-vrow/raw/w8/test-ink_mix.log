@@ -1,0 +1,8 @@
+
+running 3 tests
+test ink_attn_res_mix_and_blend_rows_exact ... ok
+test ink_conv_mix_rows_exact ... ok
+test ink_mix_ops_match_the_reference ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 59.44s
+

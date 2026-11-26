@@ -1,0 +1,8 @@
+fleetq: #12204 running on endor: bash -c 'cd /opt/code/intarsiaml/.worktrees/ink-hip-p12 && cargo check -q --locked -p intarsia-core -p intarsia-models -p intarsia-cli -p intarsia-backend-hip --tests 2>&1 | grep -E "^error" -A6 | head -20; echo check-exit=${PIPESTATUS[0]}; cargo test -q --locked -p intarsia-core --lib p12 2>&1 | grep -E "test result|FAILED"; cargo test -q --locked -p intarsia-models --test inkling2_batch 2>&1 | grep -E "test result|FAILED|panicked"; cargo test -q --locked -p intarsia-models --test recipes_doc 2>&1 | grep -E "test result|FAILED"; cargo test -q --locked -p intarsia-cli --test docs_env_vars 2>&1 | grep -E "test result|FAILED"'
+fleetq: #12204 went ahead of the line and must end within 4h00m (by Thu 20:37); it is stopped then
+check-exit=0
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 267 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 31.09s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+fleetq: #12204 done (exit 0)

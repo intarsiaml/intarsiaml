@@ -1,0 +1,5 @@
+fleetq: #12185 running on endor: bash -c 'cd /opt/code/intarsiaml/.worktrees/ink-hip-p12 && cargo test -q --locked -p intarsia-models --test inkling2_batch 2>&1 | grep -E "test result|FAILED|panicked" | tail -6; cargo test -q --locked -p intarsia-cli --test docs_env_vars 2>&1 | grep -E "test result|FAILED" | tail -3'
+fleetq: #12185 went ahead of the line and must end within 4h48m (by Thu 20:37); it is stopped then
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 90.77s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+fleetq: #12185 done (exit 0)

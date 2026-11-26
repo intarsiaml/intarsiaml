@@ -6,6 +6,7 @@
 //!
 //! `INTARSIA_INKLING2_BACKEND=metal` runs the same tests on Metal (row-exact kernels for the B-row ops, the `_rows`
 //! row-table kernels for the stateful ones). Skipped (loudly) without the fixture; fails under `CI=1`.
+//! `INTARSIA_INKLING2_BACKEND=hip` runs them on one R9700 (lane ink-hip-batch: `conv_mix_bf16_rows`, `ink_attn_decode_bf16_rows`).
 
 mod common;
 use common::ByteCodec;
@@ -36,18 +37,25 @@ fn on_metal() -> bool {
     std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() == Ok("metal")
 }
 
+/// A GPU backend (Metal or HIP) rather than the cpu reference.
+fn on_gpu() -> bool {
+    matches!(std::env::var("INTARSIA_INKLING2_BACKEND").as_deref(), Ok("metal") | Ok("hip"))
+}
+
 fn backend() -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
         #[cfg(target_os = "macos")]
         Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
+        // lane ink-hip-batch: one R9700 (HIP_VISIBLE_DEVICES picks the card)
+        Ok("hip") => intarsia_backend_hip::create(0).unwrap(),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
-        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or metal (CUDA registers no row-table kernels for Inkling-2)"),
+        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal or hip (CUDA registers no row-table kernels for Inkling-2)"),
     }
 }
 
-/// Prefill chunk: one pass on cpu; 16 on Metal (passes of 2..=16 rows take the row-exact kernels).
+/// Prefill chunk: one pass on cpu; 16 on Metal and HIP (passes of 2..=16 rows take the row-exact kernels on Metal).
 fn chunk() -> usize {
-    if on_metal() {
+    if on_gpu() {
         16
     } else {
         64
@@ -163,7 +171,7 @@ fn inkling2_batch_sampler_rows_are_softcapped() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     // cpu: the backend with device-side top-k (`CpuBackend::arc_topk`), so `LastTopK` rows take the device top-k path; Metal has
     // no `supports_topk`, so its sampled rows are logits rows (the host sampler takes the top-k there)
-    let inner = if on_metal() { backend() } else { intarsia_backend_cpu::CpuBackend::arc_topk() };
+    let inner = if on_gpu() { backend() } else { intarsia_backend_cpu::CpuBackend::arc_topk() };
     let m = load_on(&dir, Arc::new(Failing { inner, fail: Arc::new(AtomicBool::new(false)) }), 16).unwrap();
     let all = [1usize, 7, 8, 9, 12, 13, 3, 30, 17, 64, 5, 41, 2, 24, 50, 11];
     let mut max_d = 0f32;
@@ -216,6 +224,33 @@ fn inkling2_batch_sampler_rows_are_softcapped() {
     eprintln!("batched sampler rows vs solo capped logits: max |d| = {max_d:e}");
 }
 
+/// Lane ink-hip-p12 brief 2: a model loaded to batch (`LoadOptions::batched`, what the engine loader sets for `--max-batch` > 1)
+/// packs no P12 copies at all, so its KV budget is measured without them; the same load solo packs them where P12 defaults on
+/// (Metal, HIP). The batched load then batches as before.
+#[test]
+fn inkling2_loaded_to_batch_packs_no_p12() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    if std::env::var_os(intarsia_core::quant::p12::ENV).is_some() {
+        return skip("INTARSIA_INK_PACK12 set: this test checks the default");
+    }
+    let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
+    let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
+    let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
+    let src = SafeTensors::open_dir(&dir).unwrap();
+    let load = |batched: bool| {
+        let opts = LoadOptions { max_seq: 128, prefill_chunk: chunk(), graphs: false, batched, ..Default::default() };
+        Model::load(backend(), &recipe, &dims, &src, &opts, Arc::new(Telemetry::new())).unwrap()
+    };
+    let solo = load(false);
+    if on_gpu() {
+        assert!(solo.has_p12(), "solo GPU load: P12 is default-on, so the fixture packs (else this test is vacuous)");
+    }
+    let mut bat = load(true);
+    assert!(!bat.has_p12(), "a load to batch must pack no P12 copies");
+    bat.enable_batch(4).expect("enable_batch(4) after a batched load");
+    assert!(!bat.has_p12());
+}
+
 /// P12 (lane ink-pack12) is solo-only (#11266: with P12 default-on a batched plan failed the bitwise op-count check, the
 /// solo head ran `MatmulP12`, the batched one `Logits`). With the default env: a solo model keeps its P12 copies (on Metal,
 /// where P12 defaults on), a model with `enable_batch(16)` drops them, configures its plan, and its batched rows are bitwise
@@ -229,8 +264,9 @@ fn inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo() {
         return skip("INTARSIA_INK_PACK12 set: this test checks the default");
     }
     let solo_m = load(&dir, 1);
-    if on_metal() {
-        assert!(solo_m.has_p12(), "solo Metal model: P12 is default-on, so the fixture must hold P12 copies (else this test is vacuous)");
+    if on_gpu() {
+        // default-on on Metal and (lane ink-hip-p12) on HIP
+        assert!(solo_m.has_p12(), "solo GPU model: P12 is default-on, so the fixture must hold P12 copies (else this test is vacuous)");
     }
     let bat_m = load_on(&dir, Arc::new(Failing { inner: backend(), fail: Arc::new(AtomicBool::new(false)) }), 16)
         .expect("enable_batch(16) + configure_plan with the default env");

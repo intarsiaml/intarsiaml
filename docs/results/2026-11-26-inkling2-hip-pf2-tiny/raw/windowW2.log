@@ -1,0 +1,53 @@
+fleetq: #12228 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12227 "ink-hip-bpf: build b8 (rebased on b7450223e) + cpu tests + ISA + main2 cli" (claude-04c0e1cd) loads it
+fleetq:   #12227 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12227 set, or it will wait for #12227 to be released.
+fleetq: #12228 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=290 bash ~/intarsiaml-ink-hip-pf2-tiny/docs/results/2026-11-26-inkling2-hip-pf2-tiny/raw/window.sh ~/intarsiaml-ink-hip-pf2-tiny/docs/results/2026-11-26-inkling2-hip-pf2-tiny/raw/stage_w2.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-pf2-tiny/docs/results/2026-11-26-inkling2-hip-pf2-tiny/raw/stage_w2.sh; cap 290s; stopping radiance 2026-11-26 17:15:33
+[window] radiance stopped 2026-11-26 17:15:37 (inactive)
+[stage] card 0 start 17:15:37
+ADM pf2b: 0 FAIL lines | dr=16 E=12: 45 lines, 0 FAIL at T=40, 0 FAIL elsewhere | ink_kv_prologue ink_kv_prologue_bf16          162      0    6.410e-3    2.746e-4  ADMITTED  [17:15:40]
+G1B r1 test inkling2_tiny_g1b_teacher_forced_bf16 ... ok  [17:15:41]
+G1B r2 test inkling2_tiny_g1b_teacher_forced_bf16 ... ok  [17:15:41]
+G1B r3 test inkling2_tiny_g1b_teacher_forced_bf16 ... ok  [17:15:42]
+[stage] tiny inkling2 suite on hip, pf2b 17:15:42
+test inkling2_tiny_failed_pass_resets_the_sequence ... ok
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+test result: FAILED. 15 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.82s
+error: test failed, to rerun pass `-p intarsia-models --test inkling2`
+MD5 c0 main off-short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 825 ms (76.36 tok/s) | prefill 100 ms (311.5 tok/s) [17:15:51]
+MD5 c0 branch off-short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 824 ms (76.48 tok/s) | prefill 108 ms (287.0 tok/s) [17:15:57]
+MD5 c0 branch off-short 256 9a27c21b6fdc4ea7700439c818e698d8 | decode 3323 ms (76.73 tok/s) | prefill 112 ms (276.1 tok/s) [17:16:06]
+MD5 c0 main off-short 256 9a27c21b6fdc4ea7700439c818e698d8 | decode 3321 ms (76.78 tok/s) | prefill 101 ms (308.1 tok/s) [17:16:14]
+MD5 c0 main off-4k 64 2252566a5c54cf52cb564bd214c9af2b | decode 858 ms (73.39 tok/s) | prefill 1365 ms (3096.7 tok/s) [17:16:21]
+MD5 c0 branch off-4k 64 2252566a5c54cf52cb564bd214c9af2b | decode 858 ms (73.43 tok/s) | prefill 1369 ms (3088.9 tok/s) [17:16:29]
+MD5 c0 branch off-4k 256 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3449 ms (73.94 tok/s) | prefill 1384 ms (3055.6 tok/s) [17:16:41]
+MD5 c0 main off-4k 256 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3445 ms (74.03 tok/s) | prefill 1392 ms (3036.7 tok/s) [17:16:53]
+MD5 c0 main off-16k 64 a31457d272f06e0e9c8b19735204561b | decode 908 ms (69.37 tok/s) | prefill 5281 ms (3203.0 tok/s) [17:17:06]
+MD5 c0 branch off-16k 64 a31457d272f06e0e9c8b19735204561b | decode 909 ms (69.34 tok/s) | prefill 5293 ms (3195.5 tok/s) [17:17:20]
+MD5 c0 branch off-16k 256 93e0a15116abba2d998ccd8493215a45 | decode 3649 ms (69.89 tok/s) | prefill 5301 ms (3190.7 tok/s) [17:17:36]
+MD5 c0 main off-16k 256 93e0a15116abba2d998ccd8493215a45 | decode 3649 ms (69.88 tok/s) | prefill 5310 ms (3185.4 tok/s) [17:17:50]
+[stage] card 0 done 17:17:50; waiting for card 1
+ADM pf2a: 9 FAIL lines | dr=16 E=12: 45 lines, 9 FAIL at T=40, 0 FAIL elsewhere | ink_kv_prologue ink_kv_prologue_bf16          162      9     1.265e0    8.265e-1  REJECTED Error: kernel admission failed (1 kernel(s) REJECTED)  [17:15:40]
+  ink_kv_prologue ink_kv_prologue_bf16   FAIL  max_abs=1.211e0 rel_l2=7.898e-1 T=40 H=6 Hk=2 Dh=16 dr=16 E=12 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   FAIL  max_abs=1.106e0 rel_l2=7.104e-1 T=40 H=6 Hk=2 Dh=16 dr=16 E=12 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   FAIL  max_abs=9.977e-1 rel_l2=7.725e-1 T=40 H=6 Hk=2 Dh=16 dr=16 E=12 pos0=0 dyn=true tau=false bf16
+MD5 c1 main default-short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 671 ms (93.94 tok/s) | prefill 103 ms (299.6 tok/s) [17:15:49]
+MD5 c1 branch default-short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 676 ms (93.22 tok/s) | prefill 95 ms (324.9 tok/s) [17:15:58]
+MD5 c1 branch default-short 256 9a27c21b6fdc4ea7700439c818e698d8 | decode 2831 ms (90.06 tok/s) | prefill 101 ms (308.2 tok/s) [17:16:09]
+MD5 c1 main default-short 256 9a27c21b6fdc4ea7700439c818e698d8 | decode 2835 ms (89.96 tok/s) | prefill 99 ms (313.5 tok/s) [17:16:20]
+MD5 c1 main default-4k 64 2252566a5c54cf52cb564bd214c9af2b | decode 777 ms (81.11 tok/s) | prefill 1357 ms (3116.8 tok/s) [17:16:30]
+MD5 c1 branch default-4k 64 2252566a5c54cf52cb564bd214c9af2b | decode 777 ms (81.05 tok/s) | prefill 1362 ms (3104.7 tok/s) [17:16:41]
+MD5 c1 branch default-4k 256 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2504 ms (101.84 tok/s) | prefill 1357 ms (3115.7 tok/s) [17:16:53]
+MD5 c1 main default-4k 256 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2503 ms (101.87 tok/s) | prefill 1359 ms (3111.4 tok/s) [17:17:06]
+MD5 c1 main default-16k 64 a31457d272f06e0e9c8b19735204561b | decode 609 ms (103.42 tok/s) | prefill 5233 ms (3232.4 tok/s) [17:17:20]
+MD5 c1 branch default-16k 64 a31457d272f06e0e9c8b19735204561b | decode 608 ms (103.54 tok/s) | prefill 5237 ms (3230.1 tok/s) [17:17:36]
+MD5 c1 branch default-16k 256 93e0a15116abba2d998ccd8493215a45 | decode 2226 ms (114.56 tok/s) | prefill 5246 ms (3224.1 tok/s) [17:17:51]
+MD5 c1 main default-16k 256 93e0a15116abba2d998ccd8493215a45 | decode 2229 ms (114.39 tok/s) | prefill 5270 ms (3209.6 tok/s) [17:18:06]
+MD5 c1 poison off-short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 824 ms (76.49 tok/s) | prefill 97 ms (319.2 tok/s) [17:18:12]
+MD5 c1 poison default-4k 256 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2509 ms (101.63 tok/s) | prefill 1378 ms (3068.4 tok/s) [17:18:24]
+[card1] done 17:18:24
+[stage] done 17:18:24 (167s)
+[window] stage done 2026-11-26 17:18:25 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 17:18:25
+[window] radiance answers 2026-11-26 17:18:35 (after 15 s)
+fleetq: #12228 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

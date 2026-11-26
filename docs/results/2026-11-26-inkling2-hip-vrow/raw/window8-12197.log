@@ -1,0 +1,66 @@
+fleetq: #12197 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=270 bash ~/intarsiaml-ink-hip-verify/.scratch/window.sh ~/intarsiaml-ink-hip-verify/.scratch/stage_w8.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-verify/.scratch/stage_w8.sh; cap 270s; stopping radiance 2026-11-26 16:13:27
+[window] radiance stopped 2026-11-26 16:13:31 (inactive)
+[stage] start 16:13:31 BR=vrow2
+---- card 0
+[c0] (1) bitwise verify probe rows 2..8 16:13:31 (/target/release/deps/verify_rows_real-520c2daf27fcc6e0)
+rc 0
+PROBE_GRAPHS GraphStats { enabled: true, captures: 6, replays: 382, batch_captures: 0, batch_replays: 0, spec_captures: 29, spec_replays: 121 }
+PROBE_RESULT rows=233 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.17s
+[c0] (2) md5 vrow2 16:13:45
+MD5 vrow2 off short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 825 ms (76.40 tok/s) | 
+MD5 vrow2 dflt short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 655 ms (96.17 tok/s) | spec: verify passes=23 proposed=49 accepted=31 (acceptance 63.3%, 2.35 tokens per pass)
+MD5 vrow2 off short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 3319 ms (76.84 tok/s) | 
+MD5 vrow2 dflt short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 2783 ms (91.64 tok/s) | spec: verify passes=106 proposed=232 accepted=119 (acceptance 51.3%, 2.12 tokens per pass)
+MD5 vrow2 off 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 859 ms (73.35 tok/s) | 
+MD5 vrow2 dflt 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 762 ms (82.71 tok/s) | spec: verify passes=21 proposed=39 accepted=26 (acceptance 66.7%, 2.24 tokens per pass)
+MD5 vrow2 off 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 3445 ms (74.02 tok/s) | 
+MD5 vrow2 dflt 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 2547 ms (100.11 tok/s) | spec: verify passes=92 proposed=216 accepted=143 (acceptance 66.2%, 2.55 tokens per pass)
+[c0] (3) G2 short vrow2 16:14:57
+rc 0
+prefill confident rows (golden p1 - p2 >= 0.5, all rows): 363 of 569, top-1 misses 0 (reported, not gated)
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 4.491e-3 PASS
+[c0] (3) G2 long vrow2 16:15:07
+rc 0
+prefill confident rows (golden p1 - p2 >= 0.5, all rows): 1206 of 1569, top-1 misses 1 (reported, not gated)
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 4.083e-3 PASS
+[c0] (4) timing probe 1k rows 1..8, main rules 16:15:19
+rc 0
+PROBE_TIME decode1 13.37 ms, verify2 16.62 ms (1.24x), verify3 20.10 ms (1.50x), verify4 22.38 ms (1.67x), verify5 24.77 ms (1.85x), verify6 27.02 ms (2.02x), verify7 29.37 ms (2.20x), verify8 31.77 ms (2.38x)
+[c0] (4) timing probe 1k rows 1..8, dflt rules 16:15:26
+rc 0
+PROBE_TIME decode1 13.39 ms, verify2 16.46 ms (1.23x), verify3 19.49 ms (1.46x), verify4 21.49 ms (1.60x), verify5 23.63 ms (1.76x), verify6 25.82 ms (1.93x), verify7 28.05 ms (2.09x), verify8 30.27 ms (2.26x)
+[c0] done 16:15:34
+---- card 1
+[c1] (5) hip tests 16:13:31: /target/release/deps/ink_mix-75ba8a33168c1864 /target/release/deps/ink_attn-07d7d3420654ccc9 /target/release/deps/ink_rows-f79e3f6ea33bbe48
+ink_mix rc 0 | test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 59.44s
+ink_attn rc 0 | test rows_exact_real_shapes ... 63 rows-exact cases bitwise test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 9.07s 
+ink_rows rc 0 | test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.43s
+[c1] (6) kernels test loop_blend 16:14:54
+rc 0
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.637e-4  ADMITTED
+[c1] (6) kernels test conv_mix 16:14:56
+rc 0
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+[c1] (6) kernels test attn_res_mix 16:15:03
+rc 0
+attn_res_mix   attn_res_mix_bf16              93      0    2.016e-3    4.909e-5  ADMITTED
+[c1] (6) kernels test ink_attn_decode 16:15:04
+rc 0
+ink_attn_decode ink_attn_decode_bf16           70      0    1.033e-3    7.283e-5  ADMITTED
+[c1] (7) hip tiny suites 16:15:10
+inkling2 rc 101 | test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.95s
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.95s
+inkling2_verify_softcap rc 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+inkling2_dspark rc 0 | test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.39s
+inkling2_dspark_cut rc 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.14s
+[c1] done 16:16:23
+[stage] done 16:16:23
+[window] stage done 2026-11-26 16:16:24 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 16:16:24
+[window] radiance answers 2026-11-26 16:16:34 (after 15 s)
+fleetq: #12197 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

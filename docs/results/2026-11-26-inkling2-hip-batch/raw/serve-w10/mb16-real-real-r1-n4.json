@@ -1,0 +1,38 @@
+{
+ "short-1": {
+  "md5": "6d1c9868b552277bb3f3257beed36805",
+  "text": "The user asks: \"Explain in simple terms how vaccines train the immune system, in about four short paragraphs for a curious teenager.\n\nSummarize the above in a few sentences.\"\n\nNeed answer likely should include the four short paragraphs and then a summary in a few sentences. Need be careful: This is medical/science explanation, allowed. Need simple terms for curious teenager. Need produce final only. Need ensure no medical advice beyond general. Explain vaccines train immune system: introduce harmless piece/weakened version of pathogen; immune system recognizes antigens; makes antibodies and memory cells;\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 49,
+  "cached_tokens": 0,
+  "t0": 1795720259.148416,
+  "t1": 1795720264.651388
+ },
+ "4k-0[:700]": {
+  "md5": "0827408680cd7df377969e9b50d167b6",
+  "text": "The user asks to summarize the above in a few sentences. Need answer based on provided text. Need be careful: text is truncated: \"Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons\" incomplete. We can summarize visible content. Need mention v0.2 incorporates Fable adversarial review: torch-free C kernel ABI, TensorFold MIT and radiance Apache-2.0 as first kernel packs, hard kernels earlier, Phase 0 cut to seams\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 226,
+  "cached_tokens": 0,
+  "t0": 1795720259.148639,
+  "t1": 1795720264.672547
+ },
+ "4k-1[:4000]": {
+  "md5": "0d8bc8c49df00e4f799dbfe5d649f5b8",
+  "text": "The user pasted a long technical note and asks to summarize it in a few sentences. Need answer concise. Need ensure no unsupported claims. Summarize: lane dc opt-in DFlash + DCOCO corrector for Qwen3-8B, default off, phase 1 accepted, phases 2/3 done, cost gate tried, DFlash stays opt-in. Mention sources/licences and key semantics briefly. Need be careful: user asks summarize above in a few sentences. Provide 3-5 sentences. No need to mention hidden thinking. Final only.\u0000",
+  "completion_tokens": 128,
+  "prompt_tokens": 1410,
+  "cached_tokens": 0,
+  "t0": 1795720259.1488152,
+  "t1": 1795720264.6905951
+ },
+ "4k-1[:9500]": {
+  "md5": "dbc4f8144c954d262452bffa222de519",
+  "text": "The user pasted a long technical note and asks to summarize it in a few sentences. I should summarize the key points: DFlash parallel-draft speculation and DCOCO corrector, opt-in, phase 1 accepted, phases 2 and 3 done, cost gate tried, DFlash stays opt-in.\u0000This note documents the opt-in DFlash parallel-draft speculation path (`--spec dflash`) and the DCOCO corrector (`--dcoco`) for Qwen3-8B on the lane-dc branch. It lays out",
+  "completion_tokens": 128,
+  "prompt_tokens": 3556,
+  "cached_tokens": 0,
+  "t0": 1795720259.148978,
+  "t1": 1795720264.719496
+ }
+}

@@ -1,0 +1,7 @@
+[speed] k3@c0a recipe rc 0 t+37s | decode overall: 2013 tokens after the first, 19562 ms (102.90 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] k5@c0a recipe rc 0 t+75s | decode overall: 2013 tokens after the first, 19348 ms (104.04 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] k4@c0a recipe rc 0 t+112s | decode overall: 2013 tokens after the first, 19237 ms (104.64 tok/s) | spec: verify passes=709 proposed=2002 accepted=1143 (acceptance 57.1%, 2.61 tokens per pass)
+[speed] k4@c0b recipe rc 0 t+149s | decode overall: 2013 tokens after the first, 19240 ms (104.62 tok/s) | spec: verify passes=709 proposed=2002 accepted=1143 (acceptance 57.1%, 2.61 tokens per pass)
+[speed] k5@c0b recipe rc 0 t+186s | decode overall: 2013 tokens after the first, 19371 ms (103.92 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] k3@c0b recipe rc 0 t+223s | decode overall: 2013 tokens after the first, 19585 ms (102.78 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[c0] done 15:46:06

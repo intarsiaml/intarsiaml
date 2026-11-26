@@ -1,0 +1,17 @@
+
+running 1 test
+PROBE_CONFIG dir=/models/Inkling-2-Mini rows=6 lens=17,1024,4000 backend=hip INTARSIA_VERIFY_GRAPH=unset profile_every=0
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.2 s
+plan notes: []
+PROBE_TIME_CONFIG time_only=false reps=12 prompt=random
+len=17: q=2..=6 checked
+len=1024: q=2..=6 checked
+len=4000: q=2..=6 checked
+PROBE_TIME decode1 13.27 ms, verify2 16.24 ms (1.22x), verify3 18.77 ms (1.41x), verify4 20.41 ms (1.54x), verify5 22.79 ms (1.72x), verify6 24.80 ms (1.87x)
+PROBE_TIME_MIN len=1024 decode1 13.22 ms, verify2 16.20 ms, verify3 18.71 ms, verify4 20.35 ms, verify5 22.56 ms, verify6 24.75 ms
+PROBE_GRAPHS GraphStats { enabled: true, captures: 6, replays: 271, batch_captures: 0, batch_replays: 0, spec_captures: 21, spec_replays: 91 }
+PROBE_RESULT rows=156 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test verify_rows_are_bitwise_the_single_row_steps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.66s
+

@@ -1,0 +1,23 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-verify/.scratch/stage_w10.sh; cap 250s; stopping radiance 2026-11-26 16:46:50
+[window] radiance stopped 2026-11-26 16:46:54 (inactive)
+[stage] start 16:46:54 vrow3 9d2ba4dc44263671de42380d9a9bd768
+---- card 0
+[speed] main@c0a rc 0 t+37s | up to 5 drafts | decode overall: 2013 tokens after the first, 19319 ms (104.20 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] new@c0a rc 0 t+75s | up to 5 drafts | decode overall: 2013 tokens after the first, 19216 ms (104.76 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] new@c0b rc 0 t+111s | up to 5 drafts | decode overall: 2013 tokens after the first, 19228 ms (104.69 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] main@c0b rc 0 t+148s | up to 5 drafts | decode overall: 2013 tokens after the first, 19364 ms (103.96 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+MD5 vrow3 dflt short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | up to 5 drafts | decode 668 ms (94.35 tok/s) | spec: verify passes=22 proposed=61 accepted=32 (acceptance 52.5%, 2.45 tokens per pass)
+MD5 vrow3 off short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 |  | decode 824 ms (76.44 tok/s) | 
+[c0] done 16:49:38
+---- card 1
+[speed] new@c1a rc 0 t+37s | up to 5 drafts | decode overall: 2013 tokens after the first, 19130 ms (105.23 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] main@c1a rc 0 t+74s | up to 5 drafts | decode overall: 2013 tokens after the first, 19275 ms (104.44 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] main@c1b rc 0 t+110s | up to 5 drafts | decode overall: 2013 tokens after the first, 19281 ms (104.41 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] new@c1b rc 0 t+147s | up to 5 drafts | decode overall: 2013 tokens after the first, 19171 ms (105.00 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+MD5 vrow3 dflt 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | up to 5 drafts | decode 769 ms (81.96 tok/s) | spec: verify passes=21 proposed=41 accepted=26 (acceptance 63.4%, 2.24 tokens per pass)
+MD5 vrow3 off 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 |  | decode 857 ms (73.48 tok/s) | 
+[c1] done 16:49:39
+[stage] done 16:49:39
+[window] stage done 2026-11-26 16:49:40 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 16:49:40
+[window] radiance answers 2026-11-26 16:49:50 (after 15 s)

@@ -40,10 +40,23 @@ int ik_rel_sink_attn_bf16(const ik_tensor* q, const ik_tensor* k, const ik_tenso
 /* InkAttnDecode (op 75, 1..16 rows): RelSinkAttn(InkKvPrologue(..)) in one dispatch, bitwise the pair of the two launchers
  * above. Inputs as the prologue's plus the caches; outputs o, k / v cache, k / v conv ring (all in place but o). Scratch: the
  * partials T * H * 32 * (Dh + 2) * 4 bytes, then the staged K / V rows 2 * T * Hk * Dh * 2 bytes (inkattn.rs `decode_scratch`). */
+/* tests (lane ink-hip-vrow): op 75 takes its fused kernel only for calls of at most v rows (-1 = INTARSIA_HIP_INK_DEC_FUSED_ROWS / the
+ * default 16); both paths give the same bits */
+void ik_ink_attn_dec_fused_rows(int v);
 int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,
                             const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp, const ik_tensor* kc_in, const ik_tensor* vc_in,
                             const ik_ink_attn_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc, ik_tensor* kring, ik_tensor* vring,
                             const ik_scratch* scratch, const ik_tensor* pos, void* stream);
+
+/* InkAttnDecode row-table form (batched decode, lane ink-hip-batch; `OpCall::rows`): row r (T <= 16 rows) is the T = 1 call of
+ * sequence r at position pos[r] (i32 [T], required) on the caches / conv rings at entries index .. index + 3 of row r of tab
+ * (u8 [T, stride, 8] device addresses) plus roff[0..4] (the carriers' byte offsets: k cache, v cache, k ring, v ring); kc / vc /
+ * kring / vring are row 0's carriers (shapes). attrs->pos0 is not read. Scratch: T * H * 32 * (Dh + 2) * 4 bytes. */
+int ik_ink_attn_decode_bf16_rows(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,
+                                 const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp, const ik_tensor* kc_in, const ik_tensor* vc_in,
+                                 const ik_ink_attn_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc, ik_tensor* kring, ik_tensor* vring,
+                                 const ik_scratch* scratch, const ik_tensor* pos, const ik_tensor* tab, int64_t stride, int64_t index,
+                                 const int64_t* roff, void* stream);
 
 #ifdef __cplusplus
 }

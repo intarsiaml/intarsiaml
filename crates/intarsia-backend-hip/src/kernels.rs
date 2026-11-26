@@ -548,6 +548,7 @@ pub fn all() -> Vec<KernelImpl> {
     v.extend(crate::inkmoe::all());
     v.extend(crate::inkroute::all());
     v.extend(crate::inkspec::all());
+    v.extend(crate::inkp12::all());
     v
 }
 
@@ -561,6 +562,7 @@ pub fn full_table() -> Vec<(&'static str, Op)> {
         .chain(crate::inkmoe::TABLE.iter())
         .chain(crate::inkroute::TABLE.iter())
         .chain(crate::inkspec::TABLE.iter())
+        .chain(crate::inkp12::TABLE.iter())
         .copied()
         .collect()
 }
@@ -568,7 +570,7 @@ pub fn full_table() -> Vec<(&'static str, Op)> {
 /// The ops of the Inkling-2 lane modules (inkattn / inkmix / inkmoe): each is ported once a lane table lists it, and stays in
 /// `UNIMPLEMENTED` until the port's integration removes it (so the lanes never edit this file).
 pub fn ink_lane_ops() -> Vec<Op> {
-    [crate::inkattn::OPS, crate::inkmix::OPS, crate::inkmoe::OPS, crate::inkroute::OPS, crate::inkspec::OPS].concat()
+    [crate::inkattn::OPS, crate::inkmix::OPS, crate::inkmoe::OPS, crate::inkroute::OPS, crate::inkspec::OPS, crate::inkp12::OPS].concat()
 }
 
 /// True when this backend has no kernel for `op`: listed in `UNIMPLEMENTED` and not ported by an Inkling-2 lane table.
@@ -625,6 +627,7 @@ mod tests {
             include_str!("../../../kernels/hip/ik_hip_abi_inkmoe.h"),
             include_str!("../../../kernels/hip/ik_hip_abi_inkroute.h"),
             include_str!("../../../kernels/hip/ik_hip_abi_inkspec.h"),
+            include_str!("../../../kernels/hip/ik_hip_abi_inkp12.h"),
         ]
         .concat();
         for (name, _) in full_table() {
@@ -768,6 +771,40 @@ mod tests {
             assert_eq!(pick(Op::AttnDecode, &dec).as_deref(), Some("attn_decode_bf16_splitkv"), "decode n={n} nkv={nkv} d={d}");
         }
         assert_eq!(SPLITKV_MAX_ROWS, 16);
+    }
+
+    /// Lane ink-hip-batch: the Inkling-2 row-table twins (`conv_mix_bf16_rows`, `ink_attn_decode_bf16_rows`) are registered
+    /// `row_table` (never `rows_exact`: `Registry::select` takes them only for calls with a row table), take the real model's
+    /// batched shapes at 1..=16 rows, and count as admitted once the kernel they twin is.
+    #[test]
+    fn the_inkling2_row_table_twins_are_admitted_through_their_bases() {
+        let bf = Some(DType::Bf16);
+        let info = intarsia_core::DeviceInfo {
+            name: "test".into(),
+            backend: "hip".into(),
+            arch: "gfx1201".into(),
+            total_mem: 0,
+            free_mem: 0,
+            unified: false,
+            bandwidth_gbs: None,
+        };
+        let mut reg = intarsia_core::Registry::new("hip", &info, all());
+        for (twin, base, op) in [("conv_mix_bf16_rows", "conv_mix_bf16", Op::ConvMix), ("ink_attn_decode_bf16_rows", "ink_attn_decode_bf16", Op::InkAttnDecode)] {
+            let k = reg.kernel(twin).unwrap_or_else(|| panic!("{twin} registered")).clone();
+            assert!(k.row_table && !k.rows_exact && k.op == op, "{twin}");
+            for m in 1..=ROWS_MAX {
+                let s = match op {
+                    // the real model: D 2304, 3 queries
+                    Op::ConvMix => ShapeInfo { m, k: 2304, n: 3, act: bf, out: bf, weight: bf, ..Default::default() },
+                    // 24 query heads over 8 kv heads, head_dim 128
+                    _ => ShapeInfo { m, n_heads: 24, n_kv_heads: 8, head_dim: 128, act: bf, out: bf, weight: bf, ..Default::default() },
+                };
+                assert!(k.accepts(&s), "{twin} m={m}");
+            }
+            assert!(!reg.is_admitted(twin), "{twin}: nothing admitted yet");
+            reg.set_admission(base, intarsia_core::Admission::Admitted);
+            assert!(reg.is_admitted(twin), "{twin}: admitted through {base}");
+        }
     }
 
     /// Lane q27-plan: the Qwen3.8-27B's attention (24 query heads, 4 kv heads, head_dim 256) is a shape `attn_decode_bf16_splitkv_rows` takes
