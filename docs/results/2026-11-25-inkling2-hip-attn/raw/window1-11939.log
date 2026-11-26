@@ -1,0 +1,823 @@
+fleetq: #11939 waiting (#1 in line): radiance-rank0 is also taken down by #11935 "ink-hip-moe: unit window 1 (vs cpu-ref, rows-exact, bench)" (claude-04c0e1cd)
+fleetq:   #11935 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11935 set, or it will wait for #11935 to be released.
+fleetq: #11939 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=1140 bash ~/intarsiaml-ink-hip-attn/docs/results/2026-11-25-inkling2-hip-attn/raw/window.sh ~/intarsiaml-ink-hip-attn/docs/results/2026-11-25-inkling2-hip-attn/raw/stage_unit.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-attn/docs/results/2026-11-25-inkling2-hip-attn/raw/stage_unit.sh; cap 1140s; stopping radiance 2026-11-25 21:47:58
+[window] radiance stopped 2026-11-25 21:48:02 (inactive)
+[stage] quick admission 2026-11-25 21:48:02
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:365:9
+    |
+365 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+365 -     Ink(usize),
+365 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1384:4
+     |
+1384 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:299:9
+    |
+295 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+299 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: unreachable call
+  --> crates/intarsia-backend-hip/src/inkmix.rs:46:9
+   |
+46 |           Some(match kernel {
+   |  _________^^^^_-
+   | |         |
+   | |         unreachable call
+47 | |             _ => return None,
+48 | |         })
+   | |_________- any code following this `match` expression is unreachable, as all arms diverge
+   |
+   = note: `#[warn(unreachable_code)]` on by default
+
+warning: unreachable call
+  --> crates/intarsia-backend-hip/src/inkmoe.rs:46:9
+   |
+46 |           Some(match kernel {
+   |  _________^^^^_-
+   | |         |
+   | |         unreachable call
+47 | |             _ => return None,
+48 | |         })
+   | |_________- any code following this `match` expression is unreachable, as all arms diverge
+
+warning: fields `tab`, `tab_stride`, `tab_index`, and `tab_off` are never read
+   --> crates/intarsia-backend-hip/src/device.rs:151:9
+    |
+142 | pub(crate) struct InkArgs<'a> {
+    |                   ------- fields in this struct
+...
+151 |     pub tab: *const IkTensor,
+    |         ^^^
+152 |     pub tab_stride: i64,
+    |         ^^^^^^^^^^
+153 |     pub tab_index: i64,
+    |         ^^^^^^^^^
+154 |     pub tab_off: i64,
+    |         ^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 9 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/ink_attn.rs (/target/release/deps/ink_attn-07d7d3420654ccc9)
+
+running 1 test
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=2.315e-3 rel_l2=1.346e-4 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=false bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.221e-4 rel_l2=4.774e-5 T=1 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=3 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.666e-8 rel_l2=3.179e-9 T=7 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=3 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.534e-3 rel_l2=1.565e-4 T=40 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=3.644e-6 rel_l2=3.416e-7 T=40 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=8.790e-9 rel_l2=8.576e-10 T=40 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.498e-6 rel_l2=1.506e-7 T=40 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=3 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=3.415e-4 rel_l2=1.540e-5 mid T=40 H=6 Hk=2 Dh=128 W=64 E=48 ring=true Cr=80 pos0=0 bf16
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+ink_kv_prologue ink_kv_prologue_bf16           54      0    2.315e-3    1.346e-4  ADMITTED
+rel_sink_attn  rel_sink_attn_bf16             25      0    1.534e-3    1.565e-4  ADMITTED
+
+test admission_full_sweep ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.23s
+
+[stage] rows-exact 2026-11-25 21:48:03
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:365:9
+    |
+365 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+365 -     Ink(usize),
+365 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1384:4
+     |
+1384 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:299:9
+    |
+295 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+299 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: unreachable call
+  --> crates/intarsia-backend-hip/src/inkmix.rs:46:9
+   |
+46 |           Some(match kernel {
+   |  _________^^^^_-
+   | |         |
+   | |         unreachable call
+47 | |             _ => return None,
+48 | |         })
+   | |_________- any code following this `match` expression is unreachable, as all arms diverge
+   |
+   = note: `#[warn(unreachable_code)]` on by default
+
+warning: unreachable call
+  --> crates/intarsia-backend-hip/src/inkmoe.rs:46:9
+   |
+46 |           Some(match kernel {
+   |  _________^^^^_-
+   | |         |
+   | |         unreachable call
+47 | |             _ => return None,
+48 | |         })
+   | |_________- any code following this `match` expression is unreachable, as all arms diverge
+
+warning: fields `tab`, `tab_stride`, `tab_index`, and `tab_off` are never read
+   --> crates/intarsia-backend-hip/src/device.rs:151:9
+    |
+142 | pub(crate) struct InkArgs<'a> {
+    |                   ------- fields in this struct
+...
+151 |     pub tab: *const IkTensor,
+    |         ^^^
+152 |     pub tab_stride: i64,
+    |         ^^^^^^^^^^
+153 |     pub tab_index: i64,
+    |         ^^^^^^^^^
+154 |     pub tab_off: i64,
+    |         ^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 9 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/ink_attn.rs (/target/release/deps/ink_attn-07d7d3420654ccc9)
+
+running 1 test
+63 rows-exact cases bitwise
+test rows_exact_real_shapes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 6.91s
+
+[stage] bench 2026-11-25 21:48:10
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:365:9
+    |
+365 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+365 -     Ink(usize),
+365 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1384:4
+     |
+1384 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:299:9
+    |
+295 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+299 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: unreachable call
+  --> crates/intarsia-backend-hip/src/inkmix.rs:46:9
+   |
+46 |           Some(match kernel {
+   |  _________^^^^_-
+   | |         |
+   | |         unreachable call
+47 | |             _ => return None,
+48 | |         })
+   | |_________- any code following this `match` expression is unreachable, as all arms diverge
+   |
+   = note: `#[warn(unreachable_code)]` on by default
+
+warning: unreachable call
+  --> crates/intarsia-backend-hip/src/inkmoe.rs:46:9
+   |
+46 |           Some(match kernel {
+   |  _________^^^^_-
+   | |         |
+   | |         unreachable call
+47 | |             _ => return None,
+48 | |         })
+   | |_________- any code following this `match` expression is unreachable, as all arms diverge
+
+warning: fields `tab`, `tab_stride`, `tab_index`, and `tab_off` are never read
+   --> crates/intarsia-backend-hip/src/device.rs:151:9
+    |
+142 | pub(crate) struct InkArgs<'a> {
+    |                   ------- fields in this struct
+...
+151 |     pub tab: *const IkTensor,
+    |         ^^^
+152 |     pub tab_stride: i64,
+    |         ^^^^^^^^^^
+153 |     pub tab_index: i64,
+    |         ^^^^^^^^^
+154 |     pub tab_off: i64,
+    |         ^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 9 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/ink_attn.rs (/target/release/deps/ink_attn-07d7d3420654ccc9)
+
+running 1 test
+BENCH swa 1024 keys: prologue 11.7 us, attention 20.7 us (203 GB/s of KV; roofline 6.7 us at 627 GB/s, 32%)
+BENCH full 4k keys: prologue 12.3 us, attention 36.9 us (454 GB/s of KV; roofline 26.8 us at 627 GB/s, 72%)
+BENCH full 8k keys: prologue 12.1 us, attention 57.6 us (583 GB/s of KV; roofline 53.5 us at 627 GB/s, 93%)
+BENCH full 16k keys: prologue 12.6 us, attention 99.6 us (674 GB/s of KV; roofline 107.0 us at 627 GB/s, 107%)
+test bench_decode ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 1.01s
+
+[stage] full admission 2026-11-25 21:48:11
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:365:9
+    |
+365 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+365 -     Ink(usize),
+365 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1384:4
+     |
+1384 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:299:9
+    |
+295 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+299 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: unreachable call
+  --> crates/intarsia-backend-hip/src/inkmix.rs:46:9
+   |
+46 |           Some(match kernel {
+   |  _________^^^^_-
+   | |         |
+   | |         unreachable call
+47 | |             _ => return None,
+48 | |         })
+   | |_________- any code following this `match` expression is unreachable, as all arms diverge
+   |
+   = note: `#[warn(unreachable_code)]` on by default
+
+warning: unreachable call
+  --> crates/intarsia-backend-hip/src/inkmoe.rs:46:9
+   |
+46 |           Some(match kernel {
+   |  _________^^^^_-
+   | |         |
+   | |         unreachable call
+47 | |             _ => return None,
+48 | |         })
+   | |_________- any code following this `match` expression is unreachable, as all arms diverge
+
+warning: fields `tab`, `tab_stride`, `tab_index`, and `tab_off` are never read
+   --> crates/intarsia-backend-hip/src/device.rs:151:9
+    |
+142 | pub(crate) struct InkArgs<'a> {
+    |                   ------- fields in this struct
+...
+151 |     pub tab: *const IkTensor,
+    |         ^^^
+152 |     pub tab_stride: i64,
+    |         ^^^^^^^^^^
+153 |     pub tab_index: i64,
+    |         ^^^^^^^^^
+154 |     pub tab_off: i64,
+    |         ^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 9 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/ink_attn.rs (/target/release/deps/ink_attn-07d7d3420654ccc9)
+
+running 1 test
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=24 Hk=8 Dh=128 dr=16 E=1024 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=24 Hk=8 Dh=128 dr=16 E=1024 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=24 Hk=8 Dh=128 dr=16 E=1024 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=24 Hk=8 Dh=128 dr=16 E=1024 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=3.125e-5 rel_l2=7.805e-7 T=1 H=24 Hk=8 Dh=128 dr=16 E=1024 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=24 Hk=8 Dh=128 dr=16 E=1024 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=24 Hk=8 Dh=128 dr=16 E=1024 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=24 Hk=8 Dh=128 dr=16 E=1024 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=4.488e-7 rel_l2=1.212e-8 T=1 H=24 Hk=8 Dh=128 dr=16 E=1024 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=5.051e-3 rel_l2=4.346e-4 T=16 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=8 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=0 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=4.651e-3 rel_l2=3.661e-4 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=3 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=false tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=true bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 dr=8 E=12 pos0=29 dyn=true tau=false bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=1.894e-4 rel_l2=6.151e-6 real T=1 pos0=0 dyn=false tau=false Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=1.556e-5 rel_l2=3.892e-7 real T=1 pos0=0 dyn=true tau=true Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 pos0=1023 dyn=false tau=false Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 pos0=1023 dyn=true tau=true Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 pos0=8192 dyn=false tau=false Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=1.555e-6 rel_l2=4.020e-8 real T=1 pos0=8192 dyn=true tau=true Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 real T=4 pos0=1021 dyn=false tau=false Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=2.126e-4 rel_l2=3.110e-6 real T=4 pos0=1021 dyn=true tau=true Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 real T=4 pos0=8190 dyn=false tau=false Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=2.158e-5 rel_l2=3.237e-7 real T=4 pos0=8190 dyn=true tau=true Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=1.374e-3 rel_l2=1.057e-4 real T=16 pos0=5 dyn=false tau=false Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=0.000e0 rel_l2=0.000e0 real T=16 pos0=5 dyn=true tau=true Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=2.083e-4 rel_l2=1.792e-6 real T=16 pos0=1016 dyn=false tau=false Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=3.130e-6 rel_l2=2.414e-8 real T=16 pos0=1016 dyn=true tau=true Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=4.340e-4 rel_l2=3.102e-6 real T=16 pos0=8192 dyn=false tau=false Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=1.381e-3 rel_l2=1.029e-5 real T=16 pos0=8192 dyn=true tau=true Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=2.703e-3 rel_l2=2.493e-5 real T=2048 pos0=2048 dyn=false tau=false Rr=19 bf16
+  ink_kv_prologue ink_kv_prologue_bf16   ok    max_abs=5.464e-3 rel_l2=3.450e-5 real T=2048 pos0=2048 dyn=true tau=true Rr=19 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.221e-4 rel_l2=4.774e-5 T=1 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=3 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=8.304e-7 rel_l2=1.211e-7 T=1 H=24 Hk=8 Dh=128 W=1024 E=1024 ring=true Cr=1040 pos0=1500 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 H=24 Hk=8 Dh=128 W=0 E=1024 ring=false Cr=1600 pos0=1500 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=2.209e-6 rel_l2=5.198e-7 T=3 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=3 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=3 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=3 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=7 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=3 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=16 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=3.882e-4 rel_l2=4.155e-5 T=40 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 W=8 E=8 ring=true Cr=12 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=6.104e-6 rel_l2=7.314e-7 T=40 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=5 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 W=0 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=3 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 T=40 H=6 Hk=2 Dh=16 W=8 E=12 ring=false Cr=96 pos0=29 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.488e-3 rel_l2=6.075e-5 mid T=40 H=6 Hk=2 Dh=128 W=64 E=48 ring=true Cr=80 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.381e-3 rel_l2=5.087e-5 mid T=100 H=6 Hk=2 Dh=128 W=64 E=48 ring=true Cr=80 pos0=70 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=2.003e-4 rel_l2=1.700e-5 mid T=33 H=6 Hk=2 Dh=128 W=64 E=48 ring=true Cr=80 pos0=150 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=9.137e-5 rel_l2=5.026e-6 mid T=100 H=6 Hk=2 Dh=128 W=0 E=48 ring=false Cr=400 pos0=37 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.708e-4 rel_l2=6.987e-6 mid T=200 H=6 Hk=2 Dh=128 W=0 E=48 ring=false Cr=400 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=0.000e0 rel_l2=0.000e0 real T=1 W=1024 ring=true Cr=1040 pos0=0 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.193e-4 rel_l2=1.704e-5 real T=1 W=1024 ring=true Cr=1040 pos0=1023 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=4.215e-8 rel_l2=8.498e-9 real T=1 W=1024 ring=true Cr=1040 pos0=2100 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=3.551e-4 rel_l2=3.486e-5 real T=4 W=1024 ring=true Cr=1040 pos0=1021 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.256e-3 rel_l2=1.079e-4 real T=4 W=1024 ring=true Cr=1040 pos0=1038 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=3.513e-6 rel_l2=4.483e-7 real T=4 W=1024 ring=true Cr=1040 pos0=5000 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.157e-4 rel_l2=8.077e-6 real T=16 W=1024 ring=true Cr=1040 pos0=1016 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.265e-4 rel_l2=8.349e-6 real T=16 W=1024 ring=true Cr=1040 pos0=1030 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=2.461e-4 rel_l2=1.567e-5 real T=16 W=1024 ring=true Cr=1040 pos0=3000 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.068e-3 rel_l2=3.654e-5 real T=2048 W=1024 ring=true Cr=1040 pos0=2048 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=6.643e-6 rel_l2=1.031e-6 real T=1 W=0 ring=false Cr=10240 pos0=1023 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=6.532e-9 rel_l2=2.259e-9 real T=1 W=0 ring=false Cr=10240 pos0=8192 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=3.397e-5 rel_l2=3.422e-6 real T=4 W=0 ring=false Cr=10240 pos0=1022 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.678e-3 rel_l2=1.161e-4 real T=16 W=0 ring=false Cr=10240 pos0=1016 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=9.191e-5 rel_l2=9.198e-6 real T=16 W=0 ring=false Cr=10240 pos0=8180 bf16
+  rel_sink_attn  rel_sink_attn_bf16     ok    max_abs=1.250e-3 rel_l2=3.128e-5 real T=2048 W=0 ring=false Cr=10240 pos0=1024 bf16
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+ink_kv_prologue ink_kv_prologue_bf16          117      0    5.464e-3    4.346e-4  ADMITTED
+rel_sink_attn  rel_sink_attn_bf16             63      0    1.678e-3    1.161e-4  ADMITTED
+
+test admission_full_sweep ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 8.94s
+
+[stage] done 2026-11-25 21:48:21
+[window] stage done 2026-11-25 21:48:22 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-25 21:48:22
+[window] radiance answers 2026-11-25 21:48:32 (after 15 s)
+fleetq: #11939 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0

@@ -39,4 +39,4 @@ launch); attention `H/Hk in 1..=3, Dh in {8,16,32,64,128}`. Op 75 is not built (
 
 ## State
 
-See the results doc's Status section for test results and fleetq job ids.
+Unit window passed (fleetq #11939): both ops ADMITTED on the full sweep, rows-exact bitwise. Ready to merge.
