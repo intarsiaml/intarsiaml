@@ -12,6 +12,12 @@ Ops: SconvRes 69, AttnResMix 67, LoopBlend 68, ConvMix 74, InkInProj 73 (+ `_row
   per-file `extern "C"`; do not touch `UNIMPLEMENTED` or shared tests; **skip MoeRoute** (lead wrote it); correctness forms first
   (`ink_row_kernel` / blend, `in_proj_gemv_kernel` bf16 arm); no `.row_table()`, no `.act_quant()`.
 
+- Coordinator update ~22:15 EST (from the ink-hip lead): tatooine ready for integration; when the ops pass their unit window, send "ready to merge at <commit>"
+  (forwarded to the lead). Checkpoint (read-only): `/data/models/intarsia/Inkling-2-Mini` (in the dev image `/models/Inkling-2-Mini`). Window scripts copied from
+  `ink/hip` `docs/results/2026-11-25-inkling2-hip/raw/{window,run}.sh` into this lane's `raw/` (own repo dir, own container `ink-hip-mix-run`, own target volume
+  `intarsia-cargo-target-ink-hip-mix`). moe_route is the lead's and passed (#11924); keep skipping it. The lead merges each lane after its own unit window, then runs
+  admission + tiny G1 + real-model G2 in one window. Window rules unchanged (fleetq `--takes-down radiance`, <= 20 min, <= 3 windows, none after 06:00).
+
 ## Status (2026-11-25 21:45 EST)
 
 All five ops ported and ADMITTED on the R9700 in the first unit window; rows-exact (bitwise) tests pass; bench below. Branch `ink/hip-mix`.
@@ -27,8 +33,8 @@ Launchers: `ink_in_proj_bf16_gemv`, `_gemv_rows` (twin), `ink_in_proj_bf16_matmu
 
 `cargo test --release -p intarsia-backend-hip --test ink_mix -- --nocapture --test-threads=1` (dev image, card 0, `INTARSIA_REQUIRE_GPU=1`): 4 passed.
 - `ink_mix_ops_match_the_reference` (admission vs `ink_ref`, the CUDA tolerances): ink_in_proj_bf16_gemv 24 cases ADMITTED (worst max_abs 3.8e-3,
-  rel_l2 7.3e-5), `_gemv_rows` 24 ADMITTED, `ink_in_proj_bf16_matmul` 5 ADMITTED (3.1e-3 / 4.7e-5), conv_mix_bf16 532 ADMITTED (4.5e-3 / 1.2e-3),
-  attn_res_mix_bf16 93 ADMITTED (2.0e-3 / 4.9e-5; the Q = 48 case is rejected by `.when`), sconv_res_bf16 64 ADMITTED (1.9e-3 / 1.2e-5),
+  rel_l2 7.3e-5), `_gemv_rows` 24 ADMITTED, `ink_in_proj_bf16_matmul` 5 ADMITTED (registered `Exactness::Fast`) (3.1e-3 / 4.7e-5), conv_mix_bf16 532 ADMITTED (4.5e-3 / 1.2e-3),
+  attn_res_mix_bf16 93 ADMITTED (2.0e-3 / 4.9e-5; queries Q in {1, 3, 4}: the Q = 48 case is not in the quick sweep that ran, and is refused by the registration `.when` (n <= 4) as in CUDA; see HANDOFF), sconv_res_bf16 64 ADMITTED (1.9e-3 / 1.2e-5),
   loop_blend_bf16 27 ADMITTED (3.2e-3 / 2.6e-4). 0 failing cases.
 - `ink_in_proj_rows_exact`, `ink_conv_mix_rows_exact`, `ink_attn_res_mix_and_blend_rows_exact`: BITWISE rows-exact (T-row call = T one-row calls, ring
   carried, final ring equal) at D 2304 and 64, all epilogue / mix / blend variants, T up to 300 for the mixes.
@@ -52,6 +58,12 @@ Notes: decode InkInProj is on the byte floor. LoopBlend is the speed candidate: 
 T16 verify rows pay 66 us. Not tuned tonight beyond the correctness form.
 
 ## Not verified / open
+
+- After the window I changed one registration (`ink_in_proj_bf16_matmul` to `Exactness::Fast`, as the port map says for the T > 16 form); host tests (31) and the check-only
+  build pass, the admission was not re-run on the GPU (the lead's integration window will).
+- Not benched: ConvMix (with / without blend), the in-proj bench reuses one 39.9 MB weight buffer (may be partly cache-warm; rotate copies before quoting the
+  byte floor), the rows-exact test covers in-proj T in {1, 2, 3, 5, 8, 9, 16} (not every `in_proj_gemv_kernel<M>` instantiation).
+- tatooine: target volume `intarsia-cargo-target-ink-hip-mix` (about 1 GB+) and `~/intarsiaml-ink-hip-mix` (1.9 GB) are this lane's; `/` is 88% full: remove both when done.
 
 - Not run through the model (G1 / G2: the lead's window). `-ffp-contract` is left at hipcc's default (fast); rows-exactness holds because every
   row runs the same compiled code, and the admission tolerances pass; no kernel is on `NO_FP_CONTRACT_SOURCES`.
