@@ -200,4 +200,4 @@ intervals; k5 is a one-line alternative for the coordinator (numbers above). Pla
 `mtp_default_k`, so it runs the same code as main.
 
 Why HIP takes a longer draft than Metal (where k5 / k7 lost): a verify row costs ~2.3 ms against a 13.4 ms decode step here (section
-1: r / P ~0.17), and the draft ~0.7 ms a step.
+1: r / P ~0.17), against ~2.1 ms for a k3 draft (`2026-11-26-inkling2-hip-spec.md`).
