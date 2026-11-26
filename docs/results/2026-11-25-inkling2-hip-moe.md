@@ -84,6 +84,11 @@ Branch `ink/hip-moe`, base origin/main `d8c3c7148` + `ink/hip` `6c5ee5d67` (lead
   on, flash on, both on; 4k and 16k prefill tok/s for off, WMMA, flash, both; (4) full table in this doc, then "ready to
   merge at <commit>" with the table; PR after ink/hip-speed merges, defaults off.
 
+- Coordinator message after the evaluation: accepted at `2ae9ae326`; it is in PR #519 (branch `ink/hip-s2`, stacked on #518).
+  No more radiance windows tonight for this lane; stand down. Keep `~/intarsiaml-ink-hip-moe` and the docker volume
+  `intarsia-cargo-target-ink-hip-moe` on tatooine until told (a morning flip check may reuse the build). Optional, no GPU:
+  write the S2 speed work not done as a next-steps list at the end of this doc; commit, do not push.
+
 ## 0b. Radiance down time under the time budget (20 min from the rule change; windows 1 and 2 predate it: 52 s, 63 s)
 
 | Window | fleetq | Down | Budget used |
@@ -372,3 +377,26 @@ The first two change no bit of the output:
 1. User: the default flip (`kWmDefault = 1`), next to the attn lane's flash flip, from the table above.
 2. S2 speed: the occupancy variant and fragment skip of `moe_wmma.h`, then the `r7` variants; the call is weight-read bound.
 3. Not planned tonight: one launch for gate_up + down at decode (about 3 us of the 82 at T = 1).
+
+## 5. S2 speed work not done (written after the evaluation; nothing here was built or measured)
+
+Where S2 stands: a tensor-core call costs about 5 ms for NVFP4 whatever the pair count (5.2 ms at 16 pairs per expert, 6.2 at
+128), i.e. 573 MB of weights at about 110 GB/s against 627 GB/s of bandwidth. It is bound by reading and dequantising the
+weights, not by the tensor cores. Ordered by expected value:
+
+1. Occupancy variant of `moe_wmma.h` (`kMwOcc`): the up accumulators reuse the activation tile's LDS, and the kernel is
+   compiled for 8 waves per SIMD. Today the 64-pair gate_up block holds 34 KB of LDS (one block per 64 KB) and 217 - 240
+   VGPRs; down holds 18 KB.
+2. Fragment skip (`kMwSkip`): a tile's 16-pair fragments that hold no pair skip their LDS reads and WMMAs. Matters most
+   near the threshold (16 pairs per expert in a 64-pair tile: three of four fragments are empty) and for the last tile.
+3. The `r7` variants of `moe_wmma_r7.h` (`kMwTwo`, `kMwDeep`), which this lane has not read; the 35B defaults use them.
+4. Explain why the 32-pair tile (143 VGPRs, 17 KB) is slower than the 64-pair one at the same block count (NVFP4 T=128:
+   5.70 against 5.08 ms). Until that is understood, register and LDS counts are not a reliable guide here.
+5. The threshold: 16 pairs per expert rests on two NVFP4 points at 128 experts (8: slower; 16: 5 % faster per call).
+   Measure 10, 12, 24 and MXFP8 at 128 experts; items 1 and 2 will move it down.
+6. End to end: at chunk 256 the model gained 28 % although the per-call gain at that density was 5 %; an op table with
+   WMMA on would say where the rest comes from, and how much of prefill the experts still are at chunk 2048.
+7. Launch size: the brief's note that launches above about 1 ms hit a dispatch stall on this card was not examined; the
+   S2 launches are 2 - 4 ms each.
+8. Edge values: MXFP8 E8M0 scales of 0 or 255 and products outside bf16 range are not handled specially.
+9. Decode, unrelated to S2: one launch for gate_up + down (about 3 us of 82 at T = 1).
