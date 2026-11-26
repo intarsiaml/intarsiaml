@@ -1,0 +1,6 @@
+== tests metal_ink exit 0 11 s: 24 passed, 0 failed
+== tests attn_bpre exit 0 4 s: 12 passed, 0 failed
+== tests attn_bearly exit 0 5 s: 12 passed, 0 failed
+== tests attn_cpre_off exit 0 4 s: 12 passed, 0 failed
+== tests models_metal exit 0 42 s: 25 passed, 0 failed
+== tests batch_bearly exit 0 27 s: 8 passed, 0 failed

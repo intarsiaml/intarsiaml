@@ -1,6 +1,7 @@
 # Inkling-2-Mini Metal decode toward the bandwidth floor (lane ink-decroof, 2026-11-25)
 
-Status: step 0 done (prior work below); CONV_PRE ported to main (1760c5228), gates and A/B queued. Branch `ink/decroof` from
+Status: step 0 done; fresh profile of main done; CONV_PRE (1760c5228) and BIAS_PRE / BIAS_EARLY (bb8457ccf) built and
+bitwise on every gate (#11936); A/B #11941 running. Branch `ink/decroof` from
 origin/main d8c3c7148 (includes #496: DSpark k=3 default on Metal, so `--spec off` is plain decode), worktree
 `.worktrees/ink-decroof`. Not pushed.
 
@@ -106,10 +107,60 @@ at 143 and the median is >= 1.0 at 1k and 4k.
 
 | fleetq | what | state |
 |---|---|---|
-| #11930 | build base d8c3c7148 / cand bb8457ccf / diag (cand + the uncommitted arm patch, `.scratch/diag`), test binaries, docs_env_vars (`--load cpu`) | queued |
-| #11936 | gates (ids, Metal tests, G2) + fresh profile of main (exclusive, `.scratch/jobG.sh`) | queued |
-| #11941 | A/B: within-process 4 arms x 3 processes + cross-process ABBA 6 x 2 (exclusive, `.scratch/jobA.sh`) | queued |
+| #11930 | build base d8c3c7148 (md5 c887ead6), cand 84bd490dd (= bb8457ccf code; 277c7697), diag (cand + the arm patch; 17cfcf8c), each its own target dir; test binaries; docs_env_vars 2 / 2 (`--load cpu`, 22:07-22:09) | done |
+| #11936 | gates (ids, Metal tests, G2) + fresh profile of main (exclusive, 22:10-22:17) | done, all pass |
+| #11941 | A/B: within-process 4 arms x 3 processes + cross-process ABBA 6 x 2 (exclusive, from 22:17) | running |
 
 Diag patch (`.scratch/diag`, never committed): `generate --prompt-ids` reads `INTARSIA_DIAG_ARMS` (one letter per prompt) and
 sets the Switch overrides before each prompt: A all off, B CONV_PRE, C + BIAS_PRE, D + BIAS_EARLY; it prints per prompt how
 many attention launches carried flags 32 / 64 / 128, so an arm that does not engage shows up as zero.
+
+## Fresh decode profile of main d8c3c7148 (#11936; `--spec off`, greedy, 143- and 4108-token prompts)
+
+Method: the per-dispatch timeline (`INTARSIA_METAL_COMMIT_EVERY=1 INTARSIA_TOKEN_FEEDBACK=0
+INTARSIA_METAL_PROFILE=cb`, 33 tokens, `raw/disp2.py`: steps split at the embedding launch, prefill and odd steps dropped),
+grouped by class (`raw/classes.py`) and scaled to the normal step's span (token feedback, 257 tokens, `cbstat.py fb`), since
+one buffer per dispatch overstates each by ~1-2 us. Floors at 560 GB/s; bytes per class from dfuse's roofline L, the head
+re-counted for the fp8 screen (461 M weights x 1 B), attention KV at 4 KiB per key per visit.
+
+Normal step: **12.82 ms at short context (78.0 tok/s), 13.65 ms at 4k (73.3 tok/s)**; 545 / 553 dispatches, 2 command
+buffers per step. Floor 7.92 / 8.41 ms, so decode runs at **62 % of the floor** at both lengths (the same share as 11-21: the
+P12 / screen / dfuse gains moved floor and step together).
+
+Short context (ctx ~150):
+
+| class | per-dispatch us / token | scaled to the real step | dispatches | MB / token | floor (ms) | excess (ms) |
+|---|---:|---:|---:|---:|---:|---:|
+| controllers: ConvMix row + blend, LoopBlend, AttnResMix | 2411 | 2316 | 246 | 113 | 0.202 | **2.115** |
+| attention core (`ink_attn_decode`, 48 x 30.3 us) | 1466 | 1409 | 48 | 29 | 0.053 | **1.356** |
+| experts NVFP4 (gate+up 50.8 us, down 31.4 us) | 3621 | 3479 | 88 | 1577 | 2.816 | **0.663** |
+| router (`ink_route`, 9.7 us) | 501 | 482 | 49 | 28 | 0.050 | **0.432** |
+| attention projections (in_proj 57.8 us, wo 22.5 us; P12) | 3865 | 3713 | 96 | 1950 | 3.482 | 0.231 |
+| LM head (fp8 screen GEMV 781 us + screen + argmax) | 924 | 888 | 3 | 469 | 0.838 | 0.050 |
+| experts MXFP8 (4 visits) | 531 | 510 | 8 | 263 | 0.470 | 0.041 |
+| norms, embedding, other | 21 | 20 | 7 | 8 | 0.014 | 0.006 |
+| **sum** | 13339 | 12817 | 545 | 4437 | 7.924 | **4.893** |
+
+4k (ctx ~4120): controllers 2.171 ms over, **attention 1.601** (40 fused sliding-window visits at 39.1 us; the 8 full visits
+leave the fused kernel at this context and run `ink_kv_prologue` + `rel_sink_attn` at 66.7 us), experts NVFP4 0.676, router
+0.431, projections 0.256, head 0.048; sum 5.234 ms over a 8.412 ms floor. Per kernel: `raw/disp_base_{143,4k}.txt`.
+
+Against the 11-21 table: controllers 2.94 -> 2.12 ms over (dfuse), attention 1.44 -> 1.36, experts 1.22 -> 0.66 (T1),
+projections and head at the floor. The ranking is unchanged: controllers, attention, experts, router.
+
+## Gates of CONV_PRE and BIAS_PRE / BIAS_EARLY (#11936, all pass; `raw/ids.txt`, `tests.txt`, `g2.txt`)
+
+- **Greedy ids** (256 tokens, `--ignore-eos`, 143 / 1021 / 4108-token prompts): base == cand == diag arms A / B / C / D for
+  every prompt, with `--spec off` and with the spec default (DSpark k3: 219 verify passes, 80.2 % acceptance in every spec
+  run). md5 of the id lists: 66d75868 / 442bd780 / f9adc9df.
+- **Engagement** (diag counters): every arm-B prompt carried flag 32 on all its attention launches (12240 / 12240 / 10200
+  at `--spec off`; 10200 at 4k because the 8 full visits leave the fused kernel), arm C flags 32 + 64, arm D 32 + 64 + 128,
+  arm A none; the same under spec (4272 / 4560 / 1400 launches).
+- **Metal tests on cand**: backend-metal inkling2_attn, rows_exact, inkmix, inkctrl, inkload 24 / 24; inkling2_attn +
+  rows_exact with `INTARSIA_INK_BIAS_PRE=1` 12 / 12, with BIAS_PRE + BIAS_EARLY 12 / 12, with `INTARSIA_INK_CONV_PRE=0` 12 / 12;
+  models inkling2 (G1 tiny) + inkling2_batch 25 / 25; inkling2_batch (row-table form) with BIAS_PRE + BIAS_EARLY 8 / 8;
+  docs_env_vars 2 / 2 (#11930).
+- **G2 short (decode mode)**: mean KL 2.928e-3 (limit 4e-3) for base, cand and cand + BIAS_PRE + BIAS_EARLY; the
+  self-goldens are byte-equal to the base's (stcmp EQUAL, both).
+- First timing signal (one run each, not the A/B): `--spec off` base 73.1 / 70.5 / 71.3 tok/s, cand 77.3 / 74.8 / 72.2; in
+  the diag process arm C/D prompts ran 63-69 tok/s against 71-77 for A/B, a hint that BIAS_PRE is slower. The A/B decides.

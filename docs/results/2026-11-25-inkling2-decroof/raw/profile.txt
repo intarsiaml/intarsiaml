@@ -1,0 +1,6 @@
+== per-dispatch base 143 exit 0 5 s
+== per-dispatch base 4k exit 0 6 s
+== per-dispatch cand 143 exit 0 6 s
+== per-dispatch cand 4k exit 0 6 s
+== normal-step base 143 exit 0 8 s: steps 252 dispatches/step 545 buffers/step 2  span ms/step median 12.817 mean 12.848 min 12.613 max 13.994  decode[0]: 257 tokens, 3299 ms (77.59 tok/s)
+== normal-step base 4k exit 0 9 s: steps 252 dispatches/step 553 buffers/step 2  span ms/step median 13.646 mean 13.698 min 13.524 max 14.458  decode[0]: 257 tokens, 3518 ms (72.78 tok/s)

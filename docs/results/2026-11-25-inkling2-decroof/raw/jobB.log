@@ -1,0 +1,11 @@
+fleetq: #11930 running on endor: bash /opt/code/intarsiaml/.worktrees/ink-decroof/.scratch/jobB.sh
+fleetq: #11930 went ahead of the line and must end within 53m (by Wed 23:00); it is stopped then
+jobB start 22:06:59
+== build base exit 0 33 s tree d8c3c7148 dirty 0 md5 c887ead6af056a0a2d1c515d527fd6e1
+== build cand exit 0 18 s tree 84bd490dd dirty 0 md5 277c769706947866d93b7ff15e9508a1
+== build diag exit 0 18 s tree bb8457ccf dirty 2 md5 17cfcf8ca6f5ddf4b0ec726cc48a7590
+== test build exit 0 33 s
+== docs_env_vars exit 0: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+binaries: MD5 (/opt/code/intarsiaml/.worktrees/ink-decroof/.scratch/bin/intarsia-base) = c887ead6af056a0a2d1c515d527fd6e1 MD5 (/opt/code/intarsiaml/.worktrees/ink-decroof/.scratch/bin/intarsia-cand) = 277c769706947866d93b7ff15e9508a1 MD5 (/opt/code/intarsiaml/.worktrees/ink-decroof/.scratch/bin/intarsia-diag) = 17cfcf8ca6f5ddf4b0ec726cc48a7590 
+jobB done 22:08:51
+fleetq: #11930 done (exit 0)

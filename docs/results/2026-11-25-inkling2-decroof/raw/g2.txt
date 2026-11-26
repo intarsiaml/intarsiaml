@@ -1,0 +1,5 @@
+== g2 short base exit 0 17 s: OVERALL 569 98.59 2.609e-3 2.087e-3 2.087e-3 1.637e-1 0.0679 0.0669 96.56 79.3% 0|OVERALL 128 99.22 2.744e-3 2.928e-3 2.928e-3 5.677e-2 0.0173 0.0167 93.59 97.7% 0|
+== g2 short cand exit 0 13 s: OVERALL 569 98.59 2.609e-3 2.087e-3 2.087e-3 1.637e-1 0.0679 0.0669 96.56 79.3% 0|OVERALL 128 99.22 2.744e-3 2.928e-3 2.928e-3 5.677e-2 0.0173 0.0167 93.59 97.7% 0|
+== g2 short cand_bearly exit 0 13 s: OVERALL 569 98.59 2.609e-3 2.087e-3 2.087e-3 1.637e-1 0.0679 0.0669 96.56 79.3% 0|OVERALL 128 99.22 2.744e-3 2.928e-3 2.928e-3 5.677e-2 0.0173 0.0167 93.59 97.7% 0|
+G2 short self-golden base vs cand: EQUAL
+G2 short self-golden base vs cand + BIAS_PRE + BIAS_EARLY: EQUAL
