@@ -5,7 +5,49 @@ Branch `ink/hip-pf2-tiny` from origin/main `b7450223e`. Tatooine, card 0. Follow
 `inkling2_tiny_g1b_teacher_forced_bf16` fails on HIP with the default `INTARSIA_HIP_INK_PF2` (mask 151) and passes with `=0`; the
 failing errors differ run to run (`v00.attn_out` rel err 0.81 - 0.86).
 
-Status: in progress.
+Status: in progress. Culprit found (PF2 bit 1, the rel-table pass), cause found (d_rel above the rel extent), fixed on this branch;
+gates in window 2.
+
+## Result so far
+
+- **Culprit: PF2 bit 1** (the prologue's rel tail as its own pass, `ink_rel_table_k`, lane ink-hip-pf2). Window B1, main's own test
+  binary: every mask with bit 1 fails, every mask without it passes, and bit 1 alone fails (table below).
+- **Cause: an out-of-row write when d_rel > E.** With bit 1 the prologue stages each head's `r` (dr values) in the first dr entries
+  of that head's own rel row (`F_R_ROW`, `kernels/hip/ink_attn.hip:326`), row stride E. The tiny fixture has d_rel 16 and E 12 on the
+  full layers (`rel_extent`) and 8 on the SWA layers (`sliding_window_size`), so entries E .. 15 of head h land in entries 0 .. 15-E of
+  head h+1's row (written by another block of the same launch: a race, hence run-to-run varying errors) and, for the last head of
+  the last row, past the end of the [T, H, E] table (16 - E bf16 into whatever the arena holds next). `ink_rel_table_k` then reads r
+  back with the same stride. The launcher checked `dr <= RT_DR` and `E % 4 == 0` but not `dr <= E`.
+- **Trigger, exactly:** PF2 bit 1 set (default), more than 16 call rows (`p.t > MAXROWS`), d_rel <= 16, E % 4 == 0, E <= 1024,
+  and **d_rel > E**. Row count, position, partial chunk and verify length only gate bit 1 on or off; the overflow needs d_rel > E,
+  which depends on the model's config alone.
+- **The real model cannot hit it.** Inkling-2-Mini has d_rel 16 and E = 1024 on every layer (window 1024 on SWA layers, rel_extent
+  1024 on full ones), so d_rel <= E for every call: prompts of 1..64 rows, the last partial chunk, verify passes of 2..6 rows (these
+  are <= 16 rows and never take bit 1) and any batched-prefill packing (more rows, same d_rel and E). No report to the coordinator
+  before the fix was needed (brief item 4).
+- **Fix** (`kernels/hip/ink_attn.hip:1175`): the rel pass also needs `p.dr <= p.e`; other shapes keep the prologue's own rel tail,
+  the form before bit 1 (bitwise the same values by construction: the rel pass is that tail's chain moved). Shapes of the real
+  model take the same path as on main. Bit 128 (the OCC prologue) is gated by the rel pass, so it follows.
+- **Admission case** (`crates/intarsia-core/src/inkling2/cases.rs`): InkKvPrologue gets (H 6, Hk 2, Dh 16, dr 16, E 12), the tiny
+  fixture's d_rel / extent; its T = 40 rows take bit 1. Window 2 runs it on main's kernel (expected FAIL) and the fix.
+
+## Window B1: bisect (fleetq #12222; radiance down 16:56:14 - 16:56:39, 0:25)
+
+Log `raw/windowB1.log`, stage `raw/stage_b1.sh`, binary: main's `inkling2` test binary (`b7450223e`, md5 dde0c854), card 0.
+
+| `INTARSIA_HIP_INK_PF2` | bits | g1b | `v00.attn_out` rel err |
+|---|---|---|---|
+| 151 (default) | 1 2 4 16 128 | FAIL, FAIL | 0.836, 0.848 |
+| 0 | none | ok, ok | |
+| 150 | 2 4 16 128 | ok, ok | |
+| 149 | 1 4 16 128 | FAIL, FAIL | 0.845, 0.852 |
+| 147 | 1 2 16 128 | FAIL, FAIL | 0.849, 0.846 |
+| 135 | 1 2 4 128 | FAIL, FAIL | 0.840, 0.860 |
+| 23 | 1 2 4 16 | FAIL, FAIL | 0.844, 0.832 |
+| 1 | 1 | FAIL | 0.840 |
+| 2 / 4 / 16 / 128 | one each | ok | |
+
+(budget 1.801e-2)
 
 ## Briefs received
 
@@ -32,3 +74,6 @@ Status: in progress.
 
 | Job | What | Radiance down |
 |---|---|---|
+| #12222 | B1: PF2 bisect on g1b (main's binary) | 16:56:14 - 16:56:39, 0:25 |
+| #12225 | build main3 cli (`b7450223e`) in lane ink-hip-p12's dir (cpu) | none |
+| #12226 | build pf2a (case only), pf2b (case + fix), test bins (cpu) | none |

@@ -341,8 +341,8 @@ __global__ void __launch_bounds__(256) __attribute__((amdgpu_waves_per_eu(OCC ? 
 // 1.67 ms (94 GB/s). Here a block takes RT_ROWS call rows (all H heads): it stages their r (left by the prologue in the first dr
 // entries of each rel row, F_R_ROW) in LDS before any write, and each thread holds the relproj columns of its entries
 // e = 4 tid .. 4 tid + 3 in registers (one 8-byte store per row). Every entry is ink_rel_g's chain (from 0, j ascending, ffma) on
-// the same r and relproj values, then the bf16 round: bitwise the prologue's tail. Launcher: dr <= RT_DR, E a multiple of 4 and
-// <= 1024, the table 8-byte aligned.
+// the same r and relproj values, then the bf16 round: bitwise the prologue's tail. Launcher: dr <= RT_DR, dr <= E (r must fit in its
+// own row), E a multiple of 4 and <= 1024, the table 8-byte aligned.
 constexpr int RT_ROWS = 8;  // call rows per block
 constexpr int RT_EPT = 4;   // consecutive entries per thread (one 8-byte store per row)
 constexpr int RT_DR = 16;   // most d_rel
@@ -1172,8 +1172,11 @@ extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk,
     if (nz < 1) nz = 1;
     // prefill chunks (INTARSIA_HIP_INK_PF2 bit 1): the rel tail as its own pass (ink_rel_table_k), the same bits
     const size_t rt_lds = (size_t)RT_ROWS * p.h * p.dr * sizeof(float);
-    const bool rel_pass = (pf2_mask() & 1) && p.t > MAXROWS && p.dr <= RT_DR && p.e % RT_EPT == 0 && p.e <= 256 * RT_EPT && rt_lds <= 32768 &&
-                          (reinterpret_cast<uintptr_t>(p.relo) & 7u) == 0;
+    // p.dr <= p.e (lane ink-hip-pf2-tiny): the prologue stages r in the first dr entries of each E-entry rel row (F_R_ROW); with
+    // d_rel above the extent (the tiny Inkling-2 fixture: 16 > 12) r spilled into the next head's row (another block's: a race)
+    // and past the end of the table. Those shapes keep the prologue's own rel tail (the form before bit 1). Inkling-2-Mini: 16 <= 1024.
+    const bool rel_pass = (pf2_mask() & 1) && p.t > MAXROWS && p.dr <= RT_DR && p.dr <= p.e && p.e % RT_EPT == 0 && p.e <= 256 * RT_EPT &&
+                          rt_lds <= 32768 && (reinterpret_cast<uintptr_t>(p.relo) & 7u) == 0;
     if (rel_pass) p.flags |= F_R_ROW;
     if (p.d <= 128 && rel_pass && (pf2_mask() & 128)) ink_prologue_k<4, false, true><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
     else if (p.d <= 128) ink_prologue_k<4><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
