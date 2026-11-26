@@ -309,6 +309,21 @@ pub fn set_mix_dec(v: i32) {
     let _ = v;
 }
 
+/// Tests: the two switches as the row-table TU (kernels/hip/ink_mix_rows.hip) reads them: the fast-form mask (`set_mix_mode`) | 256 when
+/// the gate kernel's fast norm tail is on (`set_mix_dec`); -1 without the kernel library. Lane ink-hip-batch: both TUs share one switch.
+pub fn rows_switches() -> i32 {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_ink_mix_rows_switches() -> std::ffi::c_int;
+        }
+        // SAFETY: reads two plain ints of the kernel library.
+        unsafe { ik_ink_mix_rows_switches() }
+    }
+    #[cfg(not(ik_hip))]
+    -1
+}
+
 /// Tests / benchmarks: bit mask of the fast forms of the row kernel / blend launches / gate kernel (a process-wide switch of the kernel
 /// library; 0 = the first forms of all, 3 = default, see ink_mix.hip `mix_mask`). The bits are the same either way (tests/ink_mix.rs). `INTARSIA_INK_MIX_FAST=0` does the same
 /// at start-up.

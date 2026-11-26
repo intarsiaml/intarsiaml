@@ -6,6 +6,10 @@
 
 extern "C" {
 
+/* tests (lane ink-hip-batch): the switches as this TU's row-table launches read them: the mask of the fast forms (mix_mask) | 256 when the
+ * gate kernel's fast norm tail is on (mix_dec_tail). tests/ink_rows.rs asserts they follow ik_ink_mix_mode / ik_ink_mix_dec. */
+int ik_ink_mix_rows_switches(void) { return mix_mask() | (mix_dec_tail() ? 256 : 0); }
+
 /* ConvMix row-table form (batched decode, lane ink-hip-batch): row t of the call is the T = 1 ConvMix of sequence t at position
  * pos[t] (i32 [T]) on its own ring, the buffer at entry tindex of row t of `tab` (u8 [T, tstride, 8]) plus `roff` (the ring carrier's
  * byte offset); `ring` is row 0's carrier (shape only). Bitwise the solo call per row (tests/ink_rows.rs). */

@@ -74,6 +74,12 @@ Raw: `docs/results/2026-11-26-inkling2-hip-batch/raw/`.
      - run the solo greedy md5 check (64 / 256, short / 4k) on the rebased binary with no env vars set;
      - say here which paths the batched forward took.
   Reminder: no `--mem` on tatooine jobs.
+- 2026-11-26 ~14:35 (coordinator): the mixmode fix `d5b2a9bc0` gets its own PR; #529 stays as it is (merged on green CI). After
+  #529 merges: rebase `ink/hip-batch-mixmode` onto the new main; one radiance window, at most 1:30 down: `cargo test --release -p
+  intarsia-backend-hip --test ink_rows -- --test-threads=1`, plus a check that the mode-0 leg really runs the row-table kernels in
+  mode 0 (a debug print, or an assert on the shared symbol inside the test); open a PR "ink-hip-batch: test switch reaches the
+  row-table copy" with the window's downtime and the new lane total (about 33:00) in its body, not merged. Last window of the lane;
+  final report once the PR is open; remove nothing (the coordinator cleans up after merge).
 - 2026-11-26 ~14:05 (coordinator, after #528 merged as `3226af2b9`): one more window, about 3:30, hard limit 32:00 lane total,
   under 5:00. Order: (1) the full #528 re-gate, ink_rows bitwise first, then the 4k-256 md5 for each arm, then the 64-token md5 and
   the rest; (2) the real-prompt sweep on one B16 server, serve_bitwise conc mode on the ids-prompts at 4, 8 and 16 at once,
