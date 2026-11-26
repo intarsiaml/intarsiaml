@@ -7,25 +7,26 @@ per row and by checking the draft length; greedy output stays identical to `--sp
 
 ## Result
 
-| Inkling-2-Mini, one R9700 (tatooine card 0 / 1) | main (k3) | this branch (k4) | k4 / k3, 95 % CI (4 + 4 processes) |
-|---|---:|---:|---|
-| spec-default decode, short (12 golden prompts) | 103.67 tok/s | 105.48 | **1.018** [1.017-1.019] |
-| spec-default decode, 1k | 90.06 | 90.16 | 1.001 [1.000-1.002] |
-| spec-default decode, 4k | 114.97 | 121.81 | **1.059** [1.058-1.061] |
-| spec-default decode, 16k | 91.74 | 94.93 | **1.034** [1.034-1.035] |
-| plain decode (`--spec off`), short / 4k, 256 tokens | 76.86 / 74.04 | 76.81 / 74.04 | single runs; the 4 + 4 plain ABBA was **not run** (radiance budget: 5 windows, 12:44); `--spec off` runs the same code (does not read `mtp_default_k`) |
+| Inkling-2-Mini, one R9700, spec-default decode (main `80719483a`, 4 + 4 processes, window 6) | k3 (main) | **k5 (this branch)** | k5 / k3, 95 % CI | k4 / k3 (alternative) |
+|---|---:|---:|---|---|
+| short (12 golden prompts) | 103.67 tok/s | 104.34 | 1.007 [1.006-1.007] | 1.018 [1.017-1.019] |
+| 1k | 90.09 | 90.88 | 1.009 [1.008-1.010] | 1.001 [1.000-1.003] |
+| 4k | 115.00 | 124.22 | **1.080** [1.079-1.081] | 1.059 [1.059-1.060] |
+| 16k | 91.82 | 96.42 | **1.050** [1.049-1.052] | 1.035 [1.034-1.037] |
+| geometric mean over the four | | | **1.036** | 1.028 |
+| plain decode (`--spec off`), short / 4k, 256 tokens | 76.86 / 74.04 | same code | `--spec off` does not read `mtp_default_k`; its 4 + 4 ABBA not run | |
 
-- **Change:** `recipes/inkling2.toml` `[tuning.hip] mtp_default_k` 3 -> 4 (and the unit test that pins it). No kernel or engine code
-  changed (`kernels/` identical to main). Gates: greedy md5 = main at short / 4k x 64 / 256, spec off and default; verify probe rows
-  2..5 worst diff 0; tiny suites as on main; G2 short / long identical to main (section 5-6).
+- **Change:** `recipes/inkling2.toml` `[tuning.hip] mtp_default_k` 3 -> 5, picked by the coordinator's rule (brief 2: no length slower
+  than k3 beyond its CI, >= +2 % with a CI lower bound above 1.0 at >= 2 lengths, then the higher geometric mean; both k4 and k5
+  pass, k5's geomean is higher), and the unit test that pins it. No kernel or engine code changed (`kernels/` identical to main).
+- Gates run: greedy md5 = main (k4 binary, window 4), verify probe rows 2..5 worst diff 0, tiny suites and G2 as on main; window 6:
+  ids of all 12 processes (k3 / k4 / k5, 16 prompts x 128 tokens) identical, so the k5 default's output is k3's and `--spec off`'s.
+  Not yet run on the k5 binary: the md5 runs and the probe's row 6 (section 8).
 - **Where a verify row goes** (section 1, kernel trace at 1-8 rows): at 4 rows the pass is 21.2 ms of kernels against 12.6 at 1 row.
   The experts grow with their union's bytes at the kernels' own 1-row bandwidth (no row cost; an expert-slice split gained < 1 % and
-  was reverted, section 2). The row-dependent excess with a flat floor is the verify attention (+1.20 ms at 4 rows, one decode call
-  per row) and the loop blend (+0.85 ms, `kFuseRowsMax = 2`): lane ink-hip-batch's files, reported, not touched (section 3).
-- k5 is the alternative: 1.006 / 1.008 / 1.080 / 1.051, short within noise (section 4).
-- Caveat: the k4 / k3 table was measured on main `3226af2b9`; the branch ships on `80719483a`, whose verify-path kernel forms are
-  the same (#529 only adds row-table instantiations, section 4). Window 4's single runs on the merged head (other prompts) read
-  0.995 / 0.992 / 0.983 / 1.021; a 4 + 4 confirmation there needs a radiance window beyond this lane's budget.
+  was reverted, section 2). The row-dependent excess with a flat floor is the verify attention (+1.20 ms at 4 rows: op 75 runs a
+  block row per verify row, each redoing its prologue jobs and reading the split's K / V) and the loop blend (+0.85 ms,
+  `kFuseRowsMax = 2`): reported (section 3); the follow-up lane ink-hip-vrow takes them (brief 2, part 2).
 
 ## Briefs received
 
@@ -139,7 +140,8 @@ Reading (revised after window 2's bench, section 2):
   within 3 % of the bench; the probe's own union was not read back, so the experts' floor here is approximate). So the experts'
   growth is the union's bytes, not a row cost of the kernels.
 - **The largest row-dependent excess with a flat floor is attention: +1.20 ms at 4 rows** (`ink_attn_dec_k` 0.78 -> 1.88 ms; the
-  verify attention is one decode call per row, +0.37 ms a row, each row reading the context's K / V again), then **blend: +0.85 ms
+  verify attention is one op-75 dispatch per visit whose grid has a block row per verify row (`ink_attn_dec_k`, grid z = rows),
+  +0.37 ms a row: each row's blocks redo that row's prologue jobs and read the split's K / V again), then **blend: +0.85 ms
   at 4 rows**: `kernels/hip/ink_mix.hip` `kFuseRowsMax = 2`, so from 3 rows the loop blend leaves the fused launch for
   `ink_ctl_gemv_kernel` + `ink_blend_gate` + `ink_blend_norm` (0.46 -> 1.04 ms between 2 and 3 rows, +96 dispatches a pass). Both
   are in lane ink-hip-batch's files (`ink_attn*.hip`, `ink_mix*.hip`): the brief's stop-and-report case, reported to the
@@ -207,7 +209,7 @@ for their owner (window 1, 1021-id context, kernel time per pass, ms):
 
 | lead | 1 row | 2 | 3 | 4 | 6 | 8 | what it is | likely gain at 3-4 rows |
 |---|---:|---:|---:|---:|---:|---:|---|---|
-| verify attention `ink_attn_dec_k` (+ `_s1_k`, comb, prologue) | 0.96 | 1.40 | 1.81 | 2.17 | 2.96 | 3.60 | one decode call per row (`ink_attn_decode_bf16` rows-exact), +0.37 ms a row, each row reading the 1k context's K / V again | a row-batched rows-exact form reading K / V once: up to ~0.8 / 1.1 ms a pass |
+| verify attention `ink_attn_dec_k` (+ `_s1_k`, comb, prologue) | 0.96 | 1.40 | 1.81 | 2.17 | 2.96 | 3.60 | one op-75 dispatch per visit, a block row per verify row (grid z = rows; correction: not one call per row, see section 8), +0.37 ms a row, each row's blocks reading the split's K / V again | a row-batched rows-exact form reading K / V once: up to ~0.8 / 1.1 ms a pass |
 | loop blend (`ink_blend_gate`, from 3 rows `ink_ctl_gemv_kernel` + `ink_blend_norm`) | 0.36 | 0.46 | 1.04 | 1.21 | 1.56 | 1.90 | `ink_mix.hip` `kFuseRowsMax = 2`: 3+ rows leave the fused launch, +96 dispatches a pass | the fused form up to 4 (or 8) rows: ~0.55 / 0.7 ms a pass |
 
 A k3 pass verifies 3.44 rows on average (W1 screen), so the two leads are worth ~1.3-1.8 ms of a ~20 ms pass (6-9 %), more at
@@ -239,9 +241,9 @@ arm, 2 per card. Ratio per (prompt, process) to the k3 process of the same card 
 Ids identical in all 12 processes (and to `--spec off`: the verify pass is bitwise the decode steps). Per short prompt k4 / k3 runs
 0.978-1.089 (5 of 12 below 1), k5 / k3 0.964-1.090 (6 of 12 below 1): a longer draft loses where acceptance is low. Against the bar
 (>= +2 % with a CI lower bound above 1.0 at >= 2 lengths, no length slower) both pass by the t-interval; k5 gains more at 4k / 16k
-(+2.0 / +1.6 % over k4) but its short class sits at 1.006 with a bootstrap low of 0.998, k4's at 1.018 (bootstrap low 1.010). **The
-branch ships k4** (`recipes/inkling2.toml` `[tuning.hip] mtp_default_k = 4`), the length that clears the bar at every length by both
-intervals; k5 is a one-line alternative for the coordinator (numbers above). Plain decode (`--spec off`) never reads
+(+2.0 / +1.6 % over k4) but its short class sits at 1.006 with a bootstrap low of 0.998, k4's at 1.018 (bootstrap low 1.010). The
+branch first shipped k4 (the arm that clears the bar at every length by both intervals); window 6 (section 8) re-ran the three arms on
+the merged head and the coordinator's rule picked k5. Plain decode (`--spec off`) never reads
 `mtp_default_k`, so it runs the same code as main.
 
 Non-gate data on the merged head (window 4's md5 runs, other prompts: `short-0.txt` / `4k-0.txt`, one process each, 64 / 256
@@ -303,8 +305,40 @@ tree in CPU job #12168), the same command as the branch's in window 4: **14 pass
 | 2 | #12133 | expert-slice probe, MoE bench (real-text unions), slice tests | 14:39:20-14:41:24 | 2:04 | 5:50 |
 | 3 | #12152 | draft length 4 + 4 ABBA, k3 / k4 / k5, ship path | 15:05:04-15:08:58 | 3:54 | 9:44 |
 | 4 | #12164 | gates of k4: md5, verify probe, tiny suites, G2 | 15:26:17-15:29:00 | 2:43 | 12:27 |
-| 5 | #12171 | main's tiny suite | 15:35:59-15:36:16 | 0:17 | **12:44** |
+| 5 | #12171 | main's tiny suite | 15:35:59-15:36:16 | 0:17 | **12:44** (brief 1's budget) |
+| 6 | #12180 | k3 / k4 / k5 4 + 4 on the merged head (brief 2, part 1: <= 7 min) | 15:42:19-15:46:17 | 3:58 | 16:42 |
 
 Radiance answered after every window (15 s after the restart; checked with `/v1/models`). CPU jobs (tatooine `--load cpu`): #12110
 (seed volume, main `3226af2b9`), #12117 (probe dry run), #12131 (split1), #12147 (`--recipe` flag check), #12153 (main2), #12161
 (verify1 + test targets + cpu tests), #12168 (main's tiny test). Pushes (endor): #12162, #12174.
+
+## 8. Window 6: k3 / k4 / k5 on the merged head (brief 2, part 1)
+
+fleetq #12180, radiance down 15:42:19-15:46:17 EST (**3:58**, the coordinator's window of at most 7 min), both cards. Binary `main2` =
+main `80719483a` (md5 `2f41908f…`), the window 3 protocol unchanged (`raw/stage_w6.sh`: `--recipe` copies of main `80719483a`'s
+`recipes/inkling2.toml`, k3 verbatim, which is byte-equal to the built-in; card 1's k3 arm the built-in recipe; ABCCBA per card;
+speed.json, 128 tokens). Logs `raw/window6-12180.log`, `raw/w6/`, analysis `raw/w6/speed-analysis.txt`.
+
+| decode, arm / k3 | short (12) | 1k | 4k | 16k | geomean | tokens / pass |
+|---|---:|---:|---:|---:|---:|---:|
+| k3 (103.67 / 90.09 / 115.00 / 91.82 tok/s) | 1 | 1 | 1 | 1 | 1 | 2.46 |
+| k4 | 1.018 [1.017-1.019; 1.009-1.027] | 1.001 [1.000-1.003] | 1.059 [1.059-1.060] | 1.035 [1.034-1.037] | 1.028 | 2.61 |
+| **k5** | 1.007 [1.006-1.007; 0.998-1.016] | 1.009 [1.008-1.010] | **1.080** [1.079-1.081] | **1.050** [1.049-1.052] | **1.036** | 2.67 |
+
+(t-interval over the 4 processes; bootstrap over processes x prompts.) Ids identical in all 12 processes; the counters equal window 3's
+to the token (the merged head runs the same verify forms). The rule: (a) no length slower than k3 beyond its CI: k4 and k5 pass (every
+t-interval lower bound >= 1.000); (b) >= +2 % at >= 2 lengths with lower bounds above 1.0: both pass (4k, 16k); (c) the higher
+geometric mean: **k5** (1.036 against 1.028). #534 now ships `mtp_default_k = 5` (recipe line + the pin test
+`dspark_default_only_where_the_recipe_sets_it`).
+
+Still to run on the k5 binary (`verify2`, CPU job #12183): the md5 runs (short / 4k x 64 / 256, spec default, against main) and the
+verify probe's row 6 (rows 2..6; rows 2..5 passed in window 4). The ids above already show k5's default output equals k3's and `--spec
+off`'s on 16 prompts; the probe and md5 runs go into the follow-up lane's first window (brief 2 part 2's budget) unless the coordinator
+wants them before merging #534.
+
+Correction to sections 1 and 3: the verify attention is not "one decode call per row". Op 75 (`ink_attn_decode_bf16`) takes all 1..16
+verify rows in one dispatch per visit (the trace's dispatch count is flat from 3 to 8 rows); its fused kernel's grid has a block row
+per verify row (grid z = t), and each row's blocks redo that row's prologue jobs (q, r, the own rows' conv'd k / v), its split's bias
+and read the split's K / V. The row cost is that per-row work, so #529's row-table form (row r = a T = 1 call of its own sequence) would
+not remove it; a lever needs the rows of one sequence to share the K / V reads inside op 75 while each row keeps its own split
+boundaries (`ink_split` depends on the row's position) and reduction order.
