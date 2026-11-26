@@ -596,7 +596,7 @@ around equal; the ABBA ratio is section 9's. The device code is main's (12.1).
     `serve`, every gate and every number in this doc ran the same forms in both TUs.
   - `ik_ink_probe` (INK_PROBE diagnostic builds only) reads the solo TU's device timestamps only.
   - ink_attn.hip has no such switch: only function-local statics that read env.
-- **Fix**: commit `d5b2a9bc0` on branch `ink/hip-batch-mixmode`, one commit on top of `74dd35306`. The two ints move to
+- **Fix**: commit `d5b2a9bc0` on branch `ink/hip-batch-mixmode`, one commit on top of `1fc41c5e2`. The two ints move to
   `namespace ik_inkmix`, defined in ink_mix.hip and declared `extern` in the rows TU. Host code only.
   - Checked on CPU (fleetq #12113, `raw/mixmode-12113.log`, `raw/mixmode_check.sh`):
     - `nm`: ink_mix.o defines `ik_inkmix::g_mix_mask` / `g_mix_dec` (D) and ink_mix_rows.o only references them (U), so one
