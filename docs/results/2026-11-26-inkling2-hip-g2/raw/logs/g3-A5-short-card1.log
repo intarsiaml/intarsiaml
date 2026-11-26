@@ -1,0 +1,40 @@
+--spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 256 (--prefill-chunk)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.3 s
+dspark: Markov fold [200058 x 256] in 4.1 s
+dspark: draft head mxfp4 [200058 x 2304] in 0.2 s
+dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 4.5 s
+--spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)
+speculative decoding: Dflash, up to 3 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_bf16_gemv_rows ink_attn_decode=ink_attn_decode_bf16 matmul=matmul_bf16_gemv_rows conv_mix=conv_mix_bf16 logits=logits_bf16_gemv_rows moe_route=moe_route moe_experts=moe_experts_situ_bf16_rows attn_res_mix=attn_res_mix_bf16 loop_blend=loop_blend_bf16 moe_experts_mxfp8=moe_experts_mxfp8_bf16_rows hc_pre=hc_pre_bf16 matmul=matmul_bf16_gemv qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 matmul=matmul_bf16 attn_decode=attn_decode_bf16_splitkv add=add_bf16 silu_glu=silu_glu_bf16 matmul_mxfp4=matmul_mxfp4_gemv logits=logits_bf16_gemv matmul_mxfp4=matmul_mxfp4_gemv_rows logits=logits_bf16 attn_decode=attn_decode_bf16_window argmax=argmax_f32
+accuracy: Inkling-2-Mini on AMD Radeon Graphics (vocab 200058, weights/act/kv bf16/bf16)
+accuracy: the golden's template "chatml" does not fit this tokenizer (turn format chatml: turn-close marker "<|im_end|>" is not a single token (got [27, 91, 315, 62, 406, 91, 29])); using inkling2 (recipe inkling2)
+KL row mask: inkling2 (recipe inkling2, golden template "chatml" does not fit the tokenizer): 0 of 569 rows lie inside a system or user turn and are not scored by the KL floor
+golden: golden/inkling2-mini-vllm-short-top20.safetensors (8 prompts, 569 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine vllm 0.1.dev25855+g7cb5dae22 | model thinkingmachines/Inkling-2-Mini | revision not in the model root path | dtype server | KV dtype auto | template chatml
+  reference cache config: {"_block_size_resolved": "True", "_extensible_kv_cache_resolved": "True", "block_size": "16", "cache_dtype": "auto", "cache_hit_alignment_tokens": "None", "effective_attention_block_size": "64", "enable_extensible_kv_cache": "True", "enable_mamba_shared_prefix_checkpoint": "False", "enable_prefix_caching": "False", "engine": "0", "gpu_memory_utilization": "0.3", "hash_block_size": "None", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_layout": "None", "kv_cache_max_concurrency": "3.286881307063912", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "26926", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "None", "mamba_cache_dtype": "auto", "mamba_cache_mode": "none", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "auto", "num_cpu_blocks": "None", "num_gpu_blocks": "6840", "num_gpu_blocks_override": "None", "prefix_cache_retention_interval": "0", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "simple_cpu_offload_num_blocks": "None", "skip_page_size_padded": "None", "sliding_window": "None", "swa_bounded_replay": "True", "use_kda_recoverssm": "False", "use_replayssm": "False", "user_specified_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server", "cache_salt": "not used (prefix cache not controlled: unverified whether prompt_logprobs requests read cached fp8 KV blocks)"} | prompt files ["golden.jsonl"] | add_special_tokens true | max_model_len 8192 | launch flags: not observable through the API; note: vllm/vllm-openai:inkling-2-mini (vLLM 0.1.dev25855+g7cb5dae22) on spark2 (GB10), docker run --gpus all --ipc host --network host --shm-size 16g, args: thinkingmachines/Inkling-2-Mini --served-model-name inkling-2-mini --tensor-parallel-size 1 --max-model-len 8192 --gpu-memory-utilization 0.30 --max-num-seqs 16 --reasoning-parser inkling --no-enable-prefix-caching (plain decoding, no speculative config, KV cache dtype auto); weights snapshot ed40e7da625f594fc9c4990f5f66be24873c22d7 (model-00001-of-00001.safetensors sha256 65e60f51...; identical blobs in b85c3cfa...); run tag run1
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 256; longest prompt 106; prompts spanning more than one chunk: 0/8
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 35 or a golden with longer prompts
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 35    35   100.00   1.020e-3   1.045e-3   1.045e-3   7.048e-3   0.0495   0.0503    94.86     35/35      0
+story                 40    40    92.50   5.245e-3   5.039e-3   5.039e-3   1.939e-2   0.0751   0.0736    96.00     12/40      0
+code                 101   101    99.01   1.027e-3   9.739e-4   9.739e-4   3.659e-2   0.0133   0.0132    95.25     8/101      0
+science               87    87   100.00   3.819e-3   3.817e-3   3.817e-3   2.303e-2   0.0413   0.0398    96.32     87/87      0
+chat_short            36    36    97.22   2.589e-2   1.860e-2   1.860e-2   4.487e-1   0.1893   0.1877    88.33     35/36      0
+chat_system           63    63    98.41   2.946e-2   2.767e-2   2.767e-2   5.302e-1   0.1224   0.1252    88.25     27/63      0
+chat_multiturn       101   101    99.01   9.603e-3   7.798e-3   7.798e-3   2.125e-1   0.0689   0.0675    88.71     3/101      0
+chat_reasoning       106   106    97.17   8.084e-3   6.459e-3   6.459e-3   2.270e-1   0.0708   0.0702    93.02    63/106      0
+OVERALL                    569    98.24   9.308e-3   8.003e-3   8.003e-3   5.302e-1   0.0679   0.0675    92.65     47.5%      0
+prefill floor [4bit]: top-1 (all rows) 98.24% (not gated for this class) ok | 21-way KL (scored rows, n=569) 8.003e-3 (need <= 3.0e-2) ok [all rows, n=569: 8.003e-3, reported only] | tail mass (all rows) ours 0.0675 vs ref 0.0679, excess -0.0004 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill confident rows (golden p1 - p2 >= 0.5, all rows): 367 of 569, top-1 misses 0 (reported, not gated)
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 8.003e-3 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 8.003e-3 (21-way KL over all rows <= static floor) | current def: PASS 8.003e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 55.1% of positions before the first argmax divergence, worst prompt 3.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
