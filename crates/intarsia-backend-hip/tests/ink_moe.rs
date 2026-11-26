@@ -314,7 +314,8 @@ fn ink_moe_wmma_prefill() {
 
 /// `INTARSIA_HIP_INK_PF2` bits 4 / 8 (lane ink-hip-pf2): the tensor-core down / gate_up in pieces of feature tiles give the bits of
 /// one launch, at the default budget and forced to one feature tile per piece (`INTARSIA_HIP_INK_PF2_US=1`), both formats, small
-/// shapes and the real one (H 2304, I 1152: 18 feature tiles each). Run with `--test-threads=1` (env).
+/// shapes and the real one (H 2304, I 1152: 18 feature tiles each); and any pair-tile block count (`INTARSIA_HIP_INK_PF2_ZP`) gives
+/// the default grid's bits. Run with `--test-threads=1` (env).
 #[test]
 fn ink_moe_pf2_pieces() {
     let Some(hip) = device("ink_moe_pf2_pieces") else { return };
@@ -340,6 +341,15 @@ fn ink_moe_pf2_pieces() {
                 n += 1;
             }
             set("INTARSIA_HIP_INK_PF2_US", None);
+            // the pair-tile block count (INTARSIA_HIP_INK_PF2_ZP): one block per expert slot stepping through every tile, and many
+            for zp in ["1", "16"] {
+                set("INTARSIA_HIP_INK_PF2", Some("0"));
+                set("INTARSIA_HIP_INK_PF2_ZP", Some(zp));
+                let got = run_host(&*hip, name, &hc).unwrap();
+                assert_eq!(base[0].data, got[0].data, "mx={mx} T={t} E={e} K={k} H={h} I={i}: ZP={zp} differs from the default grid");
+                n += 1;
+            }
+            set("INTARSIA_HIP_INK_PF2_ZP", None);
             intarsia_backend_hip::inkmoe::set_wmma(-1);
         }
     }

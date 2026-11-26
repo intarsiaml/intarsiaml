@@ -1051,7 +1051,7 @@ int moe_wmma_pairs(int64_t P, int E) {
 // pieces of consecutive feature tiles (grid y) under the R9700's ~1 ms dispatch stall line (ik_hip.h), bit 8 = gate_up too (opt-in:
 // on the 35B its pieces each paid the hot experts' load-imbalance tail, moe.hip round 8). A block of a piece is the block of the
 // one launch with the same feature tile. Bits 1 / 2 are ink_attn.hip's. Unset = kPf2Default; 0 = one launch each.
-constexpr int kPf2Default = 7;
+constexpr int kPf2Default = 3;
 int pf2_mask() {
     const char* e = getenv("INTARSIA_HIP_INK_PF2");
     return e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : kPf2Default;
@@ -1068,15 +1068,22 @@ int pf2_pieces(double est_us, int64_t max_pieces) {
     return (int)(p < 1 ? 1 : p);
 }
 // the tensor-core projections' rate in window 1's profile (T = 2048, 64-pair tiles): gate_up 4.25 ms and down 2.04 ms for
-// 87.0 / 43.5 GMAC, ~21 GMAC per ms; MXFP8 ~20
-constexpr double kWmMacPerUs = 20e3;
+// 87.0 / 43.5 GMAC, ~21 GMAC per ms (21e6 MAC per us); MXFP8 ~20
+constexpr double kWmMacPerUs = 21e6;
+// pair-tile blocks per expert slot (grid x): INTARSIA_HIP_INK_PF2_ZP (tuning, lane ink-hip-pf2) overrides the rule below; a block
+// steps through its expert's pair tiles by gridDim.x, so any count gives the same bits
+int wm_zp(int64_t P, int E, int pairs) {
+    const char* e = getenv("INTARSIA_HIP_INK_PF2_ZP");
+    if (e && *e && atoi(e) > 0) return atoi(e) > 64 ? 64 : atoi(e);
+    const int zp = (int)((2 * P / E + pairs - 1) / pairs);  // pair tiles in the grid: twice the average pairs per expert
+    return zp < 1 ? 1 : (zp > 8 ? 8 : zp);
+}
 
 template <int FMT, int ACT>
 int launch_wmma(const MoeArgs& a_in, int pairs, hipStream_t st) {
     MoeArgs a = a_in;
     const int64_t P = (int64_t)a.T * a.K;
-    int zp = (int)((2 * P / a.E + pairs - 1) / pairs);  // pair tiles in the grid: twice the average pairs per expert
-    zp = zp < 1 ? 1 : (zp > 8 ? 8 : zp);
+    const int zp = wm_zp(P, a.E, pairs);
     const int mask = pf2_mask();
     if (g_probe != 2) {
         const int Y = a.I / kMwFeatGateUp;
