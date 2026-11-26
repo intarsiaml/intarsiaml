@@ -30,7 +30,7 @@ launch); attention `H/Hk in 1..=3, Dh in {8,16,32,64,128}`. Op 75 is not built (
   slice is its own launch pair, so a 2048-row chunk is 32 x (s1 + comb [+ kv write]) launches.
 - Rows-exact by construction (a row's split map is a function of its position and window only); `ink_rows_exact` is
   backend-name gated, so HIP stays on the plain path regardless.
-- FP contraction: `ink_attn.hip` has `#pragma clang fp contract(off)` at file scope (hipcc default is fast-honor-pragmas), so
+- FP contraction: `ink_attn.hip` has `#pragma clang fp contract(off)` at file scope (hipcc default is fast-honor-pragmas; build.rs passes `-O3`, no `-ffp-contract` / `-ffast-math` override, checked), so
   no `build.rs` / `NO_FP_CONTRACT_SOURCES` entry is needed for 70/71. If op 75 is built later and must be bitwise the pair, it
   goes in the same file under the same pragma.
 - Admission cases: `inkling2/cases.rs` `InkKvPrologue` / `RelSinkAttn` (quick: head_dim 16 shapes, T 1 / 7 / 40, plus the
