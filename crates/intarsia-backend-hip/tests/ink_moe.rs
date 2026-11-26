@@ -372,6 +372,7 @@ fn ink_moe_pf2_pieces() {
     }
     set("INTARSIA_HIP_INK_PF2", None);
     eprintln!("{n} INTARSIA_HIP_INK_PF2 expert cases bitwise one launch");
+}
 
 /// The defaults as shipped (user decision 2026-11-26): with `INTARSIA_HIP_INK_MOE_WMMA` unset the ordinary names take the tensor-core
 /// prefill (the rule: 64-pair tiles from 16 pairs per expert on average), `=0` the decode kernels (the revert), `=1` the rule, `32` /
