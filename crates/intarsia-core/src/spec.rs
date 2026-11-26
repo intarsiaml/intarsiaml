@@ -217,6 +217,46 @@ impl SampledSpec {
     }
 }
 
+/// Lane ink-sampled (`INTARSIA_SPEC_SAMPLED_DFLASH`, [`Model::set_spec_sampled_dflash`](crate::model::Model)): sampled requests
+/// (temperature > 0) draft with a DFlash-family draft too (`--spec dflash`: Inkling-2's DSpark, DFlash, DFlash2, DSpine), single-sequence
+/// engine, one rank. The rule is [`SampledSpec::Match`]'s (greedy drafts; a row's draft is kept iff the token the target draws there
+/// equals it, else that draw is emitted and the pass ends) with every row's token drawn exactly as the plain step at that position draws
+/// it: the request's own sampler and RNG (one draw per emitted token, `Seq::token_from`), or the device sampler's position-keyed Gumbel
+/// draw (`HeadMode::LastGumbel`, [`crate::gumbel`]) for a request that takes it. That is the seed-exact form of `engine/keyed.rs`: every
+/// row's logits are bitwise the decode step's, so a seeded request emits the same ids with drafting on or off, and the output
+/// distribution is plain sampling's exactly (docs/results/2026-11-26-inkling2-sampled-dspark.md). Needs no proposal probabilities of
+/// the draft (a point-mass draft), so [`SampledSpec::Reject`] has no DFlash form. Separate from `INTARSIA_SPEC_SAMPLED` so that variable's
+/// Metal / CUDA default (`match` for `--spec mtp`) does not turn this on.
+pub fn sampled_dflash_parse(v: &str) -> Option<bool> {
+    match v {
+        "0" | "off" => Some(false),
+        "1" | "on" | "match" => Some(true),
+        _ => None,
+    }
+}
+
+/// [`sampled_dflash_parse`] of `INTARSIA_SPEC_SAMPLED_DFLASH` (read once): `None` when unset or empty (the backend default applies,
+/// [`sampled_dflash_default_for`]); an unknown value is off with a warning.
+pub fn sampled_dflash_from_env() -> Option<bool> {
+    static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| {
+        let v = std::env::var("INTARSIA_SPEC_SAMPLED_DFLASH").unwrap_or_default();
+        if v.is_empty() {
+            return None;
+        }
+        Some(sampled_dflash_parse(&v).unwrap_or_else(|| {
+            eprintln!("INTARSIA_SPEC_SAMPLED_DFLASH={v}: unknown (0 / off, 1 / on); sampled DFlash speculation stays off");
+            false
+        }))
+    })
+}
+
+/// The default when `INTARSIA_SPEC_SAMPLED_DFLASH` is unset: off on every backend (opt-in, lane ink-sampled 2026-11-26; default-on is
+/// the user's call after the measurements).
+pub fn sampled_dflash_default_for(_backend: &str) -> bool {
+    false
+}
+
 /// The probability of accepting draft `x` drawn from `q` against the target `p`: `min(1, p(x) / q(x))` (0 when `q(x) = 0`,
 /// which a draw from `q` never gives).
 pub fn accept_prob(p: &crate::sampler::Dist, q: &crate::sampler::Dist, x: u32) -> f64 {

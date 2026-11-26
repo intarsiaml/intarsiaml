@@ -49,7 +49,7 @@ impl Seq {
             self.held = Some((self.tok, k));
             return Ok(Prep::Draft(k));
         }
-        if !defer && model.sampled_verify_fast() && !super::mtp_verify_check() && model.spec_step_rows_ok(st, self.tok, k) {
+        if !defer && !self.spec_dflash && model.sampled_verify_fast() && !super::mtp_verify_check() && model.spec_step_rows_ok(st, self.tok, k) {
             // lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST`): draft and verify as one replay of the captured step, as a greedy
             // request's pass, with the rows read back for the draws (top-k where `Seq::verify_topk` allows it); the replay is
             // the eager draft and verify pass bit for bit, so the rows and drafts are the eager ones
@@ -59,7 +59,7 @@ impl Seq {
                 let t1 = std::time::Instant::now();
                 let n = rows.len();
                 let topk = rows.iter().any(|r| matches!(r, StepOut::TopK { .. }));
-                self.keyed_accept(model, st, len0, &pass.drafts, rows)?;
+                self.keyed_accept(model, st, len0, &pass.drafts, rows, false)?;
                 if let Some(t0) = t0 {
                     eprintln!(
                         "spec: keyed graph step {n} rows ({}) {:.3} ms, accept {:.3} ms",
@@ -74,7 +74,14 @@ impl Seq {
             // capture failed (graph steps are off now): the eager pass below
         }
         let t_draft = (!defer && crate::spec::trace_enabled()).then(std::time::Instant::now);
-        let drafts = model.mtp_draft(st, self.tok, k)?;
+        // lane ink-sampled: a DFlash-family draft (single-sequence engine, `INTARSIA_SPEC_SAMPLED_DFLASH`) proposes its greedy block as for
+        // a greedy request; how many it proposes depends on the draft's own probabilities only, never on a draw
+        let drafts = if self.spec_dflash {
+            let _d = crate::hostprof::span(crate::hostprof::Cat::Draft);
+            model.dflash_draft(st, self.tok, k)?
+        } else {
+            model.mtp_draft(st, self.tok, k)?
+        };
         if let Some(t) = t_draft {
             // lane samphost: the eager draft ends in its token download, so host time is device time
             eprintln!("spec: keyed draft {:.3} ms, {} drafts", t.elapsed().as_secs_f64() * 1e3, drafts.len());
@@ -102,23 +109,35 @@ impl Seq {
         // lane samphost (`INTARSIA_SAMPLED_VERIFY_FAST`): the rows as their device-side top-k where every row's plain step
         // would sample from it (`Seq::verify_topk`), so neither the whole rows nor the host's whole-row selection
         let fast = model.sampled_verify_fast().then(|| self.verify_topk(ids.len())).flatten();
-        let rows: Vec<StepOut> = match fast {
-            Some(k) => model.forward_verify_topk(st, &ids, k)?.1,
-            None => {
+        // lane ink-sampled: a device-sampled request's rows come back as the device sampler's draws at their positions (q tokens, the
+        // plain step's draws); a DFlash request's logits rows come back before the final softcap, which `keyed_accept` applies to the
+        // rows it draws from only
+        let gumbel = self.gumbel.filter(|_| self.keyed_gumbel);
+        let uncapped = gumbel.is_none() && fast.is_none() && self.spec_dflash;
+        let _v = crate::hostprof::span(crate::hostprof::Cat::Verify);
+        let rows: Vec<StepOut> = match (gumbel, fast) {
+            (Some(h), _) => model.forward_verify_gumbel(st, &ids, h)?.1.into_iter().map(StepOut::Token).collect(),
+            (None, Some(k)) => model.forward_verify_topk(st, &ids, k)?.1,
+            (None, None) => {
                 if model.sampled_verify_fast() {
                     model.note_verify_topk_fallback();
                 }
-                model.forward_verify_logits(st, &ids)?.1.into_iter().map(StepOut::Logits).collect()
+                if uncapped {
+                    model.forward_verify_logits_uncapped(st, &ids)?.1.into_iter().map(StepOut::Logits).collect()
+                } else {
+                    model.forward_verify_logits(st, &ids)?.1.into_iter().map(StepOut::Logits).collect()
+                }
             }
         };
         let t_acc = t_pass.map(|t| (t, std::time::Instant::now()));
-        self.keyed_accept(model, st, len0, &drafts, rows)?;
+        self.keyed_accept(model, st, len0, &drafts, rows, uncapped)?;
+        drop(_v);
         if let Some((t0, t1)) = t_acc {
             // lane samphost: the pass (its rows read back included) and the host's acceptance (draws, rollback)
             eprintln!(
                 "spec: keyed verify {} rows ({}) {:.3} ms, accept {:.3} ms",
                 ids.len(),
-                if fast.is_some() { "top-k" } else { "logits" },
+                if gumbel.is_some() { "device draws" } else if fast.is_some() { "top-k" } else { "logits" },
                 (t1 - t0).as_secs_f64() * 1e3,
                 t1.elapsed().as_secs_f64() * 1e3
             );
@@ -145,13 +164,15 @@ impl Seq {
         rows: Vec<StepOut>,
     ) -> Result<()> {
         let (len0, drafts) = self.deferred.take().ok_or_else(|| Error::Other("verify rows without a deferred pass".into()))?;
-        self.keyed_accept(model, st, len0, &drafts, rows)?;
+        self.keyed_accept(model, st, len0, &drafts, rows, false)?;
         self.keyed_first()
     }
 
     /// Row `i` of the pass over `[tok, d_1..d_m]` that started at `len0` holds the logits of generated token
     /// `generated + 1 + i` given that `d_1..d_i` were kept. Draw that token as the plain step would; keep going while the draw
     /// is the next draft. Rows after the first mismatch are never looked at (no draw is spent on them) and are rolled back.
+    /// `uncapped` (lane ink-sampled): logits rows are before the final softcap ([`Model::forward_verify_logits_uncapped`]); each row
+    /// is capped right before its draw, so the rows behind the first mismatch are never capped.
     fn keyed_accept(
         &mut self,
         model: &Model,
@@ -159,6 +180,7 @@ impl Seq {
         len0: usize,
         drafts: &[u32],
         rows: Vec<StepOut>,
+        uncapped: bool,
     ) -> Result<()> {
         if rows.len() != drafts.len() + 1 {
             return Err(Error::Other(format!("a sampled verify pass of {} drafts returned {} logits rows", drafts.len(), rows.len())));
@@ -166,7 +188,10 @@ impl Seq {
         let mut emit = Vec::with_capacity(rows.len());
         let mut accepted = drafts.len();
         let mut rows = rows.into_iter();
-        for (i, row) in rows.by_ref().enumerate() {
+        for (i, mut row) in rows.by_ref().enumerate() {
+            if let (true, StepOut::Logits(l)) = (uncapped, &mut row) {
+                model.softcap_row(l);
+            }
             let x = self.token_from(row, self.generated + 1 + i)?;
             emit.push(x);
             if drafts.get(i) != Some(&x) {

@@ -1299,6 +1299,7 @@ impl Model {
             token_feedback: std::sync::atomic::AtomicBool::new(false),
             spec_pipe: std::sync::atomic::AtomicU8::new(0),
             spec_sampled: std::sync::atomic::AtomicU8::new(0),
+            spec_sampled_dflash: std::sync::atomic::AtomicU8::new(0),
             feedback_hold: self.feedback_hold,
             tail_merge: 0,
             base_chunk: None,
