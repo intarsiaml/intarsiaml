@@ -7,12 +7,14 @@ chunks prefill in one forward pass, and every stream's reply stays bitwise its s
 ## Summary
 
 **Packed prefill for Inkling-2 on HIP works and is bitwise: every stream's reply equals its solo run's.** With
-`INTARSIA_INK_PACK=1` and `serve --max-batch N`, the waiting prompts' next chunks (at least 17 rows each) run as one forward pass.
+`serve --max-batch N` (packing is **default-on** there since window 9; `INTARSIA_INK_PACK=0` turns it off), the waiting prompts' next chunks (at least 17 rows each) run as one forward pass.
 The row-wise kernels run once over all rows. The attention pair runs once per segment, on that segment's own rings, KV and position.
 `ConvMix` runs in a new segment-table form (`kernels/hip/ink_mix_segs.hip`). The experts run once per run of segments that take the
-same expert form solo. Each final chunk's head runs alone on its last row. It **ships opt-in** (section 4.5). The recommended config
-for `--max-batch` servers is `INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096` (+606 MiB VRAM). With the default 2048-row passes,
-two ~1k prompts never fit one pass, so there is almost no gain.
+same expert form solo. Each final chunk's head runs alone on its last row. **Default-on with `--max-batch`**
+(HIP, cpu; brief 2b's rule after window 9, section W9), at the default 2048 rows per pass, which gives about equal speed on 1k
+prompts (two ~1k prompts never fit one pass) and +28 % on 8 x 512. The measured gains below need
+`INTARSIA_INK_PACK_ROWS=4096` (+606 MiB VRAM) with `--kv-fraction 0.9`; that workspace is not the default because at the default
+kv-fraction it comes out of an already clamped B16 KV budget.
 
 Speed, paired on card 0 (A = main 6517d98f4's batching server, which does not pack; R = this branch with the recommended config;
 2 paired reps of R, 3 of A; ratio R / A with its 95 % interval):
@@ -34,7 +36,7 @@ real 16 at once 1.016, filler 16 streams 0.994, 8 x 512 1.28.
 | 2 serve, 16 real prompts vs the solo server | **16 / 16 at 4 at once (4 waves), 16 / 16 at 8 (2 waves), 16 / 16 at 16** (W5); 16 / 16 with the 4096-row workspace; in the speed windows every packed arm's replies equal main's on the same requests, **232 / 232**. Prefix reuse: the HIP batching engine never resumes an Inkling-2 prompt (`prefix_reuse` off: no batched snapshots), so resumed packs do not arise at serve level; they are unit-tested |
 | 3 solo unchanged | `generate` greedy md5 **8 / 8 = main** (spec off and the DSpark default, short / 4k, 64 / 256; W3). Solo server (no `--max-batch`) **16 / 16 = main's** (W4). G2 short 4.491e-3 / long 4.083e-3: main's values exactly |
 | 4 tests | `inkling2_batch` hip tiny 9 / 9; `inkling2` hip tiny 14 / 17 (the same 3 as main: g1b (PF2), 2 screened-head); `intarsia-core` lib 270 (scheduler, registry, ops); `plan` 10; `docs_env_vars` 2 / 2; admission: `conv_mix_bf16` 532 cases, `moe_experts` 57 cases ADMITTED, serve admission 135 cases with nothing rejected (b10). ISA of `ink_mix` / `ink_mix_rows` / `ink_moe` kernels identical to main (31 / 55 / 427) |
-| 5 speed | above and section 4 (B and R: 2 paired reps each, A: 3; the window budget ran out); the default rule's condition (4) fails on the mean (4-stream filler TTFT p50 R / A 1.020: +0.8 % and +3.2 %), so opt-in |
+| 5 speed | above and section 4 (B and R: 2 paired reps each, A: 3). Window 9 added 2 pairs of the 4-stream filler row: pooled R / A TTFT p50 **1.028 [0.992, 1.065]**, aggregate **1.055 [1.037, 1.073]** (n = 4); by brief 2b's rule (interval reaches 1.01): **default-on**, 2048 rows (the 4096-row workspace does not fit B16 at the default kv-fraction) |
 | knob off == main | `INTARSIA_INK_PACK` unset: every new path is behind `ink_pack_on()` (`Model::ink_pack_capable`, the workspace growth at load, the `Phase::Pack` plan probe through `ink_pack_capable`); `pack_rows_max` then falls back to main's (0 for Inkling), so the scheduler never packs; `pack_last_alone` and the long-chunk lookup in `pack_body_rows` matter only where packing runs. Shown by code read and the cpu `core` / `plan` / `inkling2_packed` tests on b11; a knob-off `--max-batch` server was not run on the GPU (the solo server and `generate` were: = main) |
 
 Radiance: 8 windows, **25:42** down in total (the longest 4:38), restored within 15 s each time. Overlap (R3d) was not built
@@ -282,7 +284,8 @@ Checks without a GPU (tatooine cpu slots):
 | W6 | #12242 | 17:42:12 -> 17:46:00 = **3:48** | speed pair A (main3) / B (b10 packing, 2048 rows), tag w6; second-turn reuse check |
 | W7 | #12246 | 17:48:25 -> 17:52:46 = **4:21** | speed R (b10 packing, 4096-row workspace) / A / B, tag w7 |
 | W8 | #12248 | 17:53:34 -> 17:57:23 = **3:49** | real-shape unit test (card 1, PRE), then speed A / R, tag w8 |
-| **total** | 8 windows | **25:42** (budget 30:00, each <= 5:00: longest 4:38) | radiance answered within 15 s after every window |
+| W9 | #12256 | 18:33:34 -> 18:37:43 = **4:09** | brief 2b: 4-stream filler reps (main4 vs b12), hip tiny tests at the PF2 default, knob-off B16 server, B16 defaults check |
+| **total** | 9 windows | **29:51** (brief 2 budget 30:00, each <= 5:00: longest 4:38) | radiance answered within 15 s after every window |
 
 ### W1 (b5): packed != solo on HIP
 
@@ -490,11 +493,10 @@ scratch for a 4096-row call). Context 4608 tokens in all three.
 | (3) 16 streams: aggregate or TTFT p50 >= 5 % better, beyond the spread | **no** (real 1.016, filler 0.994; TTFT p50 0.879 with an interval over 1) | **yes**: filler aggregate 1.095 [1.076, 1.114], filler TTFT p50 0.916 [0.870, 0.962], real TTFT p50 0.779 [0.569, 0.990], real aggregate 1.050 [1.000, 1.099] |
 | (4) no stream count > 1 % worse on aggregate or TTFT p50 | (not met) | **fails on the mean**: filler 4-stream TTFT p50 R / A = 1.008 (W7) and 1.032 (W8), mean **1.020**, over the 1 % bar (interval [0.870, 1.170]: within the noise of these 4-request medians, whose 1-stream ratio, where nothing packs, is 0.995 / 0.914). Every other row of aggregate and TTFT p50 is better or within 1 % on the mean |
 
-**So packing ships opt-in** (`INTARSIA_INK_PACK`, default off): B does not reach (3); R reaches (3) but fails (4) on the mean of the
-4-stream filler TTFT p50 (+2.0 %, two reps). B and R got 2 paired reps each, not the brief's 3: the radiance budget (8 windows) ran out. **Recommended for `--max-batch` servers: `INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096`** (+606 MiB),
+**After window 8 packing stayed opt-in** (`INTARSIA_INK_PACK`, default off then): B does not reach (3); R reaches (3) but fails (4) on
+the mean of the 4-stream filler TTFT p50 (+2.0 %, two reps). **Window 9 (brief 2b's rule) made it default-on**: section W9. B and R got 2 paired reps each, not the brief's 3: the radiance budget (8 windows) ran out. **Recommended for `--max-batch` servers: `INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096`** (+606 MiB),
 which makes the measured gains: up to +9.5 % aggregate and -8 % TTFT p50 at 16 filler streams, +5 % aggregate and -22 % TTFT p50 at
-16 real prompts, +48 % prompt tok/s on 8 x 512, every reply bitwise. Flipping it default-on (both knobs) is the coordinator's / user's
-call; what it would take: one more paired rep of the 4-stream filler row (radiance budget spent: 8 windows, 25:42).
+16 real prompts, +48 % prompt tok/s on 8 x 512, every reply bitwise.
 
 ## 5. fleetq jobs and binaries
 
@@ -502,19 +504,68 @@ call; what it would take: one more paired rep of the 4-stream filler row (radian
   #12221 (b6 + main tiny tests), #12223 (b7), #12227 (b8: rebased on b7450223e, ISA, main2), #12231 (b9 on 6517d98f4, main3),
   #12238 / #12239 (b10, cpu admission sweep check), #12243 / #12245 (packed test rebuilt with the batched load, `docs_env_vars`),
   #12249 (**b11 = the PR head on 5367023d2**: cli built, core 270, plan 10, `inkling2_packed` cpu 5 / 5, hip lib 2, `docs_env_vars` 2).
-- GPU windows (radiance down): W1 #12216, W2 #12224, W3 #12236, W4 #12240, W5 #12241, W6 #12242, W7 #12246, W8 #12248.
+- GPU windows (radiance down): W1 #12216, W2 #12224, W3 #12236, W4 #12240, W5 #12241, W6 #12242, W7 #12246, W8 #12248, W9 #12256.
+- After the rebase onto 178d87ece: #12254 (b12, main4, ISA, cpu tests incl. `tests/scheduler.rs`), #12259 (b13 = the flip: packing
+  default-on; cpu tests), pushes on endor.
 - b11 differs from b10 only by the rebase onto #537 (ink-hip-pf2-tiny: `kernels/hip/ink_attn.hip`, which this lane does not touch)
   and docs; no GPU window ran b11 (budget spent). The GPU gates above ran b10 (on 6517d98f4).
 
 ## 6. Leftovers
 
-- **Default flip**: one more paired rep of the 4-stream filler row (R vs A) would show or refute condition (4); then
-  `INK_PACK_DEFAULT = true` with a 4096-row default workspace is a two-line change (`model/inkling2.rs`).
-- **hip tiny packed tests at the PF2 default**: they failed on b10 from main's PF2 tiny-shape fault, which #537 fixes (now in the base);
-  re-run `inkling2_packed` hip tiny without `INTARSIA_HIP_INK_PF2=0` on b11 in the next window.
+- **Done in W9**: the default flip (packing on, 2048 rows) and the hip tiny packed tests at the PF2 default (5 / 5 on b12).
+- **The 4096-row default**: blocked by the KV budget at the default kv-fraction (W9 item 4). A recipe-level `kv_fraction` for
+  batching servers, or a workspace that shares the KV pool, would let it be the default.
+- **Not GPU-run with the default on**: the hip tiny `inkling2_batch` / `inkling2` suites through a packing engine (cpu: all pass).
 - **Overlap (R3d)**: not built. ITL p99 stays 0.5-0.65 s at 8 / 16 (decode rows wait for a 2048-row pass); R lowers the 4-at-once
   p99 (0.483 -> 0.173 s) only because fewer passes run. Section 1.5 lists what it needs (a second HIP stream, events, per-slot fences).
 - **Prefix reuse on HIP batching**: off for Inkling (no batched ring snapshots); with it, resumed prompts would pack (unit-tested).
 - `pack_half` sends two waiting prompts one at a time (the 2 x 2048 row): a per-model `pack_half` could help Inkling, whose
   prefill is slow enough that TTFT gains from packing two.
+
+### W9 (brief 2b): the PR head on main 178d87ece
+
+Binaries: **b12** = the branch rebased onto 178d87ece (#536 ink-hip-vrow merged; only LOG.md conflicted), md5 5ca5f297; **main4** =
+178d87ece (md5 1212314c). cpu on b12 (#12254): `intarsia-core` lib 270, **`tests/scheduler.rs` 53**, `plan` 10, `inkling2_packed`
+cpu 5 / 5, hip lib 2; ISA vs main4: ink_mix 31 / 31, ink_mix_rows 55 / 55, ink_moe 427 / 427 kernels identical. b12 also makes the
+4096-row workspace growth conditional on a batched load on HIP / cpu (a solo load or Metal / CUDA keeps its workspace whatever the
+knobs say). Raw: `raw/w9/`, `raw/w9-fleetq.log`, summary `raw/w9_sum.py`.
+
+1. **hip tiny at main's default PF2 (no env, #537 in the base), b12, card 1: `inkling2_packed` 5 / 5** (2 x 17, 17 / 40 / 300
+   resumed, 2048 / 1000 / 17, 4096 rows two resumed, blend tails, 16 mixed: packed == solo; packed engine == solo engine; per-op
+   dumps), **`inkling2_batch` 9 / 9**.
+2. **The 4-stream filler row** (localeval `--sizes 1024 --gen 128 --concurrency 4`), R = b12 `INTARSIA_INK_PACK=1
+   INTARSIA_INK_PACK_ROWS=4096`, A = main4, both `--max-batch 16 --max-seq 4608 --kv-fraction 0.9`, card 0. Two new pairs ran; the
+   third (R2 then A2) was cut: A2 came up with 34 s left, under the 40 s a rep needs (main4's first start swept its admission on
+   card 1 in parallel, 109 s).
+
+| pair (order) | A TTFT p50 s | R TTFT p50 s | **R / A TTFT p50** | A agg tok/s | R agg tok/s | **R / A agg** |
+|---|---|---|---|---|---|---|
+| W7 (R, A) b10 vs main3 | 1.334 | 1.345 | 1.008 | 111.9 | 117.4 | 1.049 |
+| W8 (A, R) b10 vs main3 | 1.318 | 1.360 | 1.032 | 110.4 | 117.4 | 1.063 |
+| W9 k1 (R, A) b12 vs main4 | 1.303 | 1.321 | 1.014 | 113.4 | 118.1 | 1.041 |
+| W9 k2 (A, R) b12 vs main4 | 1.306 | 1.384 | 1.060 | 111.5 | 118.7 | 1.065 |
+| **pooled, n = 4** | | | **1.028 [0.992, 1.065]** | | | **1.055 [1.037, 1.073]** |
+
+   The 4-stream TTFT p50 is 2.8 % worse on the mean (one of the four runs of 4 requests sets each median); the aggregate is 5.5 %
+   better, beyond the spread.
+3. **Knob off, b12 `--max-batch 16`** (no `INTARSIA_INK_*`), card 1: the 16 real prompts at once, **16 / 16 replies equal to
+   main3's solo server** (W4) and to b10's packed server (W5); 0 packed passes; 122.3 tok/s, TTFT p50 3.35 s (A's numbers).
+4. **B16 at the recipe's defaults** (`--max-batch 16`, default `--max-seq` 4096 and `--kv-fraction` 0.5) with the 4096-row
+   workspace: **context clamped to 2791 tokens**, KV capacity 44 656 tokens (16 x 2791). The workspace is resident when the KV budget
+   is taken (0.5 x free memory, `memplan.rs`), so its extra ~573 MB costs ~290 MB of KV budget at the default fraction (about 3k pool
+   tokens, ~6 %; main at these defaults was not measured, so this is from the code, not a run). At `--kv-fraction 0.9` (W5-W9) the KV
+   is 73 728 tokens (16 x 4608) with or without it.
+
+**Decision (brief 2b rule): packing default-on with `--max-batch`.** The pooled 4-stream TTFT p50 interval [0.992, 1.065] reaches
+1.01 or better. **The 4096-row default does not fit:** at the default kv-fraction a B16 server is already memory-clamped (2791-token
+context with it), and the +606 MiB comes out of that KV. So `INK_PACK_DEFAULT = true`, `INK_PACK_ROWS_DEFAULT = 0` (2048 rows, no
+extra VRAM). What the default gives is the 2048-row arm B: bitwise, about equal speed on the 1k filler (two ~1k prompts do not fit
+one 2048-row pass), real prompts 16 at once +1.6 %, 8 x 512 prefill +28 %. The measured gains (filler 16 streams +9.5 %, real 16
+TTFT p50 -22 %) need `INTARSIA_INK_PACK_ROWS=4096` with `--kv-fraction 0.9`, as the batch lane's B16 config already runs.
+
+The flip binary (b13 = b12 + the two constants and the load message) did not run on the GPU (brief 2's one window was used); it is
+b12 with `INTARSIA_INK_PACK=1` by construction (cpu on b13, #12259: core 270, `tests/scheduler.rs` 53, plan 10, `inkling2` 17,
+`inkling2_batch` 9, `inkling2_packed` 5, hip lib 2, `docs_env_vars` 2, all with the default on), and b12 / b10 with that knob passed gates 1-3 (W5-W9). Not GPU-run with the default
+on: the hip tiny `inkling2_batch` / `inkling2` suites through a packing engine (the packed engine test `inkling2_packed_engine` is,
+5 / 5 on hip; cpu runs every suite with the default on, b13).
 
