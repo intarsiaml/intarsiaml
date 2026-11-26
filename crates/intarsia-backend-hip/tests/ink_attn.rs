@@ -1,12 +1,15 @@
 //! Inkling-2-Mini attention on HIP (`ink_kv_prologue_bf16`, `rel_sink_attn_bf16`; src/inkattn.rs, kernels/hip/ink_attn.hip;
 //! lane ink-hip-attn):
-//! * `admission_full_sweep`: the full (non-quick) admission sweep of ops 70 / 71 / 75 (run it once more with
-//!   INTARSIA_HIP_INK_ATTN_FLASH=1 to grade the flash prefill form of 71) against the f64 cpu reference (`ink_ref`) at the
-//!   registered tolerances: small shapes (head_dim 16, d_rel 8) and the real model (24 / 8 heads, head_dim 128, d_rel 16, extent
+//! * `admission_full_sweep`: the full (non-quick) admission sweep of ops 70 / 71 / 75, once with the split-KV form of 71 pinned and
+//!   once with the flash prefill form (the default since the user's decision 2026-11-26) pinned, against the f64 cpu reference
+//!   (`ink_ref`) at the registered tolerances: small shapes (head_dim 16, d_rel 8) and the real model (24 / 8 heads, head_dim 128, d_rel 16, extent
 //!   1024; sliding layers with window 1024 over a ring of 1040 rows and full layers with a linear cache; rows 1 / 4 / 16 / 2048).
 //! * `rows_exact_real_shapes`: an R-row prologue + attention pair equals, bit for bit, R one-row pairs at positions pos0 ..
 //!   pos0 + R made in order (q / rel / k / v / o and the final conv rings and K / V caches), host and device positions; T up to
-//!   256 (the attention runs a call as 64-row slices). Port of the CUDA test (crates/intarsia-backend-cuda/tests/inkling2_attn.rs)
+//!   256 (the attention runs a call as 64-row slices). Pins the split-KV form (`set_flash(0)`): the flash prefill form, the default,
+//!   is not bitwise the one-row calls.
+//! * `flash_prefill_default_and_revert`: knob unset = the flash form (bitwise `set_flash(1)`), `INTARSIA_HIP_INK_ATTN_FLASH=0` = the
+//!   split-KV form (bitwise `set_flash(0)`), at a prefill chunk (more than 16 rows) of both layer kinds. Port of the CUDA test (crates/intarsia-backend-cuda/tests/inkling2_attn.rs)
 //!   without its op-75 arms.
 //! * `bench_prefill` (ignored): one 256-row chunk at 4k context, split-KV vs flash (cache write included).
 //! * `bench_decode` (ignored; run with --ignored): one-row prologue + attention at real shapes against the KV-read roofline.
@@ -252,21 +255,74 @@ fn admission_full_sweep() {
     let Some(hip) = device() else { return };
     let cpu = CpuBackend::arc();
     let quick = std::env::var("INK_ATTN_QUICK").is_ok_and(|v| v == "1");
-    let sweep = SweepConfig { quick, ..SweepConfig::default() };
-    let opts = AdmissionOpts { sweep: Some(sweep), only_ops: Some(vec![Op::InkKvPrologue, Op::RelSinkAttn, Op::InkAttnDecode]), only_kernel: None };
-    let report = run_admission(&*cpu, &*hip, &opts).unwrap();
-    let text = report.render(true);
-    println!("{text}");
-    for name in ["ink_kv_prologue_bf16", "rel_sink_attn_bf16", "ink_attn_decode_bf16"] {
-        let k = report.kernels.iter().find(|k| k.kernel == name).unwrap_or_else(|| panic!("{name} not graded\n{text}"));
-        assert!(k.cases > 0 && k.admitted, "{name}: {} cases, admitted {}\n{text}", k.cases, k.admitted);
+    // both forms of 71 are graded whatever the default is: flash 0 = split-KV, 1 = the WMMA flash prefill (this thread only)
+    for flash in [0, 1] {
+        intarsia_backend_hip::inkattn::set_flash(flash);
+        let sweep = SweepConfig { quick, ..SweepConfig::default() };
+        let opts = AdmissionOpts { sweep: Some(sweep), only_ops: Some(vec![Op::InkKvPrologue, Op::RelSinkAttn, Op::InkAttnDecode]), only_kernel: None };
+        let report = run_admission(&*cpu, &*hip, &opts).unwrap();
+        let text = report.render(true);
+        println!("flash {flash}:\n{text}");
+        for name in ["ink_kv_prologue_bf16", "rel_sink_attn_bf16", "ink_attn_decode_bf16"] {
+            let k = report.kernels.iter().find(|k| k.kernel == name).unwrap_or_else(|| panic!("{name} not graded (flash {flash})\n{text}"));
+            assert!(k.cases > 0 && k.admitted, "{name} (flash {flash}): {} cases, admitted {}\n{text}", k.cases, k.admitted);
+        }
     }
+    intarsia_backend_hip::inkattn::set_flash(-1);
+}
+
+fn bits_differ(a: &Run, b: &Run) -> bool {
+    a.outs.iter().zip(&b.outs).any(|(x, y)| x != y) || a.state.iter().zip(&b.state).any(|(x, y)| x != y)
+}
+
+/// The defaults as shipped (user decision 2026-11-26): with `INTARSIA_HIP_INK_ATTN_FLASH` unset a prefill chunk takes the flash form
+/// (bitwise the pinned flash form), `=0` takes the split-KV form (bitwise the pinned split-KV form, the pre-flip default), `=1` the
+/// flash form; the two forms are not bitwise each other. Only this test reads the variable (the others pin their form per thread).
+#[test]
+fn flash_prefill_default_and_revert() {
+    let Some(be) = device() else { return };
+    let be = be.as_ref();
+    assert!(std::env::var_os("INTARSIA_HIP_INK_ATTN_FLASH").is_none(), "unset INTARSIA_HIP_INK_ATTN_FLASH to run this test");
+    let swa = Layer { window: 1024, ring: true, cr: 1040, dynamic: false };
+    let full = Layer { window: 0, ring: false, cr: 4096, dynamic: true };
+    let mut any_differs = false;
+    for (l, pos0) in [(&swa, 1030usize), (&full, 1500)] {
+        for t in [40usize, 256] {
+            let inp = make(l, t, (t * 31 + pos0) as u64);
+            let what = format!("window {} T={t} pos0={pos0}", l.window);
+            intarsia_backend_hip::inkattn::set_flash(0);
+            let split = run(be, l, &inp, t, pos0, t, false, false);
+            intarsia_backend_hip::inkattn::set_flash(1);
+            let flash = run(be, l, &inp, t, pos0, t, false, false);
+            intarsia_backend_hip::inkattn::set_flash(-1);
+            let unset = run(be, l, &inp, t, pos0, t, false, false);
+            same(&unset, &flash, &format!("{what}: knob unset is the flash form"));
+            std::env::set_var("INTARSIA_HIP_INK_ATTN_FLASH", "0");
+            let zero = run(be, l, &inp, t, pos0, t, false, false);
+            std::env::set_var("INTARSIA_HIP_INK_ATTN_FLASH", "1");
+            let one = run(be, l, &inp, t, pos0, t, false, false);
+            std::env::remove_var("INTARSIA_HIP_INK_ATTN_FLASH");
+            same(&zero, &split, &format!("{what}: =0 is the split-KV form"));
+            same(&one, &flash, &format!("{what}: =1 is the flash form"));
+            any_differs |= bits_differ(&split, &flash);
+            // decode / verify rows (<= 16) never take the flash form: the same bits at both settings
+            let tiny = make(l, 8, 77 + pos0 as u64);
+            intarsia_backend_hip::inkattn::set_flash(0);
+            let a = run(be, l, &tiny, 8, pos0, 8, false, false);
+            intarsia_backend_hip::inkattn::set_flash(-1);
+            let b = run(be, l, &tiny, 8, pos0, 8, false, false);
+            same(&a, &b, &format!("{what}: 8 rows are the split-KV form at the default"));
+        }
+    }
+    assert!(any_differs, "the flash and split-KV forms gave the same bits everywhere: the test does not tell the settings apart");
 }
 
 #[test]
 fn rows_exact_real_shapes() {
     let Some(be) = device() else { return };
     let be = be.as_ref();
+    // rows-exactness is the split-KV form's (the flash prefill form, the default, is not bitwise the one-row calls)
+    intarsia_backend_hip::inkattn::set_flash(0);
     let swa = Layer { window: 1024, ring: true, cr: 1040, dynamic: false };
     let full = Layer { window: 0, ring: false, cr: 4096, dynamic: true };
     // full at 8180..: 32 splits of 288 keys, the trailing ones empty
@@ -308,6 +364,7 @@ fn rows_exact_real_shapes() {
             }
         }
     }
+    intarsia_backend_hip::inkattn::set_flash(-1);
     eprintln!("{n} rows-exact cases bitwise");
 }
 
@@ -451,11 +508,11 @@ fn bench_prefill() {
             be.synchronize(0).unwrap();
             t0.elapsed().as_secs_f64() * 1e6 / n as f64
         };
-        std::env::set_var("INTARSIA_HIP_INK_ATTN_FLASH", "0");
+        intarsia_backend_hip::inkattn::set_flash(0);
         let ts = time("rel_sink_attn_bf16");
-        std::env::set_var("INTARSIA_HIP_INK_ATTN_FLASH", "1");
+        intarsia_backend_hip::inkattn::set_flash(1);
         let tf = time("rel_sink_attn_bf16");
-        std::env::remove_var("INTARSIA_HIP_INK_ATTN_FLASH");
+        intarsia_backend_hip::inkattn::set_flash(-1);
         println!("BENCH prefill {name}: split-KV {ts:.0} us, flash {tf:.0} us ({:.1}x)", ts / tf);
     }
 }

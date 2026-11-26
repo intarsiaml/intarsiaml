@@ -1,0 +1,20 @@
+fleetq: #12028 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-hip-pfflip/.scratch/phaseA2.sh'
+[phaseA2] build branch 11:29:49
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 2m 07s
+cli build exit 0
+492211cf8ca10b20a8a327f2e0b042f2  /home/josef/intarsiaml-ink-hip-pfflip/.scratch/bin/intarsia-pf
+    Finished `release` profile [optimized] target(s) in 13.47s
+  Executable tests/ink_moe.rs (/target/release/deps/ink_moe-34ae8a06fbc12c09)
+test ink_moe build exit 0
+    Finished `release` profile [optimized] target(s) in 0.60s
+  Executable tests/ink_attn.rs (/target/release/deps/ink_attn-07d7d3420654ccc9)
+test ink_attn build exit 0
+hip lib tests exit 0
+test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+hip ink_moe / ink_attn test build exit 0
+  Executable tests/ink_attn.rs (/target/release/deps/ink_attn-07d7d3420654ccc9)
+  Executable tests/ink_moe.rs (/target/release/deps/ink_moe-34ae8a06fbc12c09)
+[phaseA2] done 11:32:14
+fleetq: #12028 done (exit 0)

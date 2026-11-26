@@ -53,7 +53,14 @@ fn backend() -> Arc<dyn intarsia_core::Backend> {
         Ok("metal") => panic!("INTARSIA_INKLING2_BACKEND=metal: the Metal backend is macOS only"),
         Ok("cuda") => intarsia_backend_cuda::create(0).unwrap(),
         // lane ink-hip: one R9700 (HIP_VISIBLE_DEVICES picks the card)
-        Ok("hip") => intarsia_backend_hip::create(0).unwrap(),
+        Ok("hip") => {
+            // These tests grade the bitwise (rows-exact) prefill: pin the split-KV attention and the decode-kernel experts. The flash
+            // prefill attention (per thread) and the tensor-core expert prefill (process-wide) are the HIP defaults since the user's
+            // decision 2026-11-26 and are graded by G2 and the backend's own tests (docs/results/2026-11-26-inkling2-hip-pfflip.md).
+            intarsia_backend_hip::inkattn::set_flash(0);
+            intarsia_backend_hip::inkmoe::set_wmma(0);
+            intarsia_backend_hip::create(0).unwrap()
+        }
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
         Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal, cuda or hip"),
     }
