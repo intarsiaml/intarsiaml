@@ -1,8 +1,9 @@
 # Inkling-2-Mini Metal decode toward the bandwidth floor (lane ink-decroof, 2026-11-25)
 
 Status: step 0 done; fresh profile of main done; CONV_PRE (1760c5228) and BIAS_PRE / BIAS_EARLY (bb8457ccf) built and
-bitwise on every gate (#11936); A/B #11941 done: BIAS_PRE default on (7bab2fa92, +1.3 %), BIAS_EARLY stays off, CONV_PRE
-borderline at 143 (follow-up #11981 queued). Branch `ink/decroof` from
+bitwise on every gate (#11936); A/B #11941 + #11981 done: **CONV_PRE + BIAS_PRE default on, +2.0-2.4 % plain decode at 143 / 1k / 4k
+within one process, bitwise**; BIAS_EARLY stays off. Tip 699d0bfc7 ids equal to main. Lever 3 (fused attention above 4096
+keys) queued as #11983. Branch `ink/decroof` from
 origin/main d8c3c7148 (includes #496: DSpark k=3 default on Metal, so `--spec off` is plain decode), worktree
 `.worktrees/ink-decroof`. Not pushed.
 
@@ -111,7 +112,8 @@ at 143 and the median is >= 1.0 at 1k and 4k.
 | #11930 | build base d8c3c7148 (md5 c887ead6), cand 84bd490dd (= bb8457ccf code; 277c7697), diag (cand + the arm patch; 17cfcf8c), each its own target dir; test binaries; docs_env_vars 2 / 2 (`--load cpu`, 22:07-22:09) | done |
 | #11936 | gates (ids, Metal tests, G2) + fresh profile of main (exclusive, 22:10-22:17) | done, all pass |
 | #11941 | A/B: within-process 4 arms x 3 processes + cross-process ABBA 6 x 2 (exclusive, 22:17-22:38) | done |
-| #11981 | A2: within-process A / E (BIAS_PRE alone) / C (both), 3 processes; tip build, ids vs base, docs_env_vars, attn tests | queued |
+| #11981 | A2: within-process A / E (BIAS_PRE alone) / C (both), 3 processes; tip build, ids vs base, docs_env_vars, attn tests (23:11-23:25) | done |
+| #11983 | A3: fused attention above 4096 keys, within-process C / F at 4k / 8k / 16k | queued |
 
 Diag patch (`.scratch/diag`, never committed): `generate --prompt-ids` reads `INTARSIA_DIAG_ARMS` (one letter per prompt) and
 sets the Switch overrides before each prompt: A all off, B CONV_PRE, C + BIAS_PRE, D + BIAS_EARLY; it prints per prompt how
@@ -197,6 +199,28 @@ Decisions by the pre-registered rules:
   its default would go off, but that leaves BIAS_PRE without CONV_PRE, a combination no arm timed. #11981 times exactly
   that (A all off / E BIAS_PRE alone / C both, same within-process method): CONV_PRE stays on only if C / E's CI lies above
   1 at 143 and its median is >= 1.0 at 1k and 4k; otherwise its default goes off and E is the shipped state.
+
+## Follow-up A2 (#11981, 23:11-23:25; `raw/jobA2.log`): CONV_PRE on top of BIAS_PRE, and the tip
+
+Same method, arms A (all off) / E (BIAS_PRE alone) / C (both), 7 cycles AEC / CEA, 3 processes, 18 pairs per length. Every
+process: 3 distinct id lists (one per prompt, across all arms), launch counts as intended (E 0 / 12240, C 12240 / 12240).
+
+| comparison | 143 | 1k | 4k |
+|---|---|---|---|
+| E / A (BIAS_PRE alone) | 1.0141 [1.0132-1.0148], 16 / 18 | 1.0160 [1.0143-1.0167], 17 / 18 | 1.0134 [1.0126-1.0165], 17 / 18 |
+| **C / E (CONV_PRE on top)** | **1.0070 [1.0052-1.0088]**, 16 / 18, (1.007 1.007 1.007) | **1.0070 [1.0047-1.0093]**, 17 / 18 | **1.0069 [1.0041-1.0080]**, 17 / 18 |
+| **C / A (shipped vs main)** | **1.0212 [1.0185-1.0249]** | **1.0235 [1.0203-1.0263]** | **1.0204 [1.0172-1.0241]** |
+
+Arm medians (tok/s): 143 A 77.16 / C 78.82; 1k A 74.73 / C 76.39; 4k A 72.19 / C 73.70.
+
+**CONV_PRE stays default on**: on top of BIAS_PRE its CI lies above 1 at all three lengths (#11941's +0.5 % at 143 without
+BIAS_PRE was the same size, just not resolved). The shipped state (both on) is **+2.1 % / +2.4 % / +2.0 %** over main at
+143 / 1k / 4k, every CI above 1, all bitwise.
+
+Tip check in the same job (tip 699d0bfc7, md5 2d61b4a6, built in the worktree's own target dir): greedy ids at the three
+lengths equal to the base binary's from #11936, `--spec off` and spec default; docs_env_vars 2 / 2; inkling2_attn 1 / 1,
+rows_exact 11 / 11 with the new defaults. Single-run tip speed (not an A/B): `--spec off` 79.2 / 76.9 / 74.1 tok/s, spec
+default 123.7 / 80.8 / 99.8.
 
 ## Lever 3 (measure first): the fused decode attention above its 4096-key rule
 
