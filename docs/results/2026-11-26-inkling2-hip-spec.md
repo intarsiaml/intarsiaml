@@ -23,6 +23,12 @@ single-stream greedy decode. Shared rules: `.worktrees/hip-swarm/COMMON-1126.md`
    (spec on vs `--spec off`, greedy md5, short + 4k) on the rebased binary with no env set; (3) if (1) fails, gate the verify forward
    to the split-KV / decode-expert paths for rows <= k+1, or report back first. `ink_rows_exact` line: whichever of this lane and
    ink-hip-batch lands second takes the other's.
+4. 2026-11-26 ~12:25 EST (coordinator): run the tiny Metal suite once, in one exclusive endor slot. This is a one-off exception to
+   COMMON's endor rule: `fleetq run --host endor --exclusive --expect 8 --label "ink-hip-spec metal no-op (tiny)"`, `env
+   INTARSIA_INKLING2_BACKEND=metal cargo test --release -p intarsia-models --test inkling2 --test inkling2_dspark --test
+   inkling2_dspark_cut --test inkling2_verify_softcap`. Tiny models only. Build it first in a `--load cpu` slot. If anything fails,
+   stop and report; no second exclusive slot. Pass counts go next to the cpu runs. Card 1 is fine for identity work if the run held a
+   fleetq slot covering it (name the job ids). Speed stays on card 0. Go ahead with the paired speed windows.
 
 ## 1. What HIP lacked (checked against the code, main `87c9745c0`)
 
@@ -45,7 +51,10 @@ Prefix reuse on hip is unchanged by the `ink_rows_exact` line: `Model::model_min
 
 - Tiny suite on hip (`INTARSIA_INKLING2_BACKEND=hip`): `inkling2` 15 / 17, now including **`inkling2_tiny_rollback_by_length`**,
   **`inkling2_tiny_verify_graph_replays_equal_decode_bitwise`** and `inkling2_tiny_chunked_and_decode_match_prefill_bitwise`; the two
-  failures are the screened-head tests (HIP has no `HeadScreen`, refused at load as designed, as before). `inkling2_verify_softcap` 1 / 1,
+  failures are the screened-head tests: they force `INTARSIA_INK_HEAD_SCREEN=1`, and HIP has no `HeadScreen` kernel, so the load
+  refuses with `NoKernel` (panic at `load_screen`, tests/inkling2.rs:91). Those two failures were already recorded for hip, by design,
+  in docs/results/2026-11-25-inkling2-hip.md (test table, line 175), and the chunk the branch's `on_metal()` change sets does not
+  matter there, because they fail at load. `inkling2_verify_softcap` 1 / 1,
   `inkling2_dspark` 4 / 4, `inkling2_dspark_cut` 1 / 1.
 - `tests/topk.rs` on hip 6 / 6 (new `device_topk_bf16_rows_are_the_host_order`: 1105 pairs at V 200058 / 201024 / 1000 / 70 / 300).
 - `intarsia kernels test --backend hip --op hc_pre`: `hc_pre_bf16` 6 cases, 0 failing, ADMITTED.
@@ -57,7 +66,8 @@ Prefix reuse on hip is unchanged by the `ink_rows_exact` line: `Model::model_min
   tok/s (+6.3 %, one pair), 31 verify passes, 62 proposed, 44 accepted (71.0 %, 2.42 tokens per pass); no `device top-k unavailable`
   and no `no row-exact kernel` line; draft load: Markov fold 2.1 s, MXFP4 head 0.2 s.
 
-## 3. Window 2 (fleetq #12048, 12:13:34-12:17:24 EST, radiance down 3 min 50 s; both cards)
+## 3. Window 2 (fleetq #12048, 12:13:34-12:17:24 EST, radiance down 3 min 50 s; both cards: #12048 held tatooine-r9700 and
+## tatooine-r9700-2, so card 1's identity runs were inside the slot)
 
 Binaries: `base` = main `87c9745c0` + PR #526 (`da8501b51`, the HIP prefill flip: WMMA experts, flash prefill attention, chunk 2048),
 md5 `492211cf` (= pfflip's `intarsia-pf`); `spec2` = this branch with #526 merged (`e49b8a29c`), md5 `f7494043`. No env set unless named.
