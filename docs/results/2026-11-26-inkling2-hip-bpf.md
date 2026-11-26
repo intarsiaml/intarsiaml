@@ -77,6 +77,16 @@ Radiance: 8 windows, **25:42** down in total (the longest 4:38), restored within
   shapes solo prefill never runs. **Any non-bitwise or run-to-run-varying packed result: rerun it with `INTARSIA_HIP_INK_PF2=0`
   before debugging this lane's code, and note the result here.** No other change to the brief.
 
+- 2026-11-26 ~18:10 EST (coordinator, after PR #538; in substance): one more window on the PR head (b11), at most 5:00 down:
+  (1) hip tiny `inkling2_packed` at main's default PF2 (no env) plus `inkling2_batch`, must pass; (2) the 4-stream filler row,
+  A (main 178d87ece, or the 6517d98f4 binary if no fresh build fits) vs R (b11, recommended config), 3 more paired reps in
+  alternating order, TTFT p50 and aggregate per rep and pooled with the earlier 2 reps, 95 % CI; (3) if time allows, one
+  `--max-batch 16` server with packing off on b11, 16 real prompts, md5 / text equal to main's (closes the knob-off gap).
+  Decision rule: if the pooled 4-stream TTFT p50 is at most 1 % worse, or its CI includes 1 % or better, make packing default-on
+  with `--max-batch` (`INK_PACK_DEFAULT`), plus the 4096-row default if the +606 MiB fits the recipe's B16 budget at the default
+  kv-fraction (say whether it fits); otherwise opt-in. Either way update the PR body (table, gates, decision and why), push, report;
+  do not merge. Lane ink-hip-verify may also queue a short window; fleetq orders them. Prefill overlap is out of scope (follow-up).
+
 ## 0. Prior work (step 0)
 
 `git log --all -i --grep` over pack / packed prefill / pack_min_rows / pack_rows, the `ink/*` and `lane-*` branches, and the results docs:
