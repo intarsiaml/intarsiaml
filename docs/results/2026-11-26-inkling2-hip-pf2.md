@@ -1,7 +1,22 @@
 # Inkling-2-Mini prefill on HIP after the flip (lane ink-hip-pf2, 2026-11-26)
 
-Branch `ink/hip-pf2` from main `87c9745c0`. One R9700 (tatooine card 0, gfx1201). Shared rules:
-`.worktrees/hip-swarm/COMMON-1126.md`.
+Branch `ink/hip-pf2` from main `87c9745c0`, merged with main `40b85a391` (lane ink-hip-pfflip's new prefill defaults, #526). One
+R9700 (tatooine card 0, gfx1201). Shared rules: `.worktrees/hip-swarm/COMMON-1126.md`.
+
+**Status (13:15 EST): shipped as a default-on, bitwise knob, `INTARSIA_HIP_INK_PF2` (default 151; `=0` is main's forms).**
+Prefill +12.9 % at 4k and +13.9 % at 16k over main `40b85a391` at its defaults; greedy output identical to main (md5 at 64 and
+256 tokens, short / 4k / 16k); decode unchanged.
+
+| tok/s, one R9700 (main `40b85a391` vs branch pf2e, both at their defaults) | main | branch | change | paired 95 % CI |
+|---|---|---|---|---|
+| Prefill 4k (4228 tokens), 4 + 4 ABBA | 2692.2 | 3040.4 | +12.93 % | [1.1273, 1.1313] |
+| Prefill 16k (16915 tokens), 4 + 4 ABBA | 2790.4 | 3177.8 | +13.89 % | [1.1361, 1.1416] |
+| Decode short, 256 tokens, 2 + 2 | 76.9 | 76.9 | -0.01 % | [0.9982, 1.0015] |
+| Decode 4k, 256 tokens, 2 + 2 | 74.1 | 74.0 | -0.04 % | n = 2 |
+
+Window 6 (section 8). What moved: the prologue's 100 MB rel table as its own pass (80 -> 46 ms per 2048-row chunk), flash
+attention and the experts' down launched in pieces under the R9700's ~1 ms dispatch stall line (the ~274 us idle after every
+long launch), and 4x the pair-tile blocks per expert in the experts' tensor-core kernel (hot experts' tiles side by side).
 
 ## 0. Brief (coordinator, 2026-11-26 ~11:45 EST; kept here against context loss)
 
@@ -191,3 +206,48 @@ Log `raw/window5-12077-gate.log`, stage `raw/stage_gate.sh`. All at the defaults
   incl. bit 128 and the 8-byte rel table; `rows_exact_real_shapes` 63; `flash_prefill_default_and_revert`; quick admission
   sweep), `ink_moe` 7 passed (`ink_moe_pf2_pieces` 60 cases bitwise one launch; `ink_moe_wmma_default_and_revert`; rows-exact).
 - `cargo test -p intarsia-cli --test docs_env_vars` (endor CPU job #12078): 2 passed (the four new `docs/tuning.md` rows).
+
+## 8. Window 6: speed, main2 vs pf2e (fleetq #12081)
+
+Radiance down 13:10:39 - 13:14:19 (3:40). Log `raw/window6-12081-speed.log`, stage `raw/stage_speed.sh`, analysis
+`raw/speed.py` -> `raw/window6-speed-analysis.txt`. Prefill: 4 + 4 processes per prompt, ABBA over the reps, `--max-tokens 2`;
+decode: 2 + 2 at 256 tokens. Every pair of processes gave the same md5 (2 tokens at 4k / 16k, 256 tokens at short / 4k:
+`9a27c21b…`, `9675bbb9…`).
+
+| Prompt | main tok/s (4 runs) | branch tok/s (4 runs) | paired ratio | 95 % CI |
+|---|---|---|---|---|
+| 4k prefill | 2686.5 - 2698.9 (mean 2692.2) | 3034.4 - 3047.8 (mean 3040.4) | 1.1293 | [1.1273, 1.1313] |
+| 16k prefill | 2786.0 - 2793.3 (mean 2790.4) | 3174.0 - 3181.3 (mean 3177.8) | 1.1389 | [1.1361, 1.1416] |
+| short decode (256) | 76.88 / 76.89 | 76.86 / 76.89 | 0.9999 | [0.9982, 1.0015] |
+| 4k decode (256) | 74.05 / 74.10 | 74.02 / 74.07 | 0.9996 | n = 2 |
+
+Decode is unchanged by construction: every bit acts on calls above 16 rows (attention) or on the experts' pair-table
+tensor-core path (the rule: >= 16 pairs per expert on average), which decode never takes; the 256-token md5s match.
+
+Bar (brief): >= +5 % at 4k and 16k with a CI lower bound > 1.0: met (+12.9 % / +13.9 %). Output: the same bits as the new
+defaults, so default-on behind the knob, `INTARSIA_HIP_INK_PF2=0` reverting (window 4: `=0` 2721 / 2815 tok/s against main2's
+2726 / 2820).
+
+## 9. Radiance downtime and jobs
+
+| Window | fleetq | Down | Total |
+|---|---|---|---|
+| 1 profile of main 87c9745c0 (new settings) | #12036 | 11:49:34 - 11:50:23, 0:49 | 0:49 |
+| 2 bench, 4k A/B, bitwise (pf2a) | #12046 | 12:11:43 - 12:12:47, 1:04 | 1:53 |
+| 3 bits one by one + profile (pf2c) | #12056 | 12:29:41 - 12:33:13, 3:32 | 5:25 |
+| 4 main2 vs pf2d A/B | #12071 | 12:52:26 - 12:56:00, 3:34 | 8:59 |
+| 5 gate (pf2e) | #12077 | 13:04:34 - 13:07:35, 3:01 | 12:00 |
+| 6 speed (pf2e) | #12081 | 13:10:39 - 13:14:19, 3:40 | 15:40 |
+
+Every window restarted radiance in its EXIT trap and saw `/v1/models` answer 15 s later. CPU jobs on tatooine: #12033 (main
+87c9745c0), #12044 (pf2a), #12050 (pf2b), #12052 (pf2c), #12061 (main2), #12065 (pf2d, stale: same md5 as main2), #12069
+(pf2d), #12074 (pf2e); #12030 cancelled (queued with `--mem 10`, see section 0). endor CPU job #12078 (`docs_env_vars`).
+
+## 10. Left for later (ms per 2048-row chunk at ctx 2k, after this branch)
+
+- Experts: gate_up ~4.2 ms and down ~2.0 ms per call at ~41 TFLOPS (bf16 WMMA issue peak 194): ~280 ms per chunk, the largest
+  item by far. The 35B's r7 OCC form did not carry over (slower here); the next try is the kernel's k loop itself (asm per WMMA).
+- Attention: flash ~82 ms (20 - 28 TFLOPS); the rel table could go entirely if flash formed the bias from r as CUDA's RIN
+  kernel does (~0.5 ms per visit: the 15 ms table pass plus the table read).
+- `ink_ctl_gemv` 24 ms per chunk, a GEMV at prefill (2048 rows x rank 64): a WMMA form changes the sum order (opt-in only).
+- The stall after gate_up (48 per chunk, ~13 ms): its pieces cost as much as they save (window 3).
