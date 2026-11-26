@@ -54,8 +54,8 @@ Prefix reuse on hip is unchanged by the `ink_rows_exact` line: `Model::model_min
   failures are the screened-head tests: they force `INTARSIA_INK_HEAD_SCREEN=1`, and HIP has no `HeadScreen` kernel, so the load
   refuses with `NoKernel` (panic at `load_screen`, tests/inkling2.rs:91). Those two failures were already recorded for hip, by design,
   in docs/results/2026-11-25-inkling2-hip.md (test table, line 175), and the chunk the branch's `on_metal()` change sets does not
-  matter there, because they fail at load. `inkling2_verify_softcap` 1 / 1,
-  `inkling2_dspark` 4 / 4, `inkling2_dspark_cut` 1 / 1.
+  matter there, because they fail at load. `inkling2_dspark` 4 / 4, `inkling2_dspark_cut` 1 / 1. (`inkling2_verify_softcap` did
+  **not** run here: cargo stops after the first failing test binary. It ran alone in window E, section 8.)
 - `tests/topk.rs` on hip 6 / 6 (new `device_topk_bf16_rows_are_the_host_order`: 1105 pairs at V 200058 / 201024 / 1000 / 70 / 300).
 - `intarsia kernels test --backend hip --op hc_pre`: `hc_pre_bf16` 6 cases, 0 failing, ADMITTED.
 - Real-model verify probe (`tests/verify_rows_real.rs`, rows 2..=4 at 17 / 1024 / 4000 and 16 greedy windows): **argmax equal on every
@@ -221,4 +221,23 @@ passes are long. `INTARSIA_INK_ROWS_EXACT=0` gives back the old spec-off kernels
 
 Main: base binary (main + #526, the same code as main `40b85a391`), one `--spec off` process (window C). Branch: the median of 4
 processes of the cut arm (windows A / B). The paired ratios and CIs are in section 5. Radiance down: window 1 2:05, window 2 3:50,
-A 3:59, B 3:59, C 1:58, total 15:50 (lane cap 30 min).
+A 3:59, B 3:59, C 1:58, D 1:28, E 0:15, total 17:33 (lane cap 30 min).
+
+Main's column is n = 1 (one process). The branch's is the median of 4 processes.
+
+## 8. Windows D and E: the hip tests on the PR head
+
+The #526 merge changed the tiny harness's hip `backend()` (`inkattn::set_flash(0)`, `inkmoe::set_wmma(0)` before `create(0)`), and the
+flip moved hip's tiny DSpark tests to the cut rule, both after window 1. So the suite ran again on the PR head (`aaa190799`, binary
+`spec4` md5 `99a65142`, its test targets built in fleetq #12068).
+
+- Window D (fleetq #12072, 12:56:34-12:58:02 EST, radiance down 1 min 28 s, card 0), `INTARSIA_INKLING2_BACKEND=hip`: `inkling2`
+  15 / 17. **`inkling2_tiny_rollback_by_length` ok, `inkling2_tiny_verify_graph_replays_equal_decode_bitwise` ok**,
+  `inkling2_tiny_verify_rows_equal_decode_bitwise` ok, `inkling2_tiny_chunked_and_decode_match_prefill_bitwise` ok. The two failures
+  are the screened-head pair, by design (section 2). `inkling2_dspark` 4 / 4, `inkling2_dspark_cut` 1 / 1, hip `tests/topk.rs` 6 / 6.
+- Window E (fleetq #12075, 13:00:14-13:00:29 EST, radiance down 15 s): `inkling2_verify_softcap` alone on hip, 1 / 1
+  (`verify_logits_rows_are_the_softcapped_decode_logits`).
+- CI on PR #527 at `aaa190799`: `cargo check` linux / cuda cfgs / hip cfgs pass. The one warning in `inkling2_dspark_cut`
+  (`unused import: Mutex`, line 13) is on main already; this branch does not touch that line.
+- `verify_check`'s softcap: every verify head writes pre-softcap logits to `ws.logits` (`Model::softcap_step` doc, model.rs), Gemma-2
+  included, so the diagnostic does not cap twice anywhere.
