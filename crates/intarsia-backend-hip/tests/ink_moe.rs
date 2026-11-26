@@ -128,9 +128,10 @@ fn ink_moe_matches_cpu_reference() {
         }
     }
     assert!(hits[0] > 0 && hits[1] > 0, "no sweep case reached the kernels: {hits:?}");
-    // the pair-table path (more than 512 pairs) at small shapes, and 512 / 513+ pairs around the switch; where H and I are
-    // multiples of 64 (70 x 8 at 256 / 128; 300 x 8 at 128 / 192: 300 pairs per expert, five 64-pair tiles with a tail) the
-    // ordinary names run the tensor-core prefill there and the twins do not exist (more than 16 rows)
+    // the pair-table path (more than 512 pairs) at small shapes, and 512 / 513+ pairs around the switch. Run with
+    // INTARSIA_HIP_INK_MOE_WMMA=1, the ordinary names take the tensor-core prefill where H and I are multiples of 64 and a call
+    // has 16 pairs per expert (70 x 8 at 256 / 128; 300 x 8 at 128 / 192: five 64-pair tiles with a tail; the sweep's prefill
+    // cases); unset, everything here is the decode kernels
     let mut rng = SplitMix64::new(0x1A4B_0001);
     for (t, e, k, h, i) in [(150usize, 16usize, 4usize, 64usize, 32usize), (70, 32, 8, 256, 128), (64, 32, 8, 96, 160), (65, 32, 8, 96, 160), (300, 8, 8, 128, 192)] {
         let c = situ_case(&mut rng, t, e, k, h, i);
@@ -334,8 +335,8 @@ fn ink_moe_bench() {
             let pairs = t * k;
             let mut cfgs: Vec<(String, i32, i32, i32, i32)> = vec![("default".into(), -1, 0, 0, -1), ("first form".into(), 0, 0, 0, 3)];
             if pairs > 512 {
-                // window = the tensor-core pair tile here (0: the decode kernels on the pair table)
-                cfgs.extend([("wmma tile 32".to_string(), -2, 0, 0, 32), ("wmma tile 64".to_string(), -2, 0, 0, 64), ("decode kernels".to_string(), -2, 0, 0, 0)]);
+                // window = the tensor-core setting here (1: the rule, 32 | 64: forced tiles)
+                cfgs.extend([("wmma tile 32".to_string(), -2, 0, 0, 32), ("wmma tile 64".to_string(), -2, 0, 0, 64), ("wmma rule".to_string(), -2, 0, 0, 1)]);
             }
             if pairs <= 512 && std::env::var_os("INK_MOE_BENCH_NOSWEEP").is_none() {
                 for nb in [4, 8] {
