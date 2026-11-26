@@ -80,6 +80,7 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
 | 2 (op 75 v1: admission, bitwise pair, bench, model decode) | #11952 | 22:10:16-22:12:09, 1 min 53 s | yes (total 1:53 of 20:00) |
 | 3 (op 75 v2 + flash: admission, bitwise, benches, G2, model) | #11960 | 22:16:53-22:18:54, 2 min 01 s | yes (total 3:54 of 20:00) |
 | 4 (op 75 rule + flash knob: admission x2, bitwise, benches, G2 x2, model) | #11970 | 22:26:29-22:29:07, 2 min 38 s | yes (total 6:32 of 20:00) |
+| 5 (PR window `ink/hip-speed`: md5 vs main, graphs, G2, admission) | #11986 | 22:45:07-22:49:35, 4 min 28 s | yes (total 11:00 of 20:00) |
 
 ## Step 0
 
@@ -232,6 +233,30 @@ Flash prefill now runs inside `rel_sink_attn_bf16` (calls of more than 16 rows) 
 | pair (`INTARSIA_INK_ATTN_FUSED=0`), flash off | 62.44 tok/s | 60.83 tok/s | 8093 ms |
 | op 75 with the rule (`=1`), flash off | **63.62 tok/s (+1.9 %)** | **61.79 tok/s (+1.6 %)** | 8143 ms |
 | op 75 with the rule, flash on | | 61.62 tok/s | **7082 ms (-12.5 %; 476 -> 417 ms per 256-token chunk)** |
+
+## Integration PR `ink/hip-speed` (window 5 #11986, raw/window5-11986-pr.log, raw/pr-md5/)
+
+Tree: origin/main `4fc9901d4` + attn `281bf227e` + moe `38ca22491` + mix `9c737ed4a` + the one core line
+(`model/inkling2.rs`, `"cuda"` -> `"cuda" | "hip"` in the op 75 rule). Reference build: main `4fc9901d4`, same box, same card,
+same window, built by `--load cpu` job #11976. `generate --spec off --ignore-eos`, graphs, defaults (flash prefill off).
+
+| Prompt, tokens | md5 main | md5 branch | Graph (both) | Decode main -> branch | Prefill main -> branch |
+|---|---|---|---|---|---|
+| short (31), 64 | 04cdb28a… | 04cdb28a… | 63 replays, 1 capture, 0 eager | 62.08 -> 72.54 tok/s | 84 -> 98 ms |
+| 4k (4228), 64 | a7c6a2ac… | a7c6a2ac… | 63 / 1 / 0 | 59.95 -> 69.75 | 7964 -> 6926 ms |
+| short, 256 | b4a4f492… | b4a4f492… | 255 / 1 / 0 | 62.46 -> **72.81 (+16.6 %)** | 81 -> 100 ms |
+| 4k, 256 | c96e82b7… | c96e82b7… | 255 / 1 / 0 | 60.43 -> **70.34 (+16.4 %)** | 8046 -> **6997 ms (-13.0 %)** |
+
+- Raw stdout byte-identical main vs branch on all four runs (`cmp`), so the output is bitwise; the blend / route / op 75
+  device-global tickets survive graph capture + 255 replays.
+- 4k prefill gain with flash off comes from the moe lane's expert forms. Short-prompt "prefill" +14-19 ms (one 31-token
+  chunk; it includes the first decode step's capture) not investigated.
+- G2 (branch, defaults): short KL21 2.566e-3 PASS, long 3.251e-3 PASS (the same values as #516 / main's run).
+- Admission (`intarsia kernels test --backend hip`): ink_kv_prologue 117, rel_sink_attn 63, ink_attn_decode 70, attn_res_mix
+  93, loop_blend 27, sconv_res 64, conv_mix 532, ink_in_proj 24 / 24 / 5, moe_experts 12 x 3 / 4 / 10 / 7, moe_experts_mxfp8
+  19 / 14, moe_route 19: all ADMITTED, 0 fail. Not in this window: the mix lane's `ink_route_bf16` (op 76; its window 6).
+- Host (endor, final tree `d4b839c72`): `intarsia-models --test inkling2` 17/17, `docs_env_vars` 2/2, `recipes_doc` 3/3,
+  `cargo test -p intarsia-backend-hip` all pass, `INTARSIA_HIP_CHECK_ONLY=1 cargo check -p intarsia-backend-hip --tests` 0 errors.
 
 ## Handoff (wiring; HANDOFF.md was removed by the ink/hip merge bcfbcf066, so it lives here)
 

@@ -1,0 +1,11 @@
+
+```
+
+**Status (section 2).** The diagram is the design intent, not a description of the code. What exists on origin/main:
+
+| Piece | Status | Evidence on origin/main |
+|---|---|---|
+| OpenAI `/v1/chat/completions`, `/v1/completions`, `/v1/models` | **implemented** | [`crates/intarsia-server/src/routes.rs`](../crates/intarsia-server/src/routes.rs) |
+| OpenAI `/v1/responses` | **planned** | not in `routes.rs` |
+| Anthropic `/v1/messages` | **implemented** | [`crates/intarsia-server/src/routes.rs`](../crates/intarsia-server/src/routes.rs) |
+| Embedded web UI: chat, live dashboard, live architecture map | **partial** | [`crates/intarsia-ui/src/lib.rs`](../crates/intarsia-ui/src/
