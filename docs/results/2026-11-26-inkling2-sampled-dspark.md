@@ -138,6 +138,10 @@ and the host path for the top-k one.
 | `inkling2_dspark_sampled` (lane) | 2 / 2 | 2 / 2 | 2 / 2 (W1a) |
 | `inkling2_dspark_sampled_gumbel` (lane) | 1 / 1 | 1 / 1 | not run (no device sampler on hip) |
 
+The PR head (after the #529 merge, `br4`, cpu backend on tatooine's CPU, fleetq #12172): `inkling2` 17 / 17, `inkling2_dspark` 4 / 4,
+`inkling2_dspark_cut` 1 / 1, `inkling2_verify_softcap` 1 / 1, `inkling2_dspark_sampled` 2 / 2, `inkling2_dspark_sampled_gumbel` 1 / 1
+(`raw/cpu-final/`).
+
 HIP `inkling2`: with the default parallel test threads both trees fail a varying set of loads, the same way: branch 6 / 17 and main
 12 / 17 in W1a, branch 12 / 17 and main 6 / 17 in W2 (card 0 alone). Every failing load is `NoKernel` for `head_screen` /
 `logits_gather` / `screen_argmax`: the screened-head tests set `INTARSIA_INK_HEAD_SCREEN=1` process-wide (`load_screen`,
@@ -265,6 +269,8 @@ them). The Metal path's correctness is in (tiny suites, the law test with the de
 | #12156 | tatooine, radiance down (W3) | inkling2 tiny `--test-threads=1` branch / main, greedy md5 main / branch, real-model law | radiance down 15:16:04-15:19:29: **3:25**; back |
 | #12159 | tatooine `--load cpu` | fixture law tests (cpu backend) | 3 / 3 pass; 2.1b |
 | #12165 | endor `--load cpu` | host checks on the merged branch: `docs_env_vars` 2 / 2, `recipes_doc` 3 / 3, core lib 268 / 268 (4 ignored), models `--tests` check | ok. `cargo fmt --check` fails on main already (files this lane does not touch); the lane's four new test files were then run through rustfmt (repo config) and compile (#12170) |
+| #12170 | endor `--load cpu` | the formatted test files compile | ok |
+| #12172 | tatooine `--load cpu` | PR-head tiny suites, cpu backend | 6 / 6 suites pass (2.1) |
 | #12157 / #12167 | endor `--exclusive` slot 2 | Metal speed A/B | queued (#12157 cancelled for a reservation that fleetq refused; requeued as #12167) |
 
 Radiance: 3 windows (W1a, W2, W3), **8:57 in total** (2:17 + 3:15 + 3:25), each under 5:00; radiance was back after every window

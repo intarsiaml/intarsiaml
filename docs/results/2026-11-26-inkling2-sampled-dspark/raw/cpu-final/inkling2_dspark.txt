@@ -1,0 +1,10 @@
+
+running 4 tests
+test dspark_unsynced_draft_keeps_the_prefix_and_skips_drafting ... ok
+test dspark_partial_acceptance_keeps_ids_identical ... ok
+test dspark_greedy_ids_equal_spec_off ... ok
+test dspark_runs_with_admitted_kernels_only has been running for over 60 seconds
+test dspark_runs_with_admitted_kernels_only ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 71.58s
+
