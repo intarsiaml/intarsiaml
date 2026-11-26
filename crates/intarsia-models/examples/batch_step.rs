@@ -2,11 +2,15 @@
 //!
 //!   cargo run --release -p intarsia-models --example batch_step -- [--ctx 1024] [--rounds 8] [--steps 16] [--batches 1,2,4,8]
 //!       [--prompts text|random] [--digest] [--backend metal|hip] [--model DIR] [--mem-budget GIB] [--batched-only]
-//!       [--prefill-chunk N]
+//!       [--prefill-chunk N] [--solo-replay] [--kv-fraction F]
 //!   env: INTARSIA_METAL_TEST_MODEL (default ~/models/Qwen3-8B; `--model` wins)
 //!   `--backend hip` (lane ink-hip-batch; the default on Linux): one R9700, card 0 of HIP_VISIBLE_DEVICES.
 //!   `--batched-only`: no solo states or steps (half the prefill, no token check): long-context speed rows only. The last column is
 //!   the p99 of the batched steps (every stream's inter-token latency in a pure decode batch).
+//!   `--solo-replay` (lane ink-hip-batch; a card that cannot hold two state sets): the batched runs first (as --batched-only), then
+//!   the batched states are dropped and each sequence is replayed solo on a fresh state (its prompt, then the same input tokens),
+//!   asserting every solo token equals its batched token; "B solo steps ms" is then B x the median solo step of the replay.
+//!   A line `# memory` gives the plan (weights, workspace, KV budget, per-sequence context and ring bytes).
 //!
 //! Prompts: `--prompts text` (default; distinct slices of a fixed real-text corpus, examples/common/prompts.rs) or
 //! `random` (the old uniform-random ids, whose rows share experts far more than real text). `--digest` prints a digest of
@@ -92,7 +96,8 @@ mod imp {
         let spread: usize = arg(&args, "--ctx-spread", "0").parse().unwrap();
         let batches: Vec<usize> = arg(&args, "--batches", "1,2,4,8").split(',').map(|x| x.parse().unwrap()).collect();
         let want_digest = args.iter().any(|a| a == "--digest");
-        let batched_only = args.iter().any(|a| a == "--batched-only");
+        let solo_replay = args.iter().any(|a| a == "--solo-replay");
+        let batched_only = solo_replay || args.iter().any(|a| a == "--batched-only");
         let bname = arg(&args, "--backend", if cfg!(target_os = "macos") { "metal" } else { "hip" });
         let dir = args
             .iter()
@@ -114,7 +119,8 @@ mod imp {
         let top0 = *batches.iter().max().unwrap();
         let max_seq = ctx + spread * top0 + (rounds + 1) * steps * batches.len() + 64;
         let mem_budget = args.iter().position(|a| a == "--mem-budget").and_then(|i| args.get(i + 1)).map(|g| (g.parse::<f64>().unwrap() * (1u64 << 30) as f64) as u64);
-        let opts = LoadOptions { max_seq, prefill_chunk: chunk, profile_every: 0, mem_budget, ..Default::default() };
+        let kv_fraction: f32 = arg(&args, "--kv-fraction", "0.5").parse().unwrap();
+        let opts = LoadOptions { max_seq, prefill_chunk: chunk, profile_every: 0, mem_budget, kv_fraction, ..Default::default() };
         let mut m = Model::load(backend, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
         let top = *batches.iter().max().unwrap();
         if top > 1 {
@@ -122,14 +128,42 @@ mod imp {
         }
         m.configure_plan(&Default::default(), None).unwrap();
         let name = dir.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        {
+            let pl = &m.plan;
+            let mib = |b: u64| b >> 20;
+            println!(
+                "# memory: device {} total {} MiB free-at-load {} MiB, weights {} MiB, workspace {} MiB, KV budget {} MiB, KV {} B/token, \
+                 context {} tokens per sequence, KV total {} MiB, rings {} MiB per sequence, batch rows {}",
+                pl.device,
+                mib(pl.total_bytes),
+                mib(pl.free_bytes),
+                mib(pl.weights_bytes),
+                mib(pl.workspace_bytes),
+                mib(pl.kv_budget_bytes),
+                pl.kv_bytes_per_token,
+                pl.kv_cap_tokens,
+                mib(pl.kv_total_bytes),
+                mib(m.ring_bytes_per_state()),
+                m.batch_rows()
+            );
+            for n in &pl.notes {
+                println!("# memory note: {n}");
+            }
+        }
         println!("# {name} {bname}, context {ctx} (+{spread} per sequence, +{} decoded), {rounds} rounds x {steps} steps, chunk {chunk}, prompts: {}", rounds * steps, prompts.describe());
 
         let mut solo: Vec<SequenceState> = Vec::new();
         let mut bat: Vec<SequenceState> = Vec::new();
         let mut cur: Vec<u32> = Vec::new();
+        // --solo-replay: every sequence's prompt, and the input tokens its batched state took in order
+        let mut prompt_of: Vec<Vec<u32>> = Vec::new();
+        let mut fed: Vec<Vec<u32>> = vec![Vec::new(); top];
         for i in 0..top {
             let n = ctx + i * spread;
             let p = prompts.row(i, n);
+            if solo_replay {
+                prompt_of.push(p[..n].to_vec());
+            }
             let mut b = m.new_state().unwrap();
             m.forward(&mut b, &p[..n - 1], HeadMode::None, None).unwrap();
             if !batched_only {
@@ -152,6 +186,8 @@ mod imp {
             _ => f64::NAN,
         };
         let mut digests: Vec<String> = Vec::new();
+        let mut tables: Vec<(usize, f64, f64)> = Vec::new();
+        let mut outs_of: Vec<Vec<Vec<u32>>> = Vec::new();
         for &b in &batches {
             let (mut ts, mut tb) = (Vec::new(), Vec::new());
             let mut rows: Vec<Vec<u32>> = vec![Vec::new(); b];
@@ -210,12 +246,29 @@ mod imp {
                         rows[i].push(*t);
                     }
                 }
+                if solo_replay {
+                    // the inputs of this round: the round's first token, then each output but the last
+                    for i in 0..b {
+                        fed[i].push(cur[i]);
+                        fed[i].extend(bb[..bb.len() - 1].iter().map(|st| st[i]));
+                    }
+                }
                 cur = cs;
             }
             // the first round of each variant is warm-up
             ts.drain(..steps.min(ts.len()));
             tb.drain(..steps);
             let (s, t) = (stats(&mut ts), stats(&mut tb));
+            if solo_replay {
+                // the solo column comes from the replay below
+                tables.push((b, t.median, t.p99));
+                if want_digest {
+                    let per: Vec<String> = rows.iter().map(|r| digest(r)).collect();
+                    digests.push(format!("# B {b} batched-token digest {} rows {}", digest(&rows.concat()), per.join(" ")));
+                }
+                outs_of.push(rows);
+                continue;
+            }
             println!(
                 "| {b} | {:.2} | {:.2} | {:.2}x | {:.1} | {:.1} | {} | {:.2} |",
                 s.median,
@@ -229,6 +282,42 @@ mod imp {
             if want_digest {
                 let per: Vec<String> = rows.iter().map(|r| digest(r)).collect();
                 digests.push(format!("# B {b} batched-token digest {} rows {}", digest(&rows.concat()), per.join(" ")));
+            }
+        }
+        if solo_replay {
+            // the expected outputs of sequence i, in the order its batched state produced them (batch sizes in order)
+            let mut want: Vec<Vec<u32>> = vec![Vec::new(); top];
+            for rows in &outs_of {
+                for (i, r) in rows.iter().enumerate() {
+                    want[i].extend_from_slice(r);
+                }
+            }
+            drop(bat);
+            let mut solo_ms: Vec<f64> = Vec::new();
+            let mut checked = 0usize;
+            for i in 0..top {
+                let p = &prompt_of[i];
+                let mut st = m.new_state().unwrap();
+                m.forward(&mut st, &p[..p.len() - 1], HeadMode::None, None).unwrap();
+                assert_eq!(fed[i].len(), want[i].len(), "sequence {i}: inputs and outputs");
+                for (k, (&x, &w)) in fed[i].iter().zip(&want[i]).enumerate() {
+                    let t0 = Instant::now();
+                    let o = m.forward(&mut st, &[x], HeadMode::LastArgmax, None).unwrap();
+                    solo_ms.push(t0.elapsed().as_secs_f64() * 1e3);
+                    assert_eq!(tok(&o), w, "solo replay of sequence {i} differs from its batched token at step {k}");
+                    checked += 1;
+                }
+            }
+            let s1 = stats(&mut solo_ms).median;
+            println!("# solo replay: {checked} tokens of {top} sequences, every one equal to its batched token; solo step median {s1:.2} ms");
+            for &(b, t, p99) in &tables {
+                println!(
+                    "| {b} | {:.2} (replay) | {t:.2} | {:.2}x | {:.1} | {:.1} | - | {p99:.2} |",
+                    b as f64 * s1,
+                    b as f64 * s1 / t,
+                    1e3 / s1,
+                    b as f64 * 1e3 / t
+                );
             }
         }
         for d in &digests {
