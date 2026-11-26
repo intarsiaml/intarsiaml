@@ -1,0 +1,37 @@
+prefill chunk 2048 (recipe inkling2, hip)
+loaded Inkling-2-Mini on AMD Radeon Graphics in 4.4s: 24 layers, hidden 2304, act bf16, kv bf16, weights 13.31 GB, context 20480 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+decode[0]: 128 tokens, 1654 ms (76.80 tok/s)
+prefill[0]: 35 tokens, 101 ms
+decode[1]: 128 tokens, 1642 ms (77.37 tok/s)
+prefill[1]: 35 tokens, 70 ms
+decode[2]: 128 tokens, 1643 ms (77.29 tok/s)
+prefill[2]: 40 tokens, 75 ms
+decode[3]: 128 tokens, 1647 ms (77.13 tok/s)
+prefill[3]: 101 tokens, 157 ms
+decode[4]: 128 tokens, 1645 ms (77.21 tok/s)
+prefill[4]: 87 tokens, 142 ms
+decode[5]: 123 tokens, 1575 ms (77.47 tok/s)
+prefill[5]: 23 tokens, 57 ms
+decode[6]: 128 tokens, 1639 ms (77.49 tok/s)
+prefill[6]: 25 tokens, 59 ms
+decode[7]: 114 tokens, 1459 ms (77.45 tok/s)
+prefill[7]: 36 tokens, 73 ms
+decode[8]: 128 tokens, 1639 ms (77.48 tok/s)
+prefill[8]: 38 tokens, 76 ms
+decode[9]: 128 tokens, 1641 ms (77.41 tok/s)
+prefill[9]: 61 tokens, 103 ms
+decode[10]: 128 tokens, 1640 ms (77.43 tok/s)
+prefill[10]: 63 tokens, 107 ms
+decode[11]: 128 tokens, 1643 ms (77.31 tok/s)
+prefill[11]: 93 tokens, 148 ms
+decode[12]: 128 tokens, 1643 ms (77.30 tok/s)
+prefill[12]: 95 tokens, 152 ms
+decode[13]: 128 tokens, 1683 ms (75.47 tok/s)
+prefill[13]: 1021 tokens, 429 ms
+decode[14]: 128 tokens, 1713 ms (74.12 tok/s)
+prefill[14]: 4108 tokens, 1365 ms
+decode[15]: 128 tokens, 1822 ms (69.71 tok/s)
+prefill[15]: 16455 tokens, 5760 ms
+decode overall: 2013 tokens after the first, 26326 ms (76.46 tok/s)
+prefill overall: 22316 tokens, 8874 ms (2514.8 tok/s)
+spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)

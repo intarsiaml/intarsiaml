@@ -2,7 +2,7 @@
 //! fleetq #11254). Inkling-2 caps its logits (`final_logit_softcapping`, 30 in the tiny fixture as in the real checkpoint);
 //! decode applies the cap on readback (`Model::softcap_logits`), and a sampled verify (`Model::forward_verify_logits`, rejection
 //! sampling) must sample from the same capped distribution. Greedy is unaffected (the cap is monotone). Backend: cpu, or Metal
-//! with `INTARSIA_INKLING2_BACKEND=metal`, or CUDA with `=cuda`.
+//! with `INTARSIA_INKLING2_BACKEND=metal`, CUDA with `=cuda`, or HIP with `=hip`.
 
 mod common;
 use intarsia_core::model::{HeadMode, LoadOptions, Model, StepOut};
@@ -17,8 +17,10 @@ fn backend() -> Arc<dyn intarsia_core::Backend> {
         #[cfg(target_os = "macos")]
         Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
         Ok("cuda") => intarsia_backend_cuda::create(0).unwrap(),
+        // lane ink-hip-spec: one R9700 (HIP_VISIBLE_DEVICES picks the card)
+        Ok("hip") => intarsia_backend_hip::create(0).unwrap(),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
-        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal or cuda"),
+        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal, cuda or hip"),
     }
 }
 

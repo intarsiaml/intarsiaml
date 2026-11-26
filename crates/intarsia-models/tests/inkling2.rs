@@ -66,9 +66,9 @@ fn backend() -> Arc<dyn intarsia_core::Backend> {
     }
 }
 
-/// A GPU backend (Metal or CUDA): passes of 2..=16 rows take the rows-exact kernels, larger ones the prefill kernels.
+/// A GPU backend (Metal, CUDA or HIP): passes of 2..=16 rows take the rows-exact kernels, larger ones the prefill kernels.
 fn on_metal() -> bool {
-    matches!(std::env::var("INTARSIA_INKLING2_BACKEND").as_deref(), Ok("metal") | Ok("cuda"))
+    matches!(std::env::var("INTARSIA_INKLING2_BACKEND").as_deref(), Ok("metal") | Ok("cuda") | Ok("hip"))
 }
 
 /// The prefill chunk of the state tests: one pass for the 40-token prompt on cpu (its kernels are rows-exact at any row count);
@@ -531,9 +531,9 @@ fn inkling2_tiny_rollback_by_length() {
     st.truncate(32, &*m.backend).unwrap();
     assert_eq!(all_logits(&m, &mut st, &ids[32..]), whole[32..].to_vec(), "after rollback to 32");
     // prompt reuse (`Model::reuse_len`): within the margin the prefix is kept, past it the sequence starts over
-    // (CUDA keeps its conservative policy, `prefix_reuse_any_cut` false and no `prefix_reuse_min_pass_rows`: a cut off the
-    // cold-prefill ladder starts over, which is safe; the resume below then prefills the whole prompt)
-    if m.backend.name() == "cuda" {
+    // (CUDA and HIP keep their conservative policy, `prefix_reuse_any_cut` false and no `prefix_reuse_min_pass_rows`: a cut off
+    // the cold-prefill ladder starts over, which is safe; the resume below then prefills the whole prompt)
+    if matches!(m.backend.name(), "cuda" | "hip") {
         assert!(matches!(m.reuse_len(&st, 40, 30), 0 | 30));
     } else {
         assert_eq!(m.reuse_len(&st, 40, 30), 30);

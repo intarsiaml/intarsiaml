@@ -547,6 +547,7 @@ pub fn all() -> Vec<KernelImpl> {
     v.extend(crate::inkmix::all());
     v.extend(crate::inkmoe::all());
     v.extend(crate::inkroute::all());
+    v.extend(crate::inkspec::all());
     v
 }
 
@@ -559,6 +560,7 @@ pub fn full_table() -> Vec<(&'static str, Op)> {
         .chain(crate::inkmix::TABLE.iter())
         .chain(crate::inkmoe::TABLE.iter())
         .chain(crate::inkroute::TABLE.iter())
+        .chain(crate::inkspec::TABLE.iter())
         .copied()
         .collect()
 }
@@ -566,7 +568,7 @@ pub fn full_table() -> Vec<(&'static str, Op)> {
 /// The ops of the Inkling-2 lane modules (inkattn / inkmix / inkmoe): each is ported once a lane table lists it, and stays in
 /// `UNIMPLEMENTED` until the port's integration removes it (so the lanes never edit this file).
 pub fn ink_lane_ops() -> Vec<Op> {
-    [crate::inkattn::OPS, crate::inkmix::OPS, crate::inkmoe::OPS, crate::inkroute::OPS].concat()
+    [crate::inkattn::OPS, crate::inkmix::OPS, crate::inkmoe::OPS, crate::inkroute::OPS, crate::inkspec::OPS].concat()
 }
 
 /// True when this backend has no kernel for `op`: listed in `UNIMPLEMENTED` and not ported by an Inkling-2 lane table.
@@ -622,6 +624,7 @@ mod tests {
             include_str!("../../../kernels/hip/ik_hip_abi_inkmix.h"),
             include_str!("../../../kernels/hip/ik_hip_abi_inkmoe.h"),
             include_str!("../../../kernels/hip/ik_hip_abi_inkroute.h"),
+            include_str!("../../../kernels/hip/ik_hip_abi_inkspec.h"),
         ]
         .concat();
         for (name, _) in full_table() {

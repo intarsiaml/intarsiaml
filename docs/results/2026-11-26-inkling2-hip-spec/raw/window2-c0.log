@@ -1,0 +1,26 @@
+[c0] verify probe rows 4, softcapped compare 12:13:38
+probe rc 0
+PROBE_TIME decode1 13.30 ms, verify2 16.48 ms (1.24x), verify3 19.00 ms (1.43x), verify4 20.80 ms (1.56x)
+PROBE_GRAPHS GraphStats { enabled: true, captures: 6, replays: 172, batch_captures: 0, batch_replays: 0, spec_captures: 13, spec_replays: 61 }
+PROBE_RESULT rows=91 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.85s
+[c0] verify probe, eager (INTARSIA_VERIFY_GRAPH=0), len 1024 12:13:48
+probe eager rc 0
+PROBE_TIME decode1 13.24 ms, verify2 16.75 ms (1.26x), verify3 19.58 ms (1.48x), verify4 21.41 ms (1.62x)
+PROBE_GRAPHS GraphStats { enabled: true, captures: 4, replays: 154, batch_captures: 0, batch_replays: 0, spec_captures: 0, spec_replays: 0 }
+PROBE_RESULT rows=73 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+[c0] dspark profile 1k (gate) 12:13:56
+prof rc 0
+cycle 37.67 ms (mean of 39)
+block 2.11 ms (mean of 39)
+flush 0.02 ms (mean of 39)
+step0 0.70 ms (mean of 39)
+head 0.71 ms (mean of 39)
+ingest 0.20 ms (mean of 74)
+decode[0]: 128 tokens, 1492 ms (85.13 tok/s)
+spec: verify passes=39 proposed=77 accepted=54 (acceptance 70.1%, 2.38 tokens per pass)
+G2 short branch spec off [12:14:06] prefill floor [4bit]: top-1 (all rows) 99.47% (not gated for this class) ok | 21-way KL (scored rows, n=569) 4.491e-3 (need <= 3.0e-2) ok [all rows, n=569: 4.491e-3, reported only] | tail mass (all rows) ours 0.0665 vs ref 0.0679, excess -0.0014 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+G2 long branch spec off [12:14:13] prefill floor [4bit]: top-1 (all rows) 98.98% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 4.083e-3 (need <= 3.0e-2) ok [all rows, n=1569: 4.083e-3, reported only] | tail mass (all rows) ours 0.0405 vs ref 0.0407, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+[c0] done 12:14:22

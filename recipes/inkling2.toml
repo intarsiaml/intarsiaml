@@ -73,6 +73,14 @@ mtp_default_k = 3
 # Revert: `--prefill-chunk 256` with INTARSIA_HIP_INK_MOE_WMMA=0 INTARSIA_HIP_INK_ATTN_FLASH=0 (the old default), or delete this section.
 [tuning.hip]
 prefill_chunk = 2048
+# DSpark speculation by default on HIP (lane ink-hip-spec, 2026-11-26; the brief's bar: on >= off at every length and >= +2 % with a
+# CI lower bound above 1.0 at more than one): without --spec, one sequence at one rank runs --spec dflash with the model's own draft
+# (mtp.safetensors) at k3 and Metal's rule, the cumulative cut 0.5 with no per-step gate (`cut_rule_default` in
+# crates/intarsia-core/src/model/dspark.rs; INTARSIA_DSPARK_TAU=0.8 restores the gate). Greedy decode on one R9700 at the short /
+# 1k / 4k / 16k prompts: 1.34 / 1.19 / 1.55 / 1.31x (the gate 0.8: 1.32 / 1.16 / 1.46 / 1.29x; 4 + 4 processes, 95 % CI lower bounds
+# 1.34 / 1.19 / 1.55 / 1.31), prefill within 0.7 %, ids identical to --spec off; sampled requests take plain steps, a batching server
+# has no draft (docs/results/2026-11-26-inkling2-hip-spec.md). Revert: --spec off, INTARSIA_SPEC_DEFAULT=0, or delete this line.
+mtp_default_k = 3
 
 [accuracy]
 chat_turns = "inkling2"       # one open token per role, <|end_message|> closes (crates/intarsia-cli/src/cmd/accuracy/turns.rs)
