@@ -3,7 +3,7 @@
 Branch `ink/hip-pf2` from main `87c9745c0`, merged with main `40b85a391` (lane ink-hip-pfflip's new prefill defaults, #526). One
 R9700 (tatooine card 0, gfx1201). Shared rules: `.worktrees/hip-swarm/COMMON-1126.md`.
 
-**Status (13:15 EST): shipped as a default-on, bitwise knob, `INTARSIA_HIP_INK_PF2` (default 151; `=0` is main's forms).**
+**Status (13:20 EST): PR #528 open (not merged), default-on bitwise knob `INTARSIA_HIP_INK_PF2` (default 151; `=0` is main's forms).**
 Prefill +12.9 % at 4k and +13.9 % at 16k over main `40b85a391` at its defaults; greedy output identical to main (md5 at 64 and
 256 tokens, short / 4k / 16k); decode unchanged.
 
@@ -226,7 +226,8 @@ tensor-core path (the rule: >= 16 pairs per expert on average), which decode nev
 
 Bar (brief): >= +5 % at 4k and 16k with a CI lower bound > 1.0: met (+12.9 % / +13.9 %). Output: the same bits as the new
 defaults, so default-on behind the knob, `INTARSIA_HIP_INK_PF2=0` reverting (window 4: `=0` 2721 / 2815 tok/s against main2's
-2726 / 2820).
+2726 / 2820). Note: `pf2_mask` reads the knob with `atoi` and takes the default for a value that does not start with a digit,
+so `INTARSIA_HIP_INK_PF2=off` means the default (on); the revert is `=0`.
 
 ## 9. Radiance downtime and jobs
 
