@@ -6,7 +6,7 @@ Branch `ink/hip-pf2-tiny` from origin/main `b7450223e`, rebased onto `6517d98f4`
 failing errors differ run to run (`v00.attn_out` rel err 0.81 - 0.86).
 
 Status: done. Culprit PF2 bit 1 (the rel-table pass), cause an out-of-row write at d_rel above the rel extent (tiny shapes only),
-fixed on this branch; every gate of brief 1 item 3 passes (window 2). PR: see `docs/decisions/LOG.md` (2026-11-26, ink-hip-pf2-tiny).
+fixed on this branch; every gate of brief 1 item 3 passes (window 2). PR #537 (not merged).
 
 ## Result
 
