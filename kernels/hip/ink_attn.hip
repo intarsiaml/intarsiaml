@@ -76,9 +76,9 @@ struct InkP {
 
 // INTARSIA_HIP_INK_PF2 (lane ink-hip-pf2; prefill chunks only, every bit keeps the output bits): bit 1 = the prologue's rel tail
 // as its own pass (ink_rel_table_k), bit 2 = flash attention in pieces of query tiles under the R9700 dispatch stall line
-// (ik_hip.h), bit 128 = with bit 1, the prologue's OCC form (12 waves per SIMD); the experts' bits 4 / 8 / 16 / 32 / 64 are in
-// ink_moe.hip. Unset = kPf2Default; 0 = main's forms. Read at every launch.
-constexpr int kPf2Default = 3;
+// (ik_hip.h), bit 128 = with bit 1, the prologue's OCC form (12 waves per SIMD; opt-in); the experts' bits 4 / 8 / 16 are in
+// ink_moe.hip. Unset = kPf2Default (1 | 2 | 4 | 16, the same constant there); 0 = main's forms. Read at every launch.
+constexpr int kPf2Default = 23;
 int pf2_mask() {
     const char* e = getenv("INTARSIA_HIP_INK_PF2");
     return e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : kPf2Default;
