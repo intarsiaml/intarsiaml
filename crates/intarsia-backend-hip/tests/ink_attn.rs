@@ -352,12 +352,14 @@ fn rows_exact_real_shapes() {
                         let f = run(be, l, &inp, t, pos0, rows, dev, true);
                         same(&multi, &f, &format!("{what} (InkAttnDecode, {rows}-row calls, device position {dev})"));
                     }
-                    // op 75's split path at every row count (lane ink-hip-vrow: the rows rule INTARSIA_HIP_INK_DEC_FUSED_ROWS), R-row and
-                    // 1-row calls, host and device position: the same bits
-                    intarsia_backend_hip::inkattn::set_dec_fused_rows(0);
-                    for (rows, dev) in [(t, false), (t, true), (1, true)] {
-                        let f = run(be, l, &inp, t, pos0, rows, dev, true);
-                        same(&multi, &f, &format!("{what} (InkAttnDecode split path, {rows}-row calls, device position {dev})"));
+                    // op 75's rows rule (lane ink-hip-vrow, INTARSIA_HIP_INK_DEC_FUSED_ROWS; default 1): the split path at every row count
+                    // (0) and the fused kernel at every row count (16, main's rule), R-row and 1-row calls: the same bits
+                    for fr in [0, 16] {
+                        intarsia_backend_hip::inkattn::set_dec_fused_rows(fr);
+                        for (rows, dev) in [(t, false), (t, true), (1, true)] {
+                            let f = run(be, l, &inp, t, pos0, rows, dev, true);
+                            same(&multi, &f, &format!("{what} (InkAttnDecode, fused rows {fr}, {rows}-row calls, device position {dev})"));
+                        }
                     }
                     intarsia_backend_hip::inkattn::set_dec_fused_rows(-1);
                     // op 75 with main's butterflies (INTARSIA_HIP_INK_DEC3 = 0; the default takes DPP / permlanex16): the same bits
