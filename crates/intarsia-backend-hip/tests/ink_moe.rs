@@ -192,18 +192,21 @@ fn ink_moe_rows_exact() {
             intarsia_backend_hip::inkmoe::set_pre(3, 3);
             let first = run_host(&*hip, ord, &hc).unwrap();
             intarsia_backend_hip::inkmoe::set_lean(1);
-            for sz in [0, 4, 1, 2] {
+            // (size class, one-wave grouping): class 0 with the one-wave grouping (T <= 4 here) and with the shared-memory tables
+            for (sz, dec) in [(0, 1), (0, 0), (4, -1), (1, -1), (2, -1)] {
                 intarsia_backend_hip::inkmoe::set_sz(sz);
+                intarsia_backend_hip::inkmoe::set_dec(dec);
                 for nb in [4, 8] {
                     intarsia_backend_hip::inkmoe::set_nb(nb);
                     for pre in [1, 3, 6, 9] {
                         intarsia_backend_hip::inkmoe::set_pre(pre, pre);
                         let alt = run_host(&*hip, ord, &hc).unwrap();
-                        assert_eq!(first[0].data, alt[0].data, "mx={mx} T={t}: lean, size class {sz}, {nb} pairs per batch, load window {pre} changes bits");
+                        assert_eq!(first[0].data, alt[0].data, "mx={mx} T={t}: lean, size class {sz} (one-wave grouping {dec}), {nb} pairs per batch, load window {pre} changes bits");
                     }
                 }
                 intarsia_backend_hip::inkmoe::set_nb(0);
             }
+            intarsia_backend_hip::inkmoe::set_dec(-1);
             intarsia_backend_hip::inkmoe::set_sz(0);
             intarsia_backend_hip::inkmoe::set_lean(-1);
             intarsia_backend_hip::inkmoe::set_pre(-1, -1);
@@ -221,6 +224,42 @@ fn ink_moe_rows_exact() {
             }
         }
     }
+}
+
+/// The one-wave grouping (size class 0, at most 32 pairs; lane ink-hip-dec2) on odd routing gives the shared-memory grouping's
+/// bits: duplicate ids in a token, ids out of range (-1 and >= E), every pair on one expert, at T 1 to 4 and top-k 1, 4, 8, 32.
+#[test]
+fn ink_moe_wave_grouping_odd_ids() {
+    let Some(hip) = device("ink_moe_wave_grouping_odd_ids") else { return };
+    let mut rng = SplitMix64::new(0x1A4B_0003);
+    let (e, h, i) = (32usize, 128usize, 64usize);
+    let mut n = 0;
+    for mx in [false, true] {
+        let ord = if mx { NAMES[2] } else { NAMES[0] };
+        for (t, k) in [(1usize, 8usize), (2, 8), (4, 8), (1, 1), (3, 4), (1, 32)] {
+            let base = if mx { mxfp8_case(&mut rng, t, e, k, h, i, "situ") } else { situ_case(&mut rng, t, e, k, h, i) };
+            let p = t * k;
+            let routings: Vec<(&str, Vec<i32>)> = vec![
+                ("as drawn", base.inputs[1].to_i32().unwrap()),
+                ("duplicates", (0..p).map(|j| [3, 3, 7, 3, 7, 1, 0, 31][j % 8]).collect()),
+                ("invalid", (0..p).map(|j| [-1, 5, e as i32, 9, -7, 5, 2, e as i32 + 40][j % 8]).collect()),
+                ("one expert", vec![11; p]),
+                ("all invalid", vec![-1; p]),
+            ];
+            for (tag, ids) in routings {
+                let mut c = base.clone();
+                c.inputs[1] = HostTensor::from_i32(&[t, k], &ids);
+                intarsia_backend_hip::inkmoe::set_dec(0);
+                let tab = run_host(&*hip, ord, &c).unwrap();
+                intarsia_backend_hip::inkmoe::set_dec(1);
+                let wave = run_host(&*hip, ord, &c).unwrap();
+                intarsia_backend_hip::inkmoe::set_dec(-1);
+                assert_eq!(tab[0].data, wave[0].data, "mx={mx} T={t} K={k} {tag}: the one-wave grouping changes bits");
+                n += 1;
+            }
+        }
+    }
+    eprintln!("ink_moe_wave_grouping_odd_ids: {n} cases bitwise");
 }
 
 /// The tensor-core prefill of the ordinary names: against the cpu reference with both pair tiles and against the decode kernels'

@@ -85,9 +85,14 @@ impl Rig {
             intarsia_backend_hip::inkmix::set_mix_mode(0);
             let first = self.run_once(kernel, op, inputs, outs, attrs);
             intarsia_backend_hip::inkmix::set_mix_mode(3);
+            // the default forms with the gate kernel's first fused-norm tail (INTARSIA_HIP_INK_DEC_FAST bit 2 off)
+            intarsia_backend_hip::inkmix::set_mix_dec(0);
+            let old_tail = self.run_once(kernel, op, inputs, outs, attrs);
+            intarsia_backend_hip::inkmix::set_mix_dec(-1);
             for (j, ((a, b), c)) in fast.iter().zip(&first).zip(&all).enumerate() {
                 assert_eq!(a.data, b.data, "{kernel}: output {j} of the default forms differs from the first forms");
                 assert_eq!(c.data, b.data, "{kernel}: output {j} of the fast forms (mask 15) differs from the first forms");
+                assert_eq!(old_tail[j].data, b.data, "{kernel}: output {j} with the first fused-norm tail differs from the first forms");
             }
         }
         fast
@@ -514,6 +519,56 @@ fn ink_mix_bench() {
             println!("BENCH router T={t}: {lk} {us_l:.1} + moe_route {us_r:.1} = {:.1} us, fused ink_route_bf16 {us_f:.1} us", us_l + us_r);
         }
     }
+}
+
+/// `moe_route`'s fast tail (lane ink-hip-dec2: lane k holds pick k and writes output k) gives lane 0's loop's bits: every score
+/// function, with and without the top-k norm, E 8 .. 1024, K 1 .. 32, on random logits, on ties (repeated values), with NaN and
+/// infinite logits, and with fewer finite scores than K (the exhausted rounds).
+#[test]
+fn moe_route_fast_tail_bitwise() {
+    let Some(rig) = Rig::new("moe_route_fast_tail_bitwise") else { return };
+    let mut rng = SplitMix64::new(0x7b);
+    let mut n = 0;
+    for &(e, k) in &[(128usize, 8usize), (8, 8), (40, 6), (17, 3), (256, 32), (1024, 8), (64, 1), (33, 32)] {
+        let bias = rnd(&mut rng, DType::F32, &[e], 0.1);
+        for t in [1usize, 3] {
+            let base = rnd(&mut rng, DType::F32, &[t, e], 2.0).to_f32();
+            let ties: Vec<f32> = base.iter().map(|v| (v * 2.0).round() / 2.0).collect();
+            let odd: Vec<f32> = base
+                .iter()
+                .enumerate()
+                .map(|(j, v)| match j % 7 {
+                    0 => f32::NAN,
+                    3 => f32::INFINITY,
+                    5 => f32::NEG_INFINITY,
+                    _ => *v,
+                })
+                .collect();
+            let nan_most: Vec<f32> = base.iter().enumerate().map(|(j, v)| if j % e < k.saturating_sub(1).max(1) { *v } else { f32::NAN }).collect();
+            for (tag, lgv) in [("random", base.clone()), ("ties", ties), ("nan / inf", odd), ("fewer finite than K", nan_most)] {
+                let lg = HostTensor::from_f32(&[t, e], &lgv);
+                for (sf, norm, temp) in [(1u8, true, 1.0f32), (0, true, 1.0), (2, true, 1.0), (1, false, 0.7)] {
+                    let mut a = OpAttrs { top_k: k, scale: 8.0, norm_topk: norm, temperature: temp, ..OpAttrs::default() };
+                    a.dsv.score_func = match sf {
+                        0 => intarsia_core::dsv41::ops::ScoreFunc::Softmax,
+                        1 => intarsia_core::dsv41::ops::ScoreFunc::Sigmoid,
+                        _ => intarsia_core::dsv41::ops::ScoreFunc::SqrtSoftplus,
+                    };
+                    let outs: Vec<Out> = vec![(DType::F32, vec![t, k], None), (DType::I32, vec![t, k], None)];
+                    intarsia_backend_hip::inkroute::set_route_dec(0);
+                    let old = rig.run("moe_route", Op::MoeRoute, &[lg.clone(), bias.clone()], &outs, &a);
+                    intarsia_backend_hip::inkroute::set_route_dec(1);
+                    let new = rig.run("moe_route", Op::MoeRoute, &[lg.clone(), bias.clone()], &outs, &a);
+                    intarsia_backend_hip::inkroute::set_route_dec(-1);
+                    let what = format!("E={e} K={k} T={t} sf={sf} norm={norm} {tag}");
+                    assert_eq!(old[0].data, new[0].data, "{what}: weights differ");
+                    assert_eq!(old[1].data, new[1].data, "{what}: ids differ");
+                    n += 1;
+                }
+            }
+        }
+    }
+    eprintln!("moe_route_fast_tail_bitwise: {n} cases bitwise");
 }
 
 /// InkRoute (76) is BITWISE its pair on the same call: `logits_bf16_gemv` +

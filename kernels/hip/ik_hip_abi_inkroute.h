@@ -13,6 +13,8 @@ extern "C" {
  * their sum with norm_topk, times scale. E <= 1024, K <= 32. Same contract as the CUDA launcher (ik_cuda_abi_dsv41.h). */
 int ik_moe_route(const ik_tensor* logits, const ik_tensor* bias, int64_t top_k, float scale, int32_t norm_topk, float temperature,
                  int32_t score_func, ik_tensor* weights, ik_tensor* ids, void* stream);
+/* tests: moe_route's fast tail (lane ink-hip-dec2): 1 on, 0 lane 0's loop, -1 = INTARSIA_HIP_INK_DEC_FAST bit 4 / the default (on); same bits */
+void ik_moe_route_set_dec(int v);
 
 #ifdef __cplusplus
 }

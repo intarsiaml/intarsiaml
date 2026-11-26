@@ -58,6 +58,7 @@ int g_lean = -1;                   // < 0: INTARSIA_HIP_INK_MOE_LEAN / the defau
 int g_nb = 0;                      // tests / benchmarks: pairs per batch below the pair table (4 | 8); else the default rule
 int g_wmma = -1;                   // tests / benchmarks: 0 no tensor-core prefill, 1 the rule, 32 | 64 its pair tile; < 0: INTARSIA_HIP_INK_MOE_WMMA / the default
 int g_sz = 0;                      // tests / benchmarks: the smallest LDS size class a call may take (0 | 1 | 2); 4: by the call, in-wave grouping up to 32 pairs
+int g_dec = -1;                    // tests / benchmarks: 0 | 1 the one-wave grouping of class 0; < 0: INTARSIA_HIP_INK_DEC_FAST bit 1 / the default (on)
 
 // LDS size classes: the group tables (and down's terms) are sized by the call, because LDS per block decides how many blocks a
 // workgroup processor holds (64 KB): class 2 is 16.4 KB of tables + 16 KB of terms (one down block, three gate_up blocks per
@@ -90,6 +91,7 @@ struct MoeArgs {
     float gc, uc;
     int table;
     int probe;  // benchmarks: 3 = every thread returns at once, 4 = after the grouping (the launch + start-up cost of a call)
+    int wg;     // class 0 with at most 32 pairs: the one-wave grouping (group_wave) instead of group_pairs
 };
 
 IK_DEVI float ink_rbf(float v) { return ik_b2f(ik_f2b(v)); }
@@ -177,7 +179,53 @@ struct SmemGroups {
     int pd[sz_dp(SZ)];
     int ps[sz_dp(SZ)];
     int cnt[sz_dp(SZ)];
+    unsigned vmask;  // group_wave: bit p = pair p is valid (the down kernel's token sum reads it instead of the ids)
 };
+
+// ---- one-wave grouping (class 0, at most 32 pairs: decode; lane ink-hip-dec2) ------------------------------------------
+// The class-0 tables of group_pairs, written by wave 0 alone with one barrier for the block instead of six (and no table
+// initialisation): lane p holds pair p; a pair leads its expert when no earlier pair has its id; the experts are numbered by
+// their first pair and an expert's pairs come in pair order. Duplicate and invalid ids are handled as group_pairs does (an
+// invalid pair is in no group). Like the atomics' order, this decides only which wave runs what, never a bit of the result.
+template <int SZ>
+IK_DEVI void group_wave(const MoeArgs& a, SmemGroups<SZ>& sg) {
+    if (threadIdx.x < IK_WARP) {
+        const int lane = threadIdx.x, P = a.T * a.K;
+        const int v = lane < P ? a.ids[lane] : -1;
+        const bool ok = lane < P && v >= 0 && v < a.E;
+        const int id = ok ? v : -1;
+        int lead = lane, rk = 0;  // the first pair of this pair's expert; the earlier pairs of the same expert
+#pragma nounroll
+        for (int j = 0; j < P; ++j) {
+            const int u = __builtin_amdgcn_readlane(id, j);
+            if (j < lane && u == id) {
+                if (lead == lane) lead = j;
+                ++rk;
+            }
+        }
+        const unsigned vm = (unsigned)__ballot(ok);
+        const unsigned lm = (unsigned)__ballot(ok && lead == lane);
+        const int ld = ok ? lead : IK_WARP;  // invalid pairs after every valid one
+        int before = 0;                      // the valid pairs of the experts whose first pair precedes this pair's expert's
+#pragma nounroll
+        for (int j = 0; j < P; ++j) before += __builtin_amdgcn_readlane(ld, j) < ld ? 1 : 0;
+        if (ok) {
+            sg.dpair[before + rk] = lane;
+            if (lead == lane) {
+                const int d = __popc(lm & ((1u << lane) - 1u));
+                sg.dexp[d] = id;
+                sg.doff[d] = before;
+            }
+        }
+        if (lane == 0) {
+            const int nd = __popc(lm);
+            sg.nd = nd;
+            sg.doff[nd] = __popc(vm);
+            sg.vmask = vm;
+        }
+    }
+    __syncthreads();
+}
 
 // table view the kernels read
 struct Groups {
@@ -203,6 +251,14 @@ struct Grp {
     Groups g;
     int nd, o0;
     IK_MEMB void init(const MoeArgs& a, SmemGroups<SZ>& sg) {
+        if constexpr (SZ == 0) {
+            if (a.wg) {
+                group_wave(a, sg);
+                g = Groups{sg.nd, sg.dexp, sg.doff, sg.dpair};
+                nd = g.nd;
+                return;
+            }
+        }
         g = get_groups(a, sg);
         nd = g.nd;
     }
@@ -633,14 +689,23 @@ __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
     }
     if (a.table) return;
     __syncthreads();
+    // the one-wave grouping left the valid pairs in shared memory: the token sum reads them there, not the ids (the same terms
+    // in the same slot order)
+    const unsigned vm = (SZ == 0 && a.wg) ? sg.vmask : 0u;
     for (int i = threadIdx.x; i < a.T * kDnRows; i += blockDim.x) {
         const int t = i / kDnRows, qq = i % kDnRows;
         if (r0 + qq >= H) continue;
         float tot = 0.f;
 #pragma nounroll
         for (int k = 0; k < a.K; ++k) {  // (not unrolled: its registers would set the kernel's VGPR count)
-            const int v = a.ids[t * a.K + k];
-            if (v >= 0 && v < a.E) tot += term[(t * a.K + k) * kDnRows + qq];
+            bool ok;
+            if (SZ == 0 && a.wg) {
+                ok = ((vm >> (t * a.K + k)) & 1u) != 0;
+            } else {
+                const int v = a.ids[t * a.K + k];
+                ok = v >= 0 && v < a.E;
+            }
+            if (ok) tot += term[(t * a.K + k) * kDnRows + qq];
         }
         ik_store(reinterpret_cast<OutT*>(a.out) + (int64_t)t * H + r0 + qq, tot);
     }
@@ -707,6 +772,16 @@ PreCfg moe_pre(int fmt, int T, int64_t P, int E) {
     if (g_nb == 4 || g_nb == 8 || g_lean == 1) c.dn_first = false;  // tests / benchmarks: a forced lean form
     return c;
 }
+// INTARSIA_HIP_INK_DEC_FAST (lane ink-hip-dec2): bit mask of the decode latency forms, default all on; bit 1 = the one-wave grouping
+int dec_fast_env() {
+    static int v = -1;
+    if (v < 0) {
+        const char* e = getenv("INTARSIA_HIP_INK_DEC_FAST");
+        v = e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : 7;
+    }
+    return v;
+}
+bool moe_dec_wave() { return g_dec >= 0 ? g_dec != 0 : (dec_fast_env() & 1) != 0; }
 bool moe_lean() {
     if (g_lean >= 0) return g_lean != 0;
     const char* e = getenv("INTARSIA_HIP_INK_MOE_LEAN");
@@ -755,14 +830,16 @@ void launch_dn1(const MoeArgs& a, int out_f32, hipStream_t st) {
     }
 
 template <int FMT, int ACT>
-int launch_pair(const MoeArgs& a, int out_f32, hipStream_t st) {
-    const int64_t P = (int64_t)a.T * a.K;
-    const PreCfg pc = moe_pre(FMT, a.T, P, a.E);
+int launch_pair(const MoeArgs& a0, int out_f32, hipStream_t st) {
+    const int64_t P = (int64_t)a0.T * a0.K;
+    const PreCfg pc = moe_pre(FMT, a0.T, P, a0.E);
     int sz = 2;
     for (int z = 1; z >= 0; --z)
-        if (P <= sz_dp(z) && a.E <= sz_em(z)) sz = z;
+        if (P <= sz_dp(z) && a0.E <= sz_em(z)) sz = z;
     if (g_sz == 1 || g_sz == 2) sz = sz < g_sz ? g_sz : sz;
     if (g_sz == 4 && P <= kWavePairs) sz = 4;  // opt-in: slower than the tables at T = 1, 2, 4 (window 5)
+    MoeArgs a = a0;
+    a.wg = (sz == 0 && !a.table && P <= IK_WARP && moe_dec_wave()) ? 1 : 0;
     if (g_probe != 2) {
         const int pre = pc.gu, nb = pc.gu_nb;
         const bool lean = moe_lean();
@@ -1116,6 +1193,7 @@ void ik_ink_moe_set_lean(int v) { g_lean = v; }
 void ik_ink_moe_set_sz(int v) { g_sz = v; }
 void ik_ink_moe_set_nb(int v) { g_nb = v; }
 void ik_ink_moe_set_wmma(int v) { g_wmma = v; }
+void ik_ink_moe_set_dec(int v) { g_dec = v; }
 
 // The `_rows` twins are the decode kernels at every size (rows-exact, bitwise the first form); so are the ordinary names by
 // default, and with INTARSIA_HIP_INK_MOE_WMMA=1 they take the tensor-core prefill on the pair-table path.

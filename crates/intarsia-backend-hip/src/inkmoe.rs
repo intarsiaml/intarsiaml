@@ -138,6 +138,22 @@ pub fn set_sz(v: i32) {
     let _ = v;
 }
 
+/// Tests / benchmarks: the one-wave grouping of the expert kernels' size class 0 (at most 32 pairs and 128 experts: decode;
+/// lane ink-hip-dec2): 1 = on, 0 = the shared-memory grouping of `group_pairs`, `-1` = the env (`INTARSIA_HIP_INK_DEC_FAST` bit 1)
+/// or the default (on). Bitwise the same output.
+pub fn set_dec(v: i32) {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_ink_moe_set_dec(v: std::ffi::c_int);
+        }
+        // SAFETY: sets a plain int of the kernel library.
+        unsafe { ik_ink_moe_set_dec(v) }
+    }
+    #[cfg(not(ik_hip))]
+    let _ = v;
+}
+
 /// Tests / benchmarks: pairs per accumulator batch of the lean form below the pair table (4 | 8, bitwise the same output);
 /// anything else = the default rule.
 pub fn set_nb(v: i32) {
