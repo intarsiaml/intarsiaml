@@ -71,6 +71,9 @@ per row and by checking the draft length; greedy output stays identical to `--sp
      >= +2 % at >= 1 length with CI lower bound > 1.0; else opt-in with the numbers. Radiance for part 2: 15 min total. Own PR, do
      not merge. Same rules (fleetq, `.worktrees/<task>/` only, a real check before reporting done).
 
+3. 2026-11-26 ~15:55 EST (coordinator): #531 merged into main as `12c6c78ac` and #532 (docs) as `8f7356a9d`; part 2
+   (`ink/hip-vrow`) branches from main once part 1 is done.
+
 ## 0. Prior work (step 0)
 
 `git log --all -i --grep` (verify, union, rows, spec-k) and the results docs on `ink/*` branches:
@@ -331,7 +334,7 @@ t-interval lower bound >= 1.000); (b) >= +2 % at >= 2 lengths with lower bounds 
 geometric mean: **k5** (1.036 against 1.028). #534 now ships `mtp_default_k = 5` (recipe line + the pin test
 `dspark_default_only_where_the_recipe_sets_it`).
 
-Still to run on the k5 binary (`verify2`, CPU job #12183): the md5 runs (short / 4k x 64 / 256, spec default, against main) and the
+Still to run on the k5 binary (`verify2`, CPU job #12183, md5 `c3a8ad40…`; the pin test and `docs_env_vars` pass in that job): the md5 runs (short / 4k x 64 / 256, spec default, against main) and the
 verify probe's row 6 (rows 2..6; rows 2..5 passed in window 4). The ids above already show k5's default output equals k3's and `--spec
 off`'s on 16 prompts; the probe and md5 runs go into the follow-up lane's first window (brief 2 part 2's budget) unless the coordinator
 wants them before merging #534.
