@@ -565,7 +565,14 @@ TTFT p50 -22 %) need `INTARSIA_INK_PACK_ROWS=4096` with `--kv-fraction 0.9`, as 
 
 The flip binary (b13 = b12 + the two constants and the load message) did not run on the GPU (brief 2's one window was used); it is
 b12 with `INTARSIA_INK_PACK=1` by construction (cpu on b13, #12259: core 270, `tests/scheduler.rs` 53, plan 10, `inkling2` 17,
-`inkling2_batch` 9, `inkling2_packed` 5, hip lib 2, `docs_env_vars` 2, all with the default on), and b12 / b10 with that knob passed gates 1-3 (W5-W9). Not GPU-run with the default
-on: the hip tiny `inkling2_batch` / `inkling2` suites through a packing engine (the packed engine test `inkling2_packed_engine` is,
+`inkling2_batch` 9, `inkling2_packed` 5, hip lib 2, `docs_env_vars` 2, all with the default on).
+
+**What ran on which base.** On the PR head's base (178d87ece, b12) the packing evidence is: hip tiny `inkling2_packed` 5 / 5 at the
+PF2 default (packed == solo, packed engine == solo engine), the 4-stream filler reps with packing on (W9; speed only, replies not
+compared), the knob-off `--max-batch 16` server 16 / 16 = main, and the existing ink_mix / ink_mix_rows / ink_moe kernels' ISA
+identical to main's. The serve-level 16 / 16 at 4 / 8 / 16 with packing on (W5), the cross-arm 232 / 232 (W6-W8) and the real-shape
+unit 7 / 7 (W8) ran on b10, whose base 6517d98f4 predates #536 (the blend fuse limits in `ink_mix.hip`, a file the segment TU
+shares). **Open on the merged base:** a packing-default server's 16 real prompts at 4 / 8 / 16 at once; brief 3's first window runs
+it (overlap off) before anything else. Not GPU-run with the default on: the hip tiny `inkling2_batch` / `inkling2` suites through a packing engine (the packed engine test `inkling2_packed_engine` is,
 5 / 5 on hip; cpu runs every suite with the default on, b13).
 
