@@ -14,7 +14,7 @@ DSpark, prefix store, W4A4.
 | `kernels test`, G1, G2 | open |
 | Speed, rocprofv3 profile | open |
 
-## 0. Coordinator brief, 2026-11-25 about 21:50 EST (supersedes section 2's staffing; kept here against context loss)
+## 0. Coordinator brief, 2026-11-25 about 21:30 EST (supersedes section 2's staffing; kept here against context loss)
 
 - Three kernel lanes run in parallel, each from origin/main `d8c3c7148` (includes #496); `ink/hip` is rebased onto it:
   - **ink-hip-attn** (`.worktrees/ink-hip-attn`, `ink/hip-attn`): 70, 71, 75.

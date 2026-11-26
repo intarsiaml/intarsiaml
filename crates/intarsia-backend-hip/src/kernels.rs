@@ -314,13 +314,15 @@ pub fn all() -> Vec<KernelImpl> {
             "rope_bf16" => k.acts(bf).when(|s| s.head_dim % 2 == 0).exact(Exactness::Deterministic).tol(BF16_TOL),
             // native WMMA GEMM: f32 accumulate in a fixed K order, run-to-run identical; any M. (A hipBLASLt route
             // would be Exactness::Fast; the dev image carries no hipblaslt, see docs/backends/hip.md.)
-            "matmul_bf16" => k.acts(bf).weights(bf).exact(Exactness::Deterministic).tol(BF16_TOL).priority(0),
+            // The bf16 Matmul launchers write bf16 only (`check_mm` in matmul.hip): an f32-output Matmul (Inkling-2's router) is
+            // refused at selection, so the model takes `Logits` (the same math), as on CUDA and Metal (lane ink-hip)
+            "matmul_bf16" => k.acts(bf).weights(bf).when(|s| s.out != Some(DType::F32)).exact(Exactness::Deterministic).tol(BF16_TOL).priority(0),
             "logits_bf16" => k.acts(bf).weights(bf).exact(Exactness::Deterministic).tol(F32_TOL).priority(0),
             // native decode GEMV: fixed reduction order, run-to-run identical
             "matmul_bf16_gemv" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| !crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=4).contains(&s.m))
+                .when(|s| !crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=4).contains(&s.m) && s.out != Some(DType::F32))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(10),
@@ -337,7 +339,7 @@ pub fn all() -> Vec<KernelImpl> {
             "matmul_bf16_gemv_rows" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| !crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=ROWS_MAX).contains(&s.m))
+                .when(|s| !crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=ROWS_MAX).contains(&s.m) && s.out != Some(DType::F32))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(-1)
@@ -655,6 +657,30 @@ mod tests {
         best.map(|k| k.name.clone())
     }
 
+    /// Lane ink-hip: with `INTARSIA_HIP_SELECTION_DUMP=<file>`, writes the kernel `Matmul` / `Logits` select over a grid of rows, widths,
+    /// outputs and output dtypes (ordinary and `exact_rows` selection), one line per shape: the before / after evidence of a
+    /// registration change (docs/results/2026-11-25-inkling2-hip.md, "Selection check"). Without the variable it does nothing.
+    #[test]
+    fn selection_dump() {
+        let Ok(path) = std::env::var("INTARSIA_HIP_SELECTION_DUMP") else { return };
+        let ks = all();
+        let mut out = String::new();
+        for op in [Op::Matmul, Op::Logits] {
+            for o in [None, Some(DType::Bf16), Some(DType::F32)] {
+                for m in (1..=17usize).chain([32, 64, 256, 2048]) {
+                    for k in [64usize, 1000, 2048, 2304, 3072, 4096, 5120] {
+                        for n in [128usize, 2048, 151_936] {
+                            let s = ShapeInfo { m, n, k, act: Some(DType::Bf16), out: o, weight: Some(DType::Bf16), ..Default::default() };
+                            let rows = ks.iter().filter(|x| x.op == op && x.accepts(&s) && x.rows_exact).max_by_key(|x| x.priority).map(|x| x.name.clone());
+                            out += &format!("{op} out={o:?} m={m} k={k} n={n}: {:?} rows={rows:?}\n", pick(op, &s));
+                        }
+                    }
+                }
+            }
+        }
+        std::fs::write(path, out).unwrap();
+    }
+
     /// Round 4 selection (docs/results/2026-10-19-hip-round4.md): the fused attention prologue for the 35B's and the 8B's
     /// heads at every row count, and the stall-free delta rule for dk = 128 (other key widths keep the rows kernel).
     #[test]
@@ -901,7 +927,9 @@ mod tests {
                         (Op::MatmulFp8, f8, true),
                         (Op::MatmulMxfp4, u8_, false),
                     ] {
-                        let sh = |n: usize| ShapeInfo { m, n, k, act: bf, out: f32_, weight: w, fp8_static_act: static_act, ..Default::default() };
+                        // (the bf16 `Matmul` launchers write bf16 only, so that row is pinned at a bf16 output; an f32-output Matmul is refused)
+                        let out = if op == Op::Matmul { bf } else { f32_ };
+                        let sh = |n: usize| ShapeInfo { m, n, k, act: bf, out, weight: w, fp8_static_act: static_act, ..Default::default() };
                         let (full, half) = (pick(op, &sh(v)), pick(op, &sh(v / 2)));
                         assert!(full.is_some(), "{op} m={m} k={k} V={v} static={static_act}: no kernel");
                         assert_eq!(full, half, "{op} m={m} k={k} V={v} static={static_act}");
