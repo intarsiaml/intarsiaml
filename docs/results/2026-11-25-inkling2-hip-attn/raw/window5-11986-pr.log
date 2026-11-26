@@ -1,0 +1,65 @@
+fleetq: #11986 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=290 bash ~/intarsiaml-ink-hip-speed/docs/results/2026-11-25-inkling2-hip-attn/raw/window.sh ~/intarsiaml-ink-hip-speed/docs/results/2026-11-25-inkling2-hip-attn/raw/stage_speed_pr.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-speed/docs/results/2026-11-25-inkling2-hip-attn/raw/stage_speed_pr.sh; cap 290s; stopping radiance 2026-11-25 22:45:07
+[window] radiance stopped 2026-11-25 22:45:11 (inactive)
+[stage] md5 short 64 2026-11-25 22:45:11
+MD5 main short 64 04cdb28a6849728e8aa5be39bf65c07e | finish=length prompt=31 (cached 0) completion=64 | prefill 84 ms (368.5 tok/s) | decode 1015 ms (62.08 tok/s)
+GRAPH main short 64 | steps=64 graph replays=63 (captures 1) eager decode steps=0
+MD5 branch short 64 04cdb28a6849728e8aa5be39bf65c07e | finish=length prompt=31 (cached 0) completion=64 | prefill 98 ms (315.2 tok/s) | decode 868 ms (72.54 tok/s)
+GRAPH branch short 64 | steps=64 graph replays=63 (captures 1) eager decode steps=0
+[stage] md5 4k 64 2026-11-25 22:45:23
+MD5 main 4k 64 a7c6a2acedecfac21c77486444810c38 | finish=length prompt=4228 (cached 0) completion=64 | prefill 7964 ms (530.9 tok/s) | decode 1051 ms (59.95 tok/s)
+GRAPH main 4k 64 | steps=80 graph replays=63 (captures 1) eager decode steps=0
+MD5 branch 4k 64 a7c6a2acedecfac21c77486444810c38 | finish=length prompt=4228 (cached 0) completion=64 | prefill 6926 ms (610.5 tok/s) | decode 903 ms (69.75 tok/s)
+GRAPH branch 4k 64 | steps=80 graph replays=63 (captures 1) eager decode steps=0
+[stage] md5 short 256 2026-11-25 22:45:49
+MD5 main short 256 b4a4f4928e878281cdd4ae1b435a04f3 | finish=length prompt=31 (cached 0) completion=256 | prefill 81 ms (381.7 tok/s) | decode 4083 ms (62.46 tok/s)
+GRAPH main short 256 | steps=256 graph replays=255 (captures 1) eager decode steps=0
+MD5 branch short 256 b4a4f4928e878281cdd4ae1b435a04f3 | finish=length prompt=31 (cached 0) completion=256 | prefill 100 ms (311.5 tok/s) | decode 3502 ms (72.81 tok/s)
+GRAPH branch short 256 | steps=256 graph replays=255 (captures 1) eager decode steps=0
+[stage] md5 4k 256 2026-11-25 22:46:07
+MD5 main 4k 256 c96e82b75275142ccb4409517610706f | finish=length prompt=4228 (cached 0) completion=256 | prefill 8046 ms (525.5 tok/s) | decode 4219 ms (60.43 tok/s)
+GRAPH main 4k 256 | steps=272 graph replays=255 (captures 1) eager decode steps=0
+MD5 branch 4k 256 c96e82b75275142ccb4409517610706f | finish=length prompt=4228 (cached 0) completion=256 | prefill 6997 ms (604.2 tok/s) | decode 3625 ms (70.34 tok/s)
+GRAPH branch 4k 256 | steps=272 graph replays=255 (captures 1) eager decode steps=0
+[stage] G2 short branch 2026-11-25 22:46:39
+prefill floor [4bit]: top-1 (all rows) 98.95% (not gated for this class) ok | 21-way KL (scored rows, n=569) 2.566e-3 (need <= 3.0e-2) ok [all rows, n=569: 2.566e-3, reported only] | tail mass (all rows) ours 0.0671 vs ref 0.0679, excess -0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+[stage] G2 long branch 2026-11-25 22:46:46
+prefill floor [4bit]: top-1 (all rows) 99.30% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 3.251e-3 (need <= 3.0e-2) ok [all rows, n=1569: 3.251e-3, reported only] | tail mass (all rows) ours 0.0409 vs ref 0.0407, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+[stage] kernels test ink_kv_prologue 2026-11-25 22:46:57
+ink_kv_prologue ink_kv_prologue_bf16          117      0    5.464e-3    4.346e-4  ADMITTED
+[stage] kernels test rel_sink_attn 2026-11-25 22:47:00
+rel_sink_attn  rel_sink_attn_bf16             63      0    1.678e-3    1.161e-4  ADMITTED
+[stage] kernels test ink_attn_decode 2026-11-25 22:47:06
+ink_attn_decode ink_attn_decode_bf16           70      0    1.033e-3    7.283e-5  ADMITTED
+[stage] kernels test attn_res_mix 2026-11-25 22:47:12
+attn_res_mix   attn_res_mix_bf16              93      0    2.016e-3    4.909e-5  ADMITTED
+[stage] kernels test loop_blend 2026-11-25 22:47:12
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.637e-4  ADMITTED
+[stage] kernels test sconv_res 2026-11-25 22:47:14
+sconv_res      sconv_res_bf16                 64      0    1.880e-3    1.234e-5  ADMITTED
+[stage] kernels test conv_mix 2026-11-25 22:47:15
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+[stage] kernels test ink_in_proj 2026-11-25 22:47:22
+ink_in_proj    ink_in_proj_bf16_gemv          24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_gemv_rows     24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_matmul         5      0    3.125e-3    4.706e-5  ADMITTED
+[stage] kernels test moe_experts 2026-11-25 22:48:03
+moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_bf16_v2            12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_bf16_v3            12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_bf16_rows           4      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_situ_bf16          10      0    3.472e-3    1.719e-4  ADMITTED
+moe_experts    moe_experts_situ_bf16_rows      7      0    1.748e-3    1.266e-4  ADMITTED
+[stage] kernels test moe_experts_mxfp8 2026-11-25 22:49:05
+moe_experts_mxfp8 moe_experts_mxfp8_bf16         19      0    3.378e-3    1.634e-4  ADMITTED
+moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows     14      0    2.058e-3    1.634e-4  ADMITTED
+[stage] kernels test moe_route 2026-11-25 22:49:24
+moe_route      moe_route                      19      0    2.048e-7    9.806e-8  ADMITTED
+[stage] done 2026-11-25 22:49:24
+[window] stage done 2026-11-25 22:49:25 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-25 22:49:25
+[window] radiance answers 2026-11-25 22:49:35 (after 15 s)
+fleetq: #11986 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0

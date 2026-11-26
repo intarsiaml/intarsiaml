@@ -9,8 +9,8 @@ set -uo pipefail
 REPO=$HOME/intarsiaml-ink-hip-moe
 mkdir -p "$REPO/logs"
 LOG=$REPO/logs/window-$(date +%m%d-%H%M%S).log
-CAP=${CAP:-1080}
-[ "$CAP" -gt 1140 ] && CAP=1140
+CAP=${CAP:-240}
+[ "$CAP" -gt 270 ] && CAP=270
 now() { date '+%F %T'; }
 STAGE_PID=
 restored=0
