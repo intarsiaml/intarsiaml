@@ -16,8 +16,10 @@ now() { date '+%F %T'; }
 gen() {  # build-name tree volume prompt-name prompt tokens
   local f=$OUT/$1-$4-$6
   bash "$R/run_on.sh" "$2" "$3" ink-hip-attn-run $I $G --max-tokens "$6" -p "$5" > "$f.out" 2> "$f.err"
-  local md5; md5=$(sed 's/finish=length.*//' "$f.out" | md5sum | cut -c1-32)
-  echo "MD5 $1 $4 $6 $md5 | $(grep -aoE 'finish=.*' "$f.out" "$f.err" | head -1 | cut -d: -f2- | cut -c1-200)"
+  # the md5 of the generated text only: everything before "finish=" (timing lines dropped); raw files kept for a re-hash
+  local md5; md5=$(sed -e 's/finish=length.*//' -e '/steps=/d' -e '/tok\/s/d' "$f.out" | md5sum | cut -c1-32)
+  echo "MD5 $1 $4 $6 $md5 | $(cat "$f.out" "$f.err" | grep -aoE 'finish=.*' | head -1 | cut -c1-200)"
+  echo "GRAPH $1 $4 $6 | $(cat "$f.out" "$f.err" | grep -aoE 'steps=[0-9]+ graph replays=[0-9]+ \(captures [0-9]+\) eager decode steps=[0-9]+' | head -1)"
 }
 for tok in 64 256; do
   for p in short 4k; do
