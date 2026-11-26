@@ -64,5 +64,15 @@ gumbel_sampling = true
 # recipe's mtp_default_k is its DSpark draft's default. --spec off, INTARSIA_SPEC_DEFAULT=0, or delete this line turns it off.
 mtp_default_k = 3
 
+# 2048 on HIP (R9700, tatooine; user decision 2026-11-26 "Yes, flip it", with the tensor-core expert prefill and the flash prefill
+# attention, which are code defaults now: INTARSIA_HIP_INK_MOE_WMMA / INTARSIA_HIP_INK_ATTN_FLASH, unset = on): prefill on one R9700 at
+# 4k / 16k goes from 652 / 579 tok/s (the old default, chunk 2048) to 2687 / 2793 (614 at the 256 fallback), G2 short / long
+# 21-way KL <= 4.5e-3 (limit 3e-2); greedy text is no longer the old default's (docs/results/2026-11-25-inkling2-hip-moe.md,
+# docs/results/2026-11-25-inkling2-hip-attn.md, docs/results/2026-11-26-inkling2-hip-pfflip.md). No `busy_chunk` here: batching is
+# refused for Inkling-2 on HIP (no row-table kernels), so a prompt never prefills beside decoding streams.
+# Revert: `--prefill-chunk 256` with INTARSIA_HIP_INK_MOE_WMMA=0 INTARSIA_HIP_INK_ATTN_FLASH=0 (the old default), or delete this section.
+[tuning.hip]
+prefill_chunk = 2048
+
 [accuracy]
 chat_turns = "inkling2"       # one open token per role, <|end_message|> closes (crates/intarsia-cli/src/cmd/accuracy/turns.rs)

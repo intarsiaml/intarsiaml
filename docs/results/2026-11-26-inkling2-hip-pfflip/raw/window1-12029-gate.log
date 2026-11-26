@@ -1,0 +1,55 @@
+fleetq: #12029 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=270 bash ~/intarsiaml-ink-hip-pfflip/.scratch/window.sh ~/intarsiaml-ink-hip-pfflip/.scratch/stage_gate.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-pfflip/.scratch/stage_gate.sh; cap 270s; stopping radiance 2026-11-26 11:34:01
+[window] radiance stopped 2026-11-26 11:34:05 (inactive)
+[stage] gate start 11:34:05
+---- card 0
+MD5 M0 4k a7c6a2acedecfac21c77486444810c38 | prefill 6852 ms (617.0 tok/s) | decode 867 ms (72.70 tok/s) [11:34:20]
+MD5 M1 4k 2252566a5c54cf52cb564bd214c9af2b | prefill 1545 ms (2736.7 tok/s) | decode 858 ms (73.46 tok/s) [11:34:27]
+MD5 P0 4k 2252566a5c54cf52cb564bd214c9af2b | prefill 1546 ms (2734.0 tok/s) | decode 858 ms (73.43 tok/s) [11:34:34]
+MD5 P1 4k a7c6a2acedecfac21c77486444810c38 | prefill 6910 ms (611.9 tok/s) | decode 858 ms (73.39 tok/s) [11:34:46]
+MD5 M0 short 04cdb28a6849728e8aa5be39bf65c07e | prefill 94 ms (328.2 tok/s) | decode 824 ms (76.44 tok/s) [11:34:51]
+MD5 M1 short 04cdb28a6849728e8aa5be39bf65c07e | prefill 95 ms (326.5 tok/s) | decode 824 ms (76.45 tok/s) [11:34:57]
+MD5 P0 short 04cdb28a6849728e8aa5be39bf65c07e | prefill 96 ms (322.3 tok/s) | decode 824 ms (76.43 tok/s) [11:35:02]
+MD5 P1 short 04cdb28a6849728e8aa5be39bf65c07e | prefill 101 ms (308.3 tok/s) | decode 824 ms (76.42 tok/s) [11:35:07]
+G2 short branch defaults [11:35:07] prefill floor [4bit]: top-1 (all rows) 99.47% (not gated for this class) ok | 21-way KL (scored rows, n=569) 4.491e-3 (need <= 3.0e-2) ok [all rows, n=569: 4.491e-3, reported only] | tail mass (all rows) ours 0.0665 vs ref 0.0679, excess -0.0014 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+G2 long branch defaults [11:35:14] prefill floor [4bit]: top-1 (all rows) 98.98% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 4.083e-3 (need <= 3.0e-2) ok [all rows, n=1569: 4.083e-3, reported only] | tail mass (all rows) ours 0.0405 vs ref 0.0407, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+ADMIT moe_experts [11:35:23]
+ADMIT moe_experts: moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_bf16_v2            12      0    4.149e-3    3.160e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_bf16_v3            12      0    4.149e-3    3.160e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_bf16_rows           4      0    4.149e-3    3.160e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_situ_bf16          10      0    3.472e-3    2.084e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_situ_bf16_rows      7      0    1.748e-3    1.266e-4  ADMITTED
+ADMIT moe_experts_mxfp8 [11:36:26]
+ADMIT moe_experts_mxfp8: moe_experts_mxfp8 moe_experts_mxfp8_bf16         19      0    3.378e-3    2.428e-4  ADMITTED
+ADMIT moe_experts_mxfp8: moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows     14      0    2.058e-3    1.634e-4  ADMITTED
+ADMIT rel_sink_attn [11:36:45]
+ADMIT rel_sink_attn: rel_sink_attn  rel_sink_attn_bf16             63      0    5.952e-3    1.581e-3  ADMITTED
+ADMIT ink_kv_prologue [11:36:51]
+ADMIT ink_kv_prologue: ink_kv_prologue ink_kv_prologue_bf16          117      0    5.464e-3    4.346e-4  ADMITTED
+---- card 1
+TEST ink_moe [11:34:05]
+test ink_moe_bench ... skipping: INK_MOE_BENCH unset
+test ink_moe_matches_cpu_reference ... moe_experts_situ_bf16        T=1 E=16 K=4 H=64 I=32 bf16 situ                     max_abs 0.000e0 rel_l2 0.000e0 ok
+test ink_moe_rows_exact ... ok
+test ink_moe_wave_grouping_odd_ids ... ink_moe_wave_grouping_odd_ids: 60 cases bitwise
+test ink_moe_wmma_default_and_revert ... 
+thread 'ink_moe_wmma_default_and_revert' panicked at crates/intarsia-backend-hip/tests/ink_moe.rs:382:5:
+FAILED
+test ink_moe_wmma_prefill ... wmma tile 32 mx=false situ T=140 E=16 K=4 H=128 I=64: vs cpu max_abs 0.000e0 rel_l2 0.000e0 ok; vs decode kernels rel_l2 0.000e0
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.30s
+error: test failed, to rerun pass `-p intarsia-backend-hip --test ink_moe`
+TEST ink_attn [11:34:23]
+test admission_full_sweep ... flash 0:
+test bench_decode ... ignored
+test bench_prefill ... ignored
+test flash_prefill_default_and_revert ... ok
+test rows_exact_real_shapes ... 63 rows-exact cases bitwise
+test result: ok. 3 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 8.50s
+[stage] gate done 11:36:54
+[window] stage done 2026-11-26 11:36:55 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 11:36:55
+[window] radiance answers 2026-11-26 11:37:11 (after 20 s)
+fleetq: #12029 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
