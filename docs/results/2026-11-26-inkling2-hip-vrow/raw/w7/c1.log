@@ -1,0 +1,39 @@
+[c1] (e) bitwise verify probe rows 2..6, verify2 16:05:28
+rc 0
+PROBE_GRAPHS GraphStats { enabled: true, captures: 6, replays: 271, batch_captures: 0, batch_replays: 0, spec_captures: 21, spec_replays: 91 }
+PROBE_RESULT rows=156 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.66s
+[c1] (f) md5 verify2 16:05:40
+MD5 verify2 off short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 821 ms (76.70 tok/s) |  | 
+MD5 verify2 dflt short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 666 ms (94.55 tok/s) | spec: verify passes=22 proposed=61 accepted=32 (acceptance 52.5%, 2.45 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 verify2 off short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 3308 ms (77.09 tok/s) |  | 
+MD5 verify2 dflt short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 2832 ms (90.03 tok/s) | spec: verify passes=103 proposed=272 accepted=122 (acceptance 44.9%, 2.18 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 verify2 off 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 856 ms (73.63 tok/s) |  | 
+MD5 verify2 dflt 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 776 ms (81.20 tok/s) | spec: verify passes=21 proposed=41 accepted=26 (acceptance 63.4%, 2.24 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 verify2 off 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 3437 ms (74.19 tok/s) |  | 
+MD5 verify2 dflt 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 2505 ms (101.78 tok/s) | spec: verify passes=84 proposed=246 accepted=152 (acceptance 61.8%, 2.81 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+[c1] (g) hip tiny suites, verify2 16:06:51
+inkling2 rc 101 | test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+inkling2_verify_softcap rc 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+inkling2_dspark rc 0 | test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.70s
+inkling2_dspark_cut rc 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.16s
+[c1] (h) rocprofv3 kernel trace, timing probe 4k rows 1..8, verify2 16:08:04
+rc 0
+PROBE_TIME decode1 14.42 ms, verify2 17.90 ms (1.24x), verify3 20.44 ms (1.42x), verify4 22.62 ms (1.57x), verify5 25.79 ms (1.79x), verify6 28.27 ms (1.96x), verify7 30.30 ms (2.10x), verify8 32.11 ms (2.23x)
+trace /home/josef/intarsiaml-ink-hip-verify/logs/w7/rp4k/run_kernel_trace.csv: 55869 dispatches; loop 8 reps x 8 passes, first 2 reps dropped; ms per pass (median)
+rows  disp    span  kernel experts nvfp4 experts mxfp8         route       in-proj       unembed         blend wo / dense ge mix (conv / a     attention        argmax  norm / embed          copy         other
+   1   538   14.39   12.71         3.571         0.473         0.467         3.091         1.446         0.364         1.166         0.956         1.147         0.014         0.008         0.011         0.000
+   2   536   17.89   15.93         5.723         0.800         0.502         3.076         1.444         0.453         1.214         1.027         1.653         0.014         0.008         0.012         0.000
+   3   632   20.41   18.16         6.694         0.961         0.520         3.243         1.449         1.032         1.250         0.863         2.106         0.014         0.008         0.012         0.000
+   4   632   22.59   20.35         7.950         1.156         0.543         3.307         1.455         1.204         1.320         0.850         2.531         0.014         0.007         0.012         0.000
+   5   632   25.75   23.52        10.002         1.410         0.537         3.409         1.462         1.374         1.371         0.845         3.066         0.014         0.007         0.019         0.000
+   6   632   28.22   25.99        11.614         1.576         0.536         3.534         1.473         1.543         1.388         0.845         3.442         0.014         0.008         0.012         0.000
+   7   632   30.22   27.97        12.751         1.771         0.538         3.618         1.481         1.715         1.427         0.843         3.792         0.015         0.007         0.012         0.000
+   8   632   32.03   29.79        13.698         1.889         0.538         3.752         1.494         1.882         1.478         0.841         4.186         0.015         0.007         0.012         0.000
+
+kernel                                                                         r1       r2       r3       r4       r5       r6       r7       r8   (us per pass, median)
+[c1] done 16:08:12

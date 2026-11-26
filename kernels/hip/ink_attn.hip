@@ -1064,6 +1064,21 @@ int64_t dec_fused_keys() {
     return v;
 }
 
+// INTARSIA_HIP_INK_DEC_FUSED_ROWS (lane ink-hip-vrow): op 75 takes its fused kernel only for calls of at most this many rows (verify
+// passes of more rows take the split path, whose prologue forms q / r once per row instead of once per split block); unset: 1 (the
+// decode step fused, verify passes split: 2..8-row passes 0.2-1.0 ms faster at a 1k context; main took the fused kernel for all, `=16`).
+// Both paths give the pair's bits.
+constexpr int kDecFusedRowsDefault = 1;
+int g_dec_fused_rows = -1;  // tests (ik_ink_attn_dec_fused_rows): >= 0 overrides the env / the default
+int dec_fused_rows() {
+    if (g_dec_fused_rows >= 0) return g_dec_fused_rows;
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_HIP_INK_DEC_FUSED_ROWS");
+        return e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : kDecFusedRowsDefault;
+    }();
+    return v;
+}
+
 unsigned bias_rows(unsigned vis, unsigned e, unsigned sk) {
     const unsigned skr = (sk + 31) / 32 * 32;
     const unsigned ns = ink_nsplit(vis, sk);
@@ -1300,6 +1315,9 @@ extern "C" int ik_rel_sink_attn_bf16(const ik_tensor* q, const ik_tensor* k, con
     return ik_launch_status();
 }
 
+// tests (lane ink-hip-vrow): op 75's rows rule (dec_fused_rows); -1 = INTARSIA_HIP_INK_DEC_FUSED_ROWS / the default
+extern "C" void ik_ink_attn_dec_fused_rows(int v) { g_dec_fused_rows = v; }
+
 extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,
                                        const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp, const ik_tensor* kc_in, const ik_tensor* vc_in,
                                        const ik_ink_attn_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc, ik_tensor* kring, ik_tensor* vring,
@@ -1354,7 +1372,7 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
     // host position up to that context), else the split path (prologue + stage 1 + combine, the pair's kernels; bitwise the
     // same). Under a device position a full layer's context is unknown here: the capacity bound decides.
     const int64_t keys = p.window > 0 ? (p.window < p.cr ? p.window : p.cr) : (pos ? (int64_t)p.cr : (int64_t)p.pos0 + p.t);
-    if (keys > dec_fused_keys()) {
+    if (keys > dec_fused_keys() || (int64_t)p.t > dec_fused_rows()) {
         InkP q = p;
         q.flags = (q.flags & (F_DYN | F_RING_WRITE | F_DPP)) | F_R_OUT;
         q.qo = (bf16*)((char*)scratch->data + part + stage);

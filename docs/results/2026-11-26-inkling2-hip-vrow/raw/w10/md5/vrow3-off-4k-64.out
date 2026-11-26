@@ -1,0 +1,12 @@
+
+
+---
+
+## 3. The piece contract
+
+Every piece is a Rust trait (or a C ABI entry for kernels) with a fixed shape. This is the whole modularity story.
+
+### 3.1 Backend trait (the one seam that matters)
+
+```rust
+trait Backend

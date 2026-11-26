@@ -1,0 +1,26 @@
+fleetq: #12198 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12198 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 LIMIT=225 bash ~/intarsiaml-ink-hip-verify/.scratch/window.sh ~/intarsiaml-ink-hip-verify/.scratch/stage_w9.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-verify/.scratch/stage_w9.sh; cap 285s; stopping radiance 2026-11-26 16:17:04
+[window] radiance stopped 2026-11-26 16:17:08 (inactive)
+[stage] start 16:17:08
+---- card 0
+[speed] main@c0a rc 0 t+37s | decode overall: 2013 tokens after the first, 19569 ms (102.87 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] new@c0a rc 0 t+74s | decode overall: 2013 tokens after the first, 19434 ms (103.58 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] new@c0b rc 0 t+111s | decode overall: 2013 tokens after the first, 19422 ms (103.64 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] main@c0b rc 0 t+149s | decode overall: 2013 tokens after the first, 19579 ms (102.81 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] main5@c0a rc 0 t+185s | decode overall: 2013 tokens after the first, 19366 ms (103.94 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] new5@c0a rc 0 t+221s | decode overall: 2013 tokens after the first, 19213 ms (104.77 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[c0] done 16:20:49
+---- card 1
+[speed] new@c1a rc 0 t+37s | decode overall: 2013 tokens after the first, 19351 ms (104.03 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] main@c1a rc 0 t+74s | decode overall: 2013 tokens after the first, 19507 ms (103.20 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] main@c1b rc 0 t+111s | decode overall: 2013 tokens after the first, 19496 ms (103.25 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] new@c1b rc 0 t+148s | decode overall: 2013 tokens after the first, 19378 ms (103.88 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] new5@c1a rc 0 t+184s | decode overall: 2013 tokens after the first, 19170 ms (105.01 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] main5@c1a rc 0 t+219s | decode overall: 2013 tokens after the first, 19290 ms (104.36 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[c1] done 16:20:47
+[stage] done 16:20:49
+[window] stage done 2026-11-26 16:20:50 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 16:20:50
+[window] radiance answers 2026-11-26 16:21:00 (after 15 s)
+fleetq: #12198 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
