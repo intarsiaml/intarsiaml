@@ -25,6 +25,14 @@ Raw: `docs/results/2026-11-26-inkling2-hip-batch/raw/`.
      - run the solo greedy md5 check (64 / 256, short / 4k) on the rebased binary with no env vars set;
      - say here which paths the batched forward took.
   Reminder: no `--mem` on tatooine jobs.
+- 2026-11-26 ~13:35 (coordinator): PR #527 (HIP DSpark default-on) is merged; main is `3c6ff64f0`. Rebase onto it before the gate.
+  1. `inkling2::ink_rows_exact` on main already lists "hip". Take main's line and drop ours. (This branch never changed that line,
+     so the merge took main's as is.)
+  2. On HIP, spec decode (DSpark k3, cut 0.5) and the verify graph are default-on for Inkling-2, one sequence only. Check that
+     `--max-batch N > 1` takes plain batched steps when the draft would load, not per-row spec, and say which path ran.
+  3. `docs/tuning.md`: #527 edited the `INTARSIA_INK_ROWS_EXACT` row and five others in place. Merge into their text; add no
+     duplicate row. (This branch adds no tuning row.)
+  4. Run the bitwise checks (RT = false pins, solo greedy md5 at 64 / 256, short and 4k) on the rebased binary with no env vars set.
 
 ## 1. Design (written before any kernel)
 
@@ -255,10 +263,32 @@ pair it with main's.
 - The six differing kernels had the same VGPR / SGPR / LDS counts and 2 to 7 instructions more or fewer, in a different register
   assignment and order around the LDS loads of the attention body. Their source is unchanged for `RT = false`: the difference comes
   from the RT instantiations sharing the module. Without them the code is main's.
-- The solo decode visits that kernel 40-48 times a step, so that difference is the likely cause of the 0.9957 ratio of sections 4 and 6.
+- The solo decode visits that kernel 40-48 times a step. Window 6 (section 8) confirms that this difference caused the 0.9957 ratio
+  of sections 4 and 6: with the split, the ratio is 1.000.
 - **b6** (`ff352fc37`): the row-table launchers move to two new translation units, `kernels/hip/ink_mix_rows.hip` and
   `kernels/hip/ink_attn_rows.hip`. Each one includes its base file with `IK_INK_MIX_ROWS_TU` / `IK_INK_ATTN_ROWS_TU` defined. The guard
   leaves out the base file's launchers, and in ink_mix.hip also the RT launch branch of `launch_rows`, which there returns
   `IK_ERR_UNSUPPORTED`. The kernels, the RT template parameter and the helpers stay in the base files, so nothing is copied. The
   solo modules now compile to main's device code, kernel for kernel. The RT kernels live in modules that the solo path never loads
   a kernel from.
+
+## 8. Window 6: b6 unit gate and solo gate (fleetq #12088; radiance down 13:27:26 - 13:31:09, 3:43)
+
+Log: `raw/window6-12088-unit-gate-b6.log`. Stage: `raw/stage_w6.sh`. Main = `40b85a391` (`main2`), branch b6 = `ff352fc37`. No env
+vars set. Summary by `raw/gate_ratio.py`.
+
+| Check | Result |
+|---|---|
+| `tests/ink_rows.rs` | conv_mix_bf16_rows **645**, ink_attn_decode_bf16_rows **40** row-table calls bitwise the solo calls: PASS |
+| `tests/ink_attn.rs` `rows_exact_real_shapes` | PASS |
+| `kernels test --op conv_mix` / `--op ink_attn_decode` | 532 / 70 cases, 0 fail, ADMITTED |
+| `tests/inkling2_batch.rs` on HIP, tiny fixture, `CI=1` | 8 / 8 PASS |
+| greedy md5, 64 and 256 tokens, short and 4k | **equal to main** on every rep (the same four md5 as sections 4 and 6) |
+
+| decode tok/s (256 tok, ABBA 4 + 4) | main | branch b6 | ratio (95 % CI) |
+|---|---|---|---|
+| short | 76.91 / 76.95 / 76.91 / 76.87 | 76.83 / 76.93 / 76.92 / 76.94 | **0.9999 ± 0.0013** |
+| 4k | 74.08 / 74.05 / 74.02 / 74.02 | 74.09 / 74.08 / 74.03 / 74.06 | **1.0003 ± 0.0003** |
+| 4k prefill (ms) | 1553 / 1562 / 1568 / 1573 | 1555 / 1560 / 1567 / 1573 | 1.0002 ± 0.0017 (speed) |
+
+- The gap of b3 / b5 (0.9957) is gone: the solo decode of b6 equals main's within noise, at both contexts.
