@@ -1,0 +1,75 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-dec2/.scratch/stage_unit.sh; cap 260s; stopping radiance 2026-11-26 03:07:34
+[window] radiance stopped 2026-11-26 03:07:38 (inactive)
+[stage] ink_moe tests 2026-11-26 03:07:38
+test ink_moe_rows_exact ... ok
+test ink_moe_wave_grouping_odd_ids ... ink_moe_wave_grouping_odd_ids: 60 cases bitwise
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.58s
+[stage] ink_mix tests 2026-11-26 03:07:39
+test ink_attn_res_mix_and_blend_rows_exact ... ok
+test ink_conv_mix_rows_exact ... ok
+test ink_in_proj_rows_exact ... ok
+test ink_mix_bench ... ignored
+test ink_mix_ops_match_the_reference ... candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+ink_in_proj    ink_in_proj_bf16_gemv          24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_gemv_rows     24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_matmul         5      0    3.125e-3    4.706e-5  ADMITTED
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+attn_res_mix   attn_res_mix_bf16              93      0    2.016e-3    4.909e-5  ADMITTED
+sconv_res      sconv_res_bf16                 64      0    1.880e-3    1.234e-5  ADMITTED
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.637e-4  ADMITTED
+ink_route      ink_route_bf16                 40      0    2.037e-7    1.450e-7  ADMITTED
+test ink_route_bitwise_pair ... ok
+test moe_route_fast_tail_bitwise ... moe_route_fast_tail_bitwise: 256 cases bitwise
+test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 55.55s
+[stage] ink_moe_bench T=1,2,4 INTARSIA_HIP_INK_DEC_FAST=0 2026-11-26 03:08:35
+test ink_moe_bench ... INKMOEBENCH nvfp4 T=1    fixed cost of a call (both launches): threads return at once 5.9 us, after the grouping 11.8 us
+INKMOEBENCH nvfp4 T=1    default              both      83.1 us    431 GB/s | gate_up      50.1 us   476 GB/s | down      31.4 us   381 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=1    first form           both      99.4 us    361 GB/s | gate_up      60.7 us   393 GB/s | down      34.3 us   348 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=2    fixed cost of a call (both launches): threads return at once 5.9 us, after the grouping 11.9 us
+INKMOEBENCH nvfp4 T=2    default              both     141.0 us    498 GB/s | gate_up      91.7 us   510 GB/s | down      50.4 us   464 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=2    first form           both     176.8 us    397 GB/s | gate_up     107.3 us   436 GB/s | down      61.8 us   378 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=4    fixed cost of a call (both launches): threads return at once 5.9 us, after the grouping 11.8 us
+INKMOEBENCH nvfp4 T=4    default              both     246.4 us    529 GB/s | gate_up     161.8 us   537 GB/s | down      85.3 us   509 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=4    first form           both     311.6 us    418 GB/s | gate_up     186.7 us   465 GB/s | down     110.2 us   394 GB/s | 130.3 MB / call
+INKMOEBENCH mxfp8 T=1    fixed cost of a call (both launches): threads return at once 5.9 us, after the grouping 12.5 us
+INKMOEBENCH mxfp8 T=1    default              both     123.0 us    534 GB/s | gate_up      74.8 us   586 GB/s | down      48.2 us   454 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=1    first form           both     144.4 us    455 GB/s | gate_up      90.3 us   485 GB/s | down      49.8 us   440 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=2    fixed cost of a call (both launches): threads return at once 5.9 us, after the grouping 12.6 us
+INKMOEBENCH mxfp8 T=2    default              both     217.4 us    570 GB/s | gate_up     134.4 us   614 GB/s | down      83.2 us   496 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=2    first form           both     253.5 us    489 GB/s | gate_up     157.3 us   525 GB/s | down      88.6 us   466 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=4    fixed cost of a call (both launches): threads return at once 5.9 us, after the grouping 12.3 us
+[stage] ink_moe_bench T=1,2,4 INTARSIA_HIP_INK_DEC_FAST=7 2026-11-26 03:08:39
+test ink_moe_bench ... INKMOEBENCH nvfp4 T=1    fixed cost of a call (both launches): threads return at once 5.9 us, after the grouping 9.7 us
+INKMOEBENCH nvfp4 T=1    default              both      80.2 us    447 GB/s | gate_up      48.9 us   489 GB/s | down      29.5 us   405 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=1    first form           both      99.4 us    360 GB/s | gate_up      60.6 us   394 GB/s | down      34.3 us   348 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=2    fixed cost of a call (both launches): threads return at once 5.9 us, after the grouping 11.3 us
+INKMOEBENCH nvfp4 T=2    default              both     138.3 us    507 GB/s | gate_up      91.1 us   513 GB/s | down      47.9 us   488 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=2    first form           both     176.6 us    397 GB/s | gate_up     107.6 us   435 GB/s | down      61.9 us   378 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=4    fixed cost of a call (both launches): threads return at once 5.9 us, after the grouping 15.4 us
+INKMOEBENCH nvfp4 T=4    default              both     247.0 us    527 GB/s | gate_up     162.0 us   536 GB/s | down      85.1 us   510 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=4    first form           both     311.6 us    418 GB/s | gate_up     187.0 us   464 GB/s | down     110.1 us   394 GB/s | 130.3 MB / call
+INKMOEBENCH mxfp8 T=1    fixed cost of a call (both launches): threads return at once 5.9 us, after the grouping 9.8 us
+INKMOEBENCH mxfp8 T=1    default              both     119.7 us    549 GB/s | gate_up      73.4 us   597 GB/s | down      46.4 us   472 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=1    first form           both     144.0 us    456 GB/s | gate_up      90.1 us   486 GB/s | down      49.9 us   439 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=2    fixed cost of a call (both launches): threads return at once 5.9 us, after the grouping 11.9 us
+INKMOEBENCH mxfp8 T=2    default              both     216.1 us    573 GB/s | gate_up     134.0 us   616 GB/s | down      82.2 us   502 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=2    first form           both     253.8 us    488 GB/s | gate_up     157.5 us   524 GB/s | down      88.9 us   464 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=4    fixed cost of a call (both launches): threads return at once 5.9 us, after the grouping 17.6 us
+[stage] short f=0 rep 1 2026-11-26 03:08:42 decode 1749 ms (72.61 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=7 rep 1 2026-11-26 03:08:49 decode 1715 ms (74.06 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=6 rep 1 2026-11-26 03:08:56 decode 1729 ms (73.47 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=5 rep 1 2026-11-26 03:09:02 decode 1732 ms (73.31 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=3 rep 1 2026-11-26 03:09:09 decode 1718 ms (73.91 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k f=0 rep 1 2026-11-26 03:09:15 decode 1815 ms (69.96 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k f=7 rep 1 2026-11-26 03:09:29 decode 1778 ms (71.44 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=0 rep 2 2026-11-26 03:09:42 decode 1750 ms (72.59 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=7 rep 2 2026-11-26 03:09:49 decode 1713 ms (74.15 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=6 rep 2 2026-11-26 03:09:56 decode 1726 ms (73.56 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=5 rep 2 2026-11-26 03:10:02 decode 1734 ms (73.24 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=3 rep 2 2026-11-26 03:10:09 decode 1718 ms (73.94 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k f=0 rep 2 2026-11-26 03:10:15 decode 1814 ms (70.00 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k f=7 rep 2 2026-11-26 03:10:29 decode 1778 ms (71.42 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] done 2026-11-26 03:10:42
+[window] stage done 2026-11-26 03:10:43 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 03:10:43
+[window] radiance answers 2026-11-26 03:10:54 (after 15 s)

@@ -1,0 +1,24 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-dec2/.scratch/stage_speed.sh; cap 270s; stopping radiance 2026-11-26 03:18:20
+[window] radiance stopped 2026-11-26 03:18:23 (inactive)
+SPD main short 256 r1 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3507 ms (72.72 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r1 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3438 ms (74.17 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r1 c96e82b75275142ccb4409517610706f | decode 3631 ms (70.23 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r1 c96e82b75275142ccb4409517610706f | decode 3559 ms (71.66 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r2 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3436 ms (74.22 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main short 256 r2 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3506 ms (72.73 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r2 c96e82b75275142ccb4409517610706f | decode 3556 ms (71.71 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r2 c96e82b75275142ccb4409517610706f | decode 3628 ms (70.29 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD main short 256 r3 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3504 ms (72.78 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r3 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3436 ms (74.21 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r3 c96e82b75275142ccb4409517610706f | decode 3628 ms (70.29 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r3 c96e82b75275142ccb4409517610706f | decode 3554 ms (71.76 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r4 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3433 ms (74.27 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main short 256 r4 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3504 ms (72.78 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r4 c96e82b75275142ccb4409517610706f | decode 3557 ms (71.69 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r4 c96e82b75275142ccb4409517610706f | decode 3630 ms (70.25 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD branch0 short 256 r1 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3508 ms (72.69 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch0 4k 256 r1 c96e82b75275142ccb4409517610706f | decode 3631 ms (70.22 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+[stage] done 2026-11-26 03:21:57
+[window] stage done 2026-11-26 03:21:58 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 03:21:58
+[window] radiance answers 2026-11-26 03:22:08 (after 15 s)

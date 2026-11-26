@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# ON tatooine (inside window.sh): one command in the HIP dev image on card 0, this lane's repo and target volume, container
+# ink-hip-dec2-run (window.sh removes it on exit). Binaries: /work/.scratch/bin/intarsia-<name>, /target/release/intarsia.
+set -euo pipefail
+cd "$HOME/intarsiaml-ink-hip-dec2"
+export INTARSIA_REPO=$PWD INTARSIA_TARGET_VOL=intarsia-cargo-target-ink-hip-dec2 INTARSIA_CONTAINER_NAME=ink-hip-dec2-run
+export HIP_VISIBLE_DEVICES=${HIP_VISIBLE_DEVICES:-0}
+exec deploy/tatooine/dev.sh "$@" < /dev/null
