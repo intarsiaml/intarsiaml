@@ -47,6 +47,17 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
   reads <= 2048 keys" rule as the fallback, measured at whole-model level (short and 4k) against the pair. Integration branch
   starts after PR #516 merges (no rush for v1). Keep the window budget log.
 
+- 2026-11-25 ~22:40 EST, coordinator: accepted `281bf227e`; PR #516 merged into main as `4fc9901d4`. Integrate onto main and
+  open the PR: worktree `.worktrees/ink-hip-speed` on branch `ink/hip-speed` from origin/main; merge `281bf227e`; apply the core
+  line in `model/inkling2.rs` (~1203) `self.backend.name() == "cuda"` -> `matches!(self.backend.name(), "cuda" | "hip")`
+  (the only core edit, authorized for this task); host checks (`cargo test -p intarsia-models --test inkling2` cpu,
+  `docs_env_vars`, `recipes_doc`, `cargo test -p intarsia-backend-hip` host, `INTARSIA_HIP_CHECK_ONLY=1 cargo check -p
+  intarsia-backend-hip --tests`); one GPU window (<= 5 min down; 13:28 left): admission of the ink ops, G2 short / long,
+  greedy `generate` md5 at 64 and 256 tokens, short and 4k prompts, this branch vs main `4fc9901d4` (must be identical; main
+  built with `--load cpu` before the window), decode short / 4k for both builds. Push `ink/hip-speed`, open a PR to main (core
+  line and why it cannot change Metal / CPU / CUDA, md5 table, G2, speed table, flash knob default off with its off / on G2,
+  flip is the user's call). Don't merge. Moe's speed head follows in a second PR.
+
 ## Radiance down time (this lane)
 
 | Window | fleetq | Down | Counts toward the 20 min budget |
