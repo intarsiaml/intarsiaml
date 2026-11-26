@@ -361,11 +361,30 @@ pub fn decide(env: Option<&str>, backend: &str, has_kernels: bool) -> (bool, Opt
     }
 }
 
-/// Whether Inkling-2 packs P12 copies at load on `b` ([`decide`] on the environment and `b`'s kernel list). Prints the
-/// note of a forced `1` that is not honoured, once per process.
-pub fn enabled(b: &dyn Backend) -> bool {
+/// [`decide`] for one load: a model loaded to batch (`batched`, `LoadOptions::batched`: `serve --max-batch` > 1) never packs
+/// (lane ink-hip-p12). Its plan has no P12 kernels and drops the copies (`Model::drop_p12_for_batch`), and the KV budget is
+/// measured at load with whatever is resident, so the copies would only take KV budget (on HIP 1.66 GB x `--kv-fraction`).
+/// A load that would have packed says so in its note; a forced `1` is warned about, as the drop does.
+pub fn decide_load(env: Option<&str>, backend: &str, has_kernels: bool, batched: bool) -> (bool, Option<String>) {
+    let (on, note) = decide(env, backend, has_kernels);
+    if !(on && batched) {
+        return (on, note);
+    }
+    let forced = env.is_some_and(|v| matches!(v.trim(), "1" | "on" | "true"));
+    let mut n = "pack12 off: the model is loaded to batch (--max-batch > 1); the bf16 weights serve every row".to_string();
+    if forced {
+        n.push_str(&format!(
+            "\nwarning: {ENV}=1 is not honoured with batching on (P12 has no batched kernels yet); keeping the bf16 weights"
+        ));
+    }
+    (false, Some(n))
+}
+
+/// Whether Inkling-2 packs P12 copies at load on `b` ([`decide_load`] on the environment, `b`'s kernel list and `batched`).
+/// Prints the load's note (a forced `1` that is not honoured, a batched load), once per process.
+pub fn enabled(b: &dyn Backend, batched: bool) -> bool {
     let has = b.kernels().iter().any(|k| k.op == crate::ops::Op::MatmulP12);
-    let (on, note) = decide(std::env::var(ENV).ok().as_deref(), b.name(), has);
+    let (on, note) = decide_load(std::env::var(ENV).ok().as_deref(), b.name(), has, batched);
     static NOTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     if let Some(n) = note {
         if !NOTED.swap(true, std::sync::atomic::Ordering::Relaxed) {
@@ -396,6 +415,34 @@ mod tests {
         }
         // the in-projection packs on HIP (its bf16 form is the GEMV form, which the P12 kernel twins at 1..=DENSE_ROWS_MAX rows)
         assert!(pack_in_proj("hip"));
+    }
+
+    /// Lane ink-hip-p12 brief 2: a load to batch never packs (its plan drops the copies and its KV budget is measured with them
+    /// resident); a solo load packs exactly as `decide` says, on every backend.
+    #[test]
+    fn decide_load_batched_never_packs_solo_as_decide() {
+        let envs = [None, Some("1"), Some("on"), Some("0"), Some("off"), Some("garbage")];
+        for backend in ["metal", "cuda", "hip", "cpu"] {
+            for has in [true, false] {
+                for env in envs {
+                    assert_eq!(decide_load(env, backend, has, false), decide(env, backend, has), "{backend} {has} {env:?} solo");
+                    let (on, note) = decide_load(env, backend, has, true);
+                    assert!(!on, "{backend} {has} {env:?}: a batched load must not pack");
+                    if decide(env, backend, has).0 {
+                        let n = note.expect("a batched load that would have packed says so");
+                        assert!(n.starts_with("pack12 off: the model is loaded to batch"), "{n}");
+                        assert_eq!(n.contains("not honoured"), env.is_some_and(|v| v == "1" || v == "on"), "{n}");
+                    } else {
+                        assert_eq!(note, decide(env, backend, has).1, "{backend} {has} {env:?}: unchanged note");
+                    }
+                }
+            }
+        }
+        // the defaults the lane ships: solo packs on hip / metal / cuda with the kernels, batched never
+        for backend in ["metal", "cuda", "hip"] {
+            assert!(decide_load(None, backend, true, false).0);
+            assert!(!decide_load(None, backend, true, true).0);
+        }
         // the off switch, everywhere
         for v in ["0", "off", "false", " 0 "] {
             assert_eq!(decide(Some(v), "metal", true), (false, None));

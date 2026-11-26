@@ -491,6 +491,7 @@ pub(super) fn load(
     mt: usize,
     attn_quant: Option<crate::quant::head::HeadQuant>,
     act_quant: u8,
+    batched: bool,
     slot_specs: &mut Vec<SlotSpec>,
     bytes: &mut u64,
 ) -> Result<InkModel> {
@@ -502,9 +503,9 @@ pub(super) fn load(
     let s = (d as f32).powf(-0.5);
     // device bytes of the quantised projections (`attn_quant`), added to `bytes` at the end
     let qbytes = std::cell::Cell::new(0u64);
-    // lossless 12-bit copies of the bf16 in-projection and wo (lane ink-pack12, default on Metal); not with a quantised
-    // projection
-    let pack12 = crate::quant::p12::enabled(b) && attn_quant.is_none() && wdt_of(src, &names.root) == DType::Bf16;
+    // lossless 12-bit copies of the bf16 in-projection and wo (lane ink-pack12, default on Metal, CUDA, HIP); not with a quantised
+    // projection, nor for a model loaded to batch (`LoadOptions::batched`: its plan would drop them)
+    let pack12 = crate::quant::p12::enabled(b, batched) && attn_quant.is_none() && wdt_of(src, &names.root) == DType::Bf16;
     // the decode repack of the NVFP4 experts (MOE_REPACK_ENV, CUDA only)
     let repack = moe_repack_wanted(b, act_quant)? && crate::inkling2::ops::moe_repack_fits(d, ink.inter);
     if repack {
