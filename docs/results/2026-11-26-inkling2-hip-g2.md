@@ -1,5 +1,7 @@
 # Inkling-2-Mini on HIP (R9700): G2 / G3 attribution of the PR #526 flip, 2026-11-26
 
+**Decision (user, 2026-11-26 ~15:45 EST, "keep it on"):** flash prefill attention stays default-on on HIP. HIP's accepted G2 short for Inkling-2 is 4.491e-3 (over the port bar 4e-3; G2 long and G3 pass). Revert: `INTARSIA_HIP_INK_ATTN_FLASH=0`. Recorded in `docs/decisions/LOG.md`.
+
 Lane `ink-hip-g2`, measurement only: no engine code changed, no default changed, no PR.
 Raw logs: `docs/results/2026-11-26-inkling2-hip-g2/raw/` (`logs/` = one full `intarsia accuracy` output per run, `window1-12099.out`
 and `window-1126-135621.log` = the window, `stage_g2g3.sh` = what ran, `build.sh` / `sync.sh` / `run.sh` / `window.sh` = the tooling).
