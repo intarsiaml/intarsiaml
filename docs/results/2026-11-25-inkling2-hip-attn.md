@@ -58,6 +58,13 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
   line and why it cannot change Metal / CPU / CUDA, md5 table, G2, speed table, flash knob default off with its off / on G2,
   flip is the user's call). Don't merge. Moe's speed head follows in a second PR.
 
+- 2026-11-25 ~22:50 EST, coordinator, change to the integration brief (one window, one PR for all lanes; don't start the
+  window yet): (1) moe head accepted, `a154a5704` (bitwise, 11-35 % faster); its `docs/tuning.md` rows are missing; merge the
+  "rows at <commit>" the coordinator forwards from that lane (not a154a5704 alone). (2) mix lane is in its final window
+  (#11975); merge its "ready to merge" commit if it arrives before the window. (3) If mix hasn't arrived by 23:30 EST, run the
+  window with attn + moe only. (4) Same window (admission, G2 short / long, md5 64 / 256 short / 4k vs main `4fc9901d4`, must
+  match exactly; decode short / 4k both builds). (5) Also 4k prefill for both builds. (6) Same PR rules; the coordinator merges.
+
 ## Radiance down time (this lane)
 
 | Window | fleetq | Down | Counts toward the 20 min budget |
