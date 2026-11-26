@@ -1,0 +1,39 @@
+fleetq: #12057 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=295 BR=b3 bash ~/intarsiaml-ink-hip-batch/.scratch/window.sh ~/intarsiaml-ink-hip-batch/.scratch/stage_bstep.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-batch/.scratch/stage_bstep.sh; cap 295s; stopping radiance 2026-11-26 12:33:34
+[window] radiance stopped 2026-11-26 12:33:38 (inactive)
+[stage] bitwise short (ctx 256 + 8 i) 2026-11-26 12:33:38
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.9 s
+# Inkling-2-Mini hip, context 256 (+8 per sequence, +64 decoded), 4 rounds x 16 steps, chunk 2048, prompts: text corpus (49909 tokens, 16 slices of up to 3119)
+thread 'main' panicked at crates/intarsia-models/examples/batch_step.rs:133:39:
+called `Result::unwrap()` on an `Err` value: Memory("hipMalloc of 4259840 bytes failed: backend error: : out of memory (hipError 2)")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[stage] bitwise 2k (ctx 2040 + 3 i) 2026-11-26 12:33:51
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.9 s
+# Inkling-2-Mini hip, context 2040 (+3 per sequence, +16 decoded), 2 rounds x 8 steps, chunk 2048, prompts: text corpus (49909 tokens, 16 slices of up to 3119)
+thread 'main' panicked at crates/intarsia-models/examples/batch_step.rs:136:43:
+called `Result::unwrap()` on an `Err` value: Memory("hipMalloc of 182534144 bytes failed: backend error: : out of memory (hipError 2)")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[stage] speed 4k batched-only 2026-11-26 12:34:12
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.0 s
+# Inkling-2-Mini hip, context 4096 (+0 per sequence, +48 decoded), 3 rounds x 16 steps, chunk 2048, prompts: text corpus (49909 tokens, 16 slices of up to 3119)
+thread 'main' panicked at crates/intarsia-models/examples/batch_step.rs:134:66:
+called `Result::unwrap()` on an `Err` value: BadRequest("sequence of 4095 tokens exceeds the planned context of 3285")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[stage] plan show --max-batch 4 (default env) 2026-11-26 12:34:16
+error: unexpected argument '--max-batch' found
+[stage] ink_mix_ops_match_the_reference (the every-name admission loop, row-table names skipped) 2026-11-26 12:34:16
+test ink_mix_ops_match_the_reference ... candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+ink_in_proj    ink_in_proj_bf16_gemv          24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_gemv_rows     24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_matmul         5      0    3.125e-3    4.706e-5  ADMITTED
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+attn_res_mix   attn_res_mix_bf16              93      0    2.016e-3    4.909e-5  ADMITTED
+sconv_res      sconv_res_bf16                 64      0    1.880e-3    1.234e-5  ADMITTED
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.637e-4  ADMITTED
+ink_route      ink_route_bf16                 40      0    2.037e-7    1.450e-7  ADMITTED
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 50.19s
+[stage] done 2026-11-26 12:35:07
+[window] stage done 2026-11-26 12:35:08 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 12:35:08
+[window] radiance answers 2026-11-26 12:35:18 (after 15 s)
+fleetq: #12057 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -61,3 +61,163 @@ Raw: `docs/results/2026-11-26-inkling2-hip-batch/raw/`.
 - The `RT = false` instantiations are the existing code. New fields go at the end of `RowArgs` / `InkP` only.
 - Carrier offsets are passed from Rust (`TensorRef.offset` of each state tensor). An Inkling-2 ring slot puts both of its planes
   behind one table entry (`upload_row_table`: `(buf, buf)`), so plane 1 is reached only through its offset.
+
+### 1.3 What changed in files other lanes touch
+
+- `kernels/hip/ink_mix.hip`:
+  - `RowArgs` gains 4 fields at its end;
+  - `ink_row_kernel` gains a 4th template parameter `RT = false`: a 1-line ring rebind at the top, `pos0` / `own0` per row, two conv
+    conditions (`qp >= own0`) and the ring-write condition (`RT ||`);
+  - `launch_rows` gains an `if (a.rtab)` arm before the existing switch;
+  - `ik_conv_mix_bf16` becomes a wrapper of `conv_mix_run`, the same body plus two lines (`rt_args`);
+  - new: `rt_args`, `ik_conv_mix_bf16_rows`.
+- `kernels/hip/ink_attn.hip`:
+  - `InkP` gains 4 fields at its end;
+  - `ink_attn_dec_k` gains a 3rd template parameter `RT = false`: the row remap (`ink_rt_row`) and the ticket index;
+  - new launcher `ik_ink_attn_decode_bf16_rows` at the end of the file.
+- The `RT = false` instantiations compile to the code main had: the remap sits behind `if constexpr` / constant `RT ?` selects, and
+  `own0 == pos0` when `RT` is false. Proof by bits: section 3 (solo md5 at 64 / 256, short / 4k, equal to main).
+- Rust: two `TABLE` entries and registrations (`.row_table()`), two dispatch arms. HIP tests:
+  - new `tests/ink_rows.rs`;
+  - `tests/ink_mix.rs` skips row-table names in its every-name admission loop;
+  - a registry lib test in `kernels.rs`.
+- `crates/intarsia-models`:
+  - `tests/inkling2_batch.rs` gains a `hip` arm;
+  - `examples/batch_step.rs` runs on HIP too (`--backend hip`, plus `--model`, `--mem-budget`, `--prefill-chunk`, `--batched-only`
+    and a p99 column; the Metal output keeps its columns).
+
+## 2. Window 1: bitwise tests (fleetq #12049; radiance down 12:18:04 - 12:20:00, 1:56)
+
+Log: `raw/window1-12049-unit.log`. Stage: `raw/stage_unit.sh`. Binary b2 = `d7c6a90f7` + the ring-write fix, on main `87c9745c0`.
+
+| Check | Result |
+|---|---|
+| `tests/ink_rows.rs` `conv_mix_rows_bitwise_solo` | **645 row-table calls bitwise the solo T = 1 calls**: every output row, every ring byte. Covers widths 64 / 2304, every mix / blend form and epilogue, B 1/2/3/5/16, positions 0 .. 9001 (before the conv history fills, at the ring wrap), mix masks 3 / 0, DEC3 default / 0 |
+| `tests/ink_rows.rs` `attn_decode_rows_bitwise_solo` | **40 row-table calls bitwise the solo device-position calls**: every output row, every K / V cache and conv-ring byte, pads included. Covers SWA ring layers and full layers with a 2600-row cache, positions across the window, the ring and 2048 keys (above 2048 the solo launch takes op 75's split path), B 1/2/3/5/16, DEC3 default / 0 |
+| `tests/ink_attn.rs` `rows_exact_real_shapes` (the solo kernel's own gate) | 63 cases bitwise, PASS |
+| `tests/ink_mix.rs` (no bench) | 7 PASS. `ink_mix_ops_match_the_reference` FAILED only on the new name: its loop over `inkmix::TABLE` wants an admission summary for `conv_mix_bf16_rows`, which admission never grades (a row-table twin takes its base's admission). Every graded kernel ADMITTED. The test now skips row-table names (commit after `67e040598`); rerun in window 2 |
+| `intarsia kernels test --op conv_mix` | `conv_mix_bf16` 532 cases, 0 fail, ADMITTED |
+| `intarsia kernels test --op ink_attn_decode` | `ink_attn_decode_bf16` 70 cases, 0 fail, ADMITTED |
+| `crates/intarsia-models/tests/inkling2_batch.rs` on HIP (tiny fixture, `CI=1`) | **8 / 8 PASS**: batched == solo at 2 / 5 / 16, argmax, sampler rows softcapped, membership changes, rollback, failed pass resets, P12 plan, batched engine == solo engine |
+| host-only (Mac): `-p intarsia-backend-hip --lib` (35, includes the new registry test), `--test rows_registry` (ordinary pins unchanged) | PASS |
+
+## 3. Window 2: batch_step on the real model did not fit (fleetq #12057; radiance down 12:33:34 - 12:35:08, 1:34)
+
+Log: `raw/window2-12057-bstep-oom.log`. `examples/batch_step.rs` holds two state sets (solo and batched) of `max(batches)`
+sequences, but `enable_batch(16)` budgets the KV of 16. Results:
+
+- The short run died in `hipMalloc` of 4 259 840 bytes, which is one SWA ring of a visit (1040 x 8 x 128 x 2 x 2).
+- At 4k, the KV fraction 0.5 (the `LoadOptions` default) gave a 3285-token context per sequence at 16 rows.
+- `plan show` has no `--max-batch`.
+
+The ink_mix every-name admission test passed in this window with the row-table names skipped (8 ADMITTED).
+
+Fix (`528773455`):
+- `batch_step --solo-replay`: the batched runs first, then the batched states are dropped and every sequence is replayed solo on a
+  fresh state, token by token, with each solo token asserted equal to its batched token. One state set of 16 then fits.
+- `--kv-fraction`.
+- a `# memory` line: weights, workspace, KV budget, context per sequence, rings per sequence.
+
+## 4. Window 3: solo gate of the first form (fleetq #12064; radiance down 12:44:34 - 12:47:27, 2:53)
+
+Log: `raw/window3-12064-gate-b3.log`. Stage: `raw/stage_gate.sh`. Main = `40b85a391` (origin/main after #526, binary md5
+`77088458…`). Branch b3 = `7b3a2b8eb` (the first kernel form merged onto it, md5 `8dd22392…`). Default env, `generate --spec off`,
+graphs: 1 capture + 255 replays, 0 eager steps.
+
+| | short 64 | 4k 64 | short 256 | 4k 256 |
+|---|---|---|---|---|
+| greedy md5, main = branch (every rep) | `04cdb28a…` | `2252566a…` | `9a27c21b…` | `9675bbb9…` |
+
+| decode tok/s (256 tok, ABBA 4 + 4) | main | branch b3 | ratio (95 % CI) |
+|---|---|---|---|
+| short | 76.92 / 76.92 / 76.88 / 76.86 | 76.66 / 76.62 / 76.59 / 76.61 | **0.9964 ± 0.0005** |
+| 4k | 74.09 / 74.04 / 74.03 / 74.02 | 73.81 / 73.79 / 73.75 / 73.75 | **0.9964 ± 0.0003** |
+
+- The bits are main's.
+- The first form was **0.36 % slower** in all 8 of 8 pairs. That is small, but it is not noise.
+- Its `RT = false` code is main's, except that every launch of the row, blend and attention kernels carried a 24-byte
+  (`RowArgs`) or 48-byte (`InkP`) larger argument block. Under graph replay the HIP runtime copies each node's kernel arguments at
+  every launch, and dec3 found the decode step bound by dispatch.
+- Fix (`68d1321af`): the row-table data lives in derived structs, `RowArgsRT : RowArgs` and `InkPR : InkP`. Only the RT
+  instantiations take them (`std::conditional_t<RT, …>` as the kernel parameter), so the solo kernels' arguments are main's, byte
+  for byte.
+- The coordinator's ask to put "the RowArgs additions at the end of the struct" is moot: `RowArgs` and `InkP` are unchanged
+  from main. Re-gated in section 6.
+
+## 5. Window 4: unit gate of the final form, `forward_batch` on the real model (fleetq #12076; radiance down 13:00:30 - 13:03:37, 3:07)
+
+Log: `raw/window4-12076-unit-bstep.log`. Kernel trace: `raw/window4-trace-b4.log`. Stage: `raw/stage_bstep.sh`. Binary b5 = `68d1321af`
+(md5 `8ebceca5…`). Default env: main after #526 (prefill chunk 2048, MoE WMMA and flash prefill on). KV fraction 0.9.
+
+### 5.1 Unit gate (b5)
+
+| Check | Result |
+|---|---|
+| `tests/ink_rows.rs` | conv_mix_bf16_rows **645**, ink_attn_decode_bf16_rows **40** row-table calls bitwise the solo calls: PASS |
+| `tests/ink_attn.rs` `rows_exact_real_shapes` | 63 cases bitwise: PASS |
+| `kernels test --op conv_mix` / `--op ink_attn_decode` | 532 / 70 cases, 0 fail, ADMITTED |
+| `tests/inkling2_batch.rs` on HIP, tiny fixture, `CI=1` | 8 / 8 PASS |
+
+### 5.2 Batched == solo on Inkling-2-Mini (`batch_step --solo-replay`, real-text prompts)
+
+Every batched token was compared with the token that sequence's own solo decode produces from the same inputs:
+
+| Run | Rows | Tokens compared | Result |
+|---|---|---|---|
+| short: row i at 256 + 8 i tokens, B 1 / 4 / 8 / 16 in turn, 5 rounds x 16 steps | 16 | 2320 | **all equal** |
+| 2k: row i at 2040 + 3 i, B 4 / 16, 3 rounds x 8 steps (the solo steps cross 2048 keys: op 75's fused kernel -> its split path) | 16 | 480 | **all equal** |
+
+### 5.3 Pure decode speed (`batch_step`, per-step time = every stream's inter-token latency)
+
+| Context | B | step ms p50 | step ms p99 | aggregate tok/s | x solo |
+|---|---|---|---|---|---|
+| short (256 - 376) | 1 | 12.99 | 13.08 | 77.0 | 1.00 |
+| | 4 | 23.59 | 24.41 | 169.6 | 2.21 |
+| | 8 | 33.25 | 34.31 | 240.6 | 3.14 |
+| | 16 | 55.35 | 56.64 | **289.1** | **3.77** |
+| 2k (2040 - 2101) | 4 | 25.05 | 25.86 | 159.7 | 2.16 |
+| | 16 | 61.61 | 62.47 | 259.7 | 3.51 |
+| 4k (4096) | 1 | 13.63 | 13.66 | 73.4 | 1.00 |
+| | 4 | 25.61 | 26.27 | 156.2 | 2.13 |
+| | 8 | 36.77 | 37.75 | 217.6 | 2.96 |
+| | 16 | 63.25 | 64.14 | **253.0** | **3.45** |
+
+- B 1 in a batched model is the solo step: 77.0 / 73.4 tok/s. The solo median in the replay was 13.04 ms (76.7 tok/s).
+- The step-time p99 is within 2.5 % of the p50 at every B.
+- The `x solo` column divides by the same run's B 1.
+
+### 5.4 Which kernels the batched rows take (coordinator ask, PR #526 defaults)
+
+Trace: `INTARSIA_HIP_TRACE=1`, 4 sequences of 255 prompt tokens (one 2048-chunk prefill each), then 32 batched steps at B 4.
+
+| Pass | Kernels (launches) |
+|---|---|
+| prefill: 4 sequences x 48 visits | `moe_experts_situ_bf16` 176, `moe_experts_mxfp8_bf16` 16, `ink_kv_prologue_bf16` 192, `rel_sink_attn_bf16` 192, `ink_in_proj_bf16_matmul` 192, `conv_mix_bf16` 384, `matmul_bf16` 192, `logits_bf16` 192 |
+| batched steps: 32 x 48 visits | `moe_experts_situ_bf16_rows` 1408, `moe_experts_mxfp8_bf16_rows` 128, `ink_in_proj_bf16_gemv_rows` 1536, `conv_mix_bf16_rows` 3072, `ink_attn_decode_bf16_rows` 1536, `matmul_bf16_gemv_rows` 1536, `logits_bf16_gemv_rows` 1568 |
+
+- The batched rows never reach the tensor-core expert path. `kernels/hip/ink_moe.hip` `run()` takes WMMA only when `!rows`, that is
+  for ordinary names and never the `_rows` twins, and `forward_batch`'s `exact_rows` picks the `_rows` twins.
+- The batched rows never reach the flash attention either. The batched step calls no `RelSinkAttn` (0 launches beyond the 192 of the
+  prefill), and the flash form only runs inside `rel_sink_attn_bf16` for calls of more than 16 rows.
+- The batched paths are exactly the `_rows` kernels listed above.
+
+### 5.5 Memory (the plan's `# memory` line, R9700 32 624 MiB)
+
+| Item | MiB |
+|---|---|
+| weights | 12 694 |
+| workspace, one sequence (with its rings) | ~973 |
+| rings per extra sequence (SWA KV of 40 visits + conv rings, x 2: live + ring snapshot) | 348 |
+| full-attention KV (8 full visits x 8 heads x 128 x 2 x bf16) | 32 KiB / token = 132 per sequence at 4224 tokens |
+| free after weights + workspace (B 16) | 13 730 |
+
+Per sequence at a 4k context: 348 + 132 = **480 MiB**. `serve`'s KV budget is `--kv-fraction` x free, default 0.5:
+- at 0.5 the budget is 6 865 MiB, and B 16 clamps to **3285 tokens** per sequence (measured in window 2);
+- at 0.9 the budget is 12 356 MiB, and B 16 at 4224 tokens uses 5 222 + 2 112 = 7 334 MiB of it.
+
+Largest B at 4k on 32 GB:
+- memory alone would allow about 26 at 0.9, and about 29 with all the free memory: (13 730 + 348) / 480;
+- the engine's row cap (`kernels::ROWS_MAX` = `batch_row_cap` = 16) binds first, so the answer is **B 16 at 4k with `--kv-fraction 0.9`**;
+- at the default 0.5 it is **B 15**: (6 865 + 348) / 480.
+
+Peak VRAM per B is measured in section 7.

@@ -1,0 +1,30 @@
+fleetq: #12064 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=295 MA=main2 BR=b3 bash ~/intarsiaml-ink-hip-batch/.scratch/window.sh ~/intarsiaml-ink-hip-batch/.scratch/stage_gate.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-batch/.scratch/stage_gate.sh; cap 295s; stopping radiance 2026-11-26 12:44:34
+[window] radiance stopped 2026-11-26 12:44:38 (inactive)
+[stage] md5 64 2026-11-26 12:44:38
+SPD main short 64 r1 04cdb28a6849728e8aa5be39bf65c07e | decode 824 ms (76.43 tok/s) | prefill 108 ms (285.8 tok/s) | steps=64 graph replays=63 (captures 1) eager decode steps=0
+SPD branch short 64 r1 04cdb28a6849728e8aa5be39bf65c07e | decode 827 ms (76.18 tok/s) | prefill 110 ms (280.9 tok/s) | steps=64 graph replays=63 (captures 1) eager decode steps=0
+SPD main 4k 64 r1 2252566a5c54cf52cb564bd214c9af2b | decode 858 ms (73.41 tok/s) | prefill 1557 ms (2716.3 tok/s) | steps=66 graph replays=63 (captures 1) eager decode steps=0
+SPD branch 4k 64 r1 2252566a5c54cf52cb564bd214c9af2b | decode 861 ms (73.13 tok/s) | prefill 1559 ms (2712.2 tok/s) | steps=66 graph replays=63 (captures 1) eager decode steps=0
+[stage] speed + md5 256 2026-11-26 12:45:03
+SPD main short 256 r1 9a27c21b6fdc4ea7700439c818e698d8 | decode 3315 ms (76.92 tok/s) | prefill 95 ms (326.7 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r1 9a27c21b6fdc4ea7700439c818e698d8 | decode 3326 ms (76.66 tok/s) | prefill 98 ms (316.0 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r1 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3442 ms (74.09 tok/s) | prefill 1562 ms (2707.6 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r1 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3455 ms (73.81 tok/s) | prefill 1567 ms (2698.5 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r2 9a27c21b6fdc4ea7700439c818e698d8 | decode 3328 ms (76.62 tok/s) | prefill 98 ms (315.1 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main short 256 r2 9a27c21b6fdc4ea7700439c818e698d8 | decode 3315 ms (76.92 tok/s) | prefill 97 ms (319.8 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r2 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3456 ms (73.79 tok/s) | prefill 1571 ms (2691.4 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r2 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3444 ms (74.04 tok/s) | prefill 1571 ms (2690.6 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD main short 256 r3 9a27c21b6fdc4ea7700439c818e698d8 | decode 3317 ms (76.88 tok/s) | prefill 97 ms (320.0 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r3 9a27c21b6fdc4ea7700439c818e698d8 | decode 3330 ms (76.59 tok/s) | prefill 99 ms (313.2 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r3 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3444 ms (74.03 tok/s) | prefill 1572 ms (2690.0 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r3 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3458 ms (73.75 tok/s) | prefill 1575 ms (2684.2 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r4 9a27c21b6fdc4ea7700439c818e698d8 | decode 3329 ms (76.61 tok/s) | prefill 98 ms (315.9 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main short 256 r4 9a27c21b6fdc4ea7700439c818e698d8 | decode 3318 ms (76.86 tok/s) | prefill 97 ms (319.1 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r4 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3458 ms (73.75 tok/s) | prefill 1574 ms (2685.9 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r4 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3445 ms (74.02 tok/s) | prefill 1573 ms (2687.2 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+[stage] done 2026-11-26 12:47:26
+[window] stage done 2026-11-26 12:47:27 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 12:47:27
+[window] radiance answers 2026-11-26 12:47:37 (after 15 s)
+fleetq: #12064 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
