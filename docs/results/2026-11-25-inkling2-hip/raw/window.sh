@@ -44,7 +44,7 @@ sleep 3
 echo "[window] radiance stopped $(now) ($(systemctl --user is-active radiance))" | tee -a "$LOG"
 setsid timeout "$CAP" bash "$@" < /dev/null >> "$LOG" 2>&1 &
 STAGE_PID=$!
-tail -n +1 -f "$LOG" --pid "$STAGE_PID" 2>/dev/null &
+tail -n 0 -f "$LOG" --pid "$STAGE_PID" 2>/dev/null &
 wait "$STAGE_PID"
 rc=$?
 sleep 1
