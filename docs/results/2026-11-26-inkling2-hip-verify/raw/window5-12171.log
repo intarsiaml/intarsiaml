@@ -1,0 +1,28 @@
+fleetq: #12171 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=60 bash ~/intarsiaml-ink-hip-verify/.scratch/window.sh ~/intarsiaml-ink-hip-verify/.scratch/stage_w5.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-verify/.scratch/stage_w5.sh; cap 60s; stopping radiance 2026-11-26 15:35:59
+[window] radiance stopped 2026-11-26 15:36:03 (inactive)
+[stage] main tiny inkling2 15:36:03 (/target/release/deps/inkling2-4591618c7e4a1464)
+rc 101
+test inkling2_tiny_chunk_scan ... ok
+test inkling2_tiny_chunked_and_decode_match_prefill_bitwise ... ok
+test inkling2_tiny_failed_pass_resets_the_sequence ... ok
+test inkling2_tiny_g1a_f32_vs_f64 ... ok
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+test inkling2_tiny_graph_decode_is_bitwise_the_eager_decode ... ok
+test inkling2_tiny_interleaved_sequences_equal_solo ... ok
+test inkling2_tiny_launch_diff ... ok
+test inkling2_tiny_loads ... ok
+test inkling2_tiny_logits_dump ... ok
+test inkling2_tiny_no_kernel_refusal_names_the_op ... ok
+test inkling2_tiny_p12_forced_on ... ok
+test inkling2_tiny_rollback_by_length ... ok
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+test inkling2_tiny_verify_graph_replays_equal_decode_bitwise ... ok
+test inkling2_tiny_verify_rows_equal_decode_bitwise ... ok
+test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.74s
+[stage] done 15:36:05
+[window] stage done 2026-11-26 15:36:06 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 15:36:06
+[window] radiance answers 2026-11-26 15:36:16 (after 15 s)
+fleetq: #12171 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

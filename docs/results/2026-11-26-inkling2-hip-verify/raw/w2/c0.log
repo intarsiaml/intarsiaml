@@ -1,0 +1,38 @@
+[c0] exes /target/release/deps/verify_rows_real-520c2daf27fcc6e0 /target/release/deps/ink_moe-34ae8a06fbc12c09
+[c0] (a) probe 1k rows 1..8, split 1 14:39:23
+rc 0
+PROBE_TIME decode1 13.37 ms, verify2 16.59 ms (1.24x), verify3 20.04 ms (1.50x), verify4 22.34 ms (1.67x), verify5 24.71 ms (1.85x), verify6 26.97 ms (2.02x), verify7 29.32 ms (2.19x), verify8 31.54 ms (2.36x)
+PROBE_TIME_MIN len=1021 decode1 13.31 ms, verify2 16.52 ms, verify3 19.93 ms, verify4 22.26 ms, verify5 24.58 ms, verify6 26.84 ms, verify7 29.16 ms, verify8 31.41 ms
+[c0] (a) probe 1k rows 1..8, split unset 14:39:31
+rc 0
+PROBE_TIME decode1 13.39 ms, verify2 16.66 ms (1.24x), verify3 20.06 ms (1.50x), verify4 22.26 ms (1.66x), verify5 13.76 ms (1.03x), verify6 14.58 ms (1.09x), verify7 15.18 ms (1.13x), verify8 16.22 ms (1.21x)
+PROBE_TIME_MIN len=1021 decode1 13.32 ms, verify2 16.59 ms, verify3 19.96 ms, verify4 22.18 ms, verify5 13.67 ms, verify6 14.47 ms, verify7 15.08 ms, verify8 16.10 ms
+[c0] (a) probe 1k rows 1..8, split 0:1 14:39:37
+rc 0
+PROBE_TIME decode1 13.37 ms, verify2 16.51 ms (1.23x), verify3 19.95 ms (1.49x), verify4 22.14 ms (1.66x), verify5 13.54 ms (1.01x), verify6 14.29 ms (1.07x), verify7 14.94 ms (1.12x), verify8 15.86 ms (1.19x)
+PROBE_TIME_MIN len=1021 decode1 13.32 ms, verify2 16.41 ms, verify3 19.83 ms, verify4 22.08 ms, verify5 13.43 ms, verify6 14.16 ms, verify7 14.77 ms, verify8 15.70 ms
+[c0] (a) probe 1k rows 1..8, split 1b 14:39:43
+rc 0
+PROBE_TIME decode1 13.37 ms, verify2 16.65 ms (1.24x), verify3 20.08 ms (1.50x), verify4 22.40 ms (1.68x), verify5 24.75 ms (1.85x), verify6 27.06 ms (2.02x), verify7 29.36 ms (2.20x), verify8 31.63 ms (2.36x)
+PROBE_TIME_MIN len=1021 decode1 13.31 ms, verify2 16.55 ms, verify3 20.00 ms, verify4 22.29 ms, verify5 24.65 ms, verify6 26.93 ms, verify7 29.24 ms, verify8 31.46 ms
+[c0] (b) ink_moe rows_exact + odd ids 14:39:51
+rc 101
+test ink_moe_rows_exact ... FAILED
+test ink_moe_wave_grouping_odd_ids ... ok
+thread 'ink_moe_rows_exact' panicked at crates/intarsia-backend-hip/tests/ink_moe.rs:217:25:
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.46s
+[c0] (c) bitwise verify probe, rows 2..8 at 17 / 1024 / 4000 + 16 greedy windows, the rule 14:39:52
+rc 101
+DIFF len=17 q=5: max|dlogit|=5.510049e-1 argmax mismatches=4
+DIFF len=17 q=6: max|dlogit|=0e0 argmax mismatches=6
+DIFF len=17 q=7: max|dlogit|=0e0 argmax mismatches=7
+DIFF len=17 q=8: max|dlogit|=0e0 argmax mismatches=8
+DIFF len=1024 q=5: max|dlogit|=0e0 argmax mismatches=5
+DIFF len=1024 q=6: max|dlogit|=0e0 argmax mismatches=6
+DIFF len=1024 q=7: max|dlogit|=0e0 argmax mismatches=7
+DIFF len=1024 q=8: max|dlogit|=0e0 argmax mismatches=8
+DIFF len=4000 q=5: max|dlogit|=0e0 argmax mismatches=5
+DIFF len=4000 q=6: max|dlogit|=0e0 argmax mismatches=6
+DIFF len=4000 q=7: max|dlogit|=0e0 argmax mismatches=7
+DIFF len=4000 q=8: max|dlogit|=0e0 argmax mismatches=8
+[c0] done 14:40:04

@@ -1,0 +1,25 @@
+fleetq: #12180 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=330 LIMIT=290 bash ~/intarsiaml-ink-hip-verify/.scratch/window.sh ~/intarsiaml-ink-hip-verify/.scratch/stage_w6.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-verify/.scratch/stage_w6.sh; cap 330s; stopping radiance 2026-11-26 15:42:19
+[window] radiance stopped 2026-11-26 15:42:23 (inactive)
+[stage] start 15:42:23
+---- card 0
+[speed] k3@c0a recipe rc 0 t+37s | decode overall: 2013 tokens after the first, 19562 ms (102.90 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] k5@c0a recipe rc 0 t+75s | decode overall: 2013 tokens after the first, 19348 ms (104.04 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] k4@c0a recipe rc 0 t+112s | decode overall: 2013 tokens after the first, 19237 ms (104.64 tok/s) | spec: verify passes=709 proposed=2002 accepted=1143 (acceptance 57.1%, 2.61 tokens per pass)
+[speed] k4@c0b recipe rc 0 t+149s | decode overall: 2013 tokens after the first, 19240 ms (104.62 tok/s) | spec: verify passes=709 proposed=2002 accepted=1143 (acceptance 57.1%, 2.61 tokens per pass)
+[speed] k5@c0b recipe rc 0 t+186s | decode overall: 2013 tokens after the first, 19371 ms (103.92 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] k3@c0b recipe rc 0 t+223s | decode overall: 2013 tokens after the first, 19585 ms (102.78 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[c0] done 15:46:06
+---- card 1
+[speed] k4@c1a recipe rc 0 t+37s | decode overall: 2013 tokens after the first, 19164 ms (105.04 tok/s) | spec: verify passes=709 proposed=2002 accepted=1143 (acceptance 57.1%, 2.61 tokens per pass)
+[speed] k3@c1a default rc 0 t+74s | decode overall: 2013 tokens after the first, 19505 ms (103.21 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] k5@c1a recipe rc 0 t+111s | decode overall: 2013 tokens after the first, 19288 ms (104.37 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] k5@c1b recipe rc 0 t+148s | decode overall: 2013 tokens after the first, 19296 ms (104.32 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] k3@c1b default rc 0 t+185s | decode overall: 2013 tokens after the first, 19505 ms (103.21 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[speed] k4@c1b recipe rc 0 t+221s | decode overall: 2013 tokens after the first, 19182 ms (104.94 tok/s) | spec: verify passes=709 proposed=2002 accepted=1143 (acceptance 57.1%, 2.61 tokens per pass)
+[c1] done 15:46:04
+[stage] done 15:46:06
+[window] stage done 2026-11-26 15:46:07 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 15:46:07
+[window] radiance answers 2026-11-26 15:46:17 (after 15 s)
+fleetq: #12180 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -6,6 +6,12 @@
 //! Opt-in, loads the whole checkpoint: `INTARSIA_VERIFY_DIR` (checkpoint dir), `INTARSIA_VERIFY_ROWS` (most rows, default 8),
 //! `INTARSIA_VERIFY_LENS` (comma list of context lengths, default 17,130,1024,4000,16000), `INTARSIA_BATCH_TEST_BACKEND=hip`
 //! (else CUDA). Take a fleetq slot first. Unset: SKIPPED, passes.
+//!
+//! Timing-only knobs (lane ink-hip-verify, docs/results/2026-11-26-inkling2-hip-verify.md): `INTARSIA_VERIFY_TIME_ONLY=1` skips the
+//! bitwise checks (sections 1 and 2) and runs only the cost loop; `INTARSIA_VERIFY_PROMPT=<json>` (a flat id array, or an array of id
+//! arrays: the first is taken) makes the cost loop's context that prompt and its verify rows the model's own greedy continuation of
+//! it (every draft accepted: real routing, so the expert union of a real pass, not of random ids); `INTARSIA_VERIFY_TIME_REPS` sets the
+//! loop's passes per row count (default 12). Unset, the probe is as before.
 use intarsia_core::model::{HeadMode, LoadOptions, Model, StepOut};
 use intarsia_core::state::SequenceState;
 use intarsia_core::Telemetry;
@@ -93,6 +99,16 @@ fn verify_rows_are_bitwise_the_single_row_steps() {
     let vocab = dims.vocab as u32;
     let hi = vocab.min(150_000);
 
+    let time_only = std::env::var("INTARSIA_VERIFY_TIME_ONLY").is_ok_and(|v| v == "1");
+    let reps: usize = std::env::var("INTARSIA_VERIFY_TIME_REPS").ok().and_then(|v| v.parse().ok()).unwrap_or(12).max(1);
+    let real_prompt: Option<Vec<u32>> = std::env::var_os("INTARSIA_VERIFY_PROMPT").map(|f| {
+        let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&f).expect("INTARSIA_VERIFY_PROMPT unreadable")).expect("INTARSIA_VERIFY_PROMPT: not json");
+        let a = v.as_array().expect("INTARSIA_VERIFY_PROMPT: not an array");
+        let a = if a.first().is_some_and(|x| x.is_array()) { a[0].as_array().unwrap() } else { a };
+        a.iter().filter_map(|i| i.as_u64()).map(|i| i as u32).collect()
+    });
+    eprintln!("PROBE_TIME_CONFIG time_only={time_only} reps={reps} prompt={}", real_prompt.as_ref().map_or("random".to_string(), |p| format!("{} ids, greedy continuation", p.len())));
+
     let mut rng = Lcg(42);
     let (mut bad, mut rows, mut flips) = (0usize, 0usize, 0usize);
     let mut worst = 0f32;
@@ -110,7 +126,7 @@ fn verify_rows_are_bitwise_the_single_row_steps() {
     };
 
     // 1. every row count 2..=most at several context lengths, random ids (worst case for argmax ties), logits compared
-    for &len in &lens {
+    for &len in if time_only { &[][..] } else { &lens[..] } {
         let prompt: Vec<u32> = (0..len).map(|_| rng.next(1000, hi)).collect();
         let mut st = m.new_state().unwrap();
         prefill(&m, &mut st, &prompt);
@@ -123,40 +139,56 @@ fn verify_rows_are_bitwise_the_single_row_steps() {
 
     // 2. on-distribution: the model's own greedy continuation as the drafts (all accepted), 16 windows of `most` rows
     let prompt: Vec<u32> = (0..37).map(|_| rng.next(1000, hi)).collect();
-    let mut st = m.new_state().unwrap();
-    prefill(&m, &mut st, &prompt);
-    let mut seq = prompt.clone();
-    let mut tok = greedy(&m, &mut st, *seq.last().unwrap());
-    for _ in 0..(16 * most + most) {
-        seq.push(tok);
-        tok = greedy(&m, &mut st, tok);
-    }
-    let mut st2 = m.new_state().unwrap();
-    prefill(&m, &mut st2, &seq[..prompt.len()]);
-    let mut at = prompt.len();
-    for w in 0..16 {
-        if st2.len < at {
-            let from = st2.len;
-            prefill(&m, &mut st2, &seq[from..at]);
+    if !time_only {
+        let mut st = m.new_state().unwrap();
+        prefill(&m, &mut st, &prompt);
+        let mut seq = prompt.clone();
+        let mut tok = greedy(&m, &mut st, *seq.last().unwrap());
+        for _ in 0..(16 * most + most) {
+            seq.push(tok);
+            tok = greedy(&m, &mut st, tok);
         }
-        check(&m, &mut st2, &seq[at..at + most], &format!("greedy window {w} at {at}"));
-        at += most;
+        let mut st2 = m.new_state().unwrap();
+        prefill(&m, &mut st2, &seq[..prompt.len()]);
+        let mut at = prompt.len();
+        for w in 0..16 {
+            if st2.len < at {
+                let from = st2.len;
+                prefill(&m, &mut st2, &seq[from..at]);
+            }
+            check(&m, &mut st2, &seq[at..at + most], &format!("greedy window {w} at {at}"));
+            at += most;
+        }
     }
 
     // 3. cost (probe, not a benchmark): median of 12 passes at length 1024, each verify row count as the engine runs it
     //    (eager, or a captured replay with `INTARSIA_VERIFY_GRAPH=1`)
-    let len = 1024;
-    let prompt: Vec<u32> = (0..len).map(|_| rng.next(1000, hi)).collect();
+    //    (with INTARSIA_VERIFY_PROMPT: that prompt, and the rows are its greedy continuation)
+    let (prompt, gen): (Vec<u32>, Option<Vec<u32>>) = match &real_prompt {
+        Some(p) => {
+            let mut sg = m.new_state().unwrap();
+            prefill(&m, &mut sg, &p[..p.len() - 1]);
+            let mut g = Vec::with_capacity(most);
+            let mut t = greedy(&m, &mut sg, p[p.len() - 1]);
+            while g.len() < most {
+                g.push(t);
+                t = greedy(&m, &mut sg, t);
+            }
+            (p.clone(), Some(g))
+        }
+        None => ((0..1024).map(|_| rng.next(1000, hi)).collect(), None),
+    };
+    let len = prompt.len();
     let mut st = m.new_state().unwrap();
     prefill(&m, &mut st, &prompt);
     st.snapshot(&*m.backend, intarsia_core::state::RECURRENT_SNAPSHOTS).unwrap();
-    let ids: Vec<u32> = (0..most).map(|_| rng.next(1000, hi)).collect();
+    let ids: Vec<u32> = gen.unwrap_or_else(|| (0..most).map(|_| rng.next(1000, hi)).collect());
     let med = |mut v: Vec<f64>| {
         v.sort_by(|a, b| a.partial_cmp(b).unwrap());
         v[v.len() / 2]
     };
     let mut times: Vec<Vec<f64>> = vec![Vec::new(); most + 1];
-    for _ in 0..12 {
+    for _ in 0..reps {
         let t = Instant::now();
         m.forward(&mut st, &[ids[0]], HeadMode::LastArgmax, None).unwrap();
         times[1].push(t.elapsed().as_secs_f64() * 1e3);
@@ -174,6 +206,14 @@ fn verify_rows_are_bitwise_the_single_row_steps() {
         if !t.is_empty() {
             let v = med(t.clone());
             line += &format!(", verify{q} {v:.2} ms ({:.2}x)", v / d1);
+        }
+    }
+    eprintln!("{line}");
+    let mn = |v: &Vec<f64>| v.iter().copied().fold(f64::MAX, f64::min);
+    let mut line = format!("PROBE_TIME_MIN len={len} decode1 {:.2} ms", mn(&times[1]));
+    for (q, t) in times.iter().enumerate().skip(2) {
+        if !t.is_empty() {
+            line += &format!(", verify{q} {:.2} ms", mn(t));
         }
     }
     eprintln!("{line}");

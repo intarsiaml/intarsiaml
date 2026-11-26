@@ -1,0 +1,39 @@
+[c0] probe test exe /target/release/deps/verify_rows_real-520c2daf27fcc6e0
+[c0] (a) probe 1k, rows 1..8 14:22:40
+rc 0
+PROBE_TIME_CONFIG time_only=true reps=12 prompt=1021 ids, greedy continuation
+PROBE_TIME decode1 13.36 ms, verify2 16.62 ms (1.24x), verify3 20.06 ms (1.50x), verify4 22.36 ms (1.67x), verify5 24.74 ms (1.85x), verify6 27.03 ms (2.02x), verify7 29.35 ms (2.20x), verify8 31.56 ms (2.36x)
+PROBE_TIME_MIN len=1021 decode1 13.32 ms, verify2 16.55 ms, verify3 20.00 ms, verify4 22.31 ms, verify5 24.65 ms, verify6 26.97 ms, verify7 29.27 ms, verify8 31.45 ms
+PROBE_GRAPHS GraphStats { enabled: true, captures: 2, replays: 21, batch_captures: 0, batch_replays: 0, spec_captures: 7, spec_replays: 84 }
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.89s
+[c0] (b) probe 4k, rows 1..8 14:22:47
+rc 0
+PROBE_TIME_CONFIG time_only=true reps=12 prompt=4108 ids, greedy continuation
+PROBE_TIME decode1 13.54 ms, verify2 17.00 ms (1.26x), verify3 19.37 ms (1.43x), verify4 21.57 ms (1.59x), verify5 24.74 ms (1.83x), verify6 27.20 ms (2.01x), verify7 29.23 ms (2.16x), verify8 31.09 ms (2.30x)
+PROBE_TIME_MIN len=4108 decode1 13.51 ms, verify2 16.94 ms, verify3 19.30 ms, verify4 21.52 ms, verify5 24.68 ms, verify6 27.12 ms, verify7 29.09 ms, verify8 30.95 ms
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.20s
+[c0] (c) rocprofv3 kernel trace of (a), 8 reps 14:22:55
+rc 0
+PROBE_TIME_CONFIG time_only=true reps=8 prompt=1021 ids, greedy continuation
+PROBE_TIME decode1 14.25 ms, verify2 17.53 ms (1.23x), verify3 21.17 ms (1.49x), verify4 23.41 ms (1.64x), verify5 25.84 ms (1.81x), verify6 28.12 ms (1.97x), verify7 30.53 ms (2.14x), verify8 32.74 ms (2.30x)
+PROBE_TIME_MIN len=1021 decode1 14.21 ms, verify2 17.42 ms, verify3 21.03 ms, verify4 23.36 ms, verify5 25.74 ms, verify6 28.00 ms, verify7 30.36 ms, verify8 32.54 ms
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.04s
+kernel trace: /home/josef/intarsiaml-ink-hip-verify/logs/w1/rp/run_kernel_trace.csv 14:23:02
+trace /home/josef/intarsiaml-ink-hip-verify/logs/w1/rp/run_kernel_trace.csv: 47741 dispatches; loop 8 reps x 8 passes, first 2 reps dropped; ms per pass (median)
+rows  disp    span  kernel experts nvfp4 experts mxfp8         route       in-proj       unembed wo / dense ge mix (conv / a     attention         blend        argmax  norm / embed          copy         other
+   1   538   14.23   12.56         3.588         0.473         0.470         3.089         1.445         1.173         0.961         0.965         0.365         0.014         0.008         0.011         0.000
+   2   536   17.47   15.56         5.609         0.783         0.504         3.083         1.445         1.221         1.032         1.395         0.455         0.015         0.008         0.011         0.000
+   3   632   21.07   18.89         7.591         1.068         0.522         3.248         1.450         1.855         0.870         1.809         0.444         0.014         0.008         0.012         0.000
+   4   632   23.38   21.18         8.971         1.300         0.546         3.311         1.455         2.073         0.858         2.168         0.467         0.014         0.008         0.012         0.000
+   5   632   25.79   23.59        10.330         1.537         0.539         3.410         1.462         2.276         0.854         2.658         0.492         0.015         0.007         0.011         0.000
+   6   632   28.06   25.87        11.778         1.742         0.539         3.540         1.476         2.441         0.853         2.965         0.513         0.015         0.007         0.012         0.000
+   7   632   30.43   28.22        13.302         1.951         0.543         3.624         1.481         2.628         0.851         3.261         0.539         0.015         0.007         0.012         0.000
+   8   632   32.65   30.45        14.614         2.178         0.544         3.755         1.493         2.819         0.850         3.599         0.563         0.015         0.008         0.012         0.000
+
+kernel                                                                         r1       r2       r3       r4       r5       r6       r7       r8   (us per pass, median)
+[c0] (d) sweep rep c0a 14:23:02
+[sweep] k3@c0a rc 0 t+48s | decode overall: 1256 tokens after the first, 11495 ms (109.27 tok/s) | spec: verify passes=434 proposed=1057 accepted=730 (acceptance 69.1%, 2.68 tokens per pass)
+[sweep] k4@c0a rc 0 t+75s | decode overall: 1256 tokens after the first, 11156 ms (112.58 tok/s) | spec: verify passes=405 proposed=1180 accepted=765 (acceptance 64.8%, 2.89 tokens per pass)
+[sweep] k5@c0a rc 0 t+101s | decode overall: 1256 tokens after the first, 11222 ms (111.93 tok/s) | spec: verify passes=394 proposed=1285 accepted=777 (acceptance 60.5%, 2.97 tokens per pass)
+[sweep] k7@c0a rc 0 t+127s | decode overall: 1256 tokens after the first, 11367 ms (110.50 tok/s) | spec: verify passes=382 proposed=1425 accepted=790 (acceptance 55.4%, 3.07 tokens per pass)
+[c0] done 14:24:47
