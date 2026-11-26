@@ -472,3 +472,31 @@ to the solo chunk, and that is HIP's default.
 - Batching stays opt-in (`--max-batch`). A one-stream user keeps the solo server, which since #527 speculates with DSpark (1.19x at
   1k, 1.34x short). A batching server loads no draft, so it starts to win at 2 or more streams: 130 tok/s at 4 against 66.6 plain
   and about 80-90 with DSpark.
+
+## 11. Windows, PR, leftovers
+
+| Window | fleetq | What | Radiance down |
+|---|---|---|---|
+| 1 | #12049 | unit tests (b2) | 12:18:04 - 12:20:00, 1:56 |
+| 2 | #12057 | batch_step on the real model (did not fit) | 12:33:34 - 12:35:08, 1:34 |
+| 3 | #12064 | solo gate b3 | 12:44:34 - 12:47:27, 2:53 |
+| 4 | #12076 | unit gate b5, batch_step bitwise / speed / trace | 13:00:30 - 13:03:37, 3:07 |
+| 5 | #12080 | solo gate b5 (0.9957) | 13:07:35 - 13:10:29, 2:54 |
+| 6 | #12088 | unit + solo gate b6 (TU split: 1.000) | 13:27:26 - 13:31:09, 3:43 |
+| 7 | #12094 | unit + solo gate b7 (on main `3c6ff64f0`) | 13:40:19 - 13:44:02, 3:43 |
+| 8 | #12095 | serve: batched replies, localeval reps 1-2 | 13:44:34 - 13:49:06, 4:32 |
+| 9 | #12096 | serve: solo replies, rep 3, busy chunk 256 | 13:49:34 - 13:53:37, 4:03 |
+| | | **total** | **28:25** (cap 30:00) |
+
+- CPU jobs: builds #12035 (cancelled by the coordinator: `--mem`), #12087, #12091 and others; device-ISA jobs #12083, #12086;
+  push #12098 (endor).
+- PR: https://github.com/intarsiaml/intarsiaml/pull/529.
+- Left on tatooine:
+  - `~/intarsiaml-ink-hip-batch` (382 MB): binaries `intarsia-b7` and `intarsia-main3`, logs, and the serve admission cache in
+    `.scratch/home`;
+  - the volume `intarsia-cargo-target-ink-hip-batch` (2.3 GB).
+  No container or process of the lane is running.
+- Not measured, because the window time went to the gates and the serve checks:
+  - serve at a 4k prompt (the pure-decode 4k numbers are section 5.3);
+  - VRAM of B 4 / B 8 servers (interpolated in 10.5);
+  - prefill 16k (same device code as main).
