@@ -18,6 +18,18 @@ Ops: SconvRes 69, AttnResMix 67, LoopBlend 68, ConvMix 74, InkInProj 73 (+ `_row
   `intarsia-cargo-target-ink-hip-mix`). moe_route is the lead's and passed (#11924); keep skipping it. The lead merges each lane after its own unit window, then runs
   admission + tiny G1 + real-model G2 in one window. Window rules unchanged (fleetq `--takes-down radiance`, <= 20 min, <= 3 windows, none after 06:00).
 
+- **Speed-round brief (coordinator, after the first landing; start from `ink/hip` head, which has `444ead518` and all three lanes; the whole model passes G2 there).**
+  Lead's GPU profile #11945 / #11947: one decode token 16.0 ms against an 8.76 ms floor; idle time between the 712 dispatches is 2.56 ms (about 3.6 us each), so
+  fewer dispatches pay directly. Three items in order:
+  (a) fused `InkRoute` (op 76): router GEMV + top-k in one kernel (today `moe_route` 48 calls x 8 us = 0.38 ms; fusing removes 48 dispatches, about 0.4 ms). Op 76 needs
+  one line from the lead in `model/inkling2.rs` (hip only): do NOT edit that file; tell the coordinator when op 76 is admitted.
+  (b) blend: ctl GEMV 0.31 + gate 0.22 + norm 0.18 = 0.71 ms over 144 dispatches against a 0.18 ms floor: fewer launches (about -96 dispatches, about 0.5 ms).
+  (c) ConvMix / AttnResMix row kernel takes 11.2 us for a 2304-wide row (124 calls = 1.39 ms, almost no data): check block size, occupancy, serial reductions; target
+  about 0.7 ms saved.
+  Rules: keep each op's Exactness class; admission vs cpu-ref must pass; rows-exact stays bitwise where promised; bitwise against the current forms preferred (say so
+  if bits change; G2 must still pass). 2 windows left, <= 20 min each, none after 06:00, radiance back up before release; own `INTARSIA_TARGET_VOL` and container name;
+  tatooine `/` is 88% full: clean the own build volume between windows if tight. Report each landing as "ready to merge at <commit>" with us before / after per kernel.
+
 ## Status (2026-11-25 21:45 EST)
 
 All five ops ported and ADMITTED on the R9700 in the first unit window; rows-exact (bitwise) tests pass; bench below. Branch `ink/hip-mix`.
