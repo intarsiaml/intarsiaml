@@ -205,3 +205,11 @@ targets `ink_mix` / `ink_attn` / `ink_rows` plus `verify_rows_real`, and `docs_e
 `docs_env_vars`, `recipes_doc`) and #12212 (`intarsia-models --lib dspark_default`, 1/1) pass. The merge adds only #534 (the recipe k change
 and its tests). Window 10 measured `vrow3` at k5 (section 4b); the probe, hip tests, admission, tiny suites and G2 were run on `vrow2`
 (window 8) and not rerun, since the kernel and crate code is the same.
+
+**Second merge, main `6517d98f4` (#533: HIP P12 default-on for the in-projection, `wo` and the unembed).** Merge commit `5eca64cf2`;
+only the `docs/decisions/LOG.md` row order conflicted (main's #533 row first, then this branch's). #533 touches none of this branch's
+files. Checks on the merged tree, no GPU: tatooine #12229 (`--load cpu`) builds `vrow4` (md5 `32fd164c3cd6313296aec5c17f5b507a`), the
+hip test targets and `verify_rows_real`; `intarsia-models --lib dspark_default` 1/1 and `docs_env_vars` 2/2 pass; endor #12230
+(prepush) passes. Speed was not re-measured with P12 on, because part 2 has 1:58 of radiance left. P12 changes the in-projection /
+`wo` / unembed GEMVs, which are separate ops from the blend and op 75 and give the same bits. The ratios in sections 4 and 4b were
+measured without P12; with P12 both arms' tok/s are higher, and the ratio is not measured.
