@@ -1,0 +1,20 @@
+fleetq: #12026 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-hip-pfflip/.scratch/phaseA.sh'
+[phaseA] seed source 0 GB 11:26:06
+cp: preserving times for '/d/.': Operation not permitted
+[phaseA] seeded exit 1 11:26:06
+[phaseA] build main 11:26:06
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 2m 20s
+cli build exit 0
+cp: cannot create regular file '/work/.scratch/bin/intarsia-main': No such file or directory
+[phaseA] build branch 11:28:28
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.08s
+cli build exit 0
+3e70c45a0741289c6aa48cdd046f0d8f  /home/josef/intarsiaml-ink-hip-pfflip/.scratch/bin/intarsia-pf
+
+error: could not compile `intarsia-backend-hip` (test "ink_moe") due to 1 previous error
+test ink_moe build exit 101
+fleetq: #12026 done (exit 101)

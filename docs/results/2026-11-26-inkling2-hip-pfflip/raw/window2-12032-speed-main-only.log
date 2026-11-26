@@ -1,0 +1,34 @@
+fleetq: #12032 waiting (#2 in line): in line behind #12030 "ink-hip-pf2: build main 87c9745c0" (claude-04c0e1cd) on tatooine-r9700; #12030 has no estimated start, so nothing can go first by ending before it
+fleetq:   #12030 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12030 set, or it will wait for #12030 to be released.
+fleetq: #12032 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=250 bash ~/intarsiaml-ink-hip-pfflip/.scratch/window.sh ~/intarsiaml-ink-hip-pfflip/.scratch/stage_speed.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-pfflip/.scratch/stage_speed.sh; cap 250s; stopping radiance 2026-11-26 11:39:02
+[window] radiance stopped 2026-11-26 11:39:06 (inactive)
+[stage] speed start 11:39:06
+---- card 0 (4k, short)
+SPD main 4k r1 a7c6a2acedecfac21c77486444810c38 | prompt=4228 | prefill 6869 ms (615.5 tok/s) | decode 865 ms (72.82 tok/s) [11:39:19]
+SPD pf 4k r1 d41d8cd98f00b204e9800998ecf8427e |  |  |  [11:39:19]
+SPD pf 4k r2 d41d8cd98f00b204e9800998ecf8427e |  |  |  [11:39:19]
+SPD main 4k r2 a7c6a2acedecfac21c77486444810c38 | prompt=4228 | prefill 6897 ms (613.0 tok/s) | decode 858 ms (73.44 tok/s) [11:39:31]
+SPD main 4k r3 a7c6a2acedecfac21c77486444810c38 | prompt=4228 | prefill 6912 ms (611.7 tok/s) | decode 859 ms (73.30 tok/s) [11:39:44]
+SPD pf 4k r3 d41d8cd98f00b204e9800998ecf8427e |  |  |  [11:39:44]
+SPD main short r1 b4a4f4928e878281cdd4ae1b435a04f3 | prompt=31 | prefill 96 ms (323.7 tok/s) | decode 3315 ms (76.93 tok/s) [11:39:52]
+SPD pf short r1 d41d8cd98f00b204e9800998ecf8427e |  |  |  [11:39:52]
+SPD pf short r2 d41d8cd98f00b204e9800998ecf8427e |  |  |  [11:39:52]
+SPD main short r2 b4a4f4928e878281cdd4ae1b435a04f3 | prompt=31 | prefill 97 ms (320.1 tok/s) | decode 3315 ms (76.93 tok/s) [11:40:00]
+SPD main short r3 b4a4f4928e878281cdd4ae1b435a04f3 | prompt=31 | prefill 97 ms (320.2 tok/s) | decode 3315 ms (76.92 tok/s) [11:40:08]
+SPD pf short r3 d41d8cd98f00b204e9800998ecf8427e |  |  |  [11:40:09]
+TEST ink_moe_wmma_default_and_revert [11:40:09]
+test ink_moe_wmma_default_and_revert ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.23s
+---- card 1 (16k)
+SPD pf 16k r1 d41d8cd98f00b204e9800998ecf8427e |  |  |  [11:39:06]
+SPD main 16k r1 b9852772939c0de19ee928cebdfa7f3a | prompt=16915 | prefill 31064 ms (544.5 tok/s) | decode 103 ms (67.87 tok/s) [11:39:42]
+SPD main 16k r2 b9852772939c0de19ee928cebdfa7f3a | prompt=16915 | prefill 31372 ms (539.2 tok/s) | decode 104 ms (67.56 tok/s) [11:40:19]
+SPD pf 16k r2 d41d8cd98f00b204e9800998ecf8427e |  |  |  [11:40:19]
+SPD pf 16k r3 d41d8cd98f00b204e9800998ecf8427e |  |  |  [11:40:19]
+SPD main 16k r3 b9852772939c0de19ee928cebdfa7f3a | prompt=16915 | prefill 31577 ms (535.7 tok/s) | decode 104 ms (67.55 tok/s) [11:40:55]
+[stage] speed done 11:40:55
+[window] stage done 2026-11-26 11:40:56 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 11:40:56
+[window] radiance answers 2026-11-26 11:41:06 (after 15 s)
+fleetq: #12032 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -7,8 +7,9 @@
 //! W4A16 only (never `.act_quant()`), the checkpoint's row-major weight layout only (`ink.moe_layout = 0`). Union-grouped decode,
 //! a port of CUDA's SIMT kernels: each expert's rows are read once per call for all the pairs routed to it; on those kernels a
 //! T-row call is bitwise T one-row calls at every T; the `_rows` twins always take them, and so do the ordinary names by default.
-//! The ordinary names are not registered `rows_exact`: with `INTARSIA_HIP_INK_MOE_WMMA=1` they take a bf16 tensor-core prefill
-//! above 512 pairs and from 16 pairs per expert (other f32 accumulation order; off by default).
+//! The ordinary names are not registered `rows_exact`: by default (`INTARSIA_HIP_INK_MOE_WMMA` unset or `1`; user decision
+//! 2026-11-26, `=0` is the revert) they take a bf16 tensor-core prefill above 512 pairs and from 16 pairs per expert (other f32
+//! accumulation order, not bitwise the decode kernels).
 
 use intarsia_core::quant::ops::moe_experts_scratch;
 use intarsia_core::{DType, Exactness, KernelImpl, Op, Tol};
@@ -171,7 +172,7 @@ pub fn set_nb(v: i32) {
 
 /// Tests / benchmarks: the tensor-core prefill of the ordinary names (more than 512 pairs): 0 = off (the decode kernels, the
 /// `_rows` twins' bits), 1 = the rule (64-pair tiles from 16 pairs per expert), 32 | 64 = every such call with that pair tile,
-/// `-1` = the env (`INTARSIA_HIP_INK_MOE_WMMA`) or the default (off).
+/// `-1` = the env (`INTARSIA_HIP_INK_MOE_WMMA`) or the default (the rule: on).
 pub fn set_wmma(v: i32) {
     #[cfg(ik_hip)]
     {
@@ -183,6 +184,25 @@ pub fn set_wmma(v: i32) {
     }
     #[cfg(not(ik_hip))]
     let _ = v;
+}
+
+/// Tests: the pair tile (`0` = the decode kernels, `64` the rule's tile, or the forced `32`) the ordinary names take for a call of
+/// `pairs` (token, expert) pairs over `experts` experts, as `set_wmma` / `INTARSIA_HIP_INK_MOE_WMMA` / the default resolve it
+/// (the caller's own rule for a call that has no pair table, 512 pairs and fewer, is separate). Without the HIP kernel library: `0`.
+pub fn wmma_pairs(pairs: i64, experts: i32) -> i32 {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_ink_moe_wmma_pairs(p: std::ffi::c_longlong, e: std::ffi::c_int) -> std::ffi::c_int;
+        }
+        // SAFETY: reads plain ints of the kernel library and the environment.
+        unsafe { ik_ink_moe_wmma_pairs(pairs, experts) }
+    }
+    #[cfg(not(ik_hip))]
+    {
+        let _ = (pairs, experts);
+        0
+    }
 }
 
 #[cfg(ik_hip)]

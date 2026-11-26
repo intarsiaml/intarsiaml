@@ -15,9 +15,9 @@
 // routing of other tokens, on which pairs share a batch or on the load window (PRE), so a T-row call is bitwise T one-row calls
 // (rows-exact), and the same per-element arithmetic as the CUDA kernels.
 // More than kDecPairs pairs (prefill): the same kernels on a pair table built once in scratch by a grouping launch, the
-// terms through scratch y (bf16-exact values: y and rA(y * w) are bf16) and a gather launch: the same bits. Opt-in
-// (INTARSIA_HIP_INK_MOE_WMMA=1), the ordinary names run bf16 WMMA on that pair table instead (ink_moe_wmma_kernel below:
-// other f32 order, within the op's tolerance).
+// terms through scratch y (bf16-exact values: y and rA(y * w) are bf16) and a gather launch: the same bits. By default
+// (INTARSIA_HIP_INK_MOE_WMMA unset or 1; user decision 2026-11-26; `=0` is the revert) the ordinary names run bf16 WMMA on that
+// pair table instead (ink_moe_wmma_kernel below: other f32 order, within the op's tolerance).
 //
 // What differs from CUDA (gfx12):
 //  * the e2m1 / e4m3 weights are decoded with the fp8 conversion instruction (v_cvt_pk_f32_fp8, two values per instruction; the
@@ -1026,14 +1026,14 @@ __global__ void __launch_bounds__(kMwThreads) ink_moe_wmma_kernel(MoeArgs a) {
     }
 }
 
-// INTARSIA_HIP_INK_MOE_WMMA (not bitwise the decode kernels, so off until the default is flipped):
-//   0 / unset (kWmDefault): the pair-table path stays on the decode kernels;
-//   1: the rule: 64-pair tiles from kWmMinPerExpert pairs per expert on average. A block reads and dequantises its expert's
+// INTARSIA_HIP_INK_MOE_WMMA (not bitwise the decode kernels; default on since the user's decision 2026-11-26):
+//   0: the pair-table path stays on the decode kernels (the revert);
+//   1 / unset (kWmDefault): the rule: 64-pair tiles from kWmMinPerExpert pairs per expert on average. A block reads and dequantises its expert's
 //      rows whatever the tile holds, so a sparse call is faster on the decode kernels (S2 window 1, NVFP4: 8 pairs per expert
 //      5.08 ms against 2.92; 16 pairs per expert 5.20 against 5.49);
 //   32 | 64: every pair-table call takes the tensor cores with that pair tile (tests / benchmarks).
-// To turn the tensor-core prefill on by default, set kWmDefault to 1: that is the one constant.
-constexpr int kWmDefault = 0;
+// The default is the one constant kWmDefault (1 = the rule, 0 = the decode kernels).
+constexpr int kWmDefault = 1;
 constexpr int kWmPairsRule = 64, kWmMinPerExpert = 16;
 int moe_wmma_pairs(int64_t P, int E) {
     int v = g_wmma;
@@ -1196,10 +1196,13 @@ void ik_ink_moe_set_lean(int v) { g_lean = v; }
 void ik_ink_moe_set_sz(int v) { g_sz = v; }
 void ik_ink_moe_set_nb(int v) { g_nb = v; }
 void ik_ink_moe_set_wmma(int v) { g_wmma = v; }
+// tests: the pair tile (0 = the decode kernels) the ordinary names take for a call of P (token, expert) pairs over E experts
+int ik_ink_moe_wmma_pairs(long long P, int E) { return moe_wmma_pairs((int64_t)P, E); }
 void ik_ink_moe_set_dec(int v) { g_dec = v; }
 
-// The `_rows` twins are the decode kernels at every size (rows-exact, bitwise the first form); so are the ordinary names by
-// default, and with INTARSIA_HIP_INK_MOE_WMMA=1 they take the tensor-core prefill on the pair-table path.
+// The `_rows` twins are the decode kernels at every size (rows-exact, bitwise the first form); so are the ordinary names up to 512
+// pairs and below 16 pairs per expert; above that, by default (INTARSIA_HIP_INK_MOE_WMMA unset or 1) they take the tensor-core
+// prefill on the pair-table path; INTARSIA_HIP_INK_MOE_WMMA=0 keeps them on the decode kernels.
 int ik_moe_experts_situ_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw,
                              const ik_tensor* gus, const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc,
                              float gate_cap, float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream) {
