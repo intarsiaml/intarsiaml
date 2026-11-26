@@ -92,17 +92,21 @@ Floors: experts = visits x union(R) x bytes of an expert (NVFP4 4.48 MB, MXFP8 8
 the experts' floor is that table's, not this pass's); dense classes are read once a pass (`2026-11-25-inkling2-hip.md` 4.3); attention =
 one read of the 1k context's K / V per visit (0.32 ms), whatever the rows. Per-kernel lines: `raw/w1/rowtrace.txt`.
 
-Reading:
-- **The experts lead** at every row count: +1.96 ms of excess (NVFP4) + 0.24 (MXFP8) at 4 rows, half the pass's 4.6 ms. Per NVFP4 call:
-  gate_up 51.3 / 80.6 / 110.5 / 131.5 us and down 30.3 / 46.8 / 62.0 / 72.3 us at 1 / 2 / 3 / 4 rows, i.e. ~466 / 463 / 444 / 429 GB/s
-  (gate_up) and ~394 / 399 / 384 / 390 GB/s (down) over the real union's bytes, and gate_up falls to 377 GB/s at 8 rows (rows >= 5 run
-  LDS class 1). Down holds its rate; gate_up loses it as rows grow. So this lane proceeds with step 2 (section 2).
-- Second and third, in other lanes' files (numbers for their owners): **attention +1.20 ms at 4 rows** (`ink_attn_dec_k` 0.78 -> 1.88
-  ms: one decode call per row, +0.37 ms a row; the K / V of the context read once per row), and **blend +0.85 ms**: `ink_mix.hip`
-  `kFuseRowsMax = 2`, so from 3 rows the loop blend leaves the fused launch for `ink_ctl_gemv_kernel` + `ink_blend_gate` +
-  `ink_blend_norm` (0.46 -> 1.04 ms between 2 and 3 rows; +96 dispatches a pass). The in-projection adds 0.22 at 4 rows; wo, unembed,
-  route and the row kernels are flat.
-- Gaps between dispatches add +0.5 ms from 1 to 4 rows (span minus kernel time 1.67 -> 2.20 ms).
+Reading (revised after window 2's bench, section 2):
+- Against 627 GB/s the experts carry the largest excess (+1.96 ms NVFP4 + 0.24 MXFP8 at 4 rows), but that floor charges the extra union
+  bytes at 627 GB/s while the expert kernels run at ~470 GB/s **at every row count, 1 row included** (bench, section 2). Charged at
+  the kernels' own 1-row rate, the experts' row-dependent excess at 4 rows is ~0.5 ms with Metal's union table, and ~0 if this probe's
+  real union is ~21 (the probe's gate_up takes 131.5 us a call at 4 rows against 111.2 us in the bench at union 19, while down is
+  within 3 % of the bench; the probe's own union was not read back, so the experts' floor here is approximate). So the experts'
+  growth is the union's bytes, not a row cost of the kernels.
+- **The largest row-dependent excess with a flat floor is attention: +1.20 ms at 4 rows** (`ink_attn_dec_k` 0.78 -> 1.88 ms; the
+  verify attention is one decode call per row, +0.37 ms a row, each row reading the context's K / V again), then **blend: +0.85 ms
+  at 4 rows**: `kernels/hip/ink_mix.hip` `kFuseRowsMax = 2`, so from 3 rows the loop blend leaves the fused launch for
+  `ink_ctl_gemv_kernel` + `ink_blend_gate` + `ink_blend_norm` (0.46 -> 1.04 ms between 2 and 3 rows, +96 dispatches a pass). Both
+  are in lane ink-hip-batch's files (`ink_attn*.hip`, `ink_mix*.hip`): the brief's stop-and-report case, reported to the
+  coordinator (section 3) and not touched here.
+- The in-projection adds 0.22 ms at 4 rows (ink-hip-p12); wo, unembed, route and the ConvMix / AttnResMix row kernels are flat.
+  Gaps between dispatches add +0.5 ms from 1 to 4 rows (span minus kernel time 1.67 -> 2.20 ms).
 
 **Draft-length screen** (cut 0.5, k 3 / 4 / 5 / 7, `INTARSIA_DSPARK_TAU=0 INTARSIA_DSPARK_CUT=0.5 --spec dflash --spec-k K`; sweep.json =
 a warm-up + 6 of the 12 short golden prompts (count, story, code, science, chat_system, chat_reasoning; 35-101 ids) + 1021 / 4108 /
@@ -120,3 +124,37 @@ mean per class, t-interval over the 3 processes [bootstrap over processes x prom
 Ids identical in all 12 processes. k4 and k5 each beat k3 by >= 2 % at three lengths (short, 4k, 16k), so the brief's confirmation
 applies (section 4). Unlike Metal (where k5 / k7 lost, `2026-11-22-inkling2-spec-k.md`), a verify row on HIP costs ~2.3 ms against a
 13.4 ms step (r / P ~0.17), so drafts 4 and 5 pay for their rows.
+
+## 2. Window 2: expert slices for 2..16-row calls (negative, reverted)
+
+fleetq #12133, radiance down 14:39:20-14:41:24 EST (**2:04**), both cards. Logs: `raw/window2-12133.log`, `raw/w2/`.
+
+Idea: a 2..16-row call routes more distinct experts (real text: 12.5 / 18.9 / 27.6 at 2 / 4 / 8 rows) than a block has waves (8), so
+a wave ran 2-4 experts in a row while the grid stayed as wide as at decode; with S "expert slices" (grid y) block y's waves take the
+experts y * 8 + w, + 8 S, .. and down's terms go through scratch and the gather launch (bf16-exact, slot order; an env knob
+`INTARSIA_HIP_INK_MOE_SPLIT`, default the rule ceil((8 + 3.6 (T - 1)) / 8)). The bench gained the real-text union mode
+(`INK_MOE_BENCH_REAL=1` in `tests/ink_moe.rs`: a T-row call reads the union of T consecutive real rows, not T independent top-8 draws).
+
+MoE bench, NVFP4, real-text unions, us per call (`raw/w2/bench.log`; "1:1" = main's grid):
+
+| T (union) | main's grid: both / gate_up / down | best slices (gate_up:down) | gain | GB/s, main's grid |
+|---|---|---|---:|---:|
+| 1 (8) | 80.6 / 49.6 / 29.8 | n/a | | 445 |
+| 2 (13) | 125.6 / 80.4 / 46.8 | 122.1 (4:1) | -2.8 % | 464 |
+| 3 (16) | 150.0 / 96.2 / 56.1 | 149.8 (2:1) | 0 | 478 |
+| 4 (19) | 181.4 / 115.5 / 68.6 | 177.2 (0:1) | -2.3 % | 469 |
+| 6 (24) | 224.0 / 147.5 / 81.6 | 222.6 (0:1) | -0.6 % | 480 |
+| 8 (28) | 278.1 / 183.0 / 100.3 | none (every split slower) | | 451 |
+
+Slicing down is slower at every T (its extra gather launch), slicing gate_up gains at most 4 us a call. In the model (verify probe at
+the 1k prompt, `PROBE_TIME_MIN`, ms): main's grid 16.52 / 19.93 / 22.26 at 2 / 3 / 4 rows, the rule 16.59 / 19.96 / 22.18, gate_up
+sliced only 16.41 / 19.83 / 22.08: <= 0.18 ms a pass (< 1 %). At 5..8 rows the rule broke outputs: `ink_moe_rows_exact` failed at T = 5
+and the bitwise probe failed (rc 101). Cause: every grid-y block runs `group_pairs` itself, whose expert numbering comes from atomics,
+deterministic only while all pairs sit in one wave (P <= 32); above that, blocks number the experts differently, so the slices
+overlap and miss experts (the 5-8-row passes ran in 13.7-16.1 ms, the k4 / k5 screen arms on that binary accepted 40 of 120 drafts).
+A fix needs a deterministic numbering pass in `group_pairs` for a gain below 1 % of a pass, so the code is **reverted**:
+`kernels/` is identical to main on this branch. Kept: the bench's real-text union mode and the probe's timing knobs.
+
+What this means for the experts: the decode / rows kernels already run a multi-row call at the 1-row bandwidth (445 GB/s at T = 1,
+464-480 at T = 2..6 in the bench). A verify row costs its union's bytes; making that cheaper means raising the kernels' base rate
+(470 of ~600 GB/s attainable), which is decode work as much as verify work, or fewer distinct experts per pass (drafter side).

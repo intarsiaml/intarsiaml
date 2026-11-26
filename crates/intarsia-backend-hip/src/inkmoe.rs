@@ -155,22 +155,6 @@ pub fn set_dec(v: i32) {
     let _ = v;
 }
 
-/// Tests / benchmarks: expert slices of the decode / rows expert kernels at 2..16 rows (lane ink-hip-verify): gate_up / down,
-/// 1 = none (one block per row group, main's grid), >= 2 that many slices, 0 = the rule, `-1` = the env (`INTARSIA_HIP_INK_MOE_SPLIT`)
-/// or the default. Bitwise the same output.
-pub fn set_split(gu: i32, dn: i32) {
-    #[cfg(ik_hip)]
-    {
-        extern "C" {
-            fn ik_ink_moe_set_split(gu: std::ffi::c_int, dn: std::ffi::c_int);
-        }
-        // SAFETY: sets two plain ints of the kernel library.
-        unsafe { ik_ink_moe_set_split(gu, dn) }
-    }
-    #[cfg(not(ik_hip))]
-    let _ = (gu, dn);
-}
-
 /// Tests / benchmarks: pairs per accumulator batch of the lean form below the pair table (4 | 8, bitwise the same output);
 /// anything else = the default rule.
 pub fn set_nb(v: i32) {

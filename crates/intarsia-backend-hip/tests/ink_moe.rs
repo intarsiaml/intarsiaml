@@ -223,23 +223,6 @@ fn ink_moe_rows_exact() {
             intarsia_backend_hip::inkmoe::set_sz(0);
             intarsia_backend_hip::inkmoe::set_lean(-1);
             intarsia_backend_hip::inkmoe::set_pre(-1, -1);
-            // expert slices (lane ink-hip-verify): gate_up / down in 1..5 slices, the rule, in size classes 0 (both groupings), 1 and 4
-            for (sz, dec) in [(0, 1), (0, 0), (1, -1), (4, -1)] {
-                intarsia_backend_hip::inkmoe::set_sz(sz);
-                intarsia_backend_hip::inkmoe::set_dec(dec);
-                for (g, d) in [(1, 2), (2, 1), (2, 2), (3, 3), (5, 5), (0, 0)] {
-                    intarsia_backend_hip::inkmoe::set_split(g, d);
-                    let alt = run_host(&*hip, ord, &hc).unwrap();
-                    assert_eq!(first[0].data, alt[0].data, "mx={mx} T={t}: expert slices {g}:{d}, size class {sz} (one-wave grouping {dec}) change bits");
-                    if t <= 16 {
-                        let tw = run_host(&*hip, rows, &hc).unwrap();
-                        assert_eq!(first[0].data, tw[0].data, "mx={mx} T={t}: the _rows twin in expert slices {g}:{d}, size class {sz} differs");
-                    }
-                }
-            }
-            intarsia_backend_hip::inkmoe::set_split(-1, -1);
-            intarsia_backend_hip::inkmoe::set_dec(-1);
-            intarsia_backend_hip::inkmoe::set_sz(0);
             let full = run_host(&*hip, ord, &hc).unwrap();
             assert_eq!(first[0].data, full[0].data, "mx={mx} T={t}: the default form changes bits");
             if t <= 16 {
@@ -287,12 +270,6 @@ fn ink_moe_wave_grouping_odd_ids() {
                 let wave = run_host(&*hip, ord, &c).unwrap();
                 intarsia_backend_hip::inkmoe::set_dec(-1);
                 assert_eq!(tab[0].data, wave[0].data, "mx={mx} T={t} K={k} {tag}: the one-wave grouping changes bits");
-                for sp in [2, 3] {
-                    intarsia_backend_hip::inkmoe::set_split(sp, sp);
-                    let sl = run_host(&*hip, ord, &c).unwrap();
-                    intarsia_backend_hip::inkmoe::set_split(-1, -1);
-                    assert_eq!(tab[0].data, sl[0].data, "mx={mx} T={t} K={k} {tag}: {sp} expert slices change bits");
-                }
                 n += 1;
             }
         }
@@ -459,7 +436,6 @@ fn put(b: &dyn Backend, t: &HostTensor) -> TensorRef {
     TensorRef::new(buf, t.dtype, &t.shape)
 }
 
-/// Microbenchmark at the real expert shape. One weight set on the device; `NR` calls with different routings (so successive calls
 /// Routing with the expert union of R consecutive real rows (lane ink-hip-verify): `INK_MOE_BENCH_REAL=1` makes the bench's T-row
 /// calls read as many distinct experts as T consecutive tokens of real text do (docs/results/2026-11-21-inkling2-mtp.md, section 1:
 /// 8.0 / 12.5 / 16.0 / 18.9 / 21.4 / 23.7 / 25.7 / 27.6 per visit at R = 1..8; past 8, +1.9 a row), not T independent top-8 draws
@@ -492,6 +468,7 @@ fn real_union_routing(rng: &mut SplitMix64, t: usize, e: usize, k: usize) -> (Ho
     (HostTensor::from_i32(&[t, k], &ids), HostTensor::from_f32(&[t, k], &ws))
 }
 
+/// Microbenchmark at the real expert shape. One weight set on the device; `NR` calls with different routings (so successive calls
 /// read different experts: 8 of 128 each at T = 1) run back to back, best of 5 passes. Prints us per call and GB/s over the bytes
 /// of the distinct experts a call reads (payload + scales), for both launches and for gate_up / down alone: the default form, then
 /// (T <= 16) each step form and load window.
@@ -563,52 +540,6 @@ fn ink_moe_bench() {
                         cfgs.push((format!("lean wave nb4 pre{pre}"), 1, 4, 4, pre));
                     }
                 }
-            }
-            // expert slices (lane ink-hip-verify; 2..16 rows): gate_up:down slice counts, the defaults otherwise
-            let mut splits: Vec<(String, i32, i32)> = vec![("default".into(), -1, -1)];
-            if (2..=16).contains(&t) && std::env::var_os("INK_MOE_BENCH_NOSPLIT").is_none() {
-                for (g, d) in [(1, 1), (2, 1), (3, 1), (4, 1), (2, 2), (3, 3), (4, 4), (0, 0), (0, 1)] {
-                    splits.push((format!("split {g}:{d}"), g, d));
-                }
-            }
-            for (sname, g, dn) in &splits {
-                if sname == "default" {
-                    continue;
-                }
-                intarsia_backend_hip::inkmoe::set_split(*g, *dn);
-                let mut us = [0f64; 3];
-                for probe in [0, 1, 2] {
-                    intarsia_backend_hip::inkmoe::set_probe(0);
-                    for c in &calls {
-                        b.launch(name, c, 0).unwrap();
-                    }
-                    b.synchronize(0).unwrap();
-                    intarsia_backend_hip::inkmoe::set_probe(probe);
-                    let mut best = f64::MAX;
-                    for _ in 0..7 {
-                        let t0 = Instant::now();
-                        for _ in 0..4 {
-                            for c in &calls {
-                                b.launch(name, c, 0).unwrap();
-                            }
-                        }
-                        b.synchronize(0).unwrap();
-                        best = best.min(t0.elapsed().as_secs_f64() * 1e6 / (4 * NR) as f64);
-                    }
-                    us[probe as usize] = best;
-                }
-                intarsia_backend_hip::inkmoe::set_probe(0);
-                intarsia_backend_hip::inkmoe::set_split(-1, -1);
-                println!(
-                    "INKMOEBENCH {} T={t:<4} {sname:<20} both {:>9.1} us {:>6.0} GB/s | gate_up {:>9.1} us | down {:>9.1} us | union {:.1}{}",
-                    if mx { "mxfp8" } else { "nvfp4" },
-                    us[0],
-                    avg_bytes / us[0] / 1e3,
-                    us[1],
-                    us[2],
-                    avg_bytes / per_expert as f64,
-                    if real { " (real-text union)" } else { "" }
-                );
             }
             for (cname, lean, sz, nb, pre) in cfgs {
                 let (lean, pre, wm) = if lean == -2 { (-1, -1, pre) } else { (lean, pre, -1) };

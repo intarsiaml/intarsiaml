@@ -51,9 +51,6 @@ int ik_ink_moe_wmma_pairs(long long P, int E);
 /* the one-wave grouping of size class 0 (at most 16 pairs; lane ink-hip-dec2): 1 on, 0 the shared-memory grouping, -1 =
  * INTARSIA_HIP_INK_DEC_FAST bit 1 / the default (on); bitwise the same output */
 void ik_ink_moe_set_dec(int v);
-/* expert slices of the decode / rows kernels at 2..16 rows (lane ink-hip-verify): gate_up / down, 1 = none, >= 2 forced, 0 = the
- * rule, -1 = INTARSIA_HIP_INK_MOE_SPLIT / the default; bitwise the same output */
-void ik_ink_moe_set_split(int gu, int dn);
 
 #ifdef __cplusplus
 }
