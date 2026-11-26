@@ -1323,3 +1323,27 @@ with that scratch in place.**
 - Metal serve smoke #11877 (switch on, 6k): passes [4096,1902] vs off [2048,2048,1902], 64 ids equal.
 - CUDA no-op #11869 (spark1): plan show 8B/35B identical, kernels --quick 1605 cases, 35B serve short + ~9k ids identical; fails=0.
 - Booked overnight (Thu 11-26): #11856 chunk-4096 confirmation 03:00, #11857 relbias-mma re-A/B 04:00 (ship bar +4 % 16k / +2 % 4k, no flip).
+
+## Chunk 4096 vs 2048 confirmation 2026-11-26 (#11856, ch2.sh, briefs 31 / 32; binary tree 3886acfeb = ink/pf-convmix with v2 off = main bc03406d1 + an off switch)
+
+Method (b): 7 adjacent pairs per length, arm order alternating per pair, a p1k reference run (chunk 2048) before every arm; a pair is
+dropped when its two references differ by more than 2 %. Clean 03:00 slot on endor (box check passed first try: p8k 2933.9 tok/s, bar
+2736; load1 3.45 at the start, 10.51 at the end, cause not investigated). Bars: 8k and 6k not negative (>= 1.00), 16k >= 1.02.
+
+- Bitwise: greedy md5 of 64 tokens is identical at c2048 and c4096 at 8k, 16k (both f367945f...) and 6k (7ebb14d8...).
+- 8k: 5 of 7 pairs kept, median ratio **1.0413** (kept 1.0157 to 1.0685). Dropped: pair 1 (refs 1199.9 / 1631.0, drift 35.9 %), pair 7 (3.4 %).
+- 16k: 3 of 7 pairs kept, median ratio **1.1328** (kept 1.0589, 1.1328, 1.2316). Dropped: pair 1 (4.2 %), pair 2 (50.8 %), pair 3 (8.8 %,
+  ratio 0.8066), pair 5 (45.3 %, ratio 0.8099). The two dropped pairs with ratio below 1 both have a reference swing, so they say nothing either way.
+- 6k (brief 32 arm): 3 of 7 pairs kept, median ratio **1.0367** (kept 1.0294 to 1.0382). Dropped: pair 1 (6.3 %), pair 2 (26.7 %),
+  pair 3 (100.2 %), pair 7 (2.8 %). Earlier worry that 6k shows no gain: not supported, the kept pairs are all positive.
+- Peak memory footprint (max over the arms): 8k and 16k c2048 20.31 GB, c4096 20.76 GB; 6k c2048 20.31 GB, c4096 20.77 GB (+0.45 GB).
+
+| length | pairs kept / 7 | median c4096 / c2048 | bar | peak c2048 / c4096 |
+|---|---|---|---|---|
+| 6k | 3 | 1.0367 | >= 1.00 | 20.31 / 20.77 GB |
+| 8k | 5 | 1.0413 | >= 1.00 | 20.31 / 20.76 GB |
+| 16k | 3 | 1.1328 | >= 1.02 | 20.31 / 20.76 GB |
+
+**Verdict: directional, not confirmed (no length reached 7 kept pairs).** Every kept pair at every length is above 1.00 and bitwise equal,
+but the 16k median rests on 3 pairs spread 1.06 to 1.23, and the box drifted during the 16k and 6k pairs. Chunk 4096 stays opt-in
+(`--prefill-chunk`; the recipe default stays 2048); the default / threshold decision goes on the user's morning list.
