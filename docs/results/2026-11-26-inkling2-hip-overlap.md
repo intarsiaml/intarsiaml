@@ -89,7 +89,29 @@ read of the head on stream 0).
 - Risk 3: HIP runs two streams concurrently only if neither uses the legacy null stream and no allocation syncs the device mid-pass;
   both streams are `hipStreamCreate`d (`device.rs:776`), and the twin's buffers are allocated before serving.
 
-### 1.5 Plan
+### 1.5 Design points from review (before code)
+
+- **TTFT is the gate most likely to fail.** Today a decoding stream gets one step per ~0.66 s chunk. Unpaced overlap runs about 11
+  decode steps during that chunk, whose contention slows the chunk. A 30 % lower ITL p99 needs only a step every ~0.42 s (about 2
+  per chunk). So a **pacing knob** from the start: a minimum interval between decode steps while a chunk is in flight, swept in the
+  first speed window (0 / 150 / 300 ms).
+- **Order:** the Inkling twin, then the per-lane tickets, then pacing, then a feasibility window; the packed in-flight scheduler work
+  (1.2 row 6) only after the numbers say overlap can pass, and only if gate 4's baseline is the packing config (question to the
+  coordinator).
+- **Tickets without kernel edits (fallback):** refuse overlap when the in-flight pass would take a ticketed form (any call of <= 16
+  rows, or rows mod 256 within the fused-norm limit). Fragile; only if the coordinator says no to edits of `ink_mix.hip`,
+  `ink_attn.hip`, `ink_route_fused.hip` (not assigned to this lane by brief 3; asked).
+- **Handoffs need explicit ordering, not a sync side effect:** (1) slot reuse: a slot's last decode step on stream 1 must finish
+  before a new request's first chunk on stream 0 writes that slot's rings; (2) a non-final chunk has no head download to synchronize
+  on. Use `stream_wait` (event record / wait) at both handoffs.
+- **The `device.rs` capture flag (1.2 row 5):** leave it; it changes no bits and is shared with the 35B. Gate 1 and the poison run
+  decide.
+- **Poison run:** `INTARSIA_HIP_POISON=ff` (every new device allocation 0xff: NaN in bf16 and f32).
+- **DSpark:** `decode_twin` refuses a model with a DSpark head (`self.dflash`); confirm a batched Inkling load has none, or the twin
+  fails quietly ("overlap unavailable").
+- **First window, before overlap:** #538's open item, a packing-default server's 16 real prompts at 4 / 8 / 16 on the merged base.
+
+### 1.6 Plan
 
 1. Inkling twin (`InkModel` weights behind `Arc`, `InkModel::twin` allocating its own `InkWs`), `decode_twin` for Inkling; cpu test:
    a twin's batched decode step == the main model's, bitwise.
