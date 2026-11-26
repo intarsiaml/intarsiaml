@@ -56,6 +56,34 @@ on record is the Metal lane's on main ca3b4e55b (#11757, 4k prompt, chunk 2048):
   and reductions stay the same.
 - The per-tile ~10 µs that the probes did not explain (K-loop staging and barriers). No probe isolates it yet.
 
+## Mixed-tile form (brief 2): `INTARSIA_INK_MOE_MIX`, opt-in
+
+In a prefill call on 64-row tiles, an expert's last (rows mod 64) rows run on a 16- or 32-row tile instead of a zero-padded
+64-row tile. `ink_moe_group_mix` (inkling2_moe.metal) leaves those remainders out of the 64-row tile table; the remainder
+kernels `ink_moe_nax_{gu,dn}_{nv,mx}_r{16,32}[k64]` (inkling2_moe_nax.metal, the same `inx_mm_impl` with a remainder
+lookup by expert) run one threadgroup row per expert and return unless that expert's remainder is in their class.
+Forms: `16`, `32`, `16+32`, each with K step 128 (default) or 64 (`k64` suffix). No extra scratch.
+
+**MMA order (brief 2 step 1).** The kernel source cannot settle it: the K reduction runs inside Apple's `matmul2d`
+(multiply_accumulate into an f32 cooperative tensor). The launcher-visible differences of a small tile are the M / N
+sub-tile of the descriptor (16 x 16 or 16 x 32 instead of 32 x 32) and, for the existing small kernels, the K step (128
+instead of 64). So the check is empirical, and it holds for every case tried.
+
+**Bitwise (fleetq #11920, `tests/ink_moe_mix.rs`, 31b081298):** real shape (H 2304, I 1152, 128 experts, top-8, SiTU),
+NVFP4 and MXFP8, 3 routings (random at 2048 rows, random at 600 rows, a routing with experts of 0 / 1 / 2 / 7 / 8 / 9 /
+15 / 16 / 17 / 31 / 32 / 33 / 63 / 64 / 65 ... rows at 2048 rows) x 6 forms: **0 differing bf16 elements in all 36
+cases**, output poisoned before each run, counter confirms the mixed path ran. The bench's output hash is also the same
+for every form on the replayed real routing.
+
+Real routing used: `ink/prefill`'s dump of an 8k prompt (`.scratch/routes8k.txt`, copied from that lane's
+`.scratch/md/routes.txt`; 132 NVFP4 calls at 2048 rows), not a new 4k capture. Per call (median): 325 64-row tiles, of
+which 24 remainders of 1-8 rows, 18 of 9-16, 31 of 17-32, 47 above 32.
+
+**Timing, probe 1 (#11920): not usable.** Forms ran one after another in one process, and every process slowed from
+~7.5 to ~15 ms per call within about 4 s whatever the form (the uniform form measured 7.9 ms first and 16.8 ms last in the
+same process). The only undisturbed stretch (first 2 s of the first process): uniform 7889, `16` 7418, `32` 7458 µs per
+call. Probe 2 interleaves the forms round by round.
+
 ## Tests
 
 None run: no code changed.

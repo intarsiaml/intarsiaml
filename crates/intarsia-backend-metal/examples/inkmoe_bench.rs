@@ -208,6 +208,62 @@ fn main() {
                 let skips = list("INKMOE_NAXSKIPS", "0");
                 let flops = (tr * K) as f64 * 2.0 * (H * 2 * I + I * H) as f64;
                 let mixes = list("INKMOE_MIX", "0");
+                // INKMOE_ROUNDS=<n> (lane ink-moepf2): the mix forms interleaved, n rounds of 12 calls per form in turn (a
+                // drift of the box over the run then hits every form alike); first-generation kernels only
+                if let Some(rounds) = std::env::var("INKMOE_ROUNDS").ok().and_then(|v| v.parse::<usize>().ok()) {
+                    use intarsia_backend_metal::inkmoe::set_mix;
+                    set_form(None);
+                    let ml: Vec<&str> = mixes.split(',').collect();
+                    let run = |reps: usize| {
+                        for r in 0..reps {
+                            be.launch(kname, &calls[r % ncalls], 0).unwrap();
+                        }
+                        be.synchronize(0).unwrap();
+                    };
+                    for m in &ml {
+                        set_mix(Some(m));
+                        run(ncalls);
+                    }
+                    let mut v: Vec<Vec<f64>> = vec![Vec::new(); ml.len()];
+                    let t00 = Instant::now();
+                    for round in 0..rounds {
+                        for j in 0..ml.len() {
+                            // rotate the order each round
+                            let i = (j + round) % ml.len();
+                            set_mix(Some(ml[i]));
+                            let t0 = Instant::now();
+                            run(12);
+                            v[i].push(t0.elapsed().as_secs_f64() / 12.0 * 1e6);
+                        }
+                    }
+                    let secs = t00.elapsed().as_secs_f64();
+                    for (i, m) in ml.iter().enumerate() {
+                        let (first, last) = (v[i][0], v[i][rounds - 1]);
+                        let mut s = v[i].clone();
+                        s.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        println!(
+                            "{fmt} T={tr:5} interleaved mix {m:9} median {:8.1} us/call (min {:8.1}, p25 {:8.1}, p75 {:8.1}; round 1 {first:8.1}, round {rounds} {last:8.1})",
+                            s[rounds / 2],
+                            s[0],
+                            s[rounds / 4],
+                            s[rounds * 3 / 4]
+                        );
+                    }
+                    // per round: each form's time over the first form's in the same round
+                    for (i, m) in ml.iter().enumerate().skip(1) {
+                        let mut r: Vec<f64> = (0..rounds).map(|k| v[i][k] / v[0][k]).collect();
+                        r.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        println!(
+                            "{fmt} T={tr:5} mix {m:9} / mix {}: per-round ratio median {:.4} (min {:.4}, max {:.4}), {rounds} rounds in {secs:.1} s",
+                            ml[0],
+                            r[rounds / 2],
+                            r[0],
+                            r[rounds - 1]
+                        );
+                    }
+                    set_mix(None);
+                    continue;
+                }
                 for (form, mixf) in forms.split(',').flat_map(|f| mixes.split(',').map(move |m| (f, m))) {
                     for skip in skips.split(',') {
                         set_form(Some(form));
