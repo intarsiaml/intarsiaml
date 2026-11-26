@@ -83,7 +83,9 @@ while IFS=';' read -r name bin sargs largs; do
           need=$(( n * 2 + 14 ))
           if (( $(left) < need )); then say "$name: SKIP real rep $r N=$n: $(left) s left (need $need)"; break 2; fi
           # rtag: a later visit's reps (offset and nonce from the tag, so no rep repeats another's prompts or reuses its prefixes)
-          off=$(( r - 1 )); nz=""; (( r > 1 )) && nz=":${rtag}r${r}n${n}"
+          # REAL_OFF (env): the windows of a speed series start at different offsets; a tagged level sends a nonce in every rep
+          # (no prefix shared between the levels of a visit), an untagged level's rep 1 the plain prompts (compared with solo)
+          off=$(( (r - 1 + ${REAL_OFF:-0}) % (16 / n) )); nz=""; { (( r > 1 )) || [ -n "$rtag" ]; } && nz=":${rtag}r${r}n${n}"
           mt > "$OUT/$name-real$rtag-r$r-n$n.t0"
           to 120 python3 "$SD/serve_bitwise.py" "http://$T:$PORT/v1" "conc:$n:$off$nz" "$OUT/$name-real$rtag-r$r-n$n.json" < /dev/null > "$OUT/$name-real$rtag-r$r-n$n.out" 2>&1
           rc=$?

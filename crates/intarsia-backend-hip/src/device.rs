@@ -1082,6 +1082,8 @@ impl Backend for HipBackend {
             v.retain(|k| !off.contains(&k.name.as_str()));
             // a row-table twin goes with the kernel it twins: it must never run where the solo step would run another kernel
             v.retain(|k| !(k.row_table && k.name.strip_suffix("_rows").is_some_and(|base| off.contains(&base))));
+        // a segment-table twin (lane ink-hip-bpf) goes with its base too
+        v.retain(|k| !(k.seg_table && k.name.strip_suffix("_segs").is_some_and(|base| off.contains(&base))));
         }
         v
     }

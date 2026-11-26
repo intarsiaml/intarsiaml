@@ -1,0 +1,37 @@
+fleetq: #12236 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=265 bash ~/intarsiaml-ink-hip-bpf/.scratch/window.sh ~/intarsiaml-ink-hip-bpf/.scratch/stage_w3.sh; echo "radiance: $(systemctl --user is-active radiance)"'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/stage_w3.sh; cap 265s; stopping radiance 2026-11-26 17:24:52
+[window] radiance stopped 2026-11-26 17:24:56 (inactive)
+[stage] card0 prime b9: INTARSIA_INK_PACK=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9 2026-11-26 17:24:56
+[stage] card1 prime main3: --max-batch 16 --max-seq 4608 --kv-fraction 0.9 2026-11-26 17:24:56
+[stage] card1 prime main3 up after 106s (0 = not up) 2026-11-26 17:26:42
+[card1] admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached
+[card1] continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+[stage] card0 prime b9 up after 112s (0 = not up) 2026-11-26 17:26:48
+[card0] admission on plan shapes: 24 kernel(s) checked, 135 case(s) run, 0 cached, REJECTED: conv_mix_bf16_segs (sweep: T=1 C=64 pos0=0 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16 invalid op call: ik_conv_mix_bf16_segs returned IK_ERR_INVALID_ARG (1); inputs [Bf16, Bf16, Bf16, Bf16, Bf16, F32, Bf16, Bf16, Bf16, Bf16, Bf16] shapes [[1, 64], [4, 64], [0], [0], [0, 1, 64], [0, 64], [0], [0], [0], [0], [0]])
+[card0] continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+[card0] inkling2 packed prefill: on, up to 2048 rows per pass, segments of 17+ rows
+MD5 card1 main3 short 64 dspark 04cdb28a6849728e8aa5be39bf65c07e rc 0 | prefill 99 ms (313.5 tok/s) | decode 642 ms (98.08 tok/s) [2026-11-26 17:26:53]
+MD5 card0 main3 short 64 --spec off 04cdb28a6849728e8aa5be39bf65c07e rc 0 | prefill 105 ms (296.5 tok/s) | decode 760 ms (82.86 tok/s) [2026-11-26 17:26:56]
+MD5 card1 b9 short 64 dspark 04cdb28a6849728e8aa5be39bf65c07e rc 0 | prefill 101 ms (305.9 tok/s) | decode 641 ms (98.29 tok/s) [2026-11-26 17:27:02]
+MD5 card0 b9 short 64 --spec off 04cdb28a6849728e8aa5be39bf65c07e rc 0 | prefill 103 ms (301.8 tok/s) | decode 761 ms (82.78 tok/s) [2026-11-26 17:27:03]
+MD5 card0 main3 short 256 --spec off 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | prefill 102 ms (304.0 tok/s) | decode 3060 ms (83.33 tok/s) [2026-11-26 17:27:13]
+MD5 card1 main3 short 256 dspark 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | prefill 102 ms (303.9 tok/s) | decode 2695 ms (94.63 tok/s) [2026-11-26 17:27:14]
+MD5 card0 b9 short 256 --spec off 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | prefill 128 ms (242.2 tok/s) | decode 3066 ms (83.16 tok/s) [2026-11-26 17:27:23]
+MD5 card1 b9 short 256 dspark 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | prefill 102 ms (305.0 tok/s) | decode 2701 ms (94.41 tok/s) [2026-11-26 17:27:25]
+MD5 card0 main3 4k 64 --spec off 2252566a5c54cf52cb564bd214c9af2b rc 0 | prefill 1371 ms (3084.8 tok/s) | decode 795 ms (79.26 tok/s) [2026-11-26 17:27:31]
+MD5 card1 main3 4k 64 dspark 2252566a5c54cf52cb564bd214c9af2b rc 0 | prefill 1366 ms (3096.1 tok/s) | decode 740 ms (85.10 tok/s) [2026-11-26 17:27:36]
+MD5 card0 b9 4k 64 --spec off 2252566a5c54cf52cb564bd214c9af2b rc 0 | prefill 1376 ms (3072.5 tok/s) | decode 794 ms (79.36 tok/s) [2026-11-26 17:27:40]
+MD5 card1 b9 4k 64 dspark 2252566a5c54cf52cb564bd214c9af2b rc 0 | prefill 1367 ms (3091.9 tok/s) | decode 738 ms (85.38 tok/s) [2026-11-26 17:27:47]
+MD5 card0 main3 4k 256 --spec off 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | prefill 1369 ms (3088.0 tok/s) | decode 3185 ms (80.07 tok/s) [2026-11-26 17:27:51]
+MD5 card1 main3 4k 256 dspark 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | prefill 1369 ms (3087.6 tok/s) | decode 2409 ms (105.86 tok/s) [2026-11-26 17:27:59]
+MD5 card0 b9 4k 256 --spec off 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | prefill 1366 ms (3096.1 tok/s) | decode 3186 ms (80.04 tok/s) [2026-11-26 17:28:02]
+[stage] card0 done 2026-11-26 17:28:02
+MD5 card1 b9 4k 256 dspark 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | prefill 1370 ms (3085.6 tok/s) | decode 2407 ms (105.96 tok/s) [2026-11-26 17:28:11]
+[stage] card1 done 2026-11-26 17:28:11
+[stage] done 2026-11-26 17:28:11
+[window] stage done 2026-11-26 17:28:12 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 17:28:12
+[window] radiance answers 2026-11-26 17:28:22 (after 15 s)
+radiance: active
+fleetq: #12236 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0

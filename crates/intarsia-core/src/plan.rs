@@ -862,12 +862,13 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
         // bitwise test (tests/row_tables.rs). That base kernel may be one the plan never selects itself (the solo step runs a fused op,
         // the batched step the row-table twin of the unfused one), so it would stay untested and the twin unusable under `serve`'s
         // admitted-only rule: queue it, and test it by its op's sweep.
-        let is_rt = |n: &String| cand_kernels.iter().any(|k| &k.name == n && k.row_table);
+        // a segment-table kernel (`OpCall::segs`, lane ink-hip-bpf) likewise, by the kernel it twins (its name without `_segs`)
+        let is_rt = |n: &String| cand_kernels.iter().any(|k| &k.name == n && (k.row_table || k.seg_table));
         let twins: BTreeSet<String> = untested
             .iter()
             .filter_map(|n| cand_kernels.iter().find(|k| &k.name == n))
-            .filter(|k| k.row_table)
-            .filter_map(|k| k.name.strip_suffix("_rows"))
+            .filter(|k| k.row_table || k.seg_table)
+            .filter_map(|k| if k.row_table { k.name.strip_suffix("_rows") } else { k.name.strip_suffix("_segs") })
             .filter(|b| model.registry.admission(b) == Some(Admission::Untested))
             .map(str::to_string)
             .collect();

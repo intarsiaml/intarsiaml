@@ -10,8 +10,8 @@ S=$REPO/.scratch
 OUT=$REPO/logs/w3
 mkdir -p "$OUT"
 M=/models/Inkling-2-Mini
-MA=${MA:-main2}
-BR=${BR:-b8}
+MA=${MA:-main3}
+BR=${BR:-b9}
 PS="$(cat "$REPO/scripts/cmx/ids-prompts/short-0.txt")"
 P4="$(cat "$REPO/scripts/cmx/ids-prompts/4k-0.txt")"
 now() { date '+%F %T'; }
