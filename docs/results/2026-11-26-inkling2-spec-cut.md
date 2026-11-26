@@ -46,7 +46,7 @@ are not an early-EOS artifact (119 and 128 tokens generated).
 ## Method
 
 Cross-process timing on endor is unreliable (a process settles about 25 % slower after 0.4-2 s of GPU work, lane ink-mode), so the A/B runs
-**inside one process**. A measurement-only patch (kept out of the tree, `.scratch/diag.patch` on the lane's worktree: a run-time
+**inside one process**. A measurement-only patch (kept out of the tree, `docs/results/2026-11-26-inkling2-spec-cut/diag.patch`, with the job script `run.sh`, `analyze.py` and its output `analysis.md` beside it: a run-time
 `(tau, cut)` override read per draft step, and `generate --prompt-ids` looping cycles x prompts x arms with
 `INTARSIA_DIAG_ARMS="g3=0.8,0;c5=0,0.5" INTARSIA_DIAG_CYCLES=n`) alternates the two rules per request: cycle 0 is warm-up and dropped, even
 cycles run A then B, odd cycles B then A, the sequence is reset before every request (no prefix reuse), so each B sample is compared with the
