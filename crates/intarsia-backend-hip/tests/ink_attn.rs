@@ -1,12 +1,14 @@
 //! Inkling-2-Mini attention on HIP (`ink_kv_prologue_bf16`, `rel_sink_attn_bf16`; src/inkattn.rs, kernels/hip/ink_attn.hip;
 //! lane ink-hip-attn):
-//! * `admission_full_sweep`: the full (non-quick) admission sweep of ops 70 / 71 against the f64 cpu reference (`ink_ref`) at the
+//! * `admission_full_sweep`: the full (non-quick) admission sweep of ops 70 / 71 / 75 (run it once more with
+//!   INTARSIA_HIP_INK_ATTN_FLASH=1 to grade the flash prefill form of 71) against the f64 cpu reference (`ink_ref`) at the
 //!   registered tolerances: small shapes (head_dim 16, d_rel 8) and the real model (24 / 8 heads, head_dim 128, d_rel 16, extent
 //!   1024; sliding layers with window 1024 over a ring of 1040 rows and full layers with a linear cache; rows 1 / 4 / 16 / 2048).
 //! * `rows_exact_real_shapes`: an R-row prologue + attention pair equals, bit for bit, R one-row pairs at positions pos0 ..
 //!   pos0 + R made in order (q / rel / k / v / o and the final conv rings and K / V caches), host and device positions; T up to
 //!   256 (the attention runs a call as 64-row slices). Port of the CUDA test (crates/intarsia-backend-cuda/tests/inkling2_attn.rs)
 //!   without its op-75 arms.
+//! * `bench_prefill` (ignored): one 256-row chunk at 4k context, split-KV vs flash (cache write included).
 //! * `bench_decode` (ignored; run with --ignored): one-row prologue + attention at real shapes against the KV-read roofline.
 //!
 //! Needs a GPU: without one the tests print SKIPPED (and fail under CI=1 / INTARSIA_REQUIRE_GPU=1).
@@ -251,11 +253,11 @@ fn admission_full_sweep() {
     let cpu = CpuBackend::arc();
     let quick = std::env::var("INK_ATTN_QUICK").is_ok_and(|v| v == "1");
     let sweep = SweepConfig { quick, ..SweepConfig::default() };
-    let opts = AdmissionOpts { sweep: Some(sweep), only_ops: Some(vec![Op::InkKvPrologue, Op::RelSinkAttn]), only_kernel: None };
+    let opts = AdmissionOpts { sweep: Some(sweep), only_ops: Some(vec![Op::InkKvPrologue, Op::RelSinkAttn, Op::InkAttnDecode]), only_kernel: None };
     let report = run_admission(&*cpu, &*hip, &opts).unwrap();
     let text = report.render(true);
     println!("{text}");
-    for name in ["ink_kv_prologue_bf16", "rel_sink_attn_bf16"] {
+    for name in ["ink_kv_prologue_bf16", "rel_sink_attn_bf16", "ink_attn_decode_bf16"] {
         let k = report.kernels.iter().find(|k| k.kernel == name).unwrap_or_else(|| panic!("{name} not graded\n{text}"));
         assert!(k.cases > 0 && k.admitted, "{name}: {} cases, admitted {}\n{text}", k.cases, k.admitted);
     }
@@ -287,6 +289,13 @@ fn rows_exact_real_shapes() {
                 } else {
                     let multi_dev = run(be, l, &inp, t, pos0, t, true, false);
                     same(&multi, &multi_dev, &format!("{what} ({t}-row call, device position)"));
+                }
+                // InkAttnDecode (op 75, <= 16 rows): R rows, R x 1 row (host and device position) all bitwise the unfused pair
+                if t <= 16 {
+                    for (rows, dev) in [(t, false), (t, true), (1, false), (1, true)] {
+                        let f = run(be, l, &inp, t, pos0, rows, dev, true);
+                        same(&multi, &f, &format!("{what} (InkAttnDecode, {rows}-row calls, device position {dev})"));
+                    }
                 }
                 // the attention output is not trivially zero
                 assert!(multi.outs[4].iter().any(|&x| x & 0x7fff != 0), "{what}: zero output");
@@ -349,6 +358,14 @@ fn bench_decode() {
             a,
         );
         att.scratch = Some(scratch_for(be, "rel_sink_attn_bf16", &att));
+        let fa = att.attrs.clone(); // attrs() carries the prologue's and the attention's fields
+        let mut dec = OpCall::new(
+            Op::InkAttnDecode,
+            pro.inputs.iter().cloned().chain([tr(&st[2], 0, &[HK, l.cr, DH]), tr(&st[3], 0, &[HK, l.cr, DH])]).collect(),
+            vec![tr(&o, 0, &[1, H * DH]), tr(&st[2], 0, &[HK, l.cr, DH]), tr(&st[3], 0, &[HK, l.cr, DH]), tr(&st[0], 0, &[RR, ckv]), tr(&st[1], 0, &[RR, ckv])],
+            fa,
+        );
+        dec.scratch = Some(scratch_for(be, "ink_attn_decode_bf16", &dec));
         let time = |f: &dyn Fn()| {
             for _ in 0..20 {
                 f();
@@ -364,13 +381,76 @@ fn bench_decode() {
         };
         let tp = time(&|| be.launch("ink_kv_prologue_bf16", &pro, 0).unwrap());
         let ta = time(&|| be.launch("rel_sink_attn_bf16", &att, 0).unwrap());
+        let tf = time(&|| be.launch("ink_attn_decode_bf16", &dec, 0).unwrap());
         let keys = (pos0 + 1).min(if l.window > 0 { l.window } else { usize::MAX });
         let bytes = (2 * HK * keys * DH * 2) as f64;
         let roof = bytes / 627e9 * 1e6;
         println!(
-            "BENCH {name}: prologue {tp:.1} us, attention {ta:.1} us ({:.0} GB/s of KV; roofline {roof:.1} us at 627 GB/s, {:.0}%)",
+            "BENCH {name}: prologue {tp:.1} us, attention {ta:.1} us, pair {:.1} us, fused op 75 {tf:.1} us ({:.0} GB/s of KV; roofline {roof:.1} us at 627 GB/s, {:.0}%)",
+            tp + ta,
             bytes / (ta * 1e-6) / 1e9,
             roof / ta * 100.0
         );
+    }
+}
+
+/// A prefill chunk of 256 rows ending at 4k context (sliding and full layer), the split-KV kernel vs the flash kernel.
+#[test]
+#[ignore]
+fn bench_prefill() {
+    let Some(be) = device() else { return };
+    let be = be.as_ref();
+    let t = 256usize;
+    let ckv = HK * DH;
+    let nqw = nq(H, DH, DR);
+    for (name, l, pos0) in [
+        ("swa, 256 rows at 3840", Layer { window: 1024, ring: true, cr: 1040, dynamic: false }, 3840usize),
+        ("full, 256 rows at 3840", Layer { window: 0, ring: false, cr: 4200, dynamic: true }, 3840),
+        ("full, 256 rows at 0", Layer { window: 0, ring: false, cr: 4200, dynamic: true }, 0),
+    ] {
+        let inp = make(&l, t, 11);
+        let pq = upload(be, &inp.pq);
+        let st: Vec<Buffer> = inp.state0.iter().map(|v| upload(be, v)).collect();
+        let (q, rel, k, v, o) = (
+            upload(be, &rand_bf16(t * H * DH, 1, 1.5, 1.5)),
+            upload(be, &rand_bf16(t * H * E, 2, 1.0, 1.0)),
+            upload(be, &rand_bf16(t * ckv, 3, 1.5, 1.5)),
+            upload(be, &rand_bf16(t * ckv, 4, 1.0, 1.0)),
+            zeros(be, t * H * DH),
+        );
+        let mut att = OpCall::new(
+            Op::RelSinkAttn,
+            vec![
+                tr(&q, 0, &[t, H, DH]),
+                tr(&k, 0, &[t, HK, DH]),
+                tr(&v, 0, &[t, HK, DH]),
+                tr(&st[2], 0, &[HK, l.cr, DH]),
+                tr(&st[3], 0, &[HK, l.cr, DH]),
+                tr(&rel, 0, &[t, H, E]),
+                tr(&pq, 0, &[t, nqw]),
+            ],
+            vec![tr(&o, 0, &[t, H * DH]), tr(&st[2], 0, &[HK, l.cr, DH]), tr(&st[3], 0, &[HK, l.cr, DH])],
+            attrs(&l, pos0),
+        );
+        att.scratch = Some(scratch_for(be, "rel_sink_attn_bf16", &att));
+        let time = |kn: &str| {
+            for _ in 0..3 {
+                be.launch(kn, &att, 0).unwrap();
+            }
+            be.synchronize(0).unwrap();
+            let n = 20;
+            let t0 = std::time::Instant::now();
+            for _ in 0..n {
+                be.launch(kn, &att, 0).unwrap();
+            }
+            be.synchronize(0).unwrap();
+            t0.elapsed().as_secs_f64() * 1e6 / n as f64
+        };
+        std::env::set_var("INTARSIA_HIP_INK_ATTN_FLASH", "0");
+        let ts = time("rel_sink_attn_bf16");
+        std::env::set_var("INTARSIA_HIP_INK_ATTN_FLASH", "1");
+        let tf = time("rel_sink_attn_bf16");
+        std::env::remove_var("INTARSIA_HIP_INK_ATTN_FLASH");
+        println!("BENCH prefill {name}: split-KV {ts:.0} us, flash {tf:.0} us ({:.1}x)", ts / tf);
     }
 }
