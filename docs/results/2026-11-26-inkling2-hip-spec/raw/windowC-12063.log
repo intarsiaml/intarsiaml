@@ -1,0 +1,39 @@
+fleetq: #12063 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=240 BR=spec3 bash ~/intarsiaml-ink-hip-spec/.scratch/window.sh ~/intarsiaml-ink-hip-spec/.scratch/stage_wC.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-spec/.scratch/stage_wC.sh; cap 240s; stopping radiance 2026-11-26 12:41:56
+[window] radiance stopped 2026-11-26 12:41:59 (inactive)
+[C] (1) default on, greedy.json 12:41:59
+rc 0 md5 24b7ad602ac6 (spec off: 24b7ad602ac6)
+--spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+dspark: Markov fold [200058 x 256] in 2.4 s
+dspark: draft head mxfp4 [200058 x 2304] in 0.2 s
+--spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)
+speculative decoding: Dflash, up to 3 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_bf16_gemv_rows ink_attn_decode=ink_attn_decode_bf16 matmul=matmul_bf16_gemv_rows conv_mix=conv_mix_bf16 logits=logits_bf16_gemv_rows moe_route=moe_route
+decode overall: 1505 tokens after the first, 14784 ms (101.80 tok/s)
+spec: verify passes=584 proposed=1381 accepted=794 (acceptance 57.5%, 2.36 tokens per pass)
+[C] (2) sampled request under the default 12:42:23
+rc 0
+--spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+--spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)
+finish=length prompt=31 (cached 0) completion=48 | prefill 99 ms (311.6 tok/s) | decode 671 ms (70.04 tok/s)
+[C] (3) context without --max-seq 12:42:31
+ctx dflt rc 0 | context 4096 tokens (recipe builtin:inkling2, chat template chat_template.jinja | --spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe 
+--spec dflash on hip: verify rows run the row-exact GEMV kernels and the attenti
+ctx off rc 0 | context 4096 tokens (recipe builtin:inkling2, chat template chat_template.jinja | 
+[C] (4) spec off, prompts with a 2..16-row pass 12:42:44
+rows base rc 0 md5 07b30f82698c
+  [0] ids e9cceb2f9279 | prefill[0]: 10 tokens, 70 ms | decode[0]: 64 tokens, 822 ms (76.60 tok/s)
+  [1] ids 4a5bf7598323 | prefill[1]: 16 tokens, 44 ms | decode[1]: 64 tokens, 817 ms (77.08 tok/s)
+  [2] ids 22e493010927 | prefill[2]: 2056 tokens, 675 ms | decode[2]: 64 tokens, 844 ms (74.64 tok/s)
+  [3] ids d50586bd72ed | prefill[3]: 2050 tokens, 659 ms | decode[3]: 64 tokens, 845 ms (74.54 tok/s)
+rows spec3 rc 0 md5 f13e9cf23191
+  [0] ids e9cceb2f9279 | prefill[0]: 10 tokens, 62 ms | decode[0]: 64 tokens, 822 ms (76.67 tok/s)
+  [1] ids 69652006dc79 | prefill[1]: 16 tokens, 49 ms | decode[1]: 64 tokens, 817 ms (77.11 tok/s)
+  [2] ids efc6e81d5eaf | prefill[2]: 2056 tokens, 676 ms | decode[2]: 64 tokens, 844 ms (74.65 tok/s)
+  [3] ids d50586bd72ed | prefill[3]: 2050 tokens, 660 ms | decode[3]: 64 tokens, 845 ms (74.55 tok/s)
+[C] (5) base --spec off over speed.json 12:43:03
+rc 0 md5 74cc2cf432d4 | decode overall: 2013 tokens after the first, 26313 ms (76.50 tok/s)
+[C] done 12:43:43
+[window] stage done 2026-11-26 12:43:44 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 12:43:44
+[window] radiance answers 2026-11-26 12:43:54 (after 15 s)
+fleetq: #12063 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

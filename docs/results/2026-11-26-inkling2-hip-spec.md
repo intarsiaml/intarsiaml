@@ -171,3 +171,54 @@ length. Both rules pass at all four lengths. Cut is faster at every length, so H
 #12059: `rule_tests` 2 / 2 with the new `cut_rule_backends`, `dspark_default_only_where_the_recipe_sets_it` with hip at k3, core 267,
 models 80, hip type-check, docs_env_vars). Revert: `--spec off`, `INTARSIA_SPEC_DEFAULT=0`, or delete the recipe line;
 `INTARSIA_DSPARK_TAU=0.8` restores the gate.
+
+## 6. Window C: the default as shipped, and the spec-off paths the branch changed
+
+fleetq #12063, 12:41:56-12:43:54 EST, radiance down 1 min 58 s, card 0. Binary `spec3` (md5 `7533634e`), built from the tree of
+`63afb8a65`; it differs from the committed head only in the embedded recipe's comment text (the measured numbers replaced a
+placeholder after the build). Nothing set in the environment.
+
+- **Default on, no `--spec`:** stderr names the default (`--spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of
+  recipe inkling2 on hip ([tuning.hip] mtp_default_k; ...)`). Greedy ids over the 12 greedy prompts are md5 `24b7ad602ac6`, the
+  `--spec off` value of window 2. Decode is 101.80 tok/s (whole process). The acceptance, 57.5 % (2.36 tokens a pass), equals the cut
+  arm of window 2, so the rule is the cut.
+- **Sampled request under the default** (`--temperature 0.7 --seed 7`): the draft loads but no verify pass runs, and no `spec:` line
+  is printed (it is printed when `spec_steps > 0`). `steps=48 graph replays=47`: plain steps, as on CUDA / Metal (`SampledSpec`
+  default off on hip).
+- **No `--max-seq`:** context 4096 tokens, with the default and with `--spec off` alike. The resident draft does not shrink the
+  context.
+- **`--max-batch` > 1:** no default (`dspark_default` returns `None`; unit test `dspark_default_only_where_the_recipe_sets_it`, hip in
+  the `--max-batch 2 / 4 / 16` loop). Batched decode of Inkling-2 is refused on hip today anyway.
+
+**Spec off: what `ink_rows_exact("hip")` changes.** A spec-off prefill pass of 2..=16 rows now runs under `exact_rows` on hip, as on
+Metal and CUDA: the row-exact kernels, bitwise the one-row decode. Before, it ran the ordinary kernels. Passes of 1 row or more than
+16 rows are untouched. Prompts that have such a pass (chunk 2048), base vs branch, `--spec off`, 64 tokens `--ignore-eos`:
+
+| Prompt (ids) | prefill passes | base ids | branch ids | prefill ms base / branch |
+|---|---|---|---|---|
+| 10 | 10 | `e9cceb2f` | `e9cceb2f` (same) | 70 / 62 |
+| 16 | 16 | `4a5bf759` | `69652006` (**differs**) | 44 / 49 |
+| 2056 | 2048 + 8 | `22e49301` | `efc6e81d` (**differs**) | 675 / 676 |
+| 2050 | 2048 + 2 | `d50586bd` | `d50586bd` (same) | 659 / 660 |
+
+In the speed set (window C base `--spec off`, one process, vs window A's branch `--spec off`), 15 of 16 prompts give identical ids. The
+16th, the 4108-id prompt (2048 + 2048 + 12), differs. On the branch, spec on and spec off are identical on all 16 prompts, the 4108-id
+one included. So the branch changes HIP's spec-off greedy text for prompts whose prefill ends in, or is, a pass of 2..16 rows, the way
+Metal and CUDA already behave. The new rows are the decode kernels' numerics, which is what makes a rolled-back verify pass, a small
+prefill chunk and token-by-token decode leave the same state (`inkling2_tiny_rollback_by_length`). G2 at spec off is unchanged: its
+passes are long. `INTARSIA_INK_ROWS_EXACT=0` gives back the old spec-off kernels. Prefill time is unchanged within noise.
+
+## 7. Summary (for the report)
+
+| tok/s, one R9700 | main `40b85a391` (`--spec dflash` refused on HIP) | branch, default (DSpark cut 0.5 k3) | change |
+|---|---:|---:|---:|
+| prefill 4k | 2996 | 2988 | -0.3 % |
+| prefill 16k | 2843 | 2842 | -0.0 % |
+| decode short (12 greedy prompts, 128 tok) | 77.42 | 103.45 | **+33.6 %** |
+| decode 1k | 75.42 | 89.85 | **+19.1 %** |
+| decode 4k | 74.07 | 114.66 | **+54.8 %** |
+| decode 16k | 69.70 | 91.62 | **+31.4 %** |
+
+Main: base binary (main + #526, the same code as main `40b85a391`), one `--spec off` process (window C). Branch: the median of 4
+processes of the cut arm (windows A / B). The paired ratios and CIs are in section 5. Radiance down: window 1 2:05, window 2 3:50,
+A 3:59, B 3:59, C 1:58, total 15:50 (lane cap 30 min).
