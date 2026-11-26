@@ -30,6 +30,7 @@
 #include "ik_hip.h"
 #include "ik_hip_abi_inkattn.h"
 #include <math.h>
+#include <type_traits>
 
 #pragma clang fp contract(off)
 
@@ -69,12 +70,18 @@ struct InkP {
     const int* pos;
     int t, h, hk, d, dr, e, k, rr, cr, pos0, flags, tau_floor, window, nq, pw, sk, toff;
     float qk_clip, rel_clip, eps, tau_alpha, scale, cscale;
-    // row-table form (lane ink-hip-batch, `OpCall::rows`; only the RT instantiations read these): the table's device addresses
-    // ([rows][rts] entries), this call's first entry, and each state tensor's byte offset in its row's buffer (k cache, v cache,
-    // k ring, v ring: the carriers' offsets)
+};
+
+// The row-table form (lane ink-hip-batch, `OpCall::rows`): the table's device addresses ([rows][rts] entries), this call's first entry,
+// and each state tensor's byte offset in its row's buffer (k cache, v cache, k ring, v ring: the carriers' offsets). Only the RT
+// instantiation of ink_attn_dec_k takes `InkPR`, so every solo kernel's arguments stay `InkP`, byte for byte.
+struct InkRt {
     const unsigned long long* rtab;
     int rts, rti;
     long long roff[4];
+};
+struct InkPR : InkP {
+    InkRt rt;
 };
 
 // explicit, unfused arithmetic (the CUDA source's _rn intrinsics)
@@ -579,8 +586,8 @@ __device__ unsigned ink_dec_tick[MAXROWS * MAXHK_TICK];
 // Row-table form (lane ink-hip-batch): `p` becomes the T = 1 call of sequence r at device position pos[r]: its row-indexed
 // operands shifted by r rows, its own scratch block of one row, its caches / rings from table entries rti .. rti + 3 (+ the carriers'
 // offsets). The kernels then run that call's code at row 0.
-IK_DEVI void ink_rt_row(InkP& p, unsigned r) {
-    const unsigned long long* e = p.rtab + (size_t)r * p.rts + p.rti;
+IK_DEVI void ink_rt_row(InkPR& p, unsigned r) {
+    const unsigned long long* e = p.rt.rtab + (size_t)r * p.rt.rts + p.rt.rti;
     p.pos0 = max(p.pos[r], 0);
     p.pos = nullptr;
     p.pq += (size_t)r * p.nq;
@@ -588,10 +595,10 @@ IK_DEVI void ink_rt_row(InkP& p, unsigned r) {
     p.pv += (size_t)r * p.pw;
     p.out += (size_t)r * p.h * p.d;
     p.scr += (size_t)r * p.h * MAXS * (p.d + 2);
-    p.kc = (bf16*)(e[0] + p.roff[0]);
-    p.vc = (bf16*)(e[1] + p.roff[1]);
-    p.kr = (bf16*)(e[2] + p.roff[2]);
-    p.vr = (bf16*)(e[3] + p.roff[3]);
+    p.kc = (bf16*)(e[0] + p.rt.roff[0]);
+    p.vc = (bf16*)(e[1] + p.rt.roff[1]);
+    p.kr = (bf16*)(e[2] + p.rt.roff[2]);
+    p.vr = (bf16*)(e[3] + p.rt.roff[3]);
     p.t = 1;
 }
 
@@ -602,7 +609,7 @@ IK_DEVI void ink_rt_row(InkP& p, unsigned r) {
 // sequence r (ink_rt_row); its ticket is row r's. RT = false is the solo kernel.
 constexpr int DEC_WAVES = 8;
 template <int GP, bool DPP = false, bool RT = false>
-__global__ void __launch_bounds__(DEC_WAVES * 32) ink_attn_dec_k(InkP p) {
+__global__ void __launch_bounds__(DEC_WAVES * 32) ink_attn_dec_k(std::conditional_t<RT, InkPR, InkP> p) {
     __shared__ InkTg<GP> S;
     __shared__ float rsh[4][32];
     __shared__ __align__(16) bf16 kvt[2 * MAXROWS * 128];
@@ -1316,18 +1323,20 @@ extern "C" int ik_ink_attn_decode_bf16_rows(const ik_tensor* pq, const ik_tensor
     const int64_t part = (int64_t)p.t * p.h * MAXS * (p.d + 2) * 4;
     if (!scratch || !scratch->data || scratch->bytes < part) return IK_ERR_INVALID_ARG;
     p.scr = (float*)scratch->data;
-    p.rtab = (const unsigned long long*)tab->data;
-    p.rts = (int)stride;
-    p.rti = (int)index;
-    for (int j = 0; j < 4; ++j) p.roff[j] = roff[j];
+    InkPR pr;
+    static_cast<InkP&>(pr) = p;
+    pr.rt.rtab = (const unsigned long long*)tab->data;
+    pr.rt.rts = (int)stride;
+    pr.rt.rti = (int)index;
+    for (int j = 0; j < 4; ++j) pr.rt.roff[j] = roff[j];
     hipStream_t st = IK_STREAM(stream);
     const size_t tbb = (size_t)G * nb * 4;
     const dim3 grid(p.hk, gy, p.t);
     const bool dpp = (p.flags & F_DPP) != 0;
     switch (G) {
-        case 1: if (dpp) ink_attn_dec_k<1, true, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); else ink_attn_dec_k<1, false, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
-        case 2: if (dpp) ink_attn_dec_k<2, true, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); else ink_attn_dec_k<2, false, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
-        default: if (dpp) ink_attn_dec_k<3, true, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); else ink_attn_dec_k<3, false, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
+        case 1: if (dpp) ink_attn_dec_k<1, true, true><<<grid, DEC_WAVES * 32, tbb, st>>>(pr); else ink_attn_dec_k<1, false, true><<<grid, DEC_WAVES * 32, tbb, st>>>(pr); break;
+        case 2: if (dpp) ink_attn_dec_k<2, true, true><<<grid, DEC_WAVES * 32, tbb, st>>>(pr); else ink_attn_dec_k<2, false, true><<<grid, DEC_WAVES * 32, tbb, st>>>(pr); break;
+        default: if (dpp) ink_attn_dec_k<3, true, true><<<grid, DEC_WAVES * 32, tbb, st>>>(pr); else ink_attn_dec_k<3, false, true><<<grid, DEC_WAVES * 32, tbb, st>>>(pr); break;
     }
     return ik_launch_status();
 }
