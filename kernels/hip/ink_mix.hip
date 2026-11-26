@@ -834,6 +834,7 @@ int launch_rows(const RowArgs& a, int blocks, hipStream_t st, const RowRt* rt = 
     const int rows = a.fuse ? blocks / a.np : blocks;
     const bool fast = ((mix_mask() & 1) != 0 && rows <= kFastRowsMax) || (mix_mask() & 8) != 0;
     const bool dpp = (ik_hip_dec3_mask() & 1) != 0;
+#ifdef IK_INK_MIX_ROWS_TU
     if (rt) {
         // the row-table form (conv_mix_bf16_rows): the same forms as the solo call, RT instantiations
         RowArgsRT x;
@@ -853,6 +854,9 @@ int launch_rows(const RowArgs& a, int blocks, hipStream_t st, const RowRt* rt = 
 #undef IK_ROW_RT_CASE
         return ik_launch_status();
     }
+#else
+    if (rt) return IK_ERR_UNSUPPORTED;  // the RT instantiations live in ink_mix_rows.hip's translation unit only
+#endif
 #define IK_ROW_CASE(N)                                                                \
     case N:                                                                           \
         if (fast && dpp) ink_row_kernel<N, true, true><<<blocks, th, 0, st>>>(a);     \
@@ -1004,7 +1008,11 @@ int ring_after(const RowArgs& a, hipStream_t st) {
 
 }  // namespace
 
+// The launchers. kernels/hip/ink_mix_rows.hip includes this file with IK_INK_MIX_ROWS_TU defined and defines the row-table launcher
+// (conv_mix_bf16_rows) in its own translation unit, so the RT instantiations of ink_row_kernel never share a module with the solo
+// kernels (lane ink-hip-batch: in one module the solo ink_attn_dec_k compiled differently from main; here both files keep main's).
 extern "C" {
+#ifndef IK_INK_MIX_ROWS_TU
 
 /* the phase timestamps of the last row-kernel launch (INK_PROBE builds; IK_ERR_UNSUPPORTED otherwise): n values into out */
 int ik_ink_probe(unsigned long long* out, int n) {
@@ -1064,6 +1072,8 @@ int ik_attn_res_mix_bf16(const ik_tensor* src, const ik_tensor* last, const ik_t
     return launch_rows(a, (int)R, IK_STREAM(stream));
 }
 
+#endif  // IK_INK_MIX_ROWS_TU
+
 // ConvMix, solo (tab null) or the row-table form (tab: the batched step's row table, pos i32 [T], roff the ring carrier's offset)
 static int conv_mix_run(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* res, const ik_tensor* addend,
                         const ik_tensor* src, const ik_tensor* queries, const ik_tensor* norm, const ik_tensor* msg,
@@ -1116,6 +1126,7 @@ static int conv_mix_run(const ik_tensor* x, const ik_tensor* taps, const ik_tens
     return ring_after(a, st);
 }
 
+#ifndef IK_INK_MIX_ROWS_TU
 int ik_conv_mix_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* res, const ik_tensor* addend,
                      const ik_tensor* src, const ik_tensor* queries, const ik_tensor* norm, const ik_tensor* msg,
                      const ik_tensor* down, const ik_tensor* gain, const ik_tensor* forget, int64_t pos0, const ik_tensor* pos,
@@ -1123,19 +1134,6 @@ int ik_conv_mix_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor*
                      void* stream) {
     return conv_mix_run(x, taps, res, addend, src, queries, norm, msg, down, gain, forget, pos0, pos, eps, y, ring, sum, mix, scratch,
                         nullptr, 0, 0, 0, stream);
-}
-
-/* ConvMix row-table form (batched decode, lane ink-hip-batch): row t of the call is the T = 1 ConvMix of sequence t at position
- * pos[t] (i32 [T]) on its own ring, the buffer at entry tindex of row t of `tab` (u8 [T, tstride, 8]) plus `roff` (the ring carrier's
- * byte offset); `ring` is row 0's carrier (shape only). Bitwise the solo call per row (tests/ink_rows.rs). */
-int ik_conv_mix_bf16_rows(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* res, const ik_tensor* addend,
-                          const ik_tensor* src, const ik_tensor* queries, const ik_tensor* norm, const ik_tensor* msg,
-                          const ik_tensor* down, const ik_tensor* gain, const ik_tensor* forget, const ik_tensor* pos, float eps,
-                          ik_tensor* y, ik_tensor* ring, ik_tensor* sum, ik_tensor* mix, const ik_scratch* scratch,
-                          const ik_tensor* tab, int64_t tstride, int64_t tindex, int64_t roff, void* stream) {
-    if (!tab) return IK_ERR_INVALID_ARG;
-    return conv_mix_run(x, taps, res, addend, src, queries, norm, msg, down, gain, forget, 0, pos, eps, y, ring, sum, mix, scratch,
-                        tab, tstride, tindex, roff, stream);
 }
 
 int ik_loop_blend_bf16(const ik_tensor* dest, const ik_tensor* msg, const ik_tensor* down, const ik_tensor* gain,
@@ -1159,5 +1157,6 @@ int ik_loop_blend_bf16(const ik_tensor* dest, const ik_tensor* msg, const ik_ten
     a.eps = eps;
     return run_blend(a, down, gain, forget, norm, out, scratch, IK_STREAM(stream));
 }
+#endif  // IK_INK_MIX_ROWS_TU
 
 }  // extern "C"
