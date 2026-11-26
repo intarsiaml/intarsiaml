@@ -1,0 +1,379 @@
+fleetq: #11987 waiting (#1 in line): radiance-rank0 is also taken down by #11986 "ink-hip-speed: PR window (md5 vs main 4fc9901d4, graphs, G2, admission), down <= 5 min" (claude-04c0e1cd)
+fleetq:   #11986 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11986 set, or it will wait for #11986 to be released.
+fleetq: #11987 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=250 INK_MOE_BENCH_NOSWEEP=1 INK_MOE_BENCH_T=32,64,128,256,512,2048 bash ~/intarsiaml-ink-hip-moe/.scratch/window.sh ~/intarsiaml-ink-hip-moe/.scratch/stage-unit.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-moe/.scratch/stage-unit.sh; cap 250s; stopping radiance 2026-11-25 22:49:36
+[window] radiance stopped 2026-11-25 22:49:39 (inactive)
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:365:9
+    |
+365 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+365 -     Ink(usize),
+365 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1384:4
+     |
+1384 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:299:9
+    |
+295 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+299 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: fields `tab`, `tab_stride`, `tab_index`, and `tab_off` are never read
+   --> crates/intarsia-backend-hip/src/device.rs:151:9
+    |
+142 | pub(crate) struct InkArgs<'a> {
+    |                   ------- fields in this struct
+...
+151 |     pub tab: *const IkTensor,
+    |         ^^^
+152 |     pub tab_stride: i64,
+    |         ^^^^^^^^^^
+153 |     pub tab_index: i64,
+    |         ^^^^^^^^^
+154 |     pub tab_off: i64,
+    |         ^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 7 warnings
+    Finished `release` profile [optimized] target(s) in 0.08s
+     Running tests/ink_moe.rs (/target/release/deps/ink_moe-34ae8a06fbc12c09)
+
+running 3 tests
+test ink_moe_matches_cpu_reference ... moe_experts_situ_bf16        T=1 E=16 K=4 H=64 I=32 bf16 situ                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16_rows   T=1 E=16 K=4 H=64 I=32 bf16 situ                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        T=7 E=16 K=4 H=64 I=32 bf16 situ                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16_rows   T=7 E=16 K=4 H=64 I=32 bf16 situ                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        T=16 E=16 K=4 H=128 I=64 bf16 situ                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16_rows   T=16 E=16 K=4 H=128 I=64 bf16 situ                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        T=40 E=16 K=4 H=64 I=32 bf16 situ                    max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        T=1 E=128 K=8 H=2304 I=1152 bf16 situ                max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16_rows   T=1 E=128 K=8 H=2304 I=1152 bf16 situ                max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        T=3 E=32 K=8 H=256 I=128 bf16 situ                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16_rows   T=3 E=32 K=8 H=256 I=128 bf16 situ                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        T=4 E=32 K=8 H=2304 I=1152 bf16 situ                 max_abs 9.124e-4 rel_l2 5.622e-5 ok
+moe_experts_situ_bf16_rows   T=4 E=32 K=8 H=2304 I=1152 bf16 situ                 max_abs 9.124e-4 rel_l2 5.622e-5 ok
+moe_experts_situ_bf16        T=16 E=32 K=8 H=2304 I=1152 bf16 situ                max_abs 1.748e-3 rel_l2 1.266e-4 ok
+moe_experts_situ_bf16_rows   T=16 E=32 K=8 H=2304 I=1152 bf16 situ                max_abs 1.748e-3 rel_l2 1.266e-4 ok
+moe_experts_situ_bf16        T=64 E=128 K=8 H=2304 I=1152 bf16 situ               max_abs 3.472e-3 rel_l2 1.413e-4 ok
+moe_experts_mxfp8_bf16       T=1 E=16 K=4 H=64 I=32 silu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=1 E=16 K=4 H=64 I=32 silu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=1 E=16 K=4 H=64 I=32 gelu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=1 E=16 K=4 H=64 I=32 gelu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=1 E=16 K=4 H=64 I=32 situ bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=1 E=16 K=4 H=64 I=32 situ bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=7 E=16 K=4 H=64 I=64 silu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=7 E=16 K=4 H=64 I=64 silu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=7 E=16 K=4 H=64 I=64 gelu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=7 E=16 K=4 H=64 I=64 gelu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=7 E=16 K=4 H=64 I=64 situ bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=7 E=16 K=4 H=64 I=64 situ bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=16 E=16 K=4 H=128 I=32 silu bf16                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=16 E=16 K=4 H=128 I=32 silu bf16                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=16 E=16 K=4 H=128 I=32 gelu bf16                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=16 E=16 K=4 H=128 I=32 gelu bf16                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=16 E=16 K=4 H=128 I=32 situ bf16                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=16 E=16 K=4 H=128 I=32 situ bf16                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=40 E=16 K=4 H=64 I=32 silu bf16                    max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=40 E=16 K=4 H=64 I=32 gelu bf16                    max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=40 E=16 K=4 H=64 I=32 situ bf16                    max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=1 E=8 K=8 H=2304 I=1152 silu bf16                  max_abs 4.371e-4 rel_l2 6.050e-5 ok
+moe_experts_mxfp8_bf16_rows  T=1 E=8 K=8 H=2304 I=1152 silu bf16                  max_abs 4.371e-4 rel_l2 6.050e-5 ok
+moe_experts_mxfp8_bf16       T=1 E=8 K=8 H=2304 I=1152 gelu bf16                  max_abs 2.058e-3 rel_l2 1.634e-4 ok
+moe_experts_mxfp8_bf16_rows  T=1 E=8 K=8 H=2304 I=1152 gelu bf16                  max_abs 2.058e-3 rel_l2 1.634e-4 ok
+moe_experts_mxfp8_bf16       T=1 E=8 K=8 H=2304 I=1152 situ bf16                  max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=1 E=8 K=8 H=2304 I=1152 situ bf16                  max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=4 E=32 K=8 H=2304 I=1152 situ bf16 (real)          max_abs 9.766e-4 rel_l2 7.507e-5 ok
+moe_experts_mxfp8_bf16_rows  T=4 E=32 K=8 H=2304 I=1152 situ bf16 (real)          max_abs 9.766e-4 rel_l2 7.507e-5 ok
+moe_experts_mxfp8_bf16       T=16 E=32 K=8 H=2304 I=1152 situ bf16 (real)         max_abs 9.766e-4 rel_l2 4.485e-5 ok
+moe_experts_mxfp8_bf16_rows  T=16 E=32 K=8 H=2304 I=1152 situ bf16 (real)         max_abs 9.766e-4 rel_l2 4.485e-5 ok
+moe_experts_mxfp8_bf16       T=64 E=128 K=8 H=2304 I=1152 situ bf16 (real)        max_abs 1.773e-3 rel_l2 1.192e-4 ok
+moe_experts_situ_bf16        own T=150 E=16 K=4 H=64 I=32 situ                    max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       own T=150 E=16 K=4 H=64 I=32 mxfp8 silu              max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       own T=150 E=16 K=4 H=64 I=32 mxfp8 gelu              max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       own T=150 E=16 K=4 H=64 I=32 mxfp8 situ              max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        own T=70 E=32 K=8 H=256 I=128 situ                   max_abs 4.496e-4 rel_l2 1.494e-5 ok
+moe_experts_mxfp8_bf16       own T=70 E=32 K=8 H=256 I=128 mxfp8 silu             max_abs 1.907e-6 rel_l2 1.725e-5 ok
+moe_experts_mxfp8_bf16       own T=70 E=32 K=8 H=256 I=128 mxfp8 gelu             max_abs 7.629e-6 rel_l2 9.305e-5 ok
+moe_experts_mxfp8_bf16       own T=70 E=32 K=8 H=256 I=128 mxfp8 situ             max_abs 6.104e-5 rel_l2 7.625e-5 ok
+moe_experts_situ_bf16        own T=64 E=32 K=8 H=96 I=160 situ                    max_abs 9.766e-4 rel_l2 6.918e-5 ok
+moe_experts_mxfp8_bf16       own T=64 E=32 K=8 H=96 I=160 mxfp8 silu              max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       own T=64 E=32 K=8 H=96 I=160 mxfp8 gelu              max_abs 9.537e-7 rel_l2 3.221e-5 ok
+moe_experts_mxfp8_bf16       own T=64 E=32 K=8 H=96 I=160 mxfp8 situ              max_abs 7.629e-6 rel_l2 3.360e-5 ok
+moe_experts_situ_bf16        own T=65 E=32 K=8 H=96 I=160 situ                    max_abs 8.503e-4 rel_l2 5.186e-5 ok
+moe_experts_mxfp8_bf16       own T=65 E=32 K=8 H=96 I=160 mxfp8 silu              max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       own T=65 E=32 K=8 H=96 I=160 mxfp8 gelu              max_abs 4.768e-7 rel_l2 1.686e-5 ok
+moe_experts_mxfp8_bf16       own T=65 E=32 K=8 H=96 I=160 mxfp8 situ              max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        own T=300 E=8 K=8 H=128 I=192 situ                   max_abs 1.572e-3 rel_l2 7.323e-5 ok
+moe_experts_mxfp8_bf16       own T=300 E=8 K=8 H=128 I=192 mxfp8 silu             max_abs 7.629e-6 rel_l2 7.652e-5 ok
+moe_experts_mxfp8_bf16       own T=300 E=8 K=8 H=128 I=192 mxfp8 gelu             max_abs 2.384e-7 rel_l2 2.350e-6 ok
+moe_experts_mxfp8_bf16       own T=300 E=8 K=8 H=128 I=192 mxfp8 situ             max_abs 1.526e-5 rel_l2 3.614e-5 ok
+moe_experts_situ_bf16        hot experts T=40 mx=false (decode path)              max_abs 1.282e-3 rel_l2 9.376e-5 ok
+moe_experts_situ_bf16        duplicate and invalid ids T=40 mx=false (decode path) max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       hot experts T=40 mx=true (decode path)               max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       duplicate and invalid ids T=40 mx=true (decode path) max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        hot experts T=140 mx=false (table path)              max_abs 8.865e-4 rel_l2 8.743e-5 ok
+moe_experts_situ_bf16        duplicate and invalid ids T=140 mx=false (table path) max_abs 9.058e-4 rel_l2 4.809e-5 ok
+moe_experts_mxfp8_bf16       hot experts T=140 mx=true (table path)               max_abs 1.526e-5 rel_l2 8.034e-5 ok
+moe_experts_mxfp8_bf16       duplicate and invalid ids T=140 mx=true (table path) max_abs 0.000e0 rel_l2 0.000e0 ok
+ok
+test ink_moe_rows_exact ... ok
+test ink_moe_wmma_prefill ... wmma tile 32 mx=false situ T=140 E=16 K=4 H=128 I=64: vs cpu max_abs 0.000e0 rel_l2 0.000e0 ok; vs decode kernels rel_l2 0.000e0
+wmma tile 64 mx=false situ T=140 E=16 K=4 H=128 I=64: vs cpu max_abs 0.000e0 rel_l2 0.000e0 ok; vs decode kernels rel_l2 0.000e0
+wmma tile 32 mx=true situ T=140 E=16 K=4 H=128 I=64: vs cpu max_abs 3.052e-5 rel_l2 8.650e-5 ok; vs decode kernels rel_l2 0.000e0
+wmma tile 64 mx=true situ T=140 E=16 K=4 H=128 I=64: vs cpu max_abs 3.052e-5 rel_l2 8.650e-5 ok; vs decode kernels rel_l2 0.000e0
+wmma tile 32 mx=true silu T=140 E=16 K=4 H=128 I=64: vs cpu max_abs 1.907e-6 rel_l2 3.297e-5 ok; vs decode kernels rel_l2 7.242e-5
+wmma tile 64 mx=true silu T=140 E=16 K=4 H=128 I=64: vs cpu max_abs 1.907e-6 rel_l2 3.297e-5 ok; vs decode kernels rel_l2 7.242e-5
+wmma tile 32 mx=true gelu T=140 E=16 K=4 H=128 I=64: vs cpu max_abs 3.815e-6 rel_l2 1.283e-4 ok; vs decode kernels rel_l2 1.283e-4
+wmma tile 64 mx=true gelu T=140 E=16 K=4 H=128 I=64: vs cpu max_abs 3.815e-6 rel_l2 1.283e-4 ok; vs decode kernels rel_l2 1.283e-4
+wmma tile 32 mx=false situ T=100 E=32 K=8 H=192 I=320: vs cpu max_abs 8.929e-4 rel_l2 7.222e-5 ok; vs decode kernels rel_l2 7.222e-5
+wmma tile 64 mx=false situ T=100 E=32 K=8 H=192 I=320: vs cpu max_abs 8.929e-4 rel_l2 7.222e-5 ok; vs decode kernels rel_l2 7.222e-5
+wmma tile 32 mx=true situ T=100 E=32 K=8 H=192 I=320: vs cpu max_abs 1.221e-4 rel_l2 1.238e-4 ok; vs decode kernels rel_l2 3.811e-5
+wmma tile 64 mx=true situ T=100 E=32 K=8 H=192 I=320: vs cpu max_abs 1.221e-4 rel_l2 1.238e-4 ok; vs decode kernels rel_l2 3.811e-5
+wmma tile 32 mx=true silu T=100 E=32 K=8 H=192 I=320: vs cpu max_abs 7.629e-6 rel_l2 8.686e-5 ok; vs decode kernels rel_l2 6.218e-5
+wmma tile 64 mx=true silu T=100 E=32 K=8 H=192 I=320: vs cpu max_abs 7.629e-6 rel_l2 8.686e-5 ok; vs decode kernels rel_l2 6.218e-5
+wmma tile 32 mx=true gelu T=100 E=32 K=8 H=192 I=320: vs cpu max_abs 7.629e-6 rel_l2 1.098e-4 ok; vs decode kernels rel_l2 8.469e-5
+wmma tile 64 mx=true gelu T=100 E=32 K=8 H=192 I=320: vs cpu max_abs 7.629e-6 rel_l2 1.098e-4 ok; vs decode kernels rel_l2 8.469e-5
+wmma tile 32 mx=false situ T=530 E=128 K=1 H=64 I=64: vs cpu max_abs 4.223e-4 rel_l2 2.192e-5 ok; vs decode kernels rel_l2 2.192e-5
+wmma tile 64 mx=false situ T=530 E=128 K=1 H=64 I=64: vs cpu max_abs 4.223e-4 rel_l2 2.192e-5 ok; vs decode kernels rel_l2 2.192e-5
+wmma tile 32 mx=true situ T=530 E=128 K=1 H=64 I=64: vs cpu max_abs 0.000e0 rel_l2 0.000e0 ok; vs decode kernels rel_l2 0.000e0
+wmma tile 64 mx=true situ T=530 E=128 K=1 H=64 I=64: vs cpu max_abs 0.000e0 rel_l2 0.000e0 ok; vs decode kernels rel_l2 0.000e0
+wmma tile 32 mx=true silu T=530 E=128 K=1 H=64 I=64: vs cpu max_abs 7.451e-9 rel_l2 1.042e-7 ok; vs decode kernels rel_l2 1.042e-7
+wmma tile 64 mx=true silu T=530 E=128 K=1 H=64 I=64: vs cpu max_abs 7.451e-9 rel_l2 1.042e-7 ok; vs decode kernels rel_l2 1.042e-7
+wmma tile 32 mx=true gelu T=530 E=128 K=1 H=64 I=64: vs cpu max_abs 0.000e0 rel_l2 0.000e0 ok; vs decode kernels rel_l2 0.000e0
+wmma tile 64 mx=true gelu T=530 E=128 K=1 H=64 I=64: vs cpu max_abs 0.000e0 rel_l2 0.000e0 ok; vs decode kernels rel_l2 0.000e0
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 16.63s
+
+[stage] tests exit 0
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:365:9
+    |
+365 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+365 -     Ink(usize),
+365 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1384:4
+     |
+1384 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:299:9
+    |
+295 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+299 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: fields `tab`, `tab_stride`, `tab_index`, and `tab_off` are never read
+   --> crates/intarsia-backend-hip/src/device.rs:151:9
+    |
+142 | pub(crate) struct InkArgs<'a> {
+    |                   ------- fields in this struct
+...
+151 |     pub tab: *const IkTensor,
+    |         ^^^
+152 |     pub tab_stride: i64,
+    |         ^^^^^^^^^^
+153 |     pub tab_index: i64,
+    |         ^^^^^^^^^
+154 |     pub tab_off: i64,
+    |         ^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 7 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/ink_moe.rs (/target/release/deps/ink_moe-34ae8a06fbc12c09)
+
+running 1 test
+test ink_moe_bench ... INKMOEBENCH nvfp4 T=32   default              both     965.5 us    520 GB/s | gate_up     636.1 us   526 GB/s | down     360.1 us   465 GB/s | 502.0 MB / call
+INKMOEBENCH nvfp4 T=32   first form           both    1190.9 us    422 GB/s | gate_up     749.7 us   446 GB/s | down     421.7 us   397 GB/s | 502.0 MB / call
+INKMOEBENCH nvfp4 T=64   default              both    1406.9 us    404 GB/s | gate_up     902.9 us   420 GB/s | down     557.8 us   340 GB/s | 568.5 MB / call
+INKMOEBENCH nvfp4 T=64   first form           both    1955.3 us    291 GB/s | gate_up    1383.9 us   274 GB/s | down     528.6 us   358 GB/s | 568.5 MB / call
+INKMOEBENCH nvfp4 T=128  default              both    2841.7 us    202 GB/s | gate_up    1841.8 us   207 GB/s | down    1188.0 us   161 GB/s | 572.9 MB / call
+INKMOEBENCH nvfp4 T=128  first form           both    3505.2 us    163 GB/s | gate_up    2503.1 us   153 GB/s | down     957.0 us   200 GB/s | 572.9 MB / call
+INKMOEBENCH nvfp4 T=128  wmma tile 32         both    5696.7 us    101 GB/s | gate_up    3742.8 us   102 GB/s | down    1920.6 us    99 GB/s | 572.9 MB / call
+INKMOEBENCH nvfp4 T=128  wmma tile 64         both    5080.1 us    113 GB/s | gate_up    3303.1 us   116 GB/s | down    1732.0 us   110 GB/s | 572.9 MB / call
+INKMOEBENCH nvfp4 T=128  decode kernels       both    2882.3 us    199 GB/s | gate_up    1825.1 us   209 GB/s | down    1193.4 us   160 GB/s | 572.9 MB / call
+INKMOEBENCH nvfp4 T=256  default              both    5208.9 us    110 GB/s | gate_up    3346.9 us   114 GB/s | down    1801.4 us   106 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=256  first form           both    6859.8 us     84 GB/s | gate_up    4774.4 us    80 GB/s | down    1998.5 us    96 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=256  wmma tile 32         both    5810.0 us     99 GB/s | gate_up    3778.3 us   101 GB/s | down    1979.3 us    97 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=256  wmma tile 64         both    5207.5 us    110 GB/s | gate_up    3344.1 us   114 GB/s | down    1797.1 us   106 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=256  decode kernels       both    5536.6 us    104 GB/s | gate_up    3321.3 us   115 GB/s | down    2208.6 us    87 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=512  default              both    5372.7 us    107 GB/s | gate_up    3418.3 us   112 GB/s | down    1896.2 us   101 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=512  first form           both   13078.9 us     44 GB/s | gate_up    9351.5 us    41 GB/s | down    3662.4 us    52 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=512  wmma tile 32         both    6192.5 us     93 GB/s | gate_up    4064.4 us    94 GB/s | down    2066.4 us    92 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=512  wmma tile 64         both    5367.8 us    107 GB/s | gate_up    3419.3 us   112 GB/s | down    1894.2 us   101 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=512  decode kernels       both   10369.6 us     55 GB/s | gate_up    6314.1 us    61 GB/s | down    4095.9 us    47 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=2048 default              both    6238.0 us     92 GB/s | gate_up    3902.2 us    98 GB/s | down    2197.8 us    87 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=2048 first form           both   50979.5 us     11 GB/s | gate_up   37226.8 us    10 GB/s | down   13766.6 us    14 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=2048 wmma tile 32         both    6259.2 us     92 GB/s | gate_up    3985.0 us    96 GB/s | down    2320.3 us    82 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=2048 wmma tile 64         both    6178.6 us     93 GB/s | gate_up    4013.5 us    95 GB/s | down    2229.3 us    86 GB/s | 573.3 MB / call
+INKMOEBENCH nvfp4 T=2048 decode kernels       both   39597.0 us     14 GB/s | gate_up   24246.1 us    16 GB/s | down   15471.6 us    12 GB/s | 573.3 MB / call
+INKMOEBENCH mxfp8 T=32   default              both     948.9 us    549 GB/s | gate_up     590.8 us   588 GB/s | down     358.2 us   485 GB/s | 520.7 MB / call
+INKMOEBENCH mxfp8 T=32   first form           both    1108.0 us    470 GB/s | gate_up     730.4 us   475 GB/s | down     357.7 us   485 GB/s | 520.7 MB / call
+INKMOEBENCH mxfp8 T=64   default              both    1402.6 us    374 GB/s | gate_up     876.5 us   399 GB/s | down     533.1 us   328 GB/s | 524.8 MB / call
+INKMOEBENCH mxfp8 T=64   first form           both    2152.2 us    244 GB/s | gate_up    1589.1 us   220 GB/s | down     510.3 us   343 GB/s | 524.8 MB / call
+INKMOEBENCH mxfp8 T=128  default              both    2489.2 us    211 GB/s | gate_up    1729.1 us   203 GB/s | down     765.4 us   229 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=128  first form           both    3849.3 us    137 GB/s | gate_up    2881.9 us   122 GB/s | down    1016.3 us   172 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=128  wmma tile 32         both    2779.5 us    189 GB/s | gate_up    1923.5 us   182 GB/s | down     864.8 us   203 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=128  wmma tile 64         both    2487.2 us    211 GB/s | gate_up    1730.0 us   203 GB/s | down     766.1 us   229 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=128  decode kernels       both    3226.5 us    163 GB/s | gate_up    1892.9 us   185 GB/s | down    1418.9 us   123 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=256  default              both    2585.1 us    203 GB/s | gate_up    1783.1 us   196 GB/s | down     812.2 us   216 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=256  first form           both    7640.7 us     69 GB/s | gate_up    5512.3 us    64 GB/s | down    2079.8 us    84 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=256  wmma tile 32         both    2901.0 us    181 GB/s | gate_up    2041.0 us   172 GB/s | down     877.0 us   200 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=256  wmma tile 64         both    2582.5 us    203 GB/s | gate_up    1785.1 us   196 GB/s | down     812.8 us   216 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=256  decode kernels       both    5799.6 us     91 GB/s | gate_up    3384.8 us   104 GB/s | down    2428.7 us    72 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=512  default              both    2746.9 us    191 GB/s | gate_up    1887.6 us   186 GB/s | down     866.4 us   202 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=512  first form           both   14850.3 us     35 GB/s | gate_up   10998.9 us    32 GB/s | down    3825.7 us    46 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=512  wmma tile 32         both    3050.7 us    172 GB/s | gate_up    2158.5 us   162 GB/s | down     908.8 us   193 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=512  wmma tile 64         both    2732.5 us    192 GB/s | gate_up    1889.6 us   185 GB/s | down     870.4 us   201 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=512  decode kernels       both   10863.0 us     48 GB/s | gate_up    6436.7 us    54 GB/s | down    4438.8 us    39 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=2048 default              both    4909.1 us    107 GB/s | gate_up    3250.3 us   108 GB/s | down    1729.2 us   101 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=2048 first form           both   58957.5 us      9 GB/s | gate_up   44688.7 us     8 GB/s | down   14505.6 us    12 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=2048 wmma tile 32         both    5596.3 us     94 GB/s | gate_up    3591.3 us    98 GB/s | down    2039.1 us    86 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=2048 wmma tile 64         both    4922.1 us    107 GB/s | gate_up    3223.2 us   109 GB/s | down    1756.1 us   100 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=2048 decode kernels       both   42450.8 us     12 GB/s | gate_up   25632.8 us    14 GB/s | down   16874.3 us    10 GB/s | 525.5 MB / call
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 29.54s
+
+[stage] bench exit 0
+[window] stage done 2026-11-25 22:50:27 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-25 22:50:27
+[window] radiance answers 2026-11-25 22:50:37 (after 15 s)
+fleetq: #11987 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

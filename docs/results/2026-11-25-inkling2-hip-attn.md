@@ -72,6 +72,12 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
   (add in the merge commit if missing); (3) graph capture is untested with the blend / route device-global tickets: whole-model
   decode under graph replay is the check, report capture / replay / eager counts with the md5s; (4) md5 vs main must match.
 
+- 2026-11-25 ~22:55 EST, coordinator: PR #518 reviewed clean, merged on green CI. Follow-up: short-prompt prefill 81 -> 100 ms
+  (+19 ms; main also captures one graph). (1) Split the 19 ms into the 31-token chunk and the first-step capture (host
+  timestamps or HIP trace). (2) Once per process or every request: 3 requests in one `serve` process per build. (3) If per
+  request, find the kernel (at T=31 none of the fast forms should be on) and fix on a branch off main after #518 merges.
+  <= 5 min radiance down (9:00 left), none after 06:00. Report as before.
+
 ## Radiance down time (this lane)
 
 | Window | fleetq | Down | Counts toward the 20 min budget |
@@ -81,6 +87,7 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
 | 3 (op 75 v2 + flash: admission, bitwise, benches, G2, model) | #11960 | 22:16:53-22:18:54, 2 min 01 s | yes (total 3:54 of 20:00) |
 | 4 (op 75 rule + flash knob: admission x2, bitwise, benches, G2 x2, model) | #11970 | 22:26:29-22:29:07, 2 min 38 s | yes (total 6:32 of 20:00) |
 | 5 (PR window `ink/hip-speed`: md5 vs main, graphs, G2, admission) | #11986 | 22:45:07-22:49:35, 4 min 28 s | yes (total 11:00 of 20:00) |
+| 6 (short-prefill probe) | see raw/window6-shortpf.log | 22:53:38-22:55:02, 1 min 24 s | yes (total 12:24 of 20:00; window 5 #11986 4:28 was logged in the ink/hip-speed tree) |
 
 ## Step 0
 
@@ -274,6 +281,32 @@ same window, built by `--load cpu` job #11976. `generate --spec off --ignore-eos
   graph replay is fine). No `build.rs` change: `ink_attn.hip` has `#pragma clang fp contract(off)` and build.rs passes no
   `-ffp-contract` / `-ffast-math`.
 - Flash prefill default: `inkattn::INK_ATTN_FLASH_DEFAULT = false` (the one-line flip, user's call).
+
+## Short-prompt prefill +19 ms on #518: once per process (HIP lazy code-object loading), not capture, not per request
+
+Window 6 (raw/window6-shortpf.log): main `4fc9901d4` vs the #518 tree, short prompt (31 tokens), 32 tokens, one process per line.
+
+| Probe | main prefill | #518 prefill |
+|---|---|---|
+| first request in the process | 81 / 85 ms | 95 / 122 ms |
+| third request in one process (`--repeat 3`, sequence reset, no prefix reuse) | 70 ms | **69 ms** |
+| no graphs (`INTARSIA_SOLO_GRAPHS=0`: 0 captures, 31 eager steps) | 81 ms | 94 ms |
+| all code objects loaded at start-up (`HIP_ENABLE_DEFERRED_LOADING=0`) | 77 ms | **74 ms** |
+| attn + mix fast forms off (`INTARSIA_INK_MIX_FAST=0 INTARSIA_INK_ATTN_FUSED=0`) | | 95 ms |
+
+- Capture: 0 of it. The prefill clock stops at the first token (`engine.rs` `accept_first`), before the first decode step
+  captures, and with graphs off the gap stays (81 vs 94).
+- Per request: none. A warm request is equal (70 vs 69 ms).
+- Cause: the first prefill pays HIP's deferred loading of the code objects whose kernels it launches first. With
+  `HIP_ENABLE_DEFERRED_LOADING=0` the gap is gone (77 vs 74). The #518 tree's Inkling code objects are larger (op 75, the
+  flash kernel, the moe forms, the mix fast forms); turning only the attn / mix forms off does not remove it (95 ms), as a code
+  object loads whole. Whole-process time is the same (5.3 s both, either loading mode).
+- First-request prefill varies 94-122 ms on the branch (81-85 on main), so the size of the once-per-process cost is 13-37 ms.
+- `serve` was not run: `generate --repeat 3` is the same engine and process with the sequence reset between requests.
+  `serve` on HIP runs admission cases at start-up (lazy admission is off on HIP), which likely loads these code objects
+  before the first request; not measured.
+- No fix branch: nothing per request to fix. Optional: setting `HIP_ENABLE_DEFERRED_LOADING=0` (or a warm-up pass) moves the
+  cost to start-up; not proposed as a default here.
 
 ## Next
 

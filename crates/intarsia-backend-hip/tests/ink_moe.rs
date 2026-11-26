@@ -1,7 +1,8 @@
 //! Inkling-2-Mini routed experts on HIP (lane ink-hip-moe; kernels/hip/ink_moe.hip): `moe_experts_situ_bf16[_rows]` (NVFP4, SiTU)
 //! and `moe_experts_mxfp8_bf16[_rows]` (72) against the cpu reference at the registered tolerances (the admission's own `judge`),
 //! over the admission sweep plus pair-table shapes (more than 512 pairs) and odd routing; rows-exactness (a T-row call bitwise the
-//! one-row calls, on the shared-memory path and on the pair-table path, at every load window); and an env-gated microbenchmark at
+//! one-row calls, on the shared-memory path and on the pair-table path, at every load window); the tensor-core prefill of the
+//! ordinary names (`ink_moe_wmma_prefill`); and an env-gated microbenchmark at
 //! the real expert shape (128 experts, top-8, H 2304, I 1152):
 //!   INK_MOE_BENCH=1 cargo test --release -p intarsia-backend-hip --test ink_moe -- --nocapture --test-threads=1
 //! `INK_MOE_BIG=1` adds the sweep's T >= 1024 cases (the cpu reference takes a while). Needs a GPU: skips without one.
@@ -127,9 +128,12 @@ fn ink_moe_matches_cpu_reference() {
         }
     }
     assert!(hits[0] > 0 && hits[1] > 0, "no sweep case reached the kernels: {hits:?}");
-    // the pair-table path (more than 512 pairs) at small shapes, and 512 / 513+ pairs around the switch
+    // the pair-table path (more than 512 pairs) at small shapes, and 512 / 513+ pairs around the switch. Run with
+    // INTARSIA_HIP_INK_MOE_WMMA=1, the ordinary names take the tensor-core prefill where H and I are multiples of 64 and a call
+    // has 16 pairs per expert (70 x 8 at 256 / 128; 300 x 8 at 128 / 192: five 64-pair tiles with a tail; the sweep's prefill
+    // cases); unset, everything here is the decode kernels
     let mut rng = SplitMix64::new(0x1A4B_0001);
-    for (t, e, k, h, i) in [(150usize, 16usize, 4usize, 64usize, 32usize), (70, 32, 8, 256, 128), (64, 32, 8, 96, 160), (65, 32, 8, 96, 160)] {
+    for (t, e, k, h, i) in [(150usize, 16usize, 4usize, 64usize, 32usize), (70, 32, 8, 256, 128), (64, 32, 8, 96, 160), (65, 32, 8, 96, 160), (300, 8, 8, 128, 192)] {
         let c = situ_case(&mut rng, t, e, k, h, i);
         check(&*hip, &cpu, &c, &format!("own T={t} E={e} K={k} H={h} I={i} situ"), &mut fails);
         for epi in ["silu", "gelu", "situ"] {
@@ -219,6 +223,56 @@ fn ink_moe_rows_exact() {
     }
 }
 
+/// The tensor-core prefill of the ordinary names: against the cpu reference with both pair tiles and against the decode kernels'
+/// budget, the same bits run to run, and a row's bits do not depend on where the row sits in the call (the rows reversed give
+/// the output reversed).
+#[test]
+fn ink_moe_wmma_prefill() {
+    let Some(hip) = device("ink_moe_wmma_prefill") else { return };
+    let cpu = CpuBackend::new();
+    let mut rng = SplitMix64::new(0x1A4B_0003);
+    let mut fails = Vec::new();
+    for (t, e, k, h, i) in [(140usize, 16usize, 4usize, 128usize, 64usize), (100, 32, 8, 192, 320), (530, 128, 1, 64, 64)] {
+        for (mx, epi) in [(false, "situ"), (true, "situ"), (true, "silu"), (true, "gelu")] {
+            let hc = if mx { mxfp8_case(&mut rng, t, e, k, h, i, epi) } else { situ_case(&mut rng, t, e, k, h, i) };
+            let name = if mx { NAMES[2] } else { NAMES[0] };
+            let kern = kernel(&*hip, name);
+            let want = cpu_ref(&cpu, &hc);
+            intarsia_backend_hip::inkmoe::set_wmma(0);
+            let simt = run_host(&*hip, name, &hc).unwrap();
+            let mut outs = Vec::new();
+            for tile in [32, 64] {
+                intarsia_backend_hip::inkmoe::set_wmma(tile);
+                let got = run_host(&*hip, name, &hc).unwrap();
+                let again = run_host(&*hip, name, &hc).unwrap();
+                assert_eq!(got[0].data, again[0].data, "mx={mx} {epi} T={t}: tile {tile} differs run to run");
+                let (pass, max_abs, rel) = judge(&kern, &got, &want);
+                let (_, _, rel_simt) = judge(&kern, &got, &simt);
+                println!("wmma tile {tile} mx={mx} {epi:<4} T={t} E={e} K={k} H={h} I={i}: vs cpu max_abs {max_abs:.3e} rel_l2 {rel:.3e} {}; vs decode kernels rel_l2 {rel_simt:.3e}", if pass { "ok" } else { "FAIL" });
+                if !pass {
+                    fails.push(format!("tile {tile} mx={mx} {epi} T={t} E={e} K={k} H={h} I={i}: max_abs {max_abs:.3e} rel_l2 {rel:.3e}"));
+                }
+                // the rows reversed
+                let mut rev = hc.clone();
+                for n in 0..3 {
+                    let src = &hc.inputs[n];
+                    let w = src.nbytes() / t;
+                    let data: Vec<u8> = (0..t).rev().flat_map(|r| src.data[r * w..(r + 1) * w].to_vec()).collect();
+                    rev.inputs[n] = HostTensor::new(src.dtype, src.shape.clone(), data).unwrap();
+                }
+                let got_rev = run_host(&*hip, name, &rev).unwrap();
+                let w = got[0].nbytes() / t;
+                let back: Vec<u8> = (0..t).rev().flat_map(|r| got_rev[0].data[r * w..(r + 1) * w].to_vec()).collect();
+                assert_eq!(got[0].data, back, "mx={mx} {epi} T={t}: tile {tile}: a row's bits depend on its place in the call");
+                outs.push(got);
+            }
+            assert_eq!(outs[0][0].data, outs[1][0].data, "mx={mx} {epi} T={t}: the 32- and 64-pair tiles differ");
+            intarsia_backend_hip::inkmoe::set_wmma(-1);
+        }
+    }
+    assert!(fails.is_empty(), "{} failures:\n{}", fails.len(), fails.join("\n"));
+}
+
 fn put(b: &dyn Backend, t: &HostTensor) -> TensorRef {
     let buf = b.alloc(t.nbytes().max(16), MemKind::Device).unwrap();
     b.zero(&buf, 0).unwrap();
@@ -240,7 +294,7 @@ fn ink_moe_bench() {
     let b = &*hip;
     let (k, h, i) = (8usize, 2304usize, 1152usize);
     let ts: Vec<usize> =
-        std::env::var("INK_MOE_BENCH_T").ok().map(|s| s.split(',').map(|x| x.parse().unwrap()).collect()).unwrap_or(vec![1, 2, 4, 8, 16, 32, 64, 128, 256, 2048]);
+        std::env::var("INK_MOE_BENCH_T").ok().map(|s| s.split(',').map(|x| x.parse().unwrap()).collect()).unwrap_or(vec![1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 2048]);
     for mx in [false, true] {
         let e = if mx { 64usize } else { 128 };
         let name = if mx { NAMES[2] } else { NAMES[0] };
@@ -280,6 +334,10 @@ fn ink_moe_bench() {
             // (name, lean, size class, pairs per batch, window): -1 / 0 = the default rule
             let pairs = t * k;
             let mut cfgs: Vec<(String, i32, i32, i32, i32)> = vec![("default".into(), -1, 0, 0, -1), ("first form".into(), 0, 0, 0, 3)];
+            if pairs > 512 {
+                // window = the tensor-core setting here (1: the rule, 32 | 64: forced tiles)
+                cfgs.extend([("wmma tile 32".to_string(), -2, 0, 0, 32), ("wmma tile 64".to_string(), -2, 0, 0, 64), ("wmma rule".to_string(), -2, 0, 0, 1)]);
+            }
             if pairs <= 512 && std::env::var_os("INK_MOE_BENCH_NOSWEEP").is_none() {
                 for nb in [4, 8] {
                     for pre in [1, 3, 6, 9] {
@@ -294,6 +352,8 @@ fn ink_moe_bench() {
                 }
             }
             for (cname, lean, sz, nb, pre) in cfgs {
+                let (lean, pre, wm) = if lean == -2 { (-1, -1, pre) } else { (lean, pre, -1) };
+                intarsia_backend_hip::inkmoe::set_wmma(wm);
                 intarsia_backend_hip::inkmoe::set_lean(lean);
                 intarsia_backend_hip::inkmoe::set_sz(sz);
                 intarsia_backend_hip::inkmoe::set_nb(nb);
@@ -343,6 +403,7 @@ fn ink_moe_bench() {
             intarsia_backend_hip::inkmoe::set_lean(-1);
             intarsia_backend_hip::inkmoe::set_sz(0);
             intarsia_backend_hip::inkmoe::set_nb(0);
+            intarsia_backend_hip::inkmoe::set_wmma(-1);
             intarsia_backend_hip::inkmoe::set_pre(-1, -1);
         }
     }

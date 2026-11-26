@@ -5,9 +5,10 @@
 //! reference (`ink_ref`) by `intarsia kernels test --backend hip --op <op>`.
 //!
 //! W4A16 only (never `.act_quant()`), the checkpoint's row-major weight layout only (`ink.moe_layout = 0`). Union-grouped decode,
-//! a port of CUDA's SIMT kernels: each expert's rows are read once per call for all the pairs routed to it; a T-row call is
-//! bitwise T one-row calls at every T, so the `_rows` twins are the same launchers. The ordinary names are not registered
-//! `rows_exact`: a tensor-core prefill path (speed package S2) will belong to them alone.
+//! a port of CUDA's SIMT kernels: each expert's rows are read once per call for all the pairs routed to it; on those kernels a
+//! T-row call is bitwise T one-row calls at every T; the `_rows` twins always take them, and so do the ordinary names by default.
+//! The ordinary names are not registered `rows_exact`: with `INTARSIA_HIP_INK_MOE_WMMA=1` they take a bf16 tensor-core prefill
+//! above 512 pairs and from 16 pairs per expert (other f32 accumulation order; off by default).
 
 use intarsia_core::quant::ops::moe_experts_scratch;
 use intarsia_core::{DType, Exactness, KernelImpl, Op, Tol};
@@ -147,6 +148,22 @@ pub fn set_nb(v: i32) {
         }
         // SAFETY: sets a plain int of the kernel library.
         unsafe { ik_ink_moe_set_nb(v) }
+    }
+    #[cfg(not(ik_hip))]
+    let _ = v;
+}
+
+/// Tests / benchmarks: the tensor-core prefill of the ordinary names (more than 512 pairs): 0 = off (the decode kernels, the
+/// `_rows` twins' bits), 1 = the rule (64-pair tiles from 16 pairs per expert), 32 | 64 = every such call with that pair tile,
+/// `-1` = the env (`INTARSIA_HIP_INK_MOE_WMMA`) or the default (off).
+pub fn set_wmma(v: i32) {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_ink_moe_set_wmma(v: std::ffi::c_int);
+        }
+        // SAFETY: sets a plain int of the kernel library.
+        unsafe { ik_ink_moe_set_wmma(v) }
     }
     #[cfg(not(ik_hip))]
     let _ = v;

@@ -15,7 +15,9 @@
 // routing of other tokens, on which pairs share a batch or on the load window (PRE), so a T-row call is bitwise T one-row calls
 // (rows-exact), and the same per-element arithmetic as the CUDA kernels.
 // More than kDecPairs pairs (prefill): the same kernels on a pair table built once in scratch by a grouping launch, the
-// terms through scratch y (bf16-exact values: y and rA(y * w) are bf16) and a gather launch: the same bits.
+// terms through scratch y (bf16-exact values: y and rA(y * w) are bf16) and a gather launch: the same bits. Opt-in
+// (INTARSIA_HIP_INK_MOE_WMMA=1), the ordinary names run bf16 WMMA on that pair table instead (ink_moe_wmma_kernel below:
+// other f32 order, within the op's tolerance).
 //
 // What differs from CUDA (gfx12):
 //  * the e2m1 / e4m3 weights are decoded with the fp8 conversion instruction (v_cvt_pk_f32_fp8, two values per instruction; the
@@ -30,6 +32,7 @@
 // Scratch: the core `moe_experts_scratch` layout: pairs int[P] | offsets int[E+1] | active int[E+1] | h bf16[P,I] | y bf16[P,H].
 #include "ik_quant.h"
 #include "ik_hip_abi_inkmoe.h"
+#include "moe_wmma.h"
 #include <limits.h>
 #include <math.h>
 #include <stdlib.h>
@@ -53,6 +56,7 @@ int g_probe = 0;  // benchmarks: 1 = only gate_up, 2 = only down, 3 / 4 = both l
 int g_pre_gu = -1, g_pre_dn = -1;  // < 0: INTARSIA_HIP_INK_MOE_PRE / the default
 int g_lean = -1;                   // < 0: INTARSIA_HIP_INK_MOE_LEAN / the default (1)
 int g_nb = 0;                      // tests / benchmarks: pairs per batch below the pair table (4 | 8); else the default rule
+int g_wmma = -1;                   // tests / benchmarks: 0 no tensor-core prefill, 1 the rule, 32 | 64 its pair tile; < 0: INTARSIA_HIP_INK_MOE_WMMA / the default
 int g_sz = 0;                      // tests / benchmarks: the smallest LDS size class a call may take (0 | 1 | 2); 4: by the call, in-wave grouping up to 32 pairs
 
 // LDS size classes: the group tables (and down's terms) are sized by the call, because LDS per block decides how many blocks a
@@ -778,8 +782,212 @@ int launch_pair(const MoeArgs& a, int out_f32, hipStream_t st) {
     return IK_OK;
 }
 
+// ---- tensor-core prefill (S2): the pair-table path of the ordinary names -----------------------------------------------
+// bf16 WMMA over the pair table, the scheme of moe_wmma.h (moe_wmma_kernel: weights dequantised straight into the A fragments
+// in registers, the activation tile through shared memory, kMwRing weight blocks in flight per lane; see its header for the
+// fragment layout) with this op's epilogues, both formats and this file's pair table (indexed by distinct expert). A weight
+// is exact in bf16 (e2m1 x e4m3 block scale: 6 significant bits; e4m3 x 2^k: 4), so only the f32 accumulation order differs
+// from the decode kernels: the result is within the op's tolerance of them, not their bits, and a row's bits do not depend on
+// the other rows of the call (each output accumulates over k in the same order whatever shares its tile). The `_rows` twins
+// never take this path. Grid (pair tile, feature tile, expert slot): slots past the distinct count and pair tiles past an
+// expert's pairs exit; a block steps through further pair tiles by gridDim.x.
+IK_DEVI uint4 pack_trunc8(const float* f, float sc) {
+    uint32_t u[8];
+#pragma unroll
+    for (int j = 0; j < 8; ++j) u[j] = __float_as_uint(f[j] * sc);
+    uint4 r;
+    r.x = __builtin_amdgcn_perm(u[1], u[0], 0x07060302u);
+    r.y = __builtin_amdgcn_perm(u[3], u[2], 0x07060302u);
+    r.z = __builtin_amdgcn_perm(u[5], u[4], 0x07060302u);
+    r.w = __builtin_amdgcn_perm(u[7], u[6], 0x07060302u);
+    return r;
+}
+
+template <int FMT, int ACT, bool GATEUP, int PAIRS>
+__global__ void __launch_bounds__(kMwThreads) ink_moe_wmma_kernel(MoeArgs a) {
+    constexpr int FEAT = GATEUP ? kMwFeatGateUp : kMwFeatDown;
+    constexpr int J = PAIRS / 16;   // 16-pair B fragments per weight fragment
+    constexpr int XR = PAIRS / 32;  // activation rows each thread stages
+    __shared__ __align__(16) uint16_t sx[2][PAIRS * kMwLD];
+    __shared__ __align__(16) float sred[GATEUP ? 4 * 32 * J * 8 : 1];  // up accumulators -> gate waves
+
+    const int slot = (int)blockIdx.z;
+    if (slot >= a.t_exp[a.E]) return;  // block-uniform
+    const int e = a.t_exp[slot];
+    const int begin = a.t_off[slot], cnt = a.t_off[slot + 1] - begin;
+    const int Kd = GATEUP ? a.H : a.I, Nd = GATEUP ? a.I : a.H;
+    const ik_bf16* src = GATEUP ? a.x : a.h;
+    ik_bf16* dst = GATEUP ? a.h : a.y;
+    const int n0 = (int)blockIdx.y * FEAT;
+    const int tid = threadIdx.x, wave = tid >> 5, lane = tid & 31;
+    const int lr = lane & 15, h = lane >> 4;
+    const int part = GATEUP ? (wave >> 2) : 0;  // gate_up: 0 = gate rows, 1 = up rows
+    const int fw = GATEUP ? (wave & 3) : wave;  // 16-feature slice of the tile
+    float g0 = 1.f, g1 = 1.f;
+    if (FMT == FMT_NV) {
+        g0 = a.gs[e * 3 + (GATEUP ? 0 : 2)];
+        g1 = GATEUP ? a.gs[e * 3 + 1] : 1.f;
+    }
+    const int nkb = Kd / kMwKB;
+
+    // this lane's weight row and its half (32 elements = one chunk of this file's load_raw) of every 64-k block
+    const int n = n0 + fw * 16 + lr;
+    const bool wok = n < Nd;
+    const int64_t wrow = (GATEUP ? ((int64_t)e * 2 + part) * Nd : (int64_t)e * Nd) + (wok ? n : 0);
+    const uint8_t* wp = (GATEUP ? a.guw : a.dnw) + wrow * row_bytes<FMT>(Kd);
+    const uint8_t* sp = (GATEUP ? a.gus : a.dns) + wrow * srow_bytes<FMT>(Kd);
+    auto loadW = [&](int kb) {
+        Raw<FMT> r;
+        load_raw(wp, sp, 2 * kb + h, wok, r);
+        return r;
+    };
+
+    for (int pt = (int)blockIdx.x; pt * PAIRS < cnt; pt += (int)gridDim.x) {
+        // this thread's activation rows (pairs xr + 32 * r) and 8-element column chunk of the 64-wide tile
+        const int xr = tid >> 3, xch = tid & 7;
+        const ik_bf16* xrow[XR];
+#pragma unroll
+        for (int r = 0; r < XR; ++r) {
+            xrow[r] = nullptr;
+            const int p_idx = pt * PAIRS + xr + 32 * r;
+            if (p_idx < cnt) {
+                const int pair = a.t_pair[begin + p_idx];
+                xrow[r] = src + (int64_t)(GATEUP ? pair / a.K : pair) * Kd;  // token row (gate_up) / own row (down)
+            }
+        }
+        uint4 rx[XR];
+        auto loadX = [&](int kb) {
+#pragma unroll
+            for (int r = 0; r < XR; ++r)
+                rx[r] = xrow[r] ? *reinterpret_cast<const uint4*>(xrow[r] + kb * kMwKB + xch * 8) : make_uint4(0, 0, 0, 0);
+        };
+        auto storeX = [&](int buf) {
+#pragma unroll
+            for (int r = 0; r < XR; ++r) *reinterpret_cast<uint4*>(&sx[buf][(xr + 32 * r) * kMwLD + xch * 8]) = rx[r];
+        };
+
+        ik_mw_v8f acc[J];
+#pragma unroll
+        for (int j = 0; j < J; ++j)
+#pragma unroll
+            for (int i = 0; i < 8; ++i) acc[j][i] = 0.f;
+
+        auto compute = [&](const Raw<FMT>& W, int buf) {
+            float sc[2];
+            decode_scales(W, sc);
+#pragma unroll
+            for (int st = 0; st < 4; ++st) {
+                float f[8];
+                decode_unit(W, st, f);
+                const uint4 af = pack_trunc8(f, sc[FMT == FMT_NV ? (st >> 1) : 0]);
+#pragma unroll
+                for (int j = 0; j < J; ++j) {
+                    const uint4 bf = *reinterpret_cast<const uint4*>(&sx[buf][(j * 16 + lr) * kMwLD + h * 32 + st * 8]);
+                    acc[j] = ik_mw_wmma(af, bf, acc[j]);
+                }
+            }
+        };
+
+        __syncthreads();  // the previous pair tile's last reads of sx / sred are done
+        Raw<FMT> W[kMwRing];
+        loadX(0);
+#pragma unroll
+        for (int i = 0; i < kMwRing; ++i)
+            if (i < nkb) W[i] = loadW(i);
+        storeX(0);
+        if (nkb > 1) loadX(1);
+        __syncthreads();
+        for (int kb0 = 0; kb0 < nkb; kb0 += kMwRing) {
+#pragma unroll
+            for (int i = 0; i < kMwRing; ++i) {
+                const int kb = kb0 + i;
+                if (kb >= nkb) break;
+                compute(W[i], kb & 1);
+                if (kb + kMwRing < nkb) W[i] = loadW(kb + kMwRing);
+                if (kb + 1 < nkb) {
+                    storeX((kb + 1) & 1);
+                    if (kb + 2 < nkb) loadX(kb + 2);
+                }
+                __syncthreads();
+            }
+        }
+
+        if (GATEUP) {
+            if (part == 1) {
+#pragma unroll
+                for (int j = 0; j < J; ++j)
+#pragma unroll
+                    for (int i = 0; i < 8; ++i) sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] = acc[j][i];
+            }
+            __syncthreads();
+            if (part == 1) continue;
+        }
+        const int f0 = n0 + fw * 16 + h * 8;
+#pragma unroll
+        for (int j = 0; j < J; ++j) {
+            const int pi = pt * PAIRS + j * 16 + lr;
+            if (pi >= cnt || f0 >= Nd) continue;
+            const int pair = a.t_pair[begin + pi];
+            const float wt = a.wts[pair];
+            float v[8];
+#pragma unroll
+            for (int i = 0; i < 8; ++i) {
+                if (GATEUP) {
+                    const float g = ink_rbf(acc[j][i] * g0);
+                    const float u = ink_rbf(sred[(fw * 32 + lane) * (J * 8) + j * 8 + i] * g1);
+                    v[i] = act_h<ACT>(g, u, wt, a.gc, a.uc);
+                } else {
+                    const float yv = ink_rbf(acc[j][i] * g0);
+                    v[i] = ACT == ACT_SITU ? yv : ink_rbf(yv * wt);
+                }
+            }
+            *reinterpret_cast<uint4*>(dst + (int64_t)pair * Nd + f0) = ik_pack8(v);
+        }
+    }
+}
+
+// INTARSIA_HIP_INK_MOE_WMMA (not bitwise the decode kernels, so off until the default is flipped):
+//   0 / unset (kWmDefault): the pair-table path stays on the decode kernels;
+//   1: the rule: 64-pair tiles from kWmMinPerExpert pairs per expert on average. A block reads and dequantises its expert's
+//      rows whatever the tile holds, so a sparse call is faster on the decode kernels (S2 window 1, NVFP4: 8 pairs per expert
+//      5.08 ms against 2.92; 16 pairs per expert 5.20 against 5.49);
+//   32 | 64: every pair-table call takes the tensor cores with that pair tile (tests / benchmarks).
+// To turn the tensor-core prefill on by default, set kWmDefault to 1: that is the one constant.
+constexpr int kWmDefault = 0;
+constexpr int kWmPairsRule = 64, kWmMinPerExpert = 16;
+int moe_wmma_pairs(int64_t P, int E) {
+    int v = g_wmma;
+    if (v < 0) {
+        const char* e = getenv("INTARSIA_HIP_INK_MOE_WMMA");
+        v = e && e[0] ? atoi(e) : kWmDefault;
+    }
+    if (v == 32 || v == 64) return v;
+    if (v == 1) return P >= (int64_t)kWmMinPerExpert * E ? kWmPairsRule : 0;
+    return 0;
+}
+
 template <int FMT, int ACT>
-int run(MoeArgs a, int out_f32, const ik_scratch* sc, hipStream_t st) {
+int launch_wmma(const MoeArgs& a, int pairs, hipStream_t st) {
+    const int64_t P = (int64_t)a.T * a.K;
+    int zp = (int)((2 * P / a.E + pairs - 1) / pairs);  // pair tiles in the grid: twice the average pairs per expert
+    zp = zp < 1 ? 1 : (zp > 8 ? 8 : zp);
+    if (g_probe != 2) {
+        const dim3 g((unsigned)zp, (unsigned)(a.I / kMwFeatGateUp), (unsigned)a.E);
+        if (pairs == 32) ink_moe_wmma_kernel<FMT, ACT, true, 32><<<g, kMwThreads, 0, st>>>(a);
+        else ink_moe_wmma_kernel<FMT, ACT, true, 64><<<g, kMwThreads, 0, st>>>(a);
+        IK_TRY(ik_launch_status());
+    }
+    if (g_probe != 1) {
+        const dim3 g((unsigned)zp, (unsigned)((a.H + kMwFeatDown - 1) / kMwFeatDown), (unsigned)a.E);
+        if (pairs == 32) ink_moe_wmma_kernel<FMT, ACT, false, 32><<<g, kMwThreads, 0, st>>>(a);
+        else ink_moe_wmma_kernel<FMT, ACT, false, 64><<<g, kMwThreads, 0, st>>>(a);
+        IK_TRY(ik_launch_status());
+    }
+    return IK_OK;
+}
+
+template <int FMT, int ACT>
+int run(MoeArgs a, int out_f32, bool rows, const ik_scratch* sc, hipStream_t st) {
     const int64_t P = (int64_t)a.T * a.K;
     const int64_t need = rnd(P * 4) + rnd((int64_t)(a.E + 1) * 4) * 2 + rnd(P * a.I * 2) + rnd(P * a.H * 2);
     if (!sc || !sc->data || sc->bytes < need || !ik_aligned16(sc->data)) return IK_ERR_INVALID_ARG;
@@ -796,7 +1004,13 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc, hipStream_t st) {
         ink_moe_group_kernel<<<1, 1024, 0, st>>>(a);
         IK_TRY(ik_launch_status());
     }
-    IK_TRY((launch_pair<FMT, ACT>(a, out_f32, st)));
+    // the tensor-core prefill: ordinary names only, the pair-table path, reduction dims in 64-k blocks; never the first form
+    const int wm = a.table ? moe_wmma_pairs(P, a.E) : 0;
+    if (a.table && !rows && wm != 0 && moe_lean() && a.H % kMwKB == 0 && a.I % kMwKB == 0) {
+        IK_TRY((launch_wmma<FMT, ACT>(a, wm, st)));
+    } else {
+        IK_TRY((launch_pair<FMT, ACT>(a, out_f32, st)));
+    }
     if (a.table && g_probe != 1) {
         const dim3 gg((unsigned)((a.H + 255) / 256), (unsigned)a.T);
         if (out_f32) ink_moe_gather_kernel<float><<<gg, 256, 0, st>>>(a);
@@ -824,7 +1038,7 @@ int common_checks(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts
 
 int situ_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw, const ik_tensor* gus,
               const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc, float gate_cap, float up_cap, int aq, ik_tensor* out,
-              const ik_scratch* scratch, void* stream) {
+              const ik_scratch* scratch, void* stream, bool rows) {
     int of = 0;
     IK_TRY(common_checks(x, ids, wts, out, &of));
     IK_TRY(ik_check_a(guw, IK_DTYPE_U8, 3, 16));
@@ -852,12 +1066,12 @@ int situ_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, co
     a.out = out->data;
     a.T = (int)T, a.K = (int)ids->shape[1], a.E = (int)E, a.H = (int)H, a.I = (int)I;
     a.gc = gate_cap, a.uc = up_cap;
-    return run<FMT_NV, ACT_SITU>(a, of, scratch, IK_STREAM(stream));
+    return run<FMT_NV, ACT_SITU>(a, of, rows, scratch, IK_STREAM(stream));
 }
 
 int mxfp8_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* w13, const ik_tensor* s13,
                const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap, float up_cap, int aq, ik_tensor* out,
-               const ik_scratch* scratch, void* stream) {
+               const ik_scratch* scratch, void* stream, bool rows) {
     int of = 0;
     IK_TRY(common_checks(x, ids, wts, out, &of));
     IK_TRY(ik_check_a(w13, IK_DTYPE_FP8_E4M3, 3, 16));
@@ -885,9 +1099,9 @@ int mxfp8_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, c
     a.gc = gate_cap, a.uc = up_cap;
     hipStream_t st = IK_STREAM(stream);
     switch (act) {
-        case ACT_SILU: return run<FMT_MX, ACT_SILU>(a, of, scratch, st);
-        case ACT_GELU: return run<FMT_MX, ACT_GELU>(a, of, scratch, st);
-        case ACT_SITU: return run<FMT_MX, ACT_SITU>(a, of, scratch, st);
+        case ACT_SILU: return run<FMT_MX, ACT_SILU>(a, of, rows, scratch, st);
+        case ACT_GELU: return run<FMT_MX, ACT_GELU>(a, of, rows, scratch, st);
+        case ACT_SITU: return run<FMT_MX, ACT_SITU>(a, of, rows, scratch, st);
         default: return IK_ERR_INVALID_ARG;
     }
 }
@@ -901,31 +1115,32 @@ void ik_ink_moe_set_pre(int gu, int dn) { g_pre_gu = gu, g_pre_dn = dn; }
 void ik_ink_moe_set_lean(int v) { g_lean = v; }
 void ik_ink_moe_set_sz(int v) { g_sz = v; }
 void ik_ink_moe_set_nb(int v) { g_nb = v; }
+void ik_ink_moe_set_wmma(int v) { g_wmma = v; }
 
-// The `_rows` twins are the same launchers: every path above is rows-exact. (A later tensor-core prefill path belongs to the
-// ordinary names only.)
+// The `_rows` twins are the decode kernels at every size (rows-exact, bitwise the first form); so are the ordinary names by
+// default, and with INTARSIA_HIP_INK_MOE_WMMA=1 they take the tensor-core prefill on the pair-table path.
 int ik_moe_experts_situ_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw,
                              const ik_tensor* gus, const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc,
                              float gate_cap, float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream) {
-    return situ_impl(x, ids, wts, guw, gus, dnw, dns, gsc, gate_cap, up_cap, aq, out, scratch, stream);
+    return situ_impl(x, ids, wts, guw, gus, dnw, dns, gsc, gate_cap, up_cap, aq, out, scratch, stream, false);
 }
 
 int ik_moe_experts_situ_bf16_rows(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw,
                                   const ik_tensor* gus, const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc,
                                   float gate_cap, float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream) {
-    return situ_impl(x, ids, wts, guw, gus, dnw, dns, gsc, gate_cap, up_cap, aq, out, scratch, stream);
+    return situ_impl(x, ids, wts, guw, gus, dnw, dns, gsc, gate_cap, up_cap, aq, out, scratch, stream, true);
 }
 
 int ik_moe_experts_mxfp8_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* w13,
                               const ik_tensor* s13, const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap,
                               float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream) {
-    return mxfp8_impl(x, ids, wts, w13, s13, w2, s2, act, gate_cap, up_cap, aq, out, scratch, stream);
+    return mxfp8_impl(x, ids, wts, w13, s13, w2, s2, act, gate_cap, up_cap, aq, out, scratch, stream, false);
 }
 
 int ik_moe_experts_mxfp8_bf16_rows(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* w13,
                                    const ik_tensor* s13, const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap,
                                    float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream) {
-    return mxfp8_impl(x, ids, wts, w13, s13, w2, s2, act, gate_cap, up_cap, aq, out, scratch, stream);
+    return mxfp8_impl(x, ids, wts, w13, s13, w2, s2, act, gate_cap, up_cap, aq, out, scratch, stream, true);
 }
 
 }  // extern "C"
