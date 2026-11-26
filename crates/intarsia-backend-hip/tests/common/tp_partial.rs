@@ -316,18 +316,8 @@ pub fn run_case(e: &mut dyn Engine, c: &Case) -> Report {
     let mutants = [
         Mutant { label: "scale:1.003 rank 1", partials: scaled(1.003), eps: Some(0.003), det_kills_same_sign: true },
         Mutant { label: "scale:1.001 rank 1", partials: scaled(1.001), eps: Some(0.001), det_kills_same_sign: false },
-        Mutant {
-            label: "drop rank 1 partial",
-            partials: [clean_p[0].clone(), vec![0.0; clean_p[1].len()]],
-            eps: None,
-            det_kills_same_sign: true,
-        },
-        Mutant {
-            label: "swap x halves",
-            partials: e.partials(c, [c.x_half(1), c.x_half(0)]),
-            eps: None,
-            det_kills_same_sign: true,
-        },
+        Mutant { label: "drop rank 1 partial", partials: [clean_p[0].clone(), vec![0.0; clean_p[1].len()]], eps: None, det_kills_same_sign: true },
+        Mutant { label: "swap x halves", partials: e.partials(c, [c.x_half(1), c.x_half(0)]), eps: None, det_kills_same_sign: true },
     ];
     for mu in mutants {
         let changed = max_abs_diff(&mu.partials[1], &clean_p[1]).max(max_abs_diff(&mu.partials[0], &clean_p[0]));
@@ -351,21 +341,12 @@ pub fn run_case(e: &mut dyn Engine, c: &Case) -> Report {
                     fail(&mut rep, format!("{}: not killed by BOUND_DET ({:.3})", mu.label, v.ratio_det));
                 }
                 if !(v.bf16_diff as f64 > v.allowed_prob) {
-                    fail(
-                        &mut rep,
-                        format!(
-                            "{}: bf16 outputs differ in {} elements, within the PROB allowance {:.1}",
-                            mu.label, v.bf16_diff, v.allowed_prob
-                        ),
-                    );
+                    fail(&mut rep, format!("{}: bf16 outputs differ in {} elements, within the PROB allowance {:.1}", mu.label, v.bf16_diff, v.allowed_prob));
                 }
             }
             Kind::RandomSign => {
                 if big && !(v.ratio_det > 1.0) {
-                    fail(
-                        &mut rep,
-                        format!("{}: not killed by BOUND_DET even with cancellation ({:.3})", mu.label, v.ratio_det),
-                    );
+                    fail(&mut rep, format!("{}: not killed by BOUND_DET even with cancellation ({:.3})", mu.label, v.ratio_det));
                 }
             }
         }
