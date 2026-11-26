@@ -90,16 +90,45 @@ pub fn set_probe(v: i32) {
     let _ = v;
 }
 
-/// Tests / benchmarks: the load window of the expert kernels (1, 3 or 9 lane steps requested ahead; bitwise the same output);
-/// `-1` = the env (`INTARSIA_HIP_INK_MOE_PRE`, unset: 3).
-pub fn set_pre(v: i32) {
+/// Tests / benchmarks: the load windows of gate_up and of down (lane steps requested ahead: 1, 2, 3, 4 or 6; bitwise the same
+/// output); `-1` = the env (`INTARSIA_HIP_INK_MOE_PRE`) or the format's default.
+pub fn set_pre(gu: i32, dn: i32) {
     #[cfg(ik_hip)]
     {
         extern "C" {
-            fn ik_ink_moe_set_pre(v: std::ffi::c_int);
+            fn ik_ink_moe_set_pre(gu: std::ffi::c_int, dn: std::ffi::c_int);
+        }
+        // SAFETY: sets two plain ints of the kernel library.
+        unsafe { ik_ink_moe_set_pre(gu, dn) }
+    }
+    #[cfg(not(ik_hip))]
+    let _ = (gu, dn);
+}
+
+/// Tests / benchmarks: the step form of the expert kernels: 1 lean (the default), 0 the first form (bitwise the same output),
+/// `-1` = the env (`INTARSIA_HIP_INK_MOE_LEAN`).
+pub fn set_lean(v: i32) {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_ink_moe_set_lean(v: std::ffi::c_int);
         }
         // SAFETY: sets a plain int of the kernel library.
-        unsafe { ik_ink_moe_set_pre(v) }
+        unsafe { ik_ink_moe_set_lean(v) }
+    }
+    #[cfg(not(ik_hip))]
+    let _ = v;
+}
+
+/// Tests / benchmarks: pairs per accumulator batch on the shared-memory path (2 | 4, bitwise the same output); anything else = the default.
+pub fn set_nb(v: i32) {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_ink_moe_set_nb(v: std::ffi::c_int);
+        }
+        // SAFETY: sets a plain int of the kernel library.
+        unsafe { ik_ink_moe_set_nb(v) }
     }
     #[cfg(not(ik_hip))]
     let _ = v;

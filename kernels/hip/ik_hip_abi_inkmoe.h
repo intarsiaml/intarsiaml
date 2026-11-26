@@ -31,9 +31,13 @@ int ik_moe_experts_mxfp8_bf16_rows(const ik_tensor* x, const ik_tensor* ids, con
                                    const ik_tensor* s13, const ik_tensor* w2, const ik_tensor* s2, int act, float gate_cap,
                                    float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream);
 
-/* benchmarks / tests: 1 = only gate_up, 2 = only down, 0 = both; the load window (1 | 3 | 9, -1 = INTARSIA_HIP_INK_MOE_PRE) */
+/* benchmarks / tests: 1 = only gate_up, 2 = only down, 0 = both; the load windows of gate_up and down (-1 = the env
+ * INTARSIA_HIP_INK_MOE_PRE / the default); the step form (1 lean, 0 the first form, -1 = INTARSIA_HIP_INK_MOE_LEAN / lean) */
 void ik_ink_moe_probe(int v);
-void ik_ink_moe_set_pre(int v);
+void ik_ink_moe_set_pre(int gu, int dn);
+void ik_ink_moe_set_lean(int v);
+/* pairs per accumulator batch on the shared-memory path (2 | 4; anything else = the default); bitwise the same output */
+void ik_ink_moe_set_nb(int v);
 
 #ifdef __cplusplus
 }

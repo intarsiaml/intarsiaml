@@ -1,0 +1,452 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-moe/.scratch/stage-unit.sh; cap 1020s; stopping radiance 2026-11-25 22:01:46
+[window] radiance stopped 2026-11-25 22:01:49 (inactive)
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:365:9
+    |
+365 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+365 -     Ink(usize),
+365 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1384:4
+     |
+1384 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:299:9
+    |
+295 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+299 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: unreachable call
+  --> crates/intarsia-backend-hip/src/inkattn.rs:46:9
+   |
+46 |           Some(match kernel {
+   |  _________^^^^_-
+   | |         |
+   | |         unreachable call
+47 | |             _ => return None,
+48 | |         })
+   | |_________- any code following this `match` expression is unreachable, as all arms diverge
+   |
+   = note: `#[warn(unreachable_code)]` on by default
+
+warning: unreachable call
+  --> crates/intarsia-backend-hip/src/inkmix.rs:46:9
+   |
+46 |           Some(match kernel {
+   |  _________^^^^_-
+   | |         |
+   | |         unreachable call
+47 | |             _ => return None,
+48 | |         })
+   | |_________- any code following this `match` expression is unreachable, as all arms diverge
+
+warning: fields `pos`, `tab`, `tab_stride`, `tab_index`, and `tab_off` are never read
+   --> crates/intarsia-backend-hip/src/device.rs:149:9
+    |
+142 | pub(crate) struct InkArgs<'a> {
+    |                   ------- fields in this struct
+...
+149 |     pub pos: *const IkTensor,
+    |         ^^^
+150 |     /// The row table (`OpCall::rows`: ptrs, stride, index, byte offset), or null and zeros for an ordinary call.
+151 |     pub tab: *const IkTensor,
+    |         ^^^
+152 |     pub tab_stride: i64,
+    |         ^^^^^^^^^^
+153 |     pub tab_index: i64,
+    |         ^^^^^^^^^
+154 |     pub tab_off: i64,
+    |         ^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 9 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/ink_moe.rs (/target/release/deps/ink_moe-34ae8a06fbc12c09)
+
+running 2 tests
+test ink_moe_matches_cpu_reference ... moe_experts_situ_bf16        T=1 E=16 K=4 H=64 I=32 bf16 situ                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16_rows   T=1 E=16 K=4 H=64 I=32 bf16 situ                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        T=7 E=16 K=4 H=64 I=32 bf16 situ                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16_rows   T=7 E=16 K=4 H=64 I=32 bf16 situ                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        T=16 E=16 K=4 H=128 I=64 bf16 situ                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16_rows   T=16 E=16 K=4 H=128 I=64 bf16 situ                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        T=40 E=16 K=4 H=64 I=32 bf16 situ                    max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        T=1 E=128 K=8 H=2304 I=1152 bf16 situ                max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16_rows   T=1 E=128 K=8 H=2304 I=1152 bf16 situ                max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        T=3 E=32 K=8 H=256 I=128 bf16 situ                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16_rows   T=3 E=32 K=8 H=256 I=128 bf16 situ                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        T=4 E=32 K=8 H=2304 I=1152 bf16 situ                 max_abs 9.124e-4 rel_l2 5.622e-5 ok
+moe_experts_situ_bf16_rows   T=4 E=32 K=8 H=2304 I=1152 bf16 situ                 max_abs 9.124e-4 rel_l2 5.622e-5 ok
+moe_experts_situ_bf16        T=16 E=32 K=8 H=2304 I=1152 bf16 situ                max_abs 1.748e-3 rel_l2 1.266e-4 ok
+moe_experts_situ_bf16_rows   T=16 E=32 K=8 H=2304 I=1152 bf16 situ                max_abs 1.748e-3 rel_l2 1.266e-4 ok
+moe_experts_situ_bf16        T=64 E=128 K=8 H=2304 I=1152 bf16 situ               max_abs 3.472e-3 rel_l2 1.413e-4 ok
+moe_experts_mxfp8_bf16       T=1 E=16 K=4 H=64 I=32 silu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=1 E=16 K=4 H=64 I=32 silu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=1 E=16 K=4 H=64 I=32 gelu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=1 E=16 K=4 H=64 I=32 gelu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=1 E=16 K=4 H=64 I=32 situ bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=1 E=16 K=4 H=64 I=32 situ bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=7 E=16 K=4 H=64 I=64 silu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=7 E=16 K=4 H=64 I=64 silu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=7 E=16 K=4 H=64 I=64 gelu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=7 E=16 K=4 H=64 I=64 gelu bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=7 E=16 K=4 H=64 I=64 situ bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=7 E=16 K=4 H=64 I=64 situ bf16                     max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=16 E=16 K=4 H=128 I=32 silu bf16                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=16 E=16 K=4 H=128 I=32 silu bf16                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=16 E=16 K=4 H=128 I=32 gelu bf16                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=16 E=16 K=4 H=128 I=32 gelu bf16                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=16 E=16 K=4 H=128 I=32 situ bf16                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=16 E=16 K=4 H=128 I=32 situ bf16                   max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=40 E=16 K=4 H=64 I=32 silu bf16                    max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=40 E=16 K=4 H=64 I=32 gelu bf16                    max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=40 E=16 K=4 H=64 I=32 situ bf16                    max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=1 E=8 K=8 H=2304 I=1152 silu bf16                  max_abs 4.371e-4 rel_l2 6.050e-5 ok
+moe_experts_mxfp8_bf16_rows  T=1 E=8 K=8 H=2304 I=1152 silu bf16                  max_abs 4.371e-4 rel_l2 6.050e-5 ok
+moe_experts_mxfp8_bf16       T=1 E=8 K=8 H=2304 I=1152 gelu bf16                  max_abs 2.058e-3 rel_l2 1.634e-4 ok
+moe_experts_mxfp8_bf16_rows  T=1 E=8 K=8 H=2304 I=1152 gelu bf16                  max_abs 2.058e-3 rel_l2 1.634e-4 ok
+moe_experts_mxfp8_bf16       T=1 E=8 K=8 H=2304 I=1152 situ bf16                  max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16_rows  T=1 E=8 K=8 H=2304 I=1152 situ bf16                  max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       T=4 E=32 K=8 H=2304 I=1152 situ bf16 (real)          max_abs 9.766e-4 rel_l2 7.507e-5 ok
+moe_experts_mxfp8_bf16_rows  T=4 E=32 K=8 H=2304 I=1152 situ bf16 (real)          max_abs 9.766e-4 rel_l2 7.507e-5 ok
+moe_experts_mxfp8_bf16       T=16 E=32 K=8 H=2304 I=1152 situ bf16 (real)         max_abs 9.766e-4 rel_l2 4.485e-5 ok
+moe_experts_mxfp8_bf16_rows  T=16 E=32 K=8 H=2304 I=1152 situ bf16 (real)         max_abs 9.766e-4 rel_l2 4.485e-5 ok
+moe_experts_mxfp8_bf16       T=64 E=128 K=8 H=2304 I=1152 situ bf16 (real)        max_abs 1.773e-3 rel_l2 1.192e-4 ok
+moe_experts_situ_bf16        own T=150 E=16 K=4 H=64 I=32 situ                    max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       own T=150 E=16 K=4 H=64 I=32 mxfp8 silu              max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       own T=150 E=16 K=4 H=64 I=32 mxfp8 gelu              max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       own T=150 E=16 K=4 H=64 I=32 mxfp8 situ              max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        own T=70 E=32 K=8 H=256 I=128 situ                   max_abs 1.799e-3 rel_l2 5.977e-5 ok
+moe_experts_mxfp8_bf16       own T=70 E=32 K=8 H=256 I=128 mxfp8 silu             max_abs 1.907e-6 rel_l2 1.673e-5 ok
+moe_experts_mxfp8_bf16       own T=70 E=32 K=8 H=256 I=128 mxfp8 gelu             max_abs 7.451e-9 rel_l2 6.321e-8 ok
+moe_experts_mxfp8_bf16       own T=70 E=32 K=8 H=256 I=128 mxfp8 situ             max_abs 6.104e-5 rel_l2 6.840e-5 ok
+moe_experts_situ_bf16        own T=64 E=32 K=8 H=96 I=160 situ                    max_abs 9.766e-4 rel_l2 6.918e-5 ok
+moe_experts_mxfp8_bf16       own T=64 E=32 K=8 H=96 I=160 mxfp8 silu              max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       own T=64 E=32 K=8 H=96 I=160 mxfp8 gelu              max_abs 9.537e-7 rel_l2 3.221e-5 ok
+moe_experts_mxfp8_bf16       own T=64 E=32 K=8 H=96 I=160 mxfp8 situ              max_abs 7.629e-6 rel_l2 3.360e-5 ok
+moe_experts_situ_bf16        own T=65 E=32 K=8 H=96 I=160 situ                    max_abs 8.503e-4 rel_l2 5.186e-5 ok
+moe_experts_mxfp8_bf16       own T=65 E=32 K=8 H=96 I=160 mxfp8 silu              max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       own T=65 E=32 K=8 H=96 I=160 mxfp8 gelu              max_abs 4.768e-7 rel_l2 1.686e-5 ok
+moe_experts_mxfp8_bf16       own T=65 E=32 K=8 H=96 I=160 mxfp8 situ              max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        hot experts T=40 mx=false (decode path)              max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        duplicate and invalid ids T=40 mx=false (decode path) max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       hot experts T=40 mx=true (decode path)               max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       duplicate and invalid ids T=40 mx=true (decode path) max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_situ_bf16        hot experts T=140 mx=false (table path)              max_abs 2.441e-4 rel_l2 1.073e-5 ok
+moe_experts_situ_bf16        duplicate and invalid ids T=140 mx=false (table path) max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       hot experts T=140 mx=true (table path)               max_abs 0.000e0 rel_l2 0.000e0 ok
+moe_experts_mxfp8_bf16       duplicate and invalid ids T=140 mx=true (table path) max_abs 0.000e0 rel_l2 0.000e0 ok
+ok
+test ink_moe_rows_exact ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 16.25s
+
+[stage] tests exit 0
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:365:9
+    |
+365 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+365 -     Ink(usize),
+365 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1384:4
+     |
+1384 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:299:9
+    |
+295 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+299 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: unreachable call
+  --> crates/intarsia-backend-hip/src/inkattn.rs:46:9
+   |
+46 |           Some(match kernel {
+   |  _________^^^^_-
+   | |         |
+   | |         unreachable call
+47 | |             _ => return None,
+48 | |         })
+   | |_________- any code following this `match` expression is unreachable, as all arms diverge
+   |
+   = note: `#[warn(unreachable_code)]` on by default
+
+warning: unreachable call
+  --> crates/intarsia-backend-hip/src/inkmix.rs:46:9
+   |
+46 |           Some(match kernel {
+   |  _________^^^^_-
+   | |         |
+   | |         unreachable call
+47 | |             _ => return None,
+48 | |         })
+   | |_________- any code following this `match` expression is unreachable, as all arms diverge
+
+warning: fields `pos`, `tab`, `tab_stride`, `tab_index`, and `tab_off` are never read
+   --> crates/intarsia-backend-hip/src/device.rs:149:9
+    |
+142 | pub(crate) struct InkArgs<'a> {
+    |                   ------- fields in this struct
+...
+149 |     pub pos: *const IkTensor,
+    |         ^^^
+150 |     /// The row table (`OpCall::rows`: ptrs, stride, index, byte offset), or null and zeros for an ordinary call.
+151 |     pub tab: *const IkTensor,
+    |         ^^^
+152 |     pub tab_stride: i64,
+    |         ^^^^^^^^^^
+153 |     pub tab_index: i64,
+    |         ^^^^^^^^^
+154 |     pub tab_off: i64,
+    |         ^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 9 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/ink_moe.rs (/target/release/deps/ink_moe-34ae8a06fbc12c09)
+
+running 1 test
+test ink_moe_bench ... INKMOEBENCH nvfp4 T=1    lean=-1 pre=-1 both      84.3 us    425 GB/s | gate_up      49.4 us   484 GB/s | down      34.9 us   342 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=1    lean=0  pre=3  both      99.6 us    360 GB/s | gate_up      61.8 us   387 GB/s | down      34.4 us   347 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=1    lean=2  pre=1  both      93.4 us    384 GB/s | gate_up      54.5 us   438 GB/s | down      39.0 us   306 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=1    lean=2  pre=2  both      86.1 us    416 GB/s | gate_up      51.2 us   467 GB/s | down      35.0 us   341 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=1    lean=2  pre=3  both      84.2 us    426 GB/s | gate_up      49.6 us   481 GB/s | down      34.8 us   344 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=1    lean=2  pre=4  both      84.4 us    425 GB/s | gate_up      50.3 us   475 GB/s | down      34.3 us   348 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=1    lean=2  pre=6  both      82.6 us    434 GB/s | gate_up      47.9 us   499 GB/s | down      35.0 us   341 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=1    lean=4  pre=1  both      94.6 us    379 GB/s | gate_up      55.3 us   432 GB/s | down      39.6 us   302 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=1    lean=4  pre=2  both      86.6 us    414 GB/s | gate_up      51.6 us   463 GB/s | down      35.4 us   337 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=1    lean=4  pre=3  both      84.0 us    426 GB/s | gate_up      49.3 us   485 GB/s | down      34.8 us   343 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=1    lean=4  pre=4  both      84.8 us    422 GB/s | gate_up      50.3 us   475 GB/s | down      34.6 us   346 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=1    lean=4  pre=6  both      83.8 us    427 GB/s | gate_up      50.5 us   473 GB/s | down      34.9 us   342 GB/s | 35.8 MB / call
+INKMOEBENCH nvfp4 T=2    lean=-1 pre=-1 both     155.2 us    452 GB/s | gate_up      91.9 us   509 GB/s | down      63.2 us   370 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=2    lean=0  pre=3  both     175.2 us    400 GB/s | gate_up     107.0 us   437 GB/s | down      61.6 us   380 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=2    lean=2  pre=1  both     185.2 us    379 GB/s | gate_up     107.0 us   437 GB/s | down      78.2 us   299 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=2    lean=2  pre=2  both     165.1 us    425 GB/s | gate_up      96.5 us   485 GB/s | down      69.1 us   339 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=2    lean=2  pre=3  both     154.6 us    454 GB/s | gate_up      92.0 us   509 GB/s | down      62.7 us   373 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=2    lean=2  pre=4  both     153.9 us    456 GB/s | gate_up      91.9 us   509 GB/s | down      62.0 us   377 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=2    lean=2  pre=6  both     147.7 us    475 GB/s | gate_up      87.4 us   536 GB/s | down      60.6 us   386 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=2    lean=4  pre=1  both     188.1 us    373 GB/s | gate_up     109.1 us   429 GB/s | down      79.1 us   296 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=2    lean=4  pre=2  both     166.6 us    421 GB/s | gate_up      99.0 us   472 GB/s | down      68.5 us   342 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=2    lean=4  pre=3  both     154.1 us    455 GB/s | gate_up      91.6 us   511 GB/s | down      62.8 us   373 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=2    lean=4  pre=4  both     155.1 us    452 GB/s | gate_up      92.9 us   503 GB/s | down      62.5 us   374 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=2    lean=4  pre=6  both     150.9 us    465 GB/s | gate_up      91.8 us   510 GB/s | down      60.8 us   385 GB/s | 70.2 MB / call
+INKMOEBENCH nvfp4 T=4    lean=-1 pre=-1 both     279.1 us    467 GB/s | gate_up     166.2 us   522 GB/s | down     113.5 us   383 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=4    lean=0  pre=3  both     308.4 us    422 GB/s | gate_up     187.2 us   464 GB/s | down     110.6 us   393 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=4    lean=2  pre=1  both     349.5 us    373 GB/s | gate_up     200.2 us   434 GB/s | down     149.2 us   291 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=4    lean=2  pre=2  both     307.0 us    424 GB/s | gate_up     175.7 us   494 GB/s | down     130.5 us   333 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=4    lean=2  pre=3  both     276.9 us    470 GB/s | gate_up     164.6 us   528 GB/s | down     113.3 us   383 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=4    lean=2  pre=4  both     282.0 us    462 GB/s | gate_up     165.9 us   523 GB/s | down     115.1 us   377 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=4    lean=2  pre=6  both     262.9 us    495 GB/s | gate_up     154.9 us   561 GB/s | down     108.2 us   401 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=4    lean=4  pre=1  both     355.3 us    367 GB/s | gate_up     203.1 us   428 GB/s | down     152.3 us   285 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=4    lean=4  pre=2  both     311.7 us    418 GB/s | gate_up     183.3 us   474 GB/s | down     128.5 us   338 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=4    lean=4  pre=3  both     279.6 us    466 GB/s | gate_up     166.2 us   522 GB/s | down     113.5 us   382 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=4    lean=4  pre=4  both     281.9 us    462 GB/s | gate_up     167.8 us   518 GB/s | down     114.6 us   379 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=4    lean=4  pre=6  both     268.6 us    485 GB/s | gate_up     162.0 us   536 GB/s | down     108.2 us   401 GB/s | 130.3 MB / call
+INKMOEBENCH nvfp4 T=16   lean=-1 pre=-1 both     816.7 us    448 GB/s | gate_up     479.9 us   508 GB/s | down     331.5 us   368 GB/s | 365.8 MB / call
+INKMOEBENCH nvfp4 T=16   lean=0  pre=3  both     847.6 us    432 GB/s | gate_up     521.3 us   468 GB/s | down     309.3 us   394 GB/s | 365.8 MB / call
+INKMOEBENCH nvfp4 T=16   lean=2  pre=1  both    1167.5 us    313 GB/s | gate_up     654.4 us   373 GB/s | down     507.4 us   240 GB/s | 365.8 MB / call
+INKMOEBENCH nvfp4 T=16   lean=2  pre=2  both     999.9 us    366 GB/s | gate_up     570.7 us   427 GB/s | down     426.5 us   286 GB/s | 365.8 MB / call
+INKMOEBENCH nvfp4 T=16   lean=2  pre=3  both     889.9 us    411 GB/s | gate_up     523.0 us   466 GB/s | down     365.6 us   333 GB/s | 365.8 MB / call
+INKMOEBENCH nvfp4 T=16   lean=2  pre=4  both     899.7 us    407 GB/s | gate_up     529.1 us   461 GB/s | down     369.9 us   330 GB/s | 365.8 MB / call
+INKMOEBENCH nvfp4 T=16   lean=2  pre=6  both     815.6 us    448 GB/s | gate_up     482.7 us   505 GB/s | down     334.2 us   365 GB/s | 365.8 MB / call
+INKMOEBENCH nvfp4 T=16   lean=4  pre=1  both    1067.4 us    343 GB/s | gate_up     592.5 us   412 GB/s | down     468.0 us   261 GB/s | 365.8 MB / call
+INKMOEBENCH nvfp4 T=16   lean=4  pre=2  both     925.4 us    395 GB/s | gate_up     533.0 us   458 GB/s | down     388.3 us   314 GB/s | 365.8 MB / call
+INKMOEBENCH nvfp4 T=16   lean=4  pre=3  both     818.0 us    447 GB/s | gate_up     482.3 us   506 GB/s | down     329.8 us   370 GB/s | 365.8 MB / call
+INKMOEBENCH nvfp4 T=16   lean=4  pre=4  both     822.0 us    445 GB/s | gate_up     482.0 us   506 GB/s | down     336.4 us   362 GB/s | 365.8 MB / call
+INKMOEBENCH nvfp4 T=16   lean=4  pre=6  both     764.1 us    479 GB/s | gate_up     459.0 us   531 GB/s | down     304.3 us   401 GB/s | 365.8 MB / call
+INKMOEBENCH nvfp4 T=64   lean=-1 pre=-1 both    2136.9 us    264 GB/s | gate_up    1381.3 us   272 GB/s | down     743.9 us   252 GB/s | 563.2 MB / call
+INKMOEBENCH nvfp4 T=256  lean=-1 pre=-1 both    5532.6 us    104 GB/s | gate_up    3360.2 us   114 GB/s | down    2425.9 us    79 GB/s | 573.3 MB / call
+INKMOEBENCH mxfp8 T=1    lean=-1 pre=-1 both     124.1 us    529 GB/s | gate_up      74.8 us   586 GB/s | down      49.5 us   442 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=1    lean=0  pre=3  both     144.7 us    454 GB/s | gate_up      89.6 us   489 GB/s | down      49.8 us   440 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=1    lean=2  pre=1  both     130.3 us    504 GB/s | gate_up      74.6 us   587 GB/s | down      55.9 us   392 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=1    lean=2  pre=2  both     127.0 us    517 GB/s | gate_up      74.5 us   588 GB/s | down      52.9 us   414 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=1    lean=2  pre=3  both     124.9 us    526 GB/s | gate_up      75.7 us   578 GB/s | down      49.3 us   444 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=1    lean=2  pre=4  both     126.3 us    520 GB/s | gate_up      75.7 us   579 GB/s | down      50.7 us   432 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=1    lean=2  pre=6  both     125.3 us    524 GB/s | gate_up      76.6 us   571 GB/s | down      48.4 us   452 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=1    lean=4  pre=1  both     130.6 us    503 GB/s | gate_up      74.7 us   587 GB/s | down      56.0 us   391 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=1    lean=4  pre=2  both     127.6 us    515 GB/s | gate_up      74.6 us   587 GB/s | down      52.9 us   414 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=1    lean=4  pre=3  both     125.0 us    526 GB/s | gate_up      75.8 us   578 GB/s | down      49.3 us   444 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=1    lean=4  pre=4  both     126.3 us    520 GB/s | gate_up      75.8 us   578 GB/s | down      50.6 us   433 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=1    lean=4  pre=6  both     126.1 us    521 GB/s | gate_up      78.4 us   558 GB/s | down      48.5 us   451 GB/s | 65.7 MB / call
+INKMOEBENCH mxfp8 T=2    lean=-1 pre=-1 both     223.6 us    554 GB/s | gate_up     134.2 us   615 GB/s | down      89.5 us   461 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=2    lean=0  pre=3  both     253.8 us    488 GB/s | gate_up     157.1 us   525 GB/s | down      88.4 us   467 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=2    lean=2  pre=1  both     235.6 us    526 GB/s | gate_up     136.0 us   607 GB/s | down      99.6 us   414 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=2    lean=2  pre=2  both     227.9 us    543 GB/s | gate_up     133.7 us   618 GB/s | down      94.5 us   437 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=2    lean=2  pre=3  both     223.2 us    555 GB/s | gate_up     134.2 us   615 GB/s | down      89.3 us   462 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=2    lean=2  pre=4  both     225.3 us    550 GB/s | gate_up     135.2 us   611 GB/s | down      89.9 us   459 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=2    lean=2  pre=6  both     222.8 us    556 GB/s | gate_up     136.2 us   606 GB/s | down      86.3 us   478 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=2    lean=4  pre=1  both     234.2 us    529 GB/s | gate_up     134.0 us   616 GB/s | down     100.2 us   412 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=2    lean=4  pre=2  both     229.2 us    540 GB/s | gate_up     134.4 us   614 GB/s | down      94.9 us   435 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=2    lean=4  pre=3  both     223.9 us    553 GB/s | gate_up     135.0 us   611 GB/s | down      89.1 us   463 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=2    lean=4  pre=4  both     224.3 us    552 GB/s | gate_up     134.5 us   614 GB/s | down      89.7 us   460 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=2    lean=4  pre=6  both     223.8 us    553 GB/s | gate_up     138.2 us   598 GB/s | down      86.5 us   477 GB/s | 123.9 MB / call
+INKMOEBENCH mxfp8 T=4    lean=-1 pre=-1 both     370.2 us    562 GB/s | gate_up     222.2 us   624 GB/s | down     148.9 us   466 GB/s | 208.0 MB / call
+INKMOEBENCH mxfp8 T=4    lean=0  pre=3  both     416.5 us    499 GB/s | gate_up     257.2 us   539 GB/s | down     146.2 us   474 GB/s | 208.0 MB / call
+INKMOEBENCH mxfp8 T=4    lean=2  pre=1  both     410.5 us    507 GB/s | gate_up     233.6 us   594 GB/s | down     176.7 us   392 GB/s | 208.0 MB / call
+INKMOEBENCH mxfp8 T=4    lean=2  pre=2  both     394.0 us    528 GB/s | gate_up     228.6 us   607 GB/s | down     165.5 us   419 GB/s | 208.0 MB / call
+INKMOEBENCH mxfp8 T=4    lean=2  pre=3  both     381.7 us    545 GB/s | gate_up     228.8 us   606 GB/s | down     153.9 us   450 GB/s | 208.0 MB / call
+INKMOEBENCH mxfp8 T=4    lean=2  pre=4  both     388.0 us    536 GB/s | gate_up     231.9 us   598 GB/s | down     156.5 us   443 GB/s | 208.0 MB / call
+INKMOEBENCH mxfp8 T=4    lean=2  pre=6  both     378.1 us    550 GB/s | gate_up     230.6 us   601 GB/s | down     148.1 us   468 GB/s | 208.0 MB / call
+INKMOEBENCH mxfp8 T=4    lean=4  pre=1  both     392.6 us    530 GB/s | gate_up     222.2 us   624 GB/s | down     170.7 us   406 GB/s | 208.0 MB / call
+INKMOEBENCH mxfp8 T=4    lean=4  pre=2  both     383.4 us    543 GB/s | gate_up     222.7 us   623 GB/s | down     160.6 us   432 GB/s | 208.0 MB / call
+INKMOEBENCH mxfp8 T=4    lean=4  pre=3  both     372.0 us    559 GB/s | gate_up     223.8 us   620 GB/s | down     148.3 us   468 GB/s | 208.0 MB / call
+INKMOEBENCH mxfp8 T=4    lean=4  pre=4  both     371.7 us    560 GB/s | gate_up     221.4 us   626 GB/s | down     149.9 us   463 GB/s | 208.0 MB / call
+INKMOEBENCH mxfp8 T=4    lean=4  pre=6  both     366.9 us    567 GB/s | gate_up     225.1 us   616 GB/s | down     142.7 us   486 GB/s | 208.0 MB / call
+INKMOEBENCH mxfp8 T=16   lean=-1 pre=-1 both     873.8 us    529 GB/s | gate_up     530.4 us   581 GB/s | down     344.6 us   447 GB/s | 462.6 MB / call
+INKMOEBENCH mxfp8 T=16   lean=0  pre=3  both     919.0 us    503 GB/s | gate_up     581.0 us   531 GB/s | down     314.0 us   491 GB/s | 462.6 MB / call
+INKMOEBENCH mxfp8 T=16   lean=2  pre=1  both    1232.4 us    375 GB/s | gate_up     708.9 us   435 GB/s | down     520.1 us   296 GB/s | 462.6 MB / call
+INKMOEBENCH mxfp8 T=16   lean=2  pre=2  both    1167.6 us    396 GB/s | gate_up     697.4 us   442 GB/s | down     469.6 us   328 GB/s | 462.6 MB / call
+INKMOEBENCH mxfp8 T=16   lean=2  pre=3  both    1129.4 us    410 GB/s | gate_up     695.8 us   443 GB/s | down     433.5 us   356 GB/s | 462.6 MB / call
+INKMOEBENCH mxfp8 T=16   lean=2  pre=4  both    1133.8 us    408 GB/s | gate_up     697.0 us   442 GB/s | down     437.1 us   353 GB/s | 462.6 MB / call
+INKMOEBENCH mxfp8 T=16   lean=2  pre=6  both    1108.8 us    417 GB/s | gate_up     697.0 us   442 GB/s | down     413.0 us   373 GB/s | 462.6 MB / call
+INKMOEBENCH mxfp8 T=16   lean=4  pre=1  both     945.8 us    489 GB/s | gate_up     530.2 us   582 GB/s | down     416.5 us   370 GB/s | 462.6 MB / call
+INKMOEBENCH mxfp8 T=16   lean=4  pre=2  both     904.4 us    511 GB/s | gate_up     526.2 us   586 GB/s | down     379.4 us   406 GB/s | 462.6 MB / call
+INKMOEBENCH mxfp8 T=16   lean=4  pre=3  both     870.9 us    531 GB/s | gate_up     526.0 us   586 GB/s | down     345.5 us   446 GB/s | 462.6 MB / call
+INKMOEBENCH mxfp8 T=16   lean=4  pre=4  both     871.8 us    531 GB/s | gate_up     521.7 us   591 GB/s | down     349.5 us   441 GB/s | 462.6 MB / call
+INKMOEBENCH mxfp8 T=16   lean=4  pre=6  both     851.1 us    543 GB/s | gate_up     524.8 us   588 GB/s | down     326.4 us   472 GB/s | 462.6 MB / call
+INKMOEBENCH mxfp8 T=64   lean=-1 pre=-1 both    2493.1 us    211 GB/s | gate_up    1649.6 us   212 GB/s | down     840.6 us   208 GB/s | 525.5 MB / call
+INKMOEBENCH mxfp8 T=256  lean=-1 pre=-1 both    5574.3 us     94 GB/s | gate_up    3387.7 us   103 GB/s | down    2381.8 us    74 GB/s | 525.5 MB / call
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 32.14s
+
+[stage] bench exit 0
+[window] stage done 2026-11-25 22:02:39 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-25 22:02:39
+[window] radiance answers 2026-11-25 22:02:49 (after 15 s)
