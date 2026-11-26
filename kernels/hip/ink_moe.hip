@@ -93,6 +93,7 @@ struct MoeArgs {
     int probe;  // benchmarks: 3 = every thread returns at once, 4 = after the grouping (the launch + start-up cost of a call)
     int wg;     // class 0 with at most 32 pairs: the one-wave grouping (group_wave) instead of group_pairs
     int y0;     // tensor-core prefill in pieces (INTARSIA_HIP_INK_PF2 bits 4 / 8): first feature tile of this launch
+    int lpt;    // pair table: experts renumbered by pair count, most first (INTARSIA_HIP_INK_PF2 bit 64)
 };
 
 IK_DEVI float ink_rbf(float v) { return ik_b2f(ik_f2b(v)); }
@@ -111,7 +112,7 @@ IK_DEVI float act_h(float g, float u, float w, float gc, float uc) {
 // first [E] (shared), nd, dexp [nd], doff [nd+1], dpair [nvalid]; pd / ps / cnt are [P] temporaries. The order of the experts
 // and of the pairs within an expert comes from atomics: it decides only which wave runs what, never a bit of the result.
 IK_DEVI void group_pairs(const int* __restrict__ ids, int P, int E, int* first, int* nd, int* dexp, int* doff, int* dpair, int* pd, int* ps,
-                         int* cnt) {
+                         int* cnt, bool lpt = false) {
     const int tid = threadIdx.x, nt = blockDim.x;
     for (int e = tid; e < E; e += nt) first[e] = INT_MAX;
     if (tid == 0) *nd = 0;
@@ -147,6 +148,30 @@ IK_DEVI void group_pairs(const int* __restrict__ ids, int P, int E, int* first, 
         }
     }
     __syncthreads();
+    if (lpt) {
+        // INTARSIA_HIP_INK_PF2 bit 64 (lane ink-hip-pf2): the experts renumbered by pair count, most first (ties by number), so the
+        // grid's slowest dimension starts the longest experts first. Which slot an expert gets decides only which block runs it
+        // (the outputs are indexed by pair), never a bit. `first` is free here; the launcher keeps E <= the block's threads.
+        const int nn = *nd;
+        int c = 0, x = 0, rk = 0;
+        if (tid < nn) {
+            c = cnt[tid];
+            x = dexp[tid];
+            for (int d2 = 0; d2 < nn; ++d2) {
+                const int c2 = cnt[d2];
+                rk += (c2 > c) || (c2 == c && d2 < tid);
+            }
+            first[tid] = rk;
+        }
+        __syncthreads();
+        if (tid < nn) {
+            cnt[rk] = c;
+            dexp[rk] = x;
+        }
+        for (int p = tid; p < P; p += nt)
+            if (pd[p] >= 0) pd[p] = first[pd[p]];
+        __syncthreads();
+    }
     const int n = *nd;
     if (tid < IK_WARP) {
         int carry = 0;
@@ -720,7 +745,7 @@ __global__ void __launch_bounds__(1024) ink_moe_group_kernel(MoeArgs a) {
     __shared__ int first[kEMax];
     const int P = a.T * a.K;
     int* tmp = reinterpret_cast<int*>(a.h);
-    group_pairs(a.ids, P, a.E, first, a.t_exp + a.E, a.t_exp, a.t_off, a.t_pair, tmp, tmp + P, tmp + 2 * P);
+    group_pairs(a.ids, P, a.E, first, a.t_exp + a.E, a.t_exp, a.t_off, a.t_pair, tmp, tmp + P, tmp + 2 * P, a.lpt != 0);
 }
 
 // the table path's token sum: out[t, r] = rA(sum_k y[t*K + k, r]) over the valid slots, in slot order
@@ -1135,14 +1160,16 @@ int run(MoeArgs a, int out_f32, bool rows, const ik_scratch* sc, hipStream_t st)
     a.y = (ik_bf16*)((char*)a.h + rnd(P * a.I * 2));
     a.table = P > kDecPairs;
     a.probe = g_probe >= 3 ? g_probe : 0;
+    // the tensor-core prefill: ordinary names only, the pair-table path, reduction dims in 64-k blocks; never the first form
+    const int wm = a.table ? moe_wmma_pairs(P, a.E) : 0;
+    const bool on_wmma = a.table && !rows && wm != 0 && moe_lean() && a.H % kMwKB == 0 && a.I % kMwKB == 0;
     if (a.table) {
         if (P * 3 * 4 > P * a.I * 2) return IK_ERR_SHAPE;  // (the grouping's temporaries in h: I >= 6)
+        a.lpt = on_wmma && (pf2_mask() & 64) && a.E <= 1024;
         ink_moe_group_kernel<<<1, 1024, 0, st>>>(a);
         IK_TRY(ik_launch_status());
     }
-    // the tensor-core prefill: ordinary names only, the pair-table path, reduction dims in 64-k blocks; never the first form
-    const int wm = a.table ? moe_wmma_pairs(P, a.E) : 0;
-    if (a.table && !rows && wm != 0 && moe_lean() && a.H % kMwKB == 0 && a.I % kMwKB == 0) {
+    if (on_wmma) {
         IK_TRY((launch_wmma<FMT, ACT>(a, wm, st)));
     } else {
         IK_TRY((launch_pair<FMT, ACT>(a, out_f32, st)));
