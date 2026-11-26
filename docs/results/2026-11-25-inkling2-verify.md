@@ -11,8 +11,12 @@ its own against the base:
 
 - Both levers are **bitwise** (spec-on greedy ids == spec-off ids at 143 / 1k / 4k, 256 tokens; lever 2 also byte-identical to the per-row
   calls in 1500+ real-model layer checks) and **engage** on the real model, in `generate` and in a default `serve`.
-- Neither lever reaches the Neon estimates (+8-12 %, +3-6 %). See the A/B sections: the effect is at most about +1-2 %, inside the
-  run-to-run noise of this box at 6-12 samples per arm. (JOB3 numbers go here.)
+- Neither lever reaches the Neon estimates (+8-12 %, +3-6 %). Lever 1 (screened verify head) gives **nothing measurable** (within-process
+  paired decode ratios 0.996 / 0.991 / 1.004 at 143 / 1k / 4k, 48 pairs each). Lever 2 (one-launch draft attention) gives **nothing at 143 and
+  1k and about +2 % at 4k** (1.022, 95 % CI 1.000-1.034). TTFT is not affected beyond noise by either.
+- Gate 3: both levers ship behind env knobs, **default off** (`INTARSIA_INK_VERIFY_SCREEN=1`, `INTARSIA_DSPARK_ATTN_ROWS=1`), rows in
+  `docs/tuning.md`. With both off the code paths are the base's (spec-on decode identical to `b2afb4eaa`). Lever 2 is the only candidate for
+  default-on (byte-identical, +2 % at 4k, nothing lost below); I did not flip it because 48 pairs put its lower bound at 1.000.
 
 ## What changed
 
@@ -135,14 +139,34 @@ processes, medians are not).
 One process alternates the four arms request by request (A = both levers off, the base code paths; B; C; D), cycle `c` runs each length with the
 arms in order A B C D (even `c`) or D C B A (odd `c`), cycle 0 is warm-up, so a sample is compared with the A sample of the same length a few
 seconds away. This removes the per-process mode and most of the drift. Nine cycles of 3 lengths x 4 arms per process; processes
-p1-p3 (#11916, 21:15-21:44) JOB4POOL.
+p1-p3 ran in #11916 (21:15-21:44, box load average 20-40) and p4-p6 in #11929 (21:45-22:07, same script, same binary): **6 processes, 48 pairs per arm and length**.
 
-JOB3TABLE
+Decode, tok/s (median [min-max] of the 48 samples per arm and length) and the paired ratio to arm A (each sample over the A sample of its
+own cycle and length; median, 95 % bootstrap CI of the median, pairs above 1.0 with a two-sided sign test):
 
-Reading: no arm is faster than A by more than the noise at any length. Lever 1 (B) is, if anything, 1-3 % slower in the within-process
-pairs (median 0.98 / 0.97 / 0.99), lever 2 (C) and both (D) sit between 0.97 and 1.05 depending on the length, with confidence intervals
-that include 1.0 everywhere. TTFT cannot be affected by either lever (verify and draft only), and its pairs show the same +-5 % scatter
-(one cell, lever 1 at 1k, reaches p = 0.02 in the favourable direction: chance among 24 cells).
+| decode | 143 | 1k | 4k |
+|---|---|---|---|
+| A both off | 99.9 [62-115] | 66.5 [41-74] | 82.8 [54-95] |
+| B lever 1 | 98.1 [61-117] | 65.1 [41-75] | 82.9 [51-95] |
+| C lever 2 | 98.9 [64-116] | 66.7 [38-74] | 85.4 [56-95] |
+| D both | 93.8 [61-116] | 64.7 [40-75] | 85.7 [54-96] |
+| B / A | 0.996 [0.983-1.006], 23/48, p 0.89 | 0.991 [0.973-1.004], 18/48, p 0.11 | 1.004 [0.989-1.021], 26/48, p 0.67 |
+| C / A | 1.002 [0.984-1.011], 25/48, p 0.89 | 1.003 [0.988-1.011], 24/48, p 1.0 | **1.022 [1.000-1.034]**, 31/48, p 0.059 |
+| D / A | 0.994 [0.963-1.007], 21/48, p 0.47 | 0.999 [0.990-1.009], 24/48, p 1.0 | 1.017 [1.004-1.041], 31/48, p 0.059 |
+
+The per-process medians of the paired ratio (p1..p6) are within 0.92-1.07 for every arm and length, so no single process carries a result. The
+CI printed is of the median of the paired ratios; the table's ratios are those medians (B / A at 4k: 1.0039, C / A at 4k: 1.0221, D / A at 4k: 1.0171).
+
+TTFT (engine prefill ms), medians A / B / C / D: 143 153 / 158 / 150 / 153, 1k 576 / 530 / 554 / 554, 4k 2247 / 2347 / 2269 / 2337. Paired ratios
+B / A 1.00-1.04 (143: CI 1.000-1.038), C / A and D / A 0.95-1.03; two 4k cells (C, D) have CIs just below 1 (p 0.03 and 0.01). The levers act
+only in decode, so these are chance (3 arms x 3 lengths x 2 metrics = 18 cells); the checks that matter, no regression beyond noise, hold:
+the TTFT ratios of B, C and D against A are within +-4 % at every length with CIs that include 1.0 except the two cells that point at a *faster*
+prefill.
+
+Reading: **lever 1 gives nothing** (decode ratios 0.996 / 0.991 / 1.004, every CI includes 1.0). **Lever 2 gives nothing at 143 and 1k and about
++2 % at 4k** (1.022, CI 1.000-1.034, sign test p 0.059): the effect is at the edge of what 48 pairs resolve, and it points the same way in the
+cross-process A/B (+0.8 / +1.1 / +1.3 % alone). That is the only result near the noise floor, and it is a third of Neon's low estimate (+3-6 %).
+The first three processes alone (loaded box) gave 0.97-1.05 with intervals around 1.0; the three later ones (quieter) gave 1.00-1.03.
 
 ### Why the estimates did not hold
 
@@ -151,7 +175,46 @@ that include 1.0 everywhere. TTFT cannot be affected by either lever (verify and
   copy is 0.46 GB against P12's roughly 0.7 GB. The screen can therefore save about a third of 1.2 ms (0.4 ms, ~1.2 % of a pass) before
   it pays for the extra launches (one fp8 matmul, a screen, an argmax and one gather per row, against one head launch plus an argmax).
   The measurement agrees: no gain, a hint of a loss.
-- Lever 2: it removes `(t - 1) x layers` host launches per draft step (7 x draft layers; the one-row calls were 2 dispatches each). The
-  cross-process ratios (+0.8 to +1.3 % alone) point the right way and the within-process ones (-2.5 % to +3 %) do not contradict them, but
-  neither excludes zero.
+- Lever 2: it replaces `t x layers` single-row calls per draft step (8 rows, up to two dispatches each) by `layers` row-table launches. The
+  saving is host and dispatch overhead, which grows with the context only through the kernel itself; it shows at 4k (+2 %) and not below.
 
+## Gate 3: defaults
+
+Neither lever is faster than noise across the lengths, so both keep their knob default **off** (`screen::VERIFY_DEFAULT_ON = false`,
+`ATTN_ROWS_DEFAULT_ON = false`), with the rows in `docs/tuning.md`. Flipping lever 2 later is a one-constant change
+(`dspark.rs` `ATTN_ROWS_DEFAULT_ON`), safe for output (the draft never reaches it, and the launch is byte-identical to the per-row calls); a
+quiet-box rerun of the within-process script (`.scratch/job3.sh`, below) at 4k and 16k would settle whether the +2 % is real. Lever 1 has
+no case: the full verify head is already cheap on the P12 unembed.
+
+## Measurement notes and what is uncertain
+
+- Nothing was measured on a quiet box (see above): decode ran 25-30 % below the 120 / 77 / 97 tok/s of the gate-1 slot when other lanes
+  were building. The paired within-process design is built for that, but a host-launch saving (lever 2) is the kind of effect load can move
+  either way.
+- The prompts are the first 143 ids of the 1021-id prompt of `longp.json`, that prompt and its 4108-id sibling (lane ink-spec's files):
+  natural text, acceptance 80.2 % (2.84 tokens per pass). Another distribution (lower acceptance, more or longer drafts) was not tried; k 3 only.
+- Lever 1 `hs.rows_ok` accepts the bf16 or the P12 rows head without checking that its format equals the gather's (harmless for the gate:
+  decode without speculation uses the same 1-row kernel as the gather). A verify row that falls back reads the full head by itself, so a
+  workload with many fallbacks would cost more than the old one-read full head; the counter of real (not forced) fallbacks is not exposed
+  per row. Gate 1 saw 0 fallback passes on 219 groups.
+- Lever 2 is Metal only and needs `OpCall::rows` (`supports_row_tables`); the tiny fixture's draft has no row-table kernel, so the
+  Metal tiny-draft tests do not exercise it. Its exactness evidence is the real-model byte check (1500+ layer checks, 0 mismatches, at
+  143 / 1k / 4k with the 8-row block and both window and full-attention layers), not a unit test.
+- Both A/B scripts ran with the knobs the diag binary sets per request; the diag patch (`generate.rs` sets the two overrides from
+  `INTARSIA_DIAG_ARMS`) is at `.worktrees/ink-verify/.scratch/diag_generate_arms.patch` and is not in the tree.
+- Cross-process A/B 1: one release build of mine overlapped round 4 (dropped from the table).
+
+## Runs
+
+| what | fleetq | window | result |
+|---|---|---|---|
+| first gates job (binary lacked `--features metal`) | #11912 | 20:35 | failed at once, released |
+| gates: bitwise, engagement, serve smoke, Metal tests | #11913 | 20:36-20:49 | all pass |
+| cross-process ABBA x8, 4 arms | #11914 | 20:49-21:06 | A/B 1 above |
+| within-process A/B, p1-p3 | #11916 | 21:15-21:44 | A/B 2 above |
+| within-process A/B, p4-p6 | #11929 | 21:45-22:07 | A/B 2 above |
+
+All exclusive slots on endor, none overlapping #11871 / #11856 / #11857. Scripts (not in the tree): `.worktrees/ink-verify/.scratch/job1.sh`
+(gates), `job2.sh`, `job3.sh`, `job4.sh`, summaries `ab_summary.py`, `ab_within.py`; raw logs in `.scratch/job1..job3/`.
+Binaries: base `b2afb4eaa` built in `.scratch/base`, new at `266dd813f`, diag at `c38c7d5df` (code identical to the branch head's code except the
+default flip of `5964af17b`, which the diag binary's per-request overrides do not read).
