@@ -31,6 +31,11 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
   down time here. PR #516 (ink/hip -> main) stays as is: don't merge into ink/hip; send speed heads as "ready to merge at
   <commit>", the coordinator integrates them in a follow-up branch.
 
+- 2026-11-25 ~22:25 EST, coordinator: v2 numbers noted (SWA 25.1 vs 30.1 us fused wins, full 4k 52.0 vs 45.6 pair wins; 20 SWA +
+  4 full layers, so per-layer selection gets both). Rule: fused where the visit reads <= 2048 keys, the pair above. Put the rule
+  in HIP kernel selection or lane files, not `model/inkling2.rs`, unless impossible (then name the exact core line). Whole-model
+  check: decode short and 4k, rule on vs the pair, no regression beyond noise. Then flash prefill speed: report 4k prefill ms per
+  chunk before / after.
 - 2026-11-25 ~22:20 EST, coordinator: agreed, op 75 v1 is not ready to merge. Go on with v2 (8-wave prologue jobs, faster merge,
   split-size sweep), then flash prefill. If v2 still loses to the pair on full 4k-key layers, report the "fused when the visit
   reads <= 2048 keys" rule as the fallback, measured at whole-model level (short and 4k) against the pair. Integration branch
@@ -42,6 +47,7 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
 |---|---|---|---|
 | 1 (70/71 unit) | #11939 | 21:47:58-21:48:32, 34 s | no (before the rule) |
 | 2 (op 75 v1: admission, bitwise pair, bench, model decode) | #11952 | 22:10:16-22:12:09, 1 min 53 s | yes (total 1:53 of 20:00) |
+| 3 (op 75 v2 + flash: admission, bitwise, benches, G2, model) | #11960 | 22:16:53-22:18:54, 2 min 01 s | yes (total 3:54 of 20:00) |
 
 ## Step 0
 
@@ -117,6 +123,38 @@ blocks for the 1024-key case), a combine-free path for one split.
   tok/s (+1.9 %, -0.3 ms / token); 4k prompt 60.47 -> 60.28 tok/s (flat). The fused kernel is slower than the pair's kernels at
   long context (every split block redoes the q / r / k / v jobs in two rounds, one block merges all splits), which eats the
   dispatch savings on the full layers. Next: v2 (8 waves for the prologue jobs, a faster ticket merge, split-size sweep).
+
+## Op 75 v2 + flash prefill (commit 25dccb689; window 3 #11960, raw/window3-11960.log)
+
+- Admission (full sweep): 70 117/117, 71 split-KV 63/63, **71 flash 15/15** (max_abs 6.0e-3, rel_l2 1.6e-3, BF16_TOL), op 75 70/70.
+- Bitwise: op 75 v2 R-row / 1-row, host / device position == pair, T 2..16 (63 cases pass).
+- G2 with flash prefill (`accuracy --mode prefill`, oracle W4A16 goldens): short PASS, long PASS.
+- Decode kernel bench (us; eager, cache-warm). v2 = 8 waves for the prologue jobs, merge over all threads, unrolled merge loops
+  (the unroll also sped up the pair's combine: attention 20.5 -> 18.4 us at SWA):
+
+| Case | Pair | Op 75 v1 | Op 75 v2 | v2, no prologue jobs (diag 1) | v2, no merge (diag 2) | v2, neither (diag 3) |
+|---|---|---|---|---|---|---|
+| SWA 1024 keys | 30.1 | 33.7 | **25.1** | 21.1 | 22.4 | 18.0 |
+| full 4k | 45.6 | 61.5 | 52.0 | 44.9 | 48.3 | 41.1 |
+| full 8k | 64.9 | 95.0 | 80.2 | 73.3 | 76.2 | 69.5 |
+| full 16k | 108.9 | 164.0 | 149.1 | 142.6 | 144.2 | 136.9 |
+
+  Split size sweep (`INTARSIA_INK_SPLIT_KEYS`, both paths): 128 / 256 are worse at SWA (31.7 / 43.5 us fused), equal or worse
+  elsewhere; the default 64 stays. The diag rows show the fused body itself is slower than stage 1 at long context (41 vs 33 us
+  at 4k without prologue and merge): the 8-wave blocks with the prologue code and the K / V LDS hold fewer waves in flight,
+  and the long-context body is latency bound. Hence the per-layer rule below.
+- Prefill attention bench, one 256-row chunk (us): SWA at 3840 split-KV 1349 -> flash 185 (7.3x); full at 3840 5207 -> 445
+  (11.7x); full at 0 250 -> 58 (4.3x). Per 4k-context chunk (20 SWA + 4 full layers): 47.8 ms -> 5.5 ms.
+- Whole model (`generate`, graphs, 256 tokens; flash prefill on in both arms):
+
+| Prompt | Pair (`INTARSIA_INK_ATTN_FUSED=0`) | Op 75 v2 on every visit (`=1`) |
+|---|---|---|
+| short (31 tokens) decode | 62.48 tok/s | 63.79 tok/s (+2.1 %) |
+| 4k (4228 tokens) decode | 61.06 tok/s | 61.69 tok/s (+1.0 %) |
+| 4k prefill (chunk 256, 17 chunks) | 7030 ms | 7060 ms |
+
+  Flash prefill vs window 2 (split-KV prefill): 4k prefill 8026 / 8049 -> 7030 / 7060 ms (-12.4 %), 472 -> 414 ms per chunk.
+  Short prompt "prefill" 83 -> 92 ms with fused = 1 (it includes the first decode step's capture; to be checked).
 
 ## Next
 
