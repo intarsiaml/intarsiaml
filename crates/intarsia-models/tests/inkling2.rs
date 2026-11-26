@@ -810,7 +810,9 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
             assert!(lanes, "cuda {op}: no lane table lists it");
             assert!(intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
         }
-        assert!(intarsia_backend_hip::kernels::UNIMPLEMENTED.contains(&op), "hip {op}");
+        // HIP (lane ink-hip): an op is either ported by a lane table (inkattn / inkmix / inkmoe) or still listed as not ported
+        let on_hip = intarsia_backend_hip::kernels::all().iter().any(|k| k.op == op);
+        assert_eq!(intarsia_backend_hip::kernels::unimplemented(op), !on_hip, "hip {op}");
         // Metal: every op has a kernel (lanes ink-m-attn, ink-m-moe, ink-m-mix); the table alone, no device
         // (a macOS-only dev-dependency, so the check is too)
         #[cfg(target_os = "macos")]

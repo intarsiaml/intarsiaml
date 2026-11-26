@@ -549,12 +549,35 @@ pub fn all() -> Vec<KernelImpl> {
         v.push(k);
     }
     v.extend(crate::quantmoe::all());
+    v.extend(crate::inkattn::all());
+    v.extend(crate::inkmix::all());
+    v.extend(crate::inkmoe::all());
+    v.extend(crate::inkroute::all());
     v
 }
 
-/// (launcher name, op) of every launcher: this file's table plus the quantised/MoE table.
+/// (launcher name, op) of every launcher: this file's table, the quantised/MoE table and the Inkling-2 lane tables.
 pub fn full_table() -> Vec<(&'static str, Op)> {
-    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).copied().collect()
+    TABLE
+        .iter()
+        .chain(crate::quantmoe::TABLE.iter())
+        .chain(crate::inkattn::TABLE.iter())
+        .chain(crate::inkmix::TABLE.iter())
+        .chain(crate::inkmoe::TABLE.iter())
+        .chain(crate::inkroute::TABLE.iter())
+        .copied()
+        .collect()
+}
+
+/// The ops of the Inkling-2 lane modules (inkattn / inkmix / inkmoe): each is ported once a lane table lists it, and stays in
+/// `UNIMPLEMENTED` until the port's integration removes it (so the lanes never edit this file).
+pub fn ink_lane_ops() -> Vec<Op> {
+    [crate::inkattn::OPS, crate::inkmix::OPS, crate::inkmoe::OPS, crate::inkroute::OPS].concat()
+}
+
+/// True when this backend has no kernel for `op`: listed in `UNIMPLEMENTED` and not ported by an Inkling-2 lane table.
+pub fn unimplemented(op: Op) -> bool {
+    UNIMPLEMENTED.contains(&op) && !full_table().iter().any(|(_, o)| *o == op)
 }
 
 #[cfg(test)]
@@ -586,7 +609,10 @@ mod tests {
         // the reserved placeholder discriminants (`Op::is_reserved`) are exempt
         for op in Op::ALL.into_iter().filter(|o| !o.is_reserved()) {
             let have = table.iter().any(|(_, o)| *o == op);
-            assert!(have != UNIMPLEMENTED.contains(&op), "{op}: implemented = {have}, listed unimplemented = {}", UNIMPLEMENTED.contains(&op));
+            // (an Inkling-2 lane op may be both while its lane is porting it: `unimplemented`)
+            let listed = UNIMPLEMENTED.contains(&op);
+            assert!(have != listed || (have && ink_lane_ops().contains(&op)), "{op}: implemented = {have}, listed unimplemented = {listed}");
+            assert_eq!(unimplemented(op), !have, "{op}");
         }
         assert_eq!(all().len(), table.len());
     }
@@ -594,7 +620,16 @@ mod tests {
     #[test]
     fn every_launcher_is_declared_in_the_abi_header() {
         // the shared header, plus the one of the launchers only this backend defines
-        let hdr = [include_str!("../../../kernels/abi/ik_abi.h"), include_str!("../../../kernels/hip/ik_hip_abi.h")].concat();
+        // and the Inkling-2 lane headers
+        let hdr = [
+            include_str!("../../../kernels/abi/ik_abi.h"),
+            include_str!("../../../kernels/hip/ik_hip_abi.h"),
+            include_str!("../../../kernels/hip/ik_hip_abi_inkattn.h"),
+            include_str!("../../../kernels/hip/ik_hip_abi_inkmix.h"),
+            include_str!("../../../kernels/hip/ik_hip_abi_inkmoe.h"),
+            include_str!("../../../kernels/hip/ik_hip_abi_inkroute.h"),
+        ]
+        .concat();
         for (name, _) in full_table() {
             assert!(hdr.contains(&format!("int ik_{name}(")), "ik_{name} missing from kernels/abi/ik_abi.h");
         }

@@ -13,6 +13,10 @@
 //! of them (see the `compile_error!` in intarsia-cli).
 
 pub mod disable;
+pub mod inkattn;
+pub mod inkmix;
+pub mod inkmoe;
+pub mod inkroute;
 pub mod kernels;
 pub mod quantmoe;
 
