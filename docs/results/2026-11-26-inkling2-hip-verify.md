@@ -53,6 +53,23 @@ per row and by checking the draft length; greedy output stays identical to `--sp
      `kernels.rs` append-only.
    - Radiance: at most 5 windows, each <= 5:00 down, <= 15:00 in total.
 
+2. 2026-11-26 ~15:45 EST (coordinator, after PR #534 opened), summarised:
+   - **Part 1, one confirmation window approved (<= 7 min radiance down)** on the merged-head binary (main `80719483a`, or later):
+     k3, k4 and k5, 4 + 4 processes in a balanced order across both cards (same protocol), short / 1k / 4k / 16k. Pick by: (a) no
+     length slower than k3 beyond its CI; (b) >= +2 % at >= 2 lengths with CI lower bounds above 1.0; (c) among arms passing (a) and
+     (b), the higher geometric mean over the four lengths. No arm passes: close #534 with the numbers, keep k3. Update #534 to the
+     winner (one recipe line + the k pin test), the table in the PR body. If the window would run past 7 min: k3 vs k4 only.
+   - **Part 2, follow-up: the verify-row cost** (lane ink-hip-batch is closed; its files are this lane's now). Wait for PR #531
+     (touches `kernels/hip/ink_mix.hip`, `ink_mix_rows.hip`; merged on green CI), then branch from main: `.worktrees/ink-hip-vrow`,
+     branch `ink/hip-vrow`. Lever 1, verify attention: the 2..k+1 verify rows of one sequence as one call instead of one decode call
+     per row; #529's row-table attention kernel is already bitwise the solo decode call per row (tests/ink_rows.rs, 40 attention
+     calls). Target the +0.37 ms / row. Lever 2, loop blend: keep 3..5-row passes in the fused launch (raise `kFuseRowsMax` or a fused
+     form up to 5 rows). Target the +0.85 ms and 96 extra dispatches. Gates: bitwise against today's per-row path at rows 2..5
+     (verify probe worst diff 0, no argmax flips); greedy md5 = `--spec off` and = main at short / 4k, 64 / 256; rows-exact tests and
+     tests/ink_rows.rs pass; G2 unchanged; 4 + 4 ABBA of spec-default decode vs main. Default-on if bitwise, no length slower and
+     >= +2 % at >= 1 length with CI lower bound > 1.0; else opt-in with the numbers. Radiance for part 2: 15 min total. Own PR, do
+     not merge. Same rules (fleetq, `.worktrees/<task>/` only, a real check before reporting done).
+
 ## 0. Prior work (step 0)
 
 `git log --all -i --grep` (verify, union, rows, spec-k) and the results docs on `ink/*` branches:
