@@ -26,6 +26,17 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
   promises it. 2 windows left (<= 20 min, none after 06:00, radiance up before release). Decode bench before/after; whole-model
   decode number if a window allows. Report each landing as "ready to merge at <commit>" with us before/after.
 
+- 2026-11-25 ~22:20 EST, coordinator, window rule change: no window count cap; each window keeps radiance down <= 5 min; lane
+  total radiance-down from now <= 20 min; none after 06:00; radiance must answer `/v1/models` before release; log each window's
+  down time here. PR #516 (ink/hip -> main) stays as is: don't merge into ink/hip; send speed heads as "ready to merge at
+  <commit>", the coordinator integrates them in a follow-up branch.
+
+## Radiance down time (this lane)
+
+| Window | fleetq | Down | Counts toward the 20 min budget |
+|---|---|---|---|
+| 1 (70/71 unit) | #11939 | 21:47:58-21:48:32, 34 s | no (before the rule) |
+
 ## Step 0
 
 `git log --all -i --grep=hip` and a grep of every `ink/*` branch for `ink_kv_prologue` / `rel_sink_attn` under `kernels/hip` and
