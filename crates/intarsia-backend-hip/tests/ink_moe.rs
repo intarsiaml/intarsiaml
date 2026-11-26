@@ -34,6 +34,14 @@ fn device(test: &str) -> Option<Arc<dyn Backend>> {
     }
 }
 
+/// The tensor-core prefill knob is process-wide (`set_wmma`, the env var `INTARSIA_HIP_INK_MOE_WMMA`): the tests of this file run one at a
+/// time around it (every test that launches the kernels holds this), so a test that pins it or the env does not change another's launches.
+static KNOBS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn lock_knobs() -> std::sync::MutexGuard<'static, ()> {
+    KNOBS.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 fn kernel(hip: &dyn Backend, name: &str) -> KernelImpl {
     hip.kernels().into_iter().find(|k| k.name == name).unwrap_or_else(|| panic!("hip kernel {name} is not registered"))
 }
@@ -113,6 +121,7 @@ fn check(hip: &dyn Backend, cpu: &CpuBackend, hc: &HostCall, label: &str, fails:
 
 #[test]
 fn ink_moe_matches_cpu_reference() {
+    let _knobs = lock_knobs();
     let Some(hip) = device("ink_moe_matches_cpu_reference") else { return };
     let cpu = CpuBackend::new();
     let big = std::env::var_os("INK_MOE_BIG").is_some();
@@ -129,9 +138,9 @@ fn ink_moe_matches_cpu_reference() {
     }
     assert!(hits[0] > 0 && hits[1] > 0, "no sweep case reached the kernels: {hits:?}");
     // the pair-table path (more than 512 pairs) at small shapes, and 512 / 513+ pairs around the switch. Run with
-    // INTARSIA_HIP_INK_MOE_WMMA=1, the ordinary names take the tensor-core prefill where H and I are multiples of 64 and a call
-    // has 16 pairs per expert (70 x 8 at 256 / 128; 300 x 8 at 128 / 192: five 64-pair tiles with a tail; the sweep's prefill
-    // cases); unset, everything here is the decode kernels
+    // INTARSIA_HIP_INK_MOE_WMMA unset (the default since 2026-11-26; run it once with `=0` for the decode kernels), the ordinary names
+    // take the tensor-core prefill where H and I are multiples of 64 and a call has 16 pairs per expert (70 x 8 at 256 / 128;
+    // 300 x 8 at 128 / 192: five 64-pair tiles with a tail; the sweep's prefill cases)
     let mut rng = SplitMix64::new(0x1A4B_0001);
     for (t, e, k, h, i) in [(150usize, 16usize, 4usize, 64usize, 32usize), (70, 32, 8, 256, 128), (64, 32, 8, 96, 160), (65, 32, 8, 96, 160), (300, 8, 8, 128, 192)] {
         let c = situ_case(&mut rng, t, e, k, h, i);
@@ -180,7 +189,11 @@ fn one_row(hc: &HostCall, r: usize) -> HostCall {
 /// pairs; rows 0, 33, 69), at every load window, in both step forms and in every LDS size class; the `_rows` twins give the ordinary kernels' bits.
 #[test]
 fn ink_moe_rows_exact() {
+    let _knobs = lock_knobs();
     let Some(hip) = device("ink_moe_rows_exact") else { return };
+    // the ordinary names are rows-exact on the decode kernels: pin them (the tensor-core prefill, the default, is not bitwise the
+    // one-row calls where it applies: pair-table calls with H and I multiples of 64; this test's shapes are not, but it means the decode kernels)
+    intarsia_backend_hip::inkmoe::set_wmma(0);
     let mut rng = SplitMix64::new(0x1A4B_0002);
     let (e, k, h, i) = (32usize, 8usize, 288usize, 160usize);
     for mx in [false, true] {
@@ -224,12 +237,14 @@ fn ink_moe_rows_exact() {
             }
         }
     }
+    intarsia_backend_hip::inkmoe::set_wmma(-1);
 }
 
 /// The one-wave grouping (size class 0, at most 16 pairs; lane ink-hip-dec2; 32 pairs take the tables in both runs) on odd routing gives the shared-memory grouping's
 /// bits: duplicate ids in a token, ids out of range (-1 and >= E), every pair on one expert, at T 1 to 4 and top-k 1, 4, 8, 32.
 #[test]
 fn ink_moe_wave_grouping_odd_ids() {
+    let _knobs = lock_knobs();
     let Some(hip) = device("ink_moe_wave_grouping_odd_ids") else { return };
     let mut rng = SplitMix64::new(0x1A4B_0003);
     let (e, h, i) = (32usize, 128usize, 64usize);
@@ -267,6 +282,7 @@ fn ink_moe_wave_grouping_odd_ids() {
 /// the output reversed).
 #[test]
 fn ink_moe_wmma_prefill() {
+    let _knobs = lock_knobs();
     let Some(hip) = device("ink_moe_wmma_prefill") else { return };
     let cpu = CpuBackend::new();
     let mut rng = SplitMix64::new(0x1A4B_0003);
@@ -319,6 +335,7 @@ fn ink_moe_wmma_prefill() {
 /// the default grid's bits. Run with `--test-threads=1` (env).
 #[test]
 fn ink_moe_pf2_pieces() {
+    let _knobs = lock_knobs();
     let Some(hip) = device("ink_moe_pf2_pieces") else { return };
     let mut rng = SplitMix64::new(0x1A4B_0042);
     let set = |k: &str, v: Option<&str>| match v {
@@ -356,6 +373,60 @@ fn ink_moe_pf2_pieces() {
     }
     set("INTARSIA_HIP_INK_PF2", None);
     eprintln!("{n} INTARSIA_HIP_INK_PF2 expert cases bitwise one launch");
+
+/// The defaults as shipped (user decision 2026-11-26): with `INTARSIA_HIP_INK_MOE_WMMA` unset the ordinary names take the tensor-core
+/// prefill (the rule: 64-pair tiles from 16 pairs per expert on average), `=0` the decode kernels (the revert), `=1` the rule, `32` /
+/// `64` force a tile; `_rows` twins never take it. Resolution first (`wmma_pairs`), then the bits of an eligible call: unset = the
+/// pinned tensor-core output and not the decode kernels' output, `=0` = the decode kernels' output.
+#[test]
+fn ink_moe_wmma_default_and_revert() {
+    let _knobs = lock_knobs();
+    let Some(hip) = device("ink_moe_wmma_default_and_revert") else { return };
+    assert!(std::env::var_os("INTARSIA_HIP_INK_MOE_WMMA").is_none(), "unset INTARSIA_HIP_INK_MOE_WMMA to run this test");
+    use intarsia_backend_hip::inkmoe::{set_wmma, wmma_pairs};
+    set_wmma(-1);
+    // (pairs, experts): 128 experts at the real shape; the rule needs 16 pairs per expert on average
+    assert_eq!(wmma_pairs(16384, 128), 64, "knob unset: a dense prefill call takes the 64-pair tile");
+    assert_eq!(wmma_pairs(2048, 128), 64, "knob unset: 16 pairs per expert is the rule's threshold");
+    assert_eq!(wmma_pairs(2047, 128), 0, "knob unset: below 16 pairs per expert the decode kernels");
+    assert_eq!(wmma_pairs(560, 32), 64);
+    for (v, dense, sparse) in [("0", 0, 0), ("1", 64, 0), ("", 64, 0), ("32", 32, 32), ("64", 64, 64), ("garbage", 0, 0)] {
+        std::env::set_var("INTARSIA_HIP_INK_MOE_WMMA", v);
+        assert_eq!(wmma_pairs(16384, 128), dense, "INTARSIA_HIP_INK_MOE_WMMA={v:?}: dense call");
+        assert_eq!(wmma_pairs(2047, 128), sparse, "INTARSIA_HIP_INK_MOE_WMMA={v:?}: sparse call");
+    }
+    std::env::remove_var("INTARSIA_HIP_INK_MOE_WMMA");
+    set_wmma(0);
+    assert_eq!(wmma_pairs(16384, 128), 0, "set_wmma(0) pins the decode kernels");
+    set_wmma(1);
+    assert_eq!(wmma_pairs(16384, 128), 64);
+    set_wmma(-1);
+    // the bits of an eligible call (T 100, 8 experts per token over 32: 25 pairs per expert, H 192 and I 320 multiples of 64; the
+    // shape where `ink_moe_wmma_prefill` sees the tensor-core output differ from the decode kernels')
+    let mut rng = SplitMix64::new(0x1A4B_0F11);
+    let mut any_differs = false;
+    for (mx, epi) in [(false, "situ"), (true, "situ"), (true, "silu")] {
+        let (t, e, k, h, i) = (100usize, 32usize, 8usize, 192usize, 320usize);
+        let hc = if mx { mxfp8_case(&mut rng, t, e, k, h, i, epi) } else { situ_case(&mut rng, t, e, k, h, i) };
+        let (name, twin) = if mx { (NAMES[2], NAMES[3]) } else { (NAMES[0], NAMES[1]) };
+        set_wmma(0);
+        let simt = run_host(&*hip, name, &hc).unwrap();
+        set_wmma(1);
+        let pinned = run_host(&*hip, name, &hc).unwrap();
+        set_wmma(-1);
+        let unset = run_host(&*hip, name, &hc).unwrap();
+        assert_eq!(unset[0].data, pinned[0].data, "mx={mx} {epi}: knob unset is the tensor-core prefill");
+        std::env::set_var("INTARSIA_HIP_INK_MOE_WMMA", "0");
+        let zero = run_host(&*hip, name, &hc).unwrap();
+        let twin_out = run_host(&*hip, twin, &hc).unwrap();
+        std::env::remove_var("INTARSIA_HIP_INK_MOE_WMMA");
+        assert_eq!(zero[0].data, simt[0].data, "mx={mx} {epi}: =0 is the decode kernels");
+        assert_eq!(zero[0].data, twin_out[0].data, "mx={mx} {epi}: =0 is the _rows twin's bits");
+        let unset_twin = run_host(&*hip, twin, &hc).unwrap();
+        assert_eq!(unset_twin[0].data, simt[0].data, "mx={mx} {epi}: the _rows twin never takes the tensor-core prefill");
+        any_differs |= unset[0].data != simt[0].data;
+    }
+    assert!(any_differs, "the tensor-core prefill and the decode kernels gave the same bits everywhere: the test does not tell the settings apart");
 }
 
 fn put(b: &dyn Backend, t: &HostTensor) -> TensorRef {
@@ -375,6 +446,7 @@ fn ink_moe_bench() {
         eprintln!("skipping: INK_MOE_BENCH unset");
         return;
     }
+    let _knobs = lock_knobs();
     let Some(hip) = device("ink_moe_bench") else { return };
     let b = &*hip;
     let (k, h, i) = (8usize, 2304usize, 1152usize);
