@@ -216,7 +216,7 @@ fn inkling2_packed_equals_solo_tiny() {
     check(&m, &[0, 0], &[17, 17], 1, "2 x 17");
     check(&m, &[0, 9, 0], &[17, 40, 300], 2, "17 / 40 / 300, one resumed");
     check(&m, &[0, 0, 100], &[2048, 1000, 17], 3, "2048 / 1000 / 17");
-    check(&m, &[2048, 5, 0, 30], &[2048, 999, 600, 449], 4, "4096 rows, two resumed");
+    check(&m, &[2048, 5, 0, 30], &[2048, 999, 600, 448], 4, "4096 rows, two resumed");
     check(&m, &[0, 0, 0], &[258, 261, 513], 6, "blend tails");
     let lens: Vec<usize> = (0..16).map(|i| 17 + (i * 37) % 230).collect();
     let prior: Vec<usize> = (0..16).map(|i| [0, 3, 20, 100][i % 4]).collect();

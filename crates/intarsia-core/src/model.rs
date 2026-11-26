@@ -2339,6 +2339,7 @@ impl Model {
         let verify = phase == crate::plan::Phase::Verify;
         let batch = phase == crate::plan::Phase::Batch;
         let verify_batch = phase == crate::plan::Phase::VerifyBatch;
+        let pack = phase == crate::plan::Phase::Pack;
         if verify || batch || verify_batch {
             self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         }
@@ -2353,6 +2354,10 @@ impl Model {
             if verify_batch {
                 // `t` rows of several sequences' verify runs, one ragged pass: the real batched verify pass, recorded
                 return self.verify_batch_probe(t, pos0);
+            }
+            if pack {
+                // `t` rows of fresh sequences' chunks, one Inkling-2 packed prefill pass, recorded
+                return self.ink_pack_probe(t);
             }
             let hn = self.run_chunk(&st, &ids, false)?;
             // the MTP drafter head runs after every pass (catch-up over up to t rows, chained drafts of one row)
@@ -3837,6 +3842,37 @@ impl Model {
         }
         let lens: Vec<usize> = items.iter().map(|(_, ids, _)| ids.len()).collect();
         self.ink_pack_layout(&lens).ok_or_else(|| Error::invalid("inkling2 packed prefill: no row layout"))
+    }
+
+    /// Plan recording of an Inkling-2 packed prefill pass ([`crate::plan::Phase::Pack`]): `total` rows over fresh phantom
+    /// sequences of at most a prefill chunk each (equal, aligned lengths), the real packed pass's layers with nothing launched
+    /// (the segment table and row table are not uploaded; each final chunk's one-row head is the solo prefill's, probed there).
+    pub(super) fn ink_pack_probe(&self, total: usize) -> Result<()> {
+        let chunk = self.prefill_chunk().max(1);
+        let al = self.ink_pack_align_rows().max(1);
+        let k = total.div_ceil(chunk).max(2);
+        let base = (total / k) / al * al;
+        let mut lens = vec![base; k - 1];
+        lens.push(total - base * (k - 1));
+        if lens.iter().any(|&n| n < self.pack_min_rows()) {
+            return Err(Error::invalid(format!("inkling2 pack probe of {total} rows: segments {lens:?}")));
+        }
+        let (order, moe) =
+            self.ink_pack_layout(&lens).ok_or_else(|| Error::invalid(format!("inkling2 pack probe of {total} rows: no row layout")))?;
+        let sts: Vec<SequenceState> = lens.iter().map(|_| crate::plan::phantom_state(&self.slot_specs, self.plan.kv_cap_tokens, 0)).collect();
+        let mut lo = 0;
+        let segs: Vec<Seg<'_>> = order
+            .iter()
+            .map(|&i| {
+                let g = Seg { st: &sts[i], lo, len: lens[i], pos: 0 };
+                lo += lens[i];
+                g
+            })
+            .collect();
+        *self.ink_pack_moe.lock().unwrap() = Some(moe);
+        let r = self.run_layers(Seqs::Packed(&segs), &vec![0u32; total], false, None, true, None);
+        *self.ink_pack_moe.lock().unwrap() = None;
+        r.map(|_| ())
     }
 
     fn ink_prefill_packed_inner(

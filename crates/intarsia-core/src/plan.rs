@@ -85,6 +85,10 @@ pub enum Phase {
     /// Batched verify pass (`Model::forward_verify_batch`, only when `Model::enable_verify_batch` was called): `t` is the number of
     /// rows of all the sequences' verify runs together, `pos0` the length of each sequence.
     VerifyBatch,
+    /// Inkling-2 packed prefill pass (`Model::ink_prefill_packed`, lane ink-hip-bpf; only on a model that can pack): `t` rows over
+    /// fresh phantom sequences of at most a prefill chunk each, so the row-wise ops and the experts see a pass of more rows than
+    /// any one sequence's KV room (the scratch is sized and the kernels admitted for it).
+    Pack,
 }
 
 /// One op call of the plan with the kernel the registry selected for it.
@@ -268,8 +272,6 @@ fn shape_str(s: &ShapeInfo) -> String {
 fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize, usize))> {
     // the opt-in long-prompt chunk runs passes of its rows: probe (and size scratch for) those too
     let chunk = model.long_prefill_chunk().map_or(model.prefill_chunk(), |(_, c)| c);
-    // an Inkling-2 packed-prefill workspace larger than the chunk (lane ink-hip-bpf, `INTARSIA_INK_PACK_ROWS`): its passes too
-    let chunk = if model.ink_pack_capable() { chunk.max(model.ink_pack_rows_max()) } else { chunk };
     let cap = model.plan.kv_cap_tokens.max(1);
     let sizes = probe_sizes(chunk);
     let mut probes: Vec<(Phase, usize, usize)> = vec![(Phase::Decode, 1, 0), (Phase::Decode, 1, cap - 1)];
@@ -301,6 +303,11 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
         if cap > big {
             probes.push((Phase::Prefill, big, cap - big));
         }
+    }
+    // Inkling-2 packed prefill (lane ink-hip-bpf): the largest packed pass, whose row-wise ops and experts run over the rows of
+    // several sequences' chunks (more than one sequence's KV room may hold); nothing is added when the model cannot pack
+    if model.ink_pack_capable() && model.ink_pack_rows_max() >= 2 * model.pack_min_rows() {
+        probes.push((Phase::Pack, model.ink_pack_rows_max(), 0));
     }
     // speculative verify passes (spec on only): every row count, at both ends of the context
     for t in 2..=model.verify_rows() {
@@ -371,7 +378,8 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
     let mut vb_gaps: BTreeSet<String> = BTreeSet::new();
     for (phase, t, pos0, plain) in probes {
         // a batch step appends one token to each of its sequences
-        if pos0 + if phase == Phase::Batch { 1 } else { t } > cap {
+        // a packed pass's segments are fresh sequences of at most a prefill chunk each
+        if pos0 + match phase { Phase::Batch => 1, Phase::Pack => t.min(chunk), _ => t } > cap {
             continue;
         }
         if plain {
