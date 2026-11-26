@@ -96,7 +96,7 @@ verify forward never reaches the WMMA experts or flash attention: under `exact_r
 Acceptance: greedy set gate 70.9 % (2.54 tokens / pass), cut 57.5 % (2.36); prose gate 75.6 % (2.66), cut 59.5 % (2.27); short-0 gate
 2.43, cut 2.12; 4k-0 gate 2.66, cut 2.55.
 
-**Verify cost** (probe, 1024 context, graph on / eager): decode 13.30 / 13.24 ms; verify 2 rows 16.48 / 16.75 (1.24x / 1.26x), 3 rows
+**Verify cost** (probe `PROBE_TIME`, graph on / eager; the eager run had only the 1024 context): decode 13.30 / 13.24 ms; verify 2 rows 16.48 / 16.75 (1.24x / 1.26x), 3 rows
 19.00 / 19.58 (1.43x / 1.48x), 4 rows 20.80 / 21.41 (1.56x / 1.62x). The verify graph saves 0.3-0.6 ms a pass.
 
 **Draft cost** (`INTARSIA_DSPARK_PROFILE=1`, 1k, gate, means over 39 cycles): whole cycle 37.67 ms (= verify + draft + host), draft
@@ -160,8 +160,8 @@ processes are the units), and a bootstrap over reps x prompts (it also resamples
 - The spread between processes is tiny (decode within 0.1 % across 4 processes of an arm), so the t-intervals are narrow. The short
   class's bootstrap is wider because prompts differ (chat prompts accept less than the count / story / code ones).
 - The prefill cost with the draft loaded is 0.5-0.7 %: the draft ingests the prompt's tap rows (`dspark_ingest`, 0.2 ms a call).
-- Why 1k gains least: on that prompt the draft's acceptance is lowest. At 4k a verify pass of 3-4 rows costs 1.43-1.56x a decode step
-  (section 3), and 2.5 tokens a pass pay for it.
+- Why the gain differs by length: it follows the prompt's acceptance (per-prompt acceptance is in raw/speed/), not the context. A verify
+  pass of 3-4 rows costs 1.43-1.56x a decode step (the probe, section 3), and about 2.5 tokens a pass pay for it.
 
 **Default decision (the brief's bar).** The bar: on >= off at every length, and >= +2 % with a CI lower bound > 1.0 at more than one
 length. Both rules pass at all four lengths. Cut is faster at every length, so HIP takes cut 0.5 k3, Metal's rule:
