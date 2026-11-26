@@ -326,6 +326,9 @@ fn conv_mix_rows_bitwise_solo() {
     for (mode, dec3) in [(3, -1), (0, -1), (3, 0)] {
         intarsia_backend_hip::inkmix::set_mix_mode(mode);
         intarsia_backend_hip::set_dec3(dec3);
+        let sw = intarsia_backend_hip::inkmix::rows_switches();
+        eprintln!("conv_mix_bf16_rows: mix mode {mode}, dec3 {dec3}: the row-table TU reads switches {sw} (mask {})", sw & 255);
+        assert_eq!(sw & 255, mode, "set_mix_mode({mode}) does not reach the row-table TU (its switches {sw})");
         for (c, mixes) in [(64usize, small), (2304, real)] {
             for &(n, q, norm, s) in mixes {
                 for (ei, &(res, add, sum)) in epis.iter().enumerate() {
@@ -344,6 +347,13 @@ fn conv_mix_rows_bitwise_solo() {
     }
     intarsia_backend_hip::inkmix::set_mix_mode(3);
     intarsia_backend_hip::set_dec3(-1);
+    // the other switch reaches the row-table TU too (one shared copy, lane ink-hip-batch): the fast norm tail off / on / back to the env
+    for (dec, on) in [(0, false), (1, true)] {
+        intarsia_backend_hip::inkmix::set_mix_dec(dec);
+        let sw = intarsia_backend_hip::inkmix::rows_switches();
+        assert_eq!(sw & 256 != 0, on, "set_mix_dec({dec}) does not reach the row-table TU (its switches {sw})");
+    }
+    intarsia_backend_hip::inkmix::set_mix_dec(-1);
     eprintln!("conv_mix_bf16_rows: {cases} row-table calls bitwise the solo calls (every row, every ring byte)");
 }
 

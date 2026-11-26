@@ -74,6 +74,12 @@ Raw: `docs/results/2026-11-26-inkling2-hip-batch/raw/`.
      - run the solo greedy md5 check (64 / 256, short / 4k) on the rebased binary with no env vars set;
      - say here which paths the batched forward took.
   Reminder: no `--mem` on tatooine jobs.
+- 2026-11-26 ~14:35 (coordinator): the mixmode fix `d5b2a9bc0` gets its own PR; #529 stays as it is (merged on green CI). After
+  #529 merges: rebase `ink/hip-batch-mixmode` onto the new main; one radiance window, at most 1:30 down: `cargo test --release -p
+  intarsia-backend-hip --test ink_rows -- --test-threads=1`, plus a check that the mode-0 leg really runs the row-table kernels in
+  mode 0 (a debug print, or an assert on the shared symbol inside the test); open a PR "ink-hip-batch: test switch reaches the
+  row-table copy" with the window's downtime and the new lane total (about 33:00) in its body, not merged. Last window of the lane;
+  final report once the PR is open; remove nothing (the coordinator cleans up after merge).
 - 2026-11-26 ~14:05 (coordinator, after #528 merged as `3226af2b9`): one more window, about 3:30, hard limit 32:00 lane total,
   under 5:00. Order: (1) the full #528 re-gate, ink_rows bitwise first, then the 4k-256 md5 for each arm, then the 64-token md5 and
   the rest; (2) the real-prompt sweep on one B16 server, serve_bitwise conc mode on the ids-prompts at 4, 8 and 16 at once,
@@ -508,7 +514,8 @@ to the solo chunk, and that is HIP's default.
 | 8 | #12095 | serve: batched replies, localeval reps 1-2 | 13:44:34 - 13:49:06, 4:32 |
 | 9 | #12096 | serve: solo replies, rep 3, busy chunk 256 | 13:49:34 - 13:53:37, 4:03 |
 | 10 | #12108 | #528 re-gate (b8 vs main4) + real-prompt sweep 4 / 8 / 16 (coordinator-approved past 30:00, limit 32:00) | 14:08:55 - 14:12:00, 3:05 |
-| | | **total** | **31:30** (cap 30:00; 32:00 allowed for window 10) |
+| 11 | #12148 | ink_rows with the shared mix switch + negative control (branch `ink/hip-batch-mixmode`, coordinator-approved) | 15:04:34 - 15:05:03, 0:29 |
+| | | **total** | **31:59** (cap 30:00; the coordinator approved windows 10 and 11 past it) |
 
 - CPU jobs: builds #12035 (cancelled by the coordinator: `--mem`), #12087, #12091, #12102 and others; device-ISA jobs #12083,
   #12086, #12102; pushes #12098, #12100, #12106 (endor).
@@ -607,3 +614,27 @@ around equal; the ABBA ratio is section 9's. The device code is main's (12.1).
     check that exercises the change; it runs in about 13 s at the next window.
 - The fix is kept off PR #529's head, so the head stays what was gated. Take it into #529 after that 13 s run, or as its own
   follow-up PR.
+
+## 13. Window 11 (last): the shared mix switch on the GPU (fleetq #12148; radiance down 15:04:34 - 15:05:03, 0:29)
+
+Branch `ink/hip-batch-mixmode`, rebased onto main `80719483a` (#529 merged), its own PR. Log: `raw/window11-12148-mixmode.log`.
+Stage: `raw/stage_w11.sh`. Builds (#12144, cpu): `raw/build-12144-mixmode.log`, `raw/build_neg.sh`.
+
+- The fix: `g_mix_mask` / `g_mix_dec` in `namespace ik_inkmix`, one definition for both TUs (section 12.4).
+- The check: `ik_ink_mix_rows_switches()` in `ink_mix_rows.hip` (wrapper `inkmix::rows_switches()`) returns the switches as the
+  row-table TU's launches read them: the mask, plus 256 when the fast norm tail is on.
+  - `conv_mix_rows_bitwise_solo` asserts, at the start of each mode leg, that the mask equals the mode just set.
+  - After the loop it asserts that `set_mix_dec(0)` / `set_mix_dec(1)` reach the row-table TU too.
+- Negative control: the same test built from the same tree with main's `ink_mix.hip` (no shared switch), copied out as
+  `.scratch/bin/ink_rows-neg`.
+
+| Run | Result |
+|---|---|
+| `INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-hip --test ink_rows -- --test-threads=1 --nocapture` | **2 / 2 PASS** (12.6 s) |
+| ... switches the row-table TU reads, per leg: mode 3 / mode 0 / mode 3 (dec3 0) | 259 / **256** / 259 (masks 3 / **0** / 3), then the dec off / on checks pass |
+| ... row-table calls bitwise the solo calls | conv_mix 645, ink_attn_decode 40 |
+| negative control `ink_rows-neg conv_mix_rows_bitwise_solo` | **FAILS as it must**: mode 0 leg, "set_mix_mode(0) does not reach the row-table TU (its switches 259)", left 3, right 0 |
+
+- So since the split the mode-0 leg had been running the row-table kernels in mode 3. With the fix they run in mode 0, and all
+  645 calls are bitwise equal to the solo calls in mode 0.
+- **Radiance down, whole lane: 31:59** over 11 windows: 31:30 through window 10, plus 0:29 here.
