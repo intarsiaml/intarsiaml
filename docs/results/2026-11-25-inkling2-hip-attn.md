@@ -31,6 +31,12 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
   down time here. PR #516 (ink/hip -> main) stays as is: don't merge into ink/hip; send speed heads as "ready to merge at
   <commit>", the coordinator integrates them in a follow-up branch.
 
+- 2026-11-25 ~22:35 EST, coordinator: op 75 v2 accepted (bitwise, non-regressing even forced; lands with the `"cuda" | "hip"`
+  core line). Go ahead with the <= 2048-key rule inside the launcher. Flash prefill: -12.4 % at 4k with G2 PASS, but not bitwise
+  vs the #516 form, and tonight's merge rule is bitwise only with no output-changing defaults until the user says yes: (1) gate
+  `rel_sink_attn_bf16_flash` behind `INTARSIA_HIP_INK_ATTN_FLASH`, default off (other name if HIP has a convention), with a
+  `docs/tuning.md` row so `docs_env_vars` passes; (2) keep the default-on flip one constant; (3) record G2 with flash on (#11960)
+  next to off. Then "ready to merge at <commit>" with whole-model decode short / 4k with the rule, 4k prefill flash off and on.
 - 2026-11-25 ~22:25 EST, coordinator: v2 numbers noted (SWA 25.1 vs 30.1 us fused wins, full 4k 52.0 vs 45.6 pair wins; 20 SWA +
   4 full layers, so per-layer selection gets both). Rule: fused where the visit reads <= 2048 keys, the pair above. Put the rule
   in HIP kernel selection or lane files, not `model/inkling2.rs`, unless impossible (then name the exact core line). Whole-model

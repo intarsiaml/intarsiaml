@@ -19,6 +19,7 @@ typedef struct {
     int32_t dyn_conv, kv_ring;
     float qk_clip, rel_clip, eps, tau_alpha, scale;
     int32_t split_keys; /* keys per split of the split-KV attention (0 = the default, 64) */
+    int32_t flash;      /* RelSinkAttn: prefill calls (T > 16, Dh >= 16) on the WMMA flash kernel (INTARSIA_HIP_INK_ATTN_FLASH; not bitwise) */
     int32_t diag;       /* INTARSIA_INK_DEC_DIAG (op 75 timing diagnostics, wrong output): bit 0 no prologue jobs, bit 1 no merge */
 } ik_ink_attn_attrs;
 
@@ -29,18 +30,12 @@ int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_t
                             ik_tensor* rel, ik_tensor* k, ik_tensor* v, ik_tensor* kring, ik_tensor* vring, const ik_tensor* pos,
                             void* stream);
 
-/* RelSinkAttn (scalar split-KV, every T): q [T,H,Dh], k / v [T,Hk,Dh], k / v cache [Hk,Cr,Dh] (inputs; the same buffers as the
+/* RelSinkAttn (scalar split-KV, every T; with attrs->flash, calls of more than 16 rows and Dh >= 16 on the WMMA flash kernel): q [T,H,Dh], k / v [T,Hk,Dh], k / v cache [Hk,Cr,Dh] (inputs; the same buffers as the
  * outputs), rel [T,H,E], pq [T,Nq] -> o [T,H*Dh], k / v cache (in place). Dh in {8,16,32,64,128}, H / Hk in 1..3. Scratch: f32
  * partials of one slice of at most 64 rows, min(T,64) * H * 32 * (Dh + 2) * 4 bytes (inkattn.rs `attn_scratch`). */
 int ik_rel_sink_attn_bf16(const ik_tensor* q, const ik_tensor* k, const ik_tensor* v, const ik_tensor* kc_in, const ik_tensor* vc_in,
                           const ik_tensor* rel, const ik_tensor* pq, const ik_ink_attn_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc,
                           const ik_scratch* scratch, const ik_tensor* pos, void* stream);
-
-/* RelSinkAttn on WMMA flash attention for prefill chunks (rel_sink_attn_bf16_flash; T > 16, Dh in {16,32,64,128}): same operands,
- * no scratch; not bitwise the split-KV kernel (the registry picks it for prefill only, as CUDA's / Metal's prefill kernels). */
-int ik_rel_sink_attn_bf16_flash(const ik_tensor* q, const ik_tensor* k, const ik_tensor* v, const ik_tensor* kc_in, const ik_tensor* vc_in,
-                                const ik_tensor* rel, const ik_tensor* pq, const ik_ink_attn_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc,
-                                const ik_scratch* scratch, const ik_tensor* pos, void* stream);
 
 /* InkAttnDecode (op 75, 1..16 rows): RelSinkAttn(InkKvPrologue(..)) in one dispatch, bitwise the pair of the two launchers
  * above. Inputs as the prologue's plus the caches; outputs o, k / v cache, k / v conv ring (all in place but o). Scratch: the

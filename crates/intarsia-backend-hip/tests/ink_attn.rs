@@ -1,6 +1,7 @@
 //! Inkling-2-Mini attention on HIP (`ink_kv_prologue_bf16`, `rel_sink_attn_bf16`; src/inkattn.rs, kernels/hip/ink_attn.hip;
 //! lane ink-hip-attn):
-//! * `admission_full_sweep`: the full (non-quick) admission sweep of ops 70 / 71 against the f64 cpu reference (`ink_ref`) at the
+//! * `admission_full_sweep`: the full (non-quick) admission sweep of ops 70 / 71 / 75 (run it once more with
+//!   INTARSIA_HIP_INK_ATTN_FLASH=1 to grade the flash prefill form of 71) against the f64 cpu reference (`ink_ref`) at the
 //!   registered tolerances: small shapes (head_dim 16, d_rel 8) and the real model (24 / 8 heads, head_dim 128, d_rel 16, extent
 //!   1024; sliding layers with window 1024 over a ring of 1040 rows and full layers with a linear cache; rows 1 / 4 / 16 / 2048).
 //! * `rows_exact_real_shapes`: an R-row prologue + attention pair equals, bit for bit, R one-row pairs at positions pos0 ..
@@ -256,7 +257,7 @@ fn admission_full_sweep() {
     let report = run_admission(&*cpu, &*hip, &opts).unwrap();
     let text = report.render(true);
     println!("{text}");
-    for name in ["ink_kv_prologue_bf16", "rel_sink_attn_bf16", "rel_sink_attn_bf16_flash", "ink_attn_decode_bf16"] {
+    for name in ["ink_kv_prologue_bf16", "rel_sink_attn_bf16", "ink_attn_decode_bf16"] {
         let k = report.kernels.iter().find(|k| k.kernel == name).unwrap_or_else(|| panic!("{name} not graded\n{text}"));
         assert!(k.cases > 0 && k.admitted, "{name}: {} cases, admitted {}\n{text}", k.cases, k.admitted);
     }
@@ -445,8 +446,11 @@ fn bench_prefill() {
             be.synchronize(0).unwrap();
             t0.elapsed().as_secs_f64() * 1e6 / n as f64
         };
+        std::env::set_var("INTARSIA_HIP_INK_ATTN_FLASH", "0");
         let ts = time("rel_sink_attn_bf16");
-        let tf = time("rel_sink_attn_bf16_flash");
+        std::env::set_var("INTARSIA_HIP_INK_ATTN_FLASH", "1");
+        let tf = time("rel_sink_attn_bf16");
+        std::env::remove_var("INTARSIA_HIP_INK_ATTN_FLASH");
         println!("BENCH prefill {name}: split-KV {ts:.0} us, flash {tf:.0} us ({:.1}x)", ts / tf);
     }
 }

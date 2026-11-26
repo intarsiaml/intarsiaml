@@ -53,6 +53,8 @@ constexpr int F_DYN = 1;          // dynamic conv taps
 constexpr int F_RING = 2;         // K / V caches are rings
 constexpr int F_KV_WRITE = 4;     // cache write in the attention kernel (else ink_kv_write_k after it)
 constexpr int F_RING_WRITE = 16;  // conv-ring write in the kernel (else ink_ring_write_k after it)
+constexpr int F_R_OUT = 32;      // prologue (op 75's split path): write r [T,H,dr] to relo instead of the rel table
+constexpr int F_R_IN = 64;       // stage 1 (op 75's split path): p.rel is r [T,H,dr]; the block forms its split's bias from it
 constexpr int F_DIAG_NOPRO = 256;    // diagnostic (INTARSIA_INK_DEC_DIAG bit 0): op 75 skips the prologue jobs (wrong output)
 constexpr int F_DIAG_NOMERGE = 512;  // diagnostic (INTARSIA_INK_DEC_DIAG bit 1): op 75 skips the ticket merge (wrong output)
 
@@ -267,6 +269,11 @@ __global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
         }
     }
     __syncthreads();
+    if (p.flags & F_R_OUT) {
+        // op 75's split path: stage 1 forms the bias itself from r (the same chain); r is rounded already
+        for (unsigned x = tid; x < G * dr; x += blockDim.x) p.relo[((size_t)t * H + kvh * G + x / dr) * dr + x % dr] = f2b(rsh[x / dr][x % dr]);
+        return;
+    }
     const unsigned per = (E + gridDim.z - 1) / gridDim.z, e1 = min(E, (blockIdx.z + 1) * per);
     for (unsigned e = blockIdx.z * per + tid; e < e1; e += blockDim.x) {
         float rv[4];
@@ -480,9 +487,22 @@ __global__ void __launch_bounds__(NSG * 32) ink_attn_s1_k(InkP p) {
     }
     if (split >= g.ns) return;
     for (unsigned x = tid; x < GP * D; x += NSG * 32) S.q[x / D][x % D] = b2f(p.q[((size_t)t * H + kvh * GP) * D + x]);
-    for (unsigned x = tid; x < GP * g.nb; x += NSG * 32) {
-        const unsigned h = x / g.nb, b = x % g.nb;
-        tb[h * g.nb + b] = fmul(b2f(p.rel[((size_t)t * H + kvh * GP + h) * E + g.dlo + b]), LOG2E);
+    if (p.flags & F_R_IN) {
+        // op 75's split path: the prologue's rel chain at this split's distances from r, rounded as the rel store (the bits of the
+        // pair's rel table)
+        __shared__ float rsh[4][32];
+        for (unsigned x = tid; x < GP * (unsigned)p.dr; x += NSG * 32) rsh[x / p.dr][x % p.dr] = b2f(p.rel[((size_t)t * H + kvh * GP) * p.dr + x]);
+        __syncthreads();
+        for (unsigned b = tid; b < g.nb; b += NSG * 32) {
+            float rv[4];
+            ink_rel_g(rsh, GP, p.rp, p.dr, E, g.dlo + b, rv);
+            for (int h = 0; h < GP; ++h) tb[h * g.nb + b] = fmul(rA(rv[h]), LOG2E);
+        }
+    } else {
+        for (unsigned x = tid; x < GP * g.nb; x += NSG * 32) {
+            const unsigned h = x / g.nb, b = x % g.nb;
+            tb[h * g.nb + b] = fmul(b2f(p.rel[((size_t)t * H + kvh * GP + h) * E + g.dlo + b]), LOG2E);
+        }
     }
     __syncthreads();
     ink_attn_body<GP, false>(S, tb, nullptr, 0, g, kvh, split, t, pos0, p, tid, lane, sg);
@@ -853,6 +873,16 @@ bf16* mb(ik_tensor* t) { return (bf16*)t->data; }
 int fits_u32(int64_t v) { return v >= 0 && v <= 0x7fffffffLL; }
 int split_keys(const ik_ink_attn_attrs* a) { return a->split_keys > 0 ? (int)a->split_keys : SPLIT_KEYS; }
 
+// INTARSIA_INK_DEC_FUSED_KEYS: op 75 takes its fused kernel where a visit reads at most this many keys, else its split path
+// (default 2048; 0 = always the split path, a large value = always fused). Both give the pair's bits.
+int64_t dec_fused_keys() {
+    static const int64_t v = [] {
+        const char* e = getenv("INTARSIA_INK_DEC_FUSED_KEYS");
+        return e && *e ? (int64_t)atoll(e) : (int64_t)2048;
+    }();
+    return v;
+}
+
 unsigned bias_rows(unsigned vis, unsigned e, unsigned sk) {
     const unsigned skr = (sk + 31) / 32 * 32;
     const unsigned ns = ink_nsplit(vis, sk);
@@ -964,6 +994,22 @@ extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk,
     return ik_launch_status();
 }
 
+namespace {
+// RelSinkAttn on the flash kernel (attrs->flash, T > 16, Dh >= 16): `p` filled by ik_rel_sink_attn_bf16; then the cache write
+// (the kernel read the call's own keys from k / v)
+int rel_sink_attn_flash(const InkP& p, hipStream_t st) {
+    switch (p.d) {
+        case 16: launch_flash_d<16>(p, st); break;
+        case 32: launch_flash_d<32>(p, st); break;
+        case 64: launch_flash_d<64>(p, st); break;
+        default: launch_flash_d<128>(p, st); break;
+    }
+    const size_t n = (size_t)p.t * p.hk * p.d;
+    ink_kv_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p);
+    return ik_launch_status();
+}
+}  // namespace
+
 extern "C" int ik_rel_sink_attn_bf16(const ik_tensor* q, const ik_tensor* k, const ik_tensor* v, const ik_tensor* kc_in, const ik_tensor* vc_in,
                                      const ik_tensor* rel, const ik_tensor* pq, const ik_ink_attn_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc,
                                      const ik_scratch* scratch, const ik_tensor* pos, void* stream) {
@@ -1015,6 +1061,9 @@ extern "C" int ik_rel_sink_attn_bf16(const ik_tensor* q, const ik_tensor* k, con
     p.vc = mb(vc);
     p.pos = pos ? (const int*)pos->data : nullptr;
     hipStream_t st = IK_STREAM(stream);
+    // prefill chunks on the flash kernel when the call asks for it (INTARSIA_HIP_INK_ATTN_FLASH, inkattn.rs; not bitwise the
+    // split-KV form below)
+    if (a->flash && p.t > MAXROWS && p.d >= 16) return rel_sink_attn_flash(p, st);
     // slices of at most SLICE rows in order: a slice reads the cache rows the slices before it wrote (its keys below its own
     // first position), so every row's bits are those of the one-row call
     for (int r0 = 0; r0 < p.t; r0 += SLICE) {
@@ -1091,17 +1140,52 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
     if (a->diag & 2) p.flags |= F_DIAG_NOMERGE;
     unsigned gy, nb;
     attn_geometry(p, pos != nullptr, &gy, &nb);
-    // scratch: the partials (as rel_sink_attn's), then the staged K / V rows [2][T][Hk][D] bf16 when the cache write runs after
+    // scratch: the partials (as rel_sink_attn's), the staged K / V rows [2][T][Hk][D] bf16, then the split path's q [T,H,D] and
+    // r [T,H,32] bf16 (inkattn.rs `decode_scratch`)
     const int64_t part = (int64_t)p.t * p.h * MAXS * (p.d + 2) * 4;
-    const int64_t need = (gy > 1 ? part : 0) + (kv_fused ? 0 : (int64_t)2 * p.t * p.hk * p.d * 2);
-    if (need > 0) {
-        if (!scratch || !scratch->data || scratch->bytes < part + (int64_t)2 * p.t * p.hk * p.d * 2) return IK_ERR_INVALID_ARG;
-        p.scr = (float*)scratch->data;
-        bf16* stg = (bf16*)((char*)scratch->data + part);
-        p.ko = stg;
-        p.vo = stg + (size_t)p.t * p.hk * p.d;
-    }
+    const int64_t stage = (int64_t)2 * p.t * p.hk * p.d * 2;
+    const int64_t qb = (int64_t)p.t * p.h * p.d * 2;
+    if (!scratch || !scratch->data || scratch->bytes < part + stage + qb + (int64_t)p.t * p.h * 32 * 2) return IK_ERR_INVALID_ARG;
+    p.scr = (float*)scratch->data;
+    bf16* stg = (bf16*)((char*)scratch->data + part);
+    p.ko = stg;
+    p.vo = stg + (size_t)p.t * p.hk * p.d;
     hipStream_t st = IK_STREAM(stream);
+    // the rule: the fused kernel where the visit reads at most dec_fused_keys() keys (window layers always; full layers at a
+    // host position up to that context), else the split path (prologue + stage 1 + combine, the pair's kernels; bitwise the
+    // same). Under a device position a full layer's context is unknown here: the capacity bound decides.
+    const int64_t keys = p.window > 0 ? (p.window < p.cr ? p.window : p.cr) : (pos ? (int64_t)p.cr : (int64_t)p.pos0 + p.t);
+    if (keys > dec_fused_keys()) {
+        InkP q = p;
+        q.flags = (q.flags & (F_DYN | F_RING_WRITE)) | F_R_OUT;
+        q.qo = (bf16*)((char*)scratch->data + part + stage);
+        q.relo = (bf16*)((char*)scratch->data + part + stage + qb);
+        q.e = p.dr;  // unused under F_R_OUT
+        ink_prologue_k<4><<<dim3(p.hk, p.t, 1), 256, 0, st>>>(q);
+        if (!ring_fused) {
+            const size_t n = (size_t)p.t * p.hk * p.d;
+            ink_ring_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p);
+        }
+        InkP a1 = p;
+        a1.flags = (p.flags & (F_RING | F_KV_WRITE)) | F_R_IN;
+        a1.q = q.qo;
+        a1.kn = p.ko;
+        a1.vn = p.vo;
+        a1.rel = q.relo;
+        const size_t tbb = (size_t)G * nb * 4;
+        const dim3 grid(p.hk, gy, p.t);
+        switch (G) {
+            case 1: ink_attn_s1_k<1><<<grid, NSG * 32, tbb, st>>>(a1); break;
+            case 2: ink_attn_s1_k<2><<<grid, NSG * 32, tbb, st>>>(a1); break;
+            default: ink_attn_s1_k<3><<<grid, NSG * 32, tbb, st>>>(a1); break;
+        }
+        if (gy > 1) ink_attn_comb_k<<<dim3(p.h, p.t), (p.d + 31) / 32 * 32, 0, st>>>(a1);
+        if (!kv_fused) {
+            const size_t n = (size_t)p.t * p.hk * p.d;
+            ink_kv_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(a1);
+        }
+        return ik_launch_status();
+    }
     const size_t tbb = (size_t)G * nb * 4;
     const dim3 grid(p.hk, gy, p.t);
     switch (G) {
@@ -1123,63 +1207,3 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
     return ik_launch_status();
 }
 
-extern "C" int ik_rel_sink_attn_bf16_flash(const ik_tensor* q, const ik_tensor* k, const ik_tensor* v, const ik_tensor* kc_in, const ik_tensor* vc_in,
-                                           const ik_tensor* rel, const ik_tensor* pq, const ik_ink_attn_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc,
-                                           const ik_scratch* scratch, const ik_tensor* pos, void* stream) {
-    (void)kc_in;
-    (void)vc_in;
-    (void)scratch;
-    if (!a) return IK_ERR_INVALID_ARG;
-    IK_TRY(ik_check_pos(pos));
-    IK_TRY(chk(q, 3));
-    IK_TRY(chk(k, 3));
-    IK_TRY(chk(v, 3));
-    IK_TRY(chk(rel, 3));
-    IK_TRY(chk(pq, 2));
-    IK_TRY(chk(o, 2));
-    IK_TRY(chk(kc, 3));
-    IK_TRY(chk(vc, 3));
-    InkP p = {};
-    p.t = (int)q->shape[0];
-    if (p.t == 0) return IK_OK;
-    p.h = (int)a->n_heads;
-    p.hk = (int)a->n_kv_heads;
-    p.d = (int)a->head_dim;
-    p.dr = (int)a->d_rel;
-    const int G = p.hk > 0 ? p.h / p.hk : 0;
-    if (G < 1 || G > 3 || p.h % p.hk != 0 || !(p.d == 16 || p.d == 32 || p.d == 64 || p.d == 128)) return IK_ERR_SHAPE;
-    p.e = (int)rel->shape[2];
-    p.cr = (int)kc->shape[1];
-    p.window = (int)a->window;
-    p.nq = (int)pq->shape[1];
-    p.scale = a->scale;
-    p.pos0 = (int)a->pos0;
-    const bool ring = a->kv_ring != 0;
-    if (ring) p.flags |= F_RING;
-    if (ring && (p.window < 1 || p.window > p.cr)) return IK_ERR_SHAPE;
-    const ik_tensor* al[5] = {k, v, kc, vc, o};
-    for (const ik_tensor* x : al)
-        if (!ik_aligned16(x->data)) return IK_ERR_INVALID_ARG;
-    if (((uintptr_t)q->data & 3u) != 0) return IK_ERR_INVALID_ARG;
-    if (!fits_u32(a->pos0) || !fits_u32(a->pos0 + p.t) || !fits_u32((int64_t)p.hk * p.cr * p.d)) return IK_ERR_SHAPE;
-    p.q = cb(q);
-    p.kn = cb(k);
-    p.vn = cb(v);
-    p.rel = cb(rel);
-    p.pq = cb(pq);
-    p.out = mb(o);
-    p.kc = mb(kc);
-    p.vc = mb(vc);
-    p.pos = pos ? (const int*)pos->data : nullptr;
-    hipStream_t st = IK_STREAM(stream);
-    switch (p.d) {
-        case 16: launch_flash_d<16>(p, st); break;
-        case 32: launch_flash_d<32>(p, st); break;
-        case 64: launch_flash_d<64>(p, st); break;
-        default: launch_flash_d<128>(p, st); break;
-    }
-    // the cache write after the attention (the kernel read the call's own keys from k / v)
-    const size_t n = (size_t)p.t * p.hk * p.d;
-    ink_kv_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p);
-    return ik_launch_status();
-}
