@@ -582,3 +582,28 @@ around equal; the ABBA ratio is section 9's. The device code is main's (12.1).
 - Rep 2 of N 16 was skipped by the time guard (24 s left, 46 needed), so the bar's 3 reps were not reached (section 0).
 - VRAM peak of the visit: 28 518 MiB (card 0), as in windows 8 and 9.
 
+
+### 12.4 Found after the window: the test switches of ink_mix reach only the solo TU (fix on branch `ink/hip-batch-mixmode`)
+
+- `g_mix_mask` / `g_mix_dec` (ink_mix.hip) are host globals in the anonymous namespace. Since the TU split (b6), the rows TU
+  (`ink_mix_rows.hip`) has its own copy of each. The test setters `ik_ink_mix_mode` / `ik_ink_mix_dec`
+  (`inkmix::set_mix_mode` / `set_mix_dec`) live in the solo TU, so they set only the solo copy.
+- **Effect on this PR's results:**
+  - `tests/ink_rows.rs` loops `set_mix_mode` over 3 and 0. Since b6, its mode-0 leg compared row-table calls in mode 3 with solo
+    calls in mode 0. They were still bitwise equal, because every mask's forms give the same bits by design (tests/ink_mix.rs).
+    But the RT kernels' mode-0 forms have not been exercised since the split.
+  - The env knobs (`INTARSIA_INK_MIX_FAST`, `INTARSIA_HIP_INK_DEC_FAST`) were never affected: both TUs read the same env. So
+    `serve`, every gate and every number in this doc ran the same forms in both TUs.
+  - `ik_ink_probe` (INK_PROBE diagnostic builds only) reads the solo TU's device timestamps only.
+  - ink_attn.hip has no such switch: only function-local statics that read env.
+- **Fix**: commit `d5b2a9bc0` on branch `ink/hip-batch-mixmode`, one commit on top of `74dd35306`. The two ints move to
+  `namespace ik_inkmix`, defined in ink_mix.hip and declared `extern` in the rows TU. Host code only.
+  - Checked on CPU (fleetq #12113, `raw/mixmode-12113.log`, `raw/mixmode_check.sh`):
+    - `nm`: ink_mix.o defines `ik_inkmix::g_mix_mask` / `g_mix_dec` (D) and ink_mix_rows.o only references them (U), so one
+      variable after linking;
+    - device code of both TUs identical to the PR head's: 31 / 31 and 55 / 55 kernels;
+    - `intarsia-cli` and the `ink_rows` / `ink_mix` test targets build and link (binary b9).
+  - **Not run: `tests/ink_rows.rs` on the GPU with the fix.** No radiance window was left (coordinator: no retry window). It is the
+    check that exercises the change; it runs in about 13 s at the next window.
+- The fix is kept off PR #529's head, so the head stays what was gated. Take it into #529 after that 13 s run, or as its own
+  follow-up PR.

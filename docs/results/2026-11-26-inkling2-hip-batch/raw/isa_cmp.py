@@ -45,8 +45,9 @@ def rekey(ks, meta, branch):
     return out, om
 
 A, B = sys.argv[1], sys.argv[2]
+same = len(sys.argv) > 3 and sys.argv[3] == "same"  # both files of the same form (no RT argument to drop)
 a, am = rekey(*kernels(A), False)
-b, bm = rekey(*kernels(B), True)
+b, bm = rekey(*kernels(B), not same)
 print(f"== {os.path.basename(A)} vs {os.path.basename(B)}: {len(a)} / {len(b)} kernels ({len(set(b) - set(a))} new)")
 same = 0
 for k in sorted(a):
