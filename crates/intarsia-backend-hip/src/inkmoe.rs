@@ -121,8 +121,9 @@ pub fn set_lean(v: i32) {
     let _ = v;
 }
 
-/// Tests / benchmarks: the smallest LDS size class of the expert kernels a call may take (0 = sized by the call, the default;
-/// 1; 2 = the largest, the tables of the first form). Bitwise the same output.
+/// Tests / benchmarks: the smallest LDS size class of the expert kernels a call may take (0 = sized by the call, the default; 1;
+/// 2 = the largest, the tables of the first form; 4 = sized by the call, with up to 32 pairs grouped inside the wave without
+/// tables). Bitwise the same output.
 pub fn set_sz(v: i32) {
     #[cfg(ik_hip)]
     {
@@ -131,6 +132,21 @@ pub fn set_sz(v: i32) {
         }
         // SAFETY: sets a plain int of the kernel library.
         unsafe { ik_ink_moe_set_sz(v) }
+    }
+    #[cfg(not(ik_hip))]
+    let _ = v;
+}
+
+/// Tests / benchmarks: pairs per accumulator batch of the lean form below the pair table (4 | 8, bitwise the same output);
+/// anything else = the default rule.
+pub fn set_nb(v: i32) {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_ink_moe_set_nb(v: std::ffi::c_int);
+        }
+        // SAFETY: sets a plain int of the kernel library.
+        unsafe { ik_ink_moe_set_nb(v) }
     }
     #[cfg(not(ik_hip))]
     let _ = v;

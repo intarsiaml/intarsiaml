@@ -59,12 +59,26 @@ Branch `ink/hip-moe`, base origin/main `d8c3c7148` + `ink/hip` `6c5ee5d67` (lead
   ms per chunk at 2048 before and after. Integration: PR #516 (the correctness form) stays as it is until it merges; speed
   heads go in a follow-up branch after that, so do not merge into `ink/hip`; send each as "ready to merge at <commit>".
 
+- Coordinator message after landing 2 (`628c78c63`): condition before it is taken for the follow-up branch: no regression at
+  any row count the model can issue (MXFP8 T=64 1658 -> 2354 us is a real case: batch decode with 64 sequences or 8 x 8,
+  speculative verify groups, the tail of a prefill chunk). Do: (1) select the lean form by row count, both formats, at the
+  measured crossover; keep the old form where it is faster (bitwise holds as each form is bitwise to `29b71ac67`); (2) report
+  a sweep table for NVFP4 and MXFP8 at T = 1, 2, 4, 8, 16, 32, 64, 128, 256, 2048, old vs new us per call, folded into a
+  window already needed (round 3 or S2), not a window of its own; (3) then round 3 (in-wave grouping), then S2. Send the next
+  "ready to merge" once no row count is slower than `29b71ac67` by more than noise (2 %).
+
+- Coordinator message during window 6: PR #516 (the correctness form) is merged into main as `4fc9901d4`. When the row-count
+  sweep passes, merge `origin/main` into this branch and send "ready to merge at <commit>". The attn lane's op 75 goes to
+  main first in its own PR (`ink/hip-speed`); this lane's speed work follows as a second PR.
+
 ## 0b. Radiance down time under the time budget (20 min from the rule change; windows 1 and 2 predate it: 52 s, 63 s)
 
 | Window | fleetq | Down | Budget used |
 |---|---|---|---|
 | 3 | #11951 | 22:09:18 - 22:10:15, 57 s | 0:57 |
 | 4 | #11957 | 22:14:14 - 22:15:12, 58 s | 1:55 |
+| 5 | #11967 | 22:24:06 - 22:25:45, 99 s | 3:34 |
+| 6 | #11973 | 22:30:58 - 22:31:53, 55 s | 4:29 |
 
 ## 1. Status
 
@@ -75,7 +89,8 @@ Branch `ink/hip-moe`, base origin/main `d8c3c7148` + `ink/hip` `6c5ee5d67` (lead
 | Decode bench vs 627 GB/s | NVFP4 T=1 100.8 us = 355 GB/s (57 %); MXFP8 T=1 135.1 us = 486 GB/s (78 %); section 3 |
 | Decode speed round 1 (lean step, window 2) | NVFP4 T=1 100.8 -> 83.8 us (427 GB/s, 68 %), MXFP8 135.1 -> 126.1 us (521 GB/s, 83 %); bitwise |
 | Decode speed round 2 (LDS by the call, load windows; windows 3 and 4) | NVFP4 T=1 81.6 us (439 GB/s, 70 %), T=16 623.5 us (587 GB/s, 94 %); MXFP8 T=1 122.6 us (536 GB/s, 85 %); bitwise |
-| Decode speed round 3 (grouping without barriers at decode sizes) | open |
+| Decode speed round 3 (in-wave grouping; window 5) | negative (88.3 against 81.6 us at T=1), kept opt-in |
+| Row-count rule, no regression against `29b71ac67` (window 6) | done: every T from 1 to 2048 is 11 % to 35 % faster, both formats; bitwise |
 | Prefill | correct (pair-table SIMT path); slow: T=256 6.8 ms / call; WMMA is speed package S2, not started |
 
 ## 2. Design (kernels/hip/ink_moe.hip)
@@ -199,8 +214,62 @@ Fixed cost of a call (window 4 probes, T = 1): both launches with every thread r
 the in-block grouping 11.8 us. So of the 81.6 us at T = 1: 57.1 us is the bandwidth line, 5.9 the two launches, 5.9 the
 grouping (six barriers per block), about 12.7 everything else (the last round of blocks, the term barrier and token sum).
 
+### Windows 5 and 6 (fleetq #11967, #11973; logs `raw/window5-11967.log`, `raw/window6-11973.log`): in-wave grouping, row-count rule
+
+Tests: 2 passed in each window. `ink_moe_rows_exact` (T = 1, 3, 4, 5, 10, 16, 70; both formats) checks every size class
+(0, 1, 2 and the in-wave class 4) x 4 / 8 pairs per batch x windows 1 / 3 / 6 / 9, and the default, bitwise against the
+window-1 form.
+
+Round 3, grouping inside the wave (no LDS tables, no barriers, up to 32 pairs): negative. The grouping probe at T = 1 went
+11.8 -> 10.9 us, but the kernels need more registers (down at window 9: 198 VGPRs against 142) and a call got slower:
+NVFP4 T = 1 88.3 us against 81.6, T = 4 266 against 244. Kept as an opt-in size class (`inkmoe::set_sz(4)`), not a default.
+
+Window 5 sweep (every lean setting at T = 1 .. 64) gave the rule now in `moe_pre`, by pairs per expert (P = T x K over E):
+- P <= 2 E (decode; T <= 32 at top-8 of 128): 4 pairs per batch, down window 9, NVFP4 gate_up window 6 (9 from 8 rows),
+  MXFP8 gate_up window 1.
+- P > 2 E: 8 pairs per batch, NVFP4 gate_up window 3.
+- P >= 4 E, below the pair table: down takes the window-1 form (T = 64: 533 us against 649 lean).
+- More than 512 pairs: the pair table, lean, 8 pairs per batch.
+
+Window 6, the committed defaults against the window-1 form (`INTARSIA_HIP_INK_MOE_LEAN=0`, the code of `29b71ac67`), both
+measured in the same run; us per call, 12 calls with different routings (3 at T = 2048), best of 7 (3 from T = 64).
+NVFP4 128 experts, MXFP8 64 experts in the bench (so MXFP8 is twice as dense per row as the model's 128):
+
+| Format | T | 29b71ac67 form | now | change | gate_up | down | GB/s |
+|---|---|---|---|---|---|---|---|
+| NVFP4 | 1 | 100.2 | 82.3 | -18 % | 49.6 | 31.0 | 435 |
+| NVFP4 | 2 | 177.8 | 140.8 | -21 % | 91.1 | 50.6 | 498 |
+| NVFP4 | 4 | 310.8 | 246.5 | -21 % | 160.7 | 86.0 | 529 |
+| NVFP4 | 8 | 526.4 | 401.7 | -24 % | 269.1 | 136.3 | 571 |
+| NVFP4 | 16 | 849.3 | 635.6 | -25 % | 422.4 | 217.6 | 576 |
+| NVFP4 | 32 | 1183.5 | 969.2 | -18 % | 634.9 | 367.1 | 512 |
+| NVFP4 | 64 | 1978.5 | 1421.2 | -28 % | 879.2 | 561.5 | 397 |
+| NVFP4 | 128 | 3558.5 | 2837.2 | -20 % | 1836.5 | 1210.5 | 202 |
+| NVFP4 | 256 | 6826.9 | 5303.6 | -22 % | 3317.4 | 2208.8 | 108 |
+| NVFP4 | 2048 | 51197.6 | 38193.7 | -25 % | 24171.0 | 15595.2 | 15 |
+| MXFP8 | 1 | 144.5 | 121.9 | -16 % | 74.8 | 47.2 | 539 |
+| MXFP8 | 2 | 254.1 | 216.3 | -15 % | 134.5 | 82.0 | 573 |
+| MXFP8 | 4 | 416.8 | 353.3 | -15 % | 222.8 | 130.4 | 589 |
+| MXFP8 | 8 | 663.0 | 558.0 | -16 % | 361.5 | 196.1 | 607 |
+| MXFP8 | 16 | 906.3 | 803.7 | -11 % | 526.0 | 282.2 | 570 |
+| MXFP8 | 32 | 1107.7 | 951.2 | -14 % | 596.8 | 356.1 | 547 |
+| MXFP8 | 64 | 2157.2 | 1408.3 | -35 % | 872.0 | 535.9 | 373 |
+| MXFP8 | 128 | 3969.5 | 3218.0 | -19 % | 1879.7 | 1429.2 | 163 |
+| MXFP8 | 256 | 7662.5 | 5597.2 | -27 % | 3381.0 | 2429.0 | 94 |
+| MXFP8 | 2048 | 59689.6 | 41729.9 | -30 % | 25574.2 | 16810.3 | 13 |
+
+No row count is slower. Prefill stays SIMT: 38.2 ms per NVFP4 call at T = 2048 (S2 is the fix).
+Limits: one run per cell; MXFP8 measured at 64 experts, not 128; the rule's thresholds come from top-8 only.
+
+### Knobs and integration notes (HANDOFF.md left the tree with the `ink/hip` merge)
+
+None of these changes a bit of the output, so none belongs in a fingerprint:
+- `INTARSIA_HIP_INK_MOE_PRE` = `v` or `gu:dn`, each 1 | 3 | 6 | 9: load window; default by format and pair density (`moe_pre`).
+- `INTARSIA_HIP_INK_MOE_LEAN=0`: the first form (the code of `29b71ac67`).
+- Test / bench setters in `inkmoe.rs`: `set_probe`, `set_pre`, `set_lean`, `set_sz`, `set_nb`.
+`docs/tuning.md` rows are not written (not this lane's file).
+
 ## 4. Next steps
 
-1. Decode round 3: grouping inside the wave (no LDS, no barriers) for up to 32 pairs: up to 5.9 us of the 81.6.
-2. S2: WMMA prefill with a SiTU epilogue (I = 1152), not started.
-3. Not planned tonight: one launch for gate_up + down (the `moe_experts_bf16_v3` scheme; saves one launch, about 3 us).
+1. S2: WMMA prefill with a SiTU epilogue (I = 1152), not started. Prefill is 38 ms per NVFP4 call at T = 2048 until then.
+2. Not planned tonight: one launch for gate_up + down (the `moe_experts_bf16_v3` scheme; about 3 us of the 82 at T = 1).

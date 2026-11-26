@@ -37,8 +37,11 @@ int ik_moe_experts_mxfp8_bf16_rows(const ik_tensor* x, const ik_tensor* ids, con
 void ik_ink_moe_probe(int v);
 void ik_ink_moe_set_pre(int gu, int dn);
 void ik_ink_moe_set_lean(int v);
-/* the smallest LDS size class a call may take (0 = by the call, 1, 2 = the largest); bitwise the same output */
+/* the smallest LDS size class a call may take (0 = by the call; 1; 2 = the largest; 4 = by the call, with up to 32 pairs grouped
+ * inside the wave instead of LDS tables); bitwise the same output */
 void ik_ink_moe_set_sz(int v);
+/* pairs per accumulator batch below the pair table (4 | 8; anything else = the default rule); bitwise the same output */
+void ik_ink_moe_set_nb(int v);
 
 #ifdef __cplusplus
 }
