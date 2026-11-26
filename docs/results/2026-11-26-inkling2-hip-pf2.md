@@ -69,3 +69,39 @@ Notes:
   down (2.04 ms), the prologue (1.67 ms) and flash (1.06 - 3.12 ms). In-chunk idle without the stall: 7.5 ms (3 us per
   dispatch). Between chunks: 0.01 ms (the host is ahead); the first chunk waits 7.2 ms (4k) for host set-up.
 - The row kernel is at about the bandwidth line (estimated bytes, not counted); the GEMMs are at 62 % of hipBLASLt.
+
+## 3. Levers picked and built (`INTARSIA_HIP_INK_PF2`, a bit mask; every bit keeps the output bits)
+
+From section 2, ms left per chunk, largest first: experts (~230 at the hipBLASLt line, ~85 at the 35B kernel's rate), attention
+(prologue 68, flash 64 / 108), the dispatch stall (53), GEMMs (20), blend (25). Picked, in the order of ms per hour of work:
+
+1. **The prologue's rel tail as its own pass** (bit 1, `ink_rel_table_k`). `ink_prologue_k` runs one block per (kv head, row)
+   and forms that block's G x E = 3072 rel entries with 16 relproj loads each: 100 MB of writes took most of its 1.67 ms. With
+   the bit, the prologue writes r into the first d_rel entries of each rel row (`F_R_ROW`) and returns; `ink_rel_table_k` (8 rows
+   per block, relproj columns held in registers) forms the rows with ink_rel_g's chain (from 0, j ascending, ffma) and rounds,
+   the same bits. Prefill calls only (T > 16).
+2. **Flash attention in pieces of query tiles under the stall line** (bit 2). A call estimated over 950 us runs as pieces of
+   consecutive query tiles cut by key tiles, highest first; a piece keeps >= 128 blocks or the call stays one launch. A block of a
+   piece is the block of the one launch with the same query tile (`qhi`). In practice the 40 sliding-window visits split in two;
+   the full-attention visits need more pieces than the block floor allows and stay one launch (8 stalls per chunk, ~2 ms).
+3. **The experts' down / gate_up in pieces of feature tiles** (bits 4 / 8; opt-in, see window 2 and 3) and the **OCC form** of
+   the experts kernel (bits 16 / 32: compiled for 8 waves per SIMD, gate_up's up accumulators on the activation tiles' LDS, as
+   the 35B's `moe_wmma_r7.h` kMwOcc). `INTARSIA_HIP_INK_PF2_ZP` sets the pair-tile blocks per expert (tuning).
+
+Not levers: the unembed (last row only), the gaps between chunks (0.01 ms), the row kernel (at the bandwidth line).
+
+## 4. Window 2: microbench, 4k A/B, bitwise tests (pf2a `4ad8a0f04`; fleetq #12046)
+
+Radiance down 12:11:43 - 12:12:47 (1:04). Binary pf2a (CPU job #12044, md5 `a1c3aaa8…`). Log `raw/window2-12046-unit.log`,
+stage `raw/stage_unit.sh`, profile split `raw/w2-split-mask7.txt`.
+
+- Bitwise (each against `INTARSIA_HIP_INK_PF2=0`): `pf2_bitwise_prefill` 140 attention cases (sliding / full, T 17 - 2048,
+  flash on and off, pieces at the default rule, at 700 us and one query tile each) and `ink_moe_pf2_pieces` 30 expert cases:
+  all equal.
+- Bench (2048 rows, wall per call back to back): prologue 2096 -> 920 us (sliding), 2205 -> 1026 (full); flash 2162 -> 1500
+  us (sliding at 2048: the stall gone), full at 2048 / 14336 unchanged (one launch).
+- 4k prefill, one process each: mask 0 2738 tok/s, 1 2891 (+5.6 %), 3 2923 (+6.8 %), 7 2835, 15 2642.
+- Bits 4 / 8 lost because the experts' MAC-rate constant was 1000x low: every down / gate_up ran as 18 pieces of one feature
+  tile (profile: down 792 launches of 155 us = 122.9 ms per chunk against 89.6). Fixed in pf2b (21e6 MAC per us: down 3 pieces,
+  gate_up 5) and re-measured in window 3. The profile at mask 7 also shows the rest working: prologue 29.6 ms + rel table 15.2
+  ms per chunk (80.1 before), flash 88 launches with no stall after the sliding ones, idle 27.3 ms (60.1).
