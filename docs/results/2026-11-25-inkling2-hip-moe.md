@@ -94,6 +94,7 @@ Branch `ink/hip-moe`, base origin/main `d8c3c7148` + `ink/hip` `6c5ee5d67` (lead
 | 6 | #11973 | 22:30:58 - 22:31:53, 55 s | 4:29 |
 | 7 (S2 window 1) | #11982 | 22:41:32 - 22:42:25, 53 s | 5:22 |
 | 8 (S2 window 2) | #11987 | 22:49:36 - 22:50:37, 61 s | 6:23 |
+| 9 (S2 evaluation) | #11990 | 22:57:14 - 23:00:38, 204 s | 9:47 |
 
 ## 1. Status
 
@@ -106,7 +107,7 @@ Branch `ink/hip-moe`, base origin/main `d8c3c7148` + `ink/hip` `6c5ee5d67` (lead
 | Decode speed round 2 (LDS by the call, load windows; windows 3 and 4) | NVFP4 T=1 81.6 us (439 GB/s, 70 %), T=16 623.5 us (587 GB/s, 94 %); MXFP8 T=1 122.6 us (536 GB/s, 85 %); bitwise |
 | Decode speed round 3 (in-wave grouping; window 5) | negative (88.3 against 81.6 us at T=1), kept opt-in |
 | Row-count rule, no regression against `29b71ac67` (window 6) | done: every T from 1 to 2048 is 11 % to 35 % faster, both formats; bitwise |
-| Prefill, S2 (bf16 WMMA on the pair table, ordinary names; windows 7 and 8) | done: NVFP4 T=2048 38.2 -> 6.2 ms per call, MXFP8 41.7 -> 4.9 ms; passes vs cpu-ref; not run in the model (admission, G2, end-to-end prefill) |
+| Prefill, S2 (bf16 WMMA on the pair table, ordinary names; windows 7 to 9) | done, OFF by default (`INTARSIA_HIP_INK_MOE_WMMA=1` turns it on): NVFP4 T=2048 39.6 -> 6.2 ms per call; in the model 4k prefill 652 -> 1614 tok/s at chunk 2048; admission and G2 pass with it on; default md5 equal to `ink/hip-speed` |
 
 ## 2. Design (kernels/hip/ink_moe.hip)
 
@@ -318,6 +319,45 @@ Open in S2:
 - Not run: admission (`intarsia kernels test --backend hip`), the sweep's T = 2048 real-shape cases against the cpu
   reference (`INK_MOE_BIG=1`), G2 and an end-to-end prefill measurement in the model.
 
+### S2 evaluation in the model (window 9, fleetq #11990; log `raw/window9-11990-eval.log`, stage `raw/stage-eval.sh`)
+
+Tree: `3ab1983fc` = this lane on `ink/hip-speed` `083e30f8f`; the tensor-core prefill is off by default (`kWmDefault = 0` in
+`ink_moe.hip`; setting it to 1 is the flip, and `INTARSIA_HIP_INK_MOE_WMMA=1` is the same thing per run: 64-pair tiles from
+16 pairs per expert). Inkling-2-Mini on one R9700 per stream, both cards used (card 0: 4k runs, admission; card 1: G2, 16k
+runs), `intarsia generate --spec off --ignore-eos`, one run per cell.
+
+Gates:
+
+| Gate | Result |
+|---|---|
+| Default (WMMA off) greedy text md5, 4k prompt, 64 tokens | `a7c6a2acedecfac21c77486444810c38` = `ink/hip-speed` and main (their value is the one recorded in #11986, not rerun here) |
+| Admission `kernels test --backend hip --op moe_experts`, WMMA on | `moe_experts_situ_bf16` 10 cases ADMITTED (max_abs 3.47e-3, rel_l2 2.08e-4), `_rows` 7 ADMITTED; the 35B kernels unchanged, ADMITTED |
+| Admission `--op moe_experts_mxfp8`, WMMA on | `moe_experts_mxfp8_bf16` 19 ADMITTED (3.38e-3, 2.43e-4), `_rows` 14 ADMITTED |
+| `ink_moe_matches_cpu_reference` with `INK_MOE_BIG=1`, WMMA on | passed; real shape T=2048: NVFP4 situ rel_l2 2.08e-4, MXFP8 situ 2.43e-4 |
+| G2 short (n = 569), 21-way KL, need <= 3.0e-2 | WMMA 2.566e-3 PASS; flash 4.491e-3 PASS; both 4.491e-3 PASS (off, from #11986: 2.566e-3) |
+| G2 long (n = 1569) | WMMA 3.286e-3 PASS; flash 4.521e-3 PASS; both 4.157e-3 PASS (off, from #11986: 3.251e-3) |
+
+G2 short is the same number with and without WMMA: no call of that run reaches the rule (it needs chunks of 256 rows).
+
+Prefill, tok/s (prefill ms):
+
+| Prompt, chunk | off | WMMA | flash | both |
+|---|---|---|---|---|
+| 4k (4228 tokens), default chunk 256 | 613.7 (6889) | 783.6 (5396) | 722.9 (5848) | 956.9 (4418) |
+| 4k, chunk 2048 | 651.9 (6485) | 1614.3 (2619) | 779.9 (5421) | 2687.4 (1573) |
+| 16k (16915 tokens), chunk 2048 | 578.7 (29229) | 1207.3 (14010) | 786.9 (21496) | 2793.0 (6056) |
+
+Decode is unchanged by either knob (69.7 - 70.5 tok/s after the 4k prompt).
+
+What the table does not say:
+- With WMMA on, the greedy text after the 4k prompt differs from the default within 64 tokens at chunk 256 (md5 `aa0a0ce6`,
+  both: `2252566a`) and within 8 tokens at chunk 2048; flash alone gives the default's text in these runs, and all four
+  settings give the same 8 tokens after the 16k prompt. Expected of a non-bitwise prefill, but it is a visible change.
+- 16k at the default chunk was not measured (window time). The 16k prompt is the 4k prompt four times over.
+- One run per cell; the 16k runs and G2 ran on card 1 while card 0 ran admission (its cpu reference loads the host).
+- At chunk 256 a call is exactly at the rule's threshold (16 pairs per expert), where the per-call gain was 5 %; the
+  end-to-end gain there is larger (614 -> 784 tok/s), which this lane has not explained.
+
 ### Knobs and integration notes (HANDOFF.md left the tree with the `ink/hip` merge)
 
 The first two change no bit of the output:
@@ -329,6 +369,6 @@ The first two change no bit of the output:
 
 ## 4. Next steps
 
-1. Lead: admission + G2 + end-to-end prefill with S2 in the model (this lane ran only its own unit tests and bench).
+1. User: the default flip (`kWmDefault = 1`), next to the attn lane's flash flip, from the table above.
 2. S2 speed: the occupancy variant and fragment skip of `moe_wmma.h`, then the `r7` variants; the call is weight-read bound.
 3. Not planned tonight: one launch for gate_up + down at decode (about 3 us of the 82 at T = 1).
