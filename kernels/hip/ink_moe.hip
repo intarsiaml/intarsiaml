@@ -1131,15 +1131,14 @@ int run(MoeArgs a, int out_f32, bool rows, const ik_scratch* sc, hipStream_t st)
     a.y = (ik_bf16*)((char*)a.h + rnd(P * a.I * 2));
     a.table = P > kDecPairs;
     a.probe = g_probe >= 3 ? g_probe : 0;
-    // the tensor-core prefill: ordinary names only, the pair-table path, reduction dims in 64-k blocks; never the first form
-    const int wm = a.table ? moe_wmma_pairs(P, a.E) : 0;
-    const bool on_wmma = a.table && !rows && wm != 0 && moe_lean() && a.H % kMwKB == 0 && a.I % kMwKB == 0;
     if (a.table) {
         if (P * 3 * 4 > P * a.I * 2) return IK_ERR_SHAPE;  // (the grouping's temporaries in h: I >= 6)
         ink_moe_group_kernel<<<1, 1024, 0, st>>>(a);
         IK_TRY(ik_launch_status());
     }
-    if (on_wmma) {
+    // the tensor-core prefill: ordinary names only, the pair-table path, reduction dims in 64-k blocks; never the first form
+    const int wm = a.table ? moe_wmma_pairs(P, a.E) : 0;
+    if (a.table && !rows && wm != 0 && moe_lean() && a.H % kMwKB == 0 && a.I % kMwKB == 0) {
         IK_TRY((launch_wmma<FMT, ACT>(a, wm, st)));
     } else {
         IK_TRY((launch_pair<FMT, ACT>(a, out_f32, st)));
