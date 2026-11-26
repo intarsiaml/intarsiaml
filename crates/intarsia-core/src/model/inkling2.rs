@@ -119,8 +119,10 @@ fn ink_route_fused_env() -> Option<bool> {
 /// (`Model::pack_min_rows`; lane ink-hip-bpf).
 pub(crate) const INK_ROWS_EXACT_MAX: usize = 16;
 
-/// The packed prefill default when `INTARSIA_INK_PACK` is unset (lane ink-hip-bpf, docs/results/2026-11-26-inkling2-hip-bpf.md).
-pub(crate) const INK_PACK_DEFAULT: bool = false;
+/// The packed prefill default when `INTARSIA_INK_PACK` is unset (lane ink-hip-bpf, docs/results/2026-11-26-inkling2-hip-bpf.md):
+/// on since window 9 (coordinator's rule: the pooled 4-stream filler TTFT p50 interval reaches 1 %; every stream bitwise its solo
+/// run). It applies only where packing can run: a batching engine (`serve --max-batch` > 1) on HIP or cpu (`Model::ink_pack_capable`).
+pub(crate) const INK_PACK_DEFAULT: bool = true;
 
 /// `INTARSIA_INK_PACK` (lane ink-hip-bpf): `1` packs several Inkling-2 prompts' prefill chunks into one pass in a batching engine
 /// (`serve --max-batch` > 1) on a backend with the segment-table `ConvMix`; `0` prefills them one by one. Unset:
@@ -134,7 +136,9 @@ pub(crate) fn ink_pack_on() -> bool {
     })
 }
 
-/// The packed-prefill workspace rows when `INTARSIA_INK_PACK_ROWS` is unset (lane ink-hip-bpf); 0: the prefill chunk's.
+/// The packed-prefill workspace rows when `INTARSIA_INK_PACK_ROWS` is unset (lane ink-hip-bpf); 0: the prefill chunk's. Not 4096
+/// by default: its +606 MiB comes out of the KV budget, and at the default `--kv-fraction` a B16 server's context is already
+/// clamped (2791 tokens with it, `--max-batch 16`, window 9). With `--kv-fraction 0.9` it costs no KV and gives the measured gains.
 pub(crate) const INK_PACK_ROWS_DEFAULT: usize = 0;
 
 /// `INTARSIA_INK_PACK_ROWS` (lane ink-hip-bpf): rows of the Inkling-2 workspace of a model loaded to batch with packed prefill on,

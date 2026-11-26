@@ -1347,7 +1347,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             if model.ink_pack_capable() {
                 eprintln!("inkling2 packed prefill: on, up to {} rows per pass, segments of {}+ rows", model.ink_pack_rows_max(), model.pack_min_rows());
             } else {
-                eprintln!("inkling2 packed prefill: off (INTARSIA_INK_PACK=1 turns it on where the backend has the segment-table ConvMix)");
+                eprintln!("inkling2 packed prefill: off (INTARSIA_INK_PACK=0, or no segment-table ConvMix on this backend)");
             }
         }
         Arc::new(intarsia_core::BatchedEngine::new(model, Arc::new(codec), meta, telemetry, bo)?)
