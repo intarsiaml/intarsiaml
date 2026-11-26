@@ -1,9 +1,28 @@
 # Inkling-2-Mini on HIP: the cost of a verify row, and the draft length (lane ink-hip-verify, 2026-11-26)
 
-Branch `ink/hip-verify` (worktree `.worktrees/ink-hip-verify`), base main `3226af2b9` (#528). Goal: make DSpark speculative decode
+Branch `ink/hip-verify` (worktree `.worktrees/ink-hip-verify`), base main `3226af2b9` (#528), main `80719483a` (#529, #530) merged before the gates. Goal: make DSpark speculative decode
 (default-on for Inkling-2-Mini on HIP since #527: cut 0.5, k3) faster on one R9700 (tatooine, gfx1201) by making the verify pass cheaper
 per row and by checking the draft length; greedy output stays identical to `--spec off`. Shared rules:
 `.worktrees/hip-swarm/COMMON-1126.md`.
+
+## Result
+
+| Inkling-2-Mini, one R9700 (tatooine card 0 / 1) | main (k3) | this branch (k4) | k4 / k3, 95 % CI (4 + 4 processes) |
+|---|---:|---:|---|
+| spec-default decode, short (12 golden prompts) | 103.67 tok/s | 105.48 | **1.018** [1.017-1.019] |
+| spec-default decode, 1k | 90.06 | 90.16 | 1.001 [1.000-1.002] |
+| spec-default decode, 4k | 114.97 | 121.81 | **1.059** [1.058-1.061] |
+| spec-default decode, 16k | 91.74 | 94.93 | **1.034** [1.034-1.035] |
+| plain decode (`--spec off`), short / 4k, 256 tokens | 76.86 / 74.04 | 76.81 / 74.04 | same code (`--spec off` does not read `mtp_default_k`) |
+
+- **Change:** `recipes/inkling2.toml` `[tuning.hip] mtp_default_k` 3 -> 4 (and the unit test that pins it). No kernel or engine code
+  changed (`kernels/` identical to main). Gates: greedy md5 = main at short / 4k x 64 / 256, spec off and default; verify probe rows
+  2..5 worst diff 0; tiny suites as on main; G2 short / long identical to main (section 5-6).
+- **Where a verify row goes** (section 1, kernel trace at 1-8 rows): at 4 rows the pass is 21.2 ms of kernels against 12.6 at 1 row.
+  The experts grow with their union's bytes at the kernels' own 1-row bandwidth (no row cost; an expert-slice split gained < 1 % and
+  was reverted, section 2). The row-dependent excess with a flat floor is the verify attention (+1.20 ms at 4 rows, one decode call
+  per row) and the loop blend (+0.85 ms, `kFuseRowsMax = 2`): lane ink-hip-batch's files, reported, not touched (section 3).
+- k5 is the alternative: 1.006 / 1.008 / 1.080 / 1.051, short within noise (section 4).
 
 ## Briefs received
 
@@ -201,3 +220,58 @@ intervals; k5 is a one-line alternative for the coordinator (numbers above). Pla
 
 Why HIP takes a longer draft than Metal (where k5 / k7 lost): a verify row costs ~2.3 ms against a 13.4 ms decode step here (section
 1: r / P ~0.17), against ~2.1 ms for a k3 draft (`2026-11-26-inkling2-hip-spec.md`).
+
+## 5. Window 4: the gates of k4
+
+fleetq #12164, radiance down 15:26:17-15:29:00 EST (**2:43**), both cards. Binaries: `main2` = main `80719483a` (built in CPU job
+#12153, md5 `2f41908f…`); `verify1` = this branch (main `80719483a` merged, `mtp_default_k = 4`; CPU job #12161, md5 `c15e9da0…`).
+Nothing set in the environment. Logs: `raw/window4-12164.log`, `raw/w4/`.
+
+1. **Greedy md5** (card 0; `generate --ignore-eos`, graphs, the text before `finish=`; `scripts/cmx/ids-prompts/short-0.txt`, `4k-0.txt`):
+
+| prompt, tokens | main2 `--spec off` | main2 spec default (k3) | branch `--spec off` | branch spec default (k4) |
+|---|---|---|---|---|
+| short, 64 | `04cdb28a6849…` | `04cdb28a6849…` | `04cdb28a6849…` | `04cdb28a6849…` |
+| short, 256 | `9a27c21b6fdc…` | `9a27c21b6fdc…` | `9a27c21b6fdc…` | `9a27c21b6fdc…` |
+| 4k, 64 | `2252566a5c54…` | `2252566a5c54…` | `2252566a5c54…` | `2252566a5c54…` |
+| 4k, 256 | `9675bbb95ada…` | `9675bbb95ada…` | `9675bbb95ada…` | `9675bbb95ada…` |
+
+   The spec-default runs name their default on stderr (`--spec-k 3` on main2, `--spec-k 4` on the branch). Short-0 / 64 is
+   `04cdb28a6849…`, the value of `2026-11-26-inkling2-hip-dec2.md`.
+2. **Verify probe** (card 1; `tests/verify_rows_real.rs`, the bitwise sections, rows 2..5 = k4 + 1, contexts 17 / 1024 / 4000 ids + 16
+   greedy windows): 122 rows, 0 windows with a diff, 0 argmax flips, **worst |logit diff| 0**; graphs on (6 captures, 220 replays,
+   17 spec captures, 76 spec replays).
+3. **hip tiny suites** (card 1, `INTARSIA_INKLING2_BACKEND=hip`, one thread, `--no-fail-fast`): `inkling2_dspark` 4 / 4,
+   `inkling2_dspark_cut` 1 / 1, `inkling2_verify_softcap` 1 / 1; `inkling2` 14 / 17, including `inkling2_tiny_rollback_by_length`
+   and `inkling2_tiny_verify_graph_replays_equal_decode_bitwise`. The three failures are main's (section 6): the screened-head tests
+   `inkling2_tiny_screened_head_one_row_only`, `inkling2_tiny_screen_keeps_batching` (HIP has no `HeadScreen` kernel: load refuses,
+   by design) and `inkling2_tiny_g1b_teacher_forced_bf16` (attention output 0.83 relative error at visit 0 in the tiny model's
+   teacher-forced prefill; the branch changes no prefill code). Admission (`kernels test`): no op touched (`kernels/` identical to main).
+4. **G2** (card 1, `accuracy --mode prefill`, oracle W4A16 goldens): short 21-way KL 4.491e-3 PASS, long 4.083e-3 PASS (1 top-1 miss
+   of 1206 confident rows), **identical for main2 and the branch**.
+5. CPU tests (job #12161): `load::dspark_default_tests::dspark_default_only_where_the_recipe_sets_it` (now pins HIP k4) ok;
+   `docs_env_vars` 2 / 2 ok.
+
+Plain decode (`--spec off`) in the md5 runs, single runs: short 256 76.86 (main2) / 76.81 (branch), 4k 256 74.04 / 74.04 tok/s; the
+spec default at 256 tokens: short 91.07 / 90.36, 4k 97.49 / 99.51 (single runs; the 4 + 4 table is section 4).
+
+## 6. Window 5: main's tiny suite
+
+fleetq #12171, radiance down 15:35:59-15:36:16 EST (**0:17**), card 0. Main `80719483a`'s `inkling2` test target (built from main's
+tree in CPU job #12168), the same command as the branch's in window 4: **14 passed, 3 failed, the same three**
+(`g1b_teacher_forced_bf16`, `screen_keeps_batching`, `screened_head_one_row_only`). So the branch's tiny results are main's.
+(Lane ink-hip-p12's window at 14:55 logged the same 14 / 3 on its builds.) Log: `raw/window5-12171.log`.
+
+## 7. Windows, jobs, radiance
+
+| window | fleetq | what | radiance down (EST) | down | total |
+|---|---|---|---|---:|---:|
+| 1 | #12118 | verify cost probe 1-8 rows, rocprofv3 kernel trace, k screen k3 / k4 / k5 / k7 | 14:22:36-14:26:22 | 3:46 | 3:46 |
+| 2 | #12133 | expert-slice probe, MoE bench (real-text unions), slice tests | 14:39:20-14:41:24 | 2:04 | 5:50 |
+| 3 | #12152 | draft length 4 + 4 ABBA, k3 / k4 / k5, ship path | 15:05:04-15:08:58 | 3:54 | 9:44 |
+| 4 | #12164 | gates of k4: md5, verify probe, tiny suites, G2 | 15:26:17-15:29:00 | 2:43 | 12:27 |
+| 5 | #12171 | main's tiny suite | 15:35:59-15:36:16 | 0:17 | **12:44** |
+
+Radiance answered after every window (15 s after the restart; checked with `/v1/models`). CPU jobs (tatooine `--load cpu`): #12110
+(seed volume, main `3226af2b9`), #12117 (probe dry run), #12131 (split1), #12147 (`--recipe` flag check), #12153 (main2), #12161
+(verify1 + test targets + cpu tests), #12168 (main's tiny test). Pushes (endor): #12162.

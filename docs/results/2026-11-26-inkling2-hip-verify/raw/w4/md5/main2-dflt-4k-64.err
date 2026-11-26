@@ -1,0 +1,13 @@
+--spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe inkling2, hip)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.1 s
+dspark: Markov fold [200058 x 256] in 2.3 s
+dspark: draft head mxfp4 [200058 x 2304] in 0.2 s
+dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 2.6 s
+--spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)
+speculative decoding: Dflash, up to 3 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_bf16_gemv_rows ink_attn_decode=ink_attn_decode_bf16 matmul=matmul_bf16_gemv_rows conv_mix=conv_mix_bf16 logits=logits_bf16_gemv_rows moe_route=moe_route moe_experts=moe_experts_situ_bf16_rows attn_res_mix=attn_res_mix_bf16 loop_blend=loop_blend_bf16 moe_experts_mxfp8=moe_experts_mxfp8_bf16_rows hc_pre=hc_pre_bf16 matmul=matmul_bf16_gemv qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 matmul=matmul_bf16 attn_decode=attn_decode_bf16_splitkv add=add_bf16 silu_glu=silu_glu_bf16 matmul_mxfp4=matmul_mxfp4_gemv logits=logits_bf16_gemv matmul_mxfp4=matmul_mxfp4_gemv_rows logits=logits_bf16 attn_decode=attn_decode_bf16_window argmax=argmax_f32
+loaded Inkling-2-Mini on AMD Radeon Graphics in 7.1s: 24 layers, hidden 2304, act bf16, kv bf16, weights 14.28 GB, context 8192 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+prompt: 4228 tokens
+finish=length prompt=4228 (cached 0) completion=64 | prefill 1372 ms (3081.3 tok/s) | decode 768 ms (82.06 tok/s)
+spec: verify passes=21 proposed=39 accepted=26 (acceptance 66.7%, 2.24 tokens per pass)
+steps=40 graph replays=37 (captures 4) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)

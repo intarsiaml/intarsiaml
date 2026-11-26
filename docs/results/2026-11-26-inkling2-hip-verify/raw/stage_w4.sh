@@ -14,6 +14,10 @@ rm -rf "$O"; mkdir -p "$O/md5"
 M=/models/Inkling-2-Mini
 BR=${BR:-verify1}; MAIN=${MAIN:-main2}; K=${K:-3}
 now() { date '+%T'; }
+# guard: the branch build job (build_branch.sh) finished: its binary and its last log exist
+if [ ! -x "$S/bin/intarsia-$BR" ] || [ ! -x "$S/bin/intarsia-$MAIN" ] || [ ! -s "$REPO/logs/test-docs-env.log" ]; then
+  echo "[stage] guard: $BR / $MAIN binary or the build's last log missing, not running"; exit 3
+fi
 r0() { HIP_VISIBLE_DEVICES=0 bash "$S/run.sh" "$@"; }
 r1() { HIP_VISIBLE_DEVICES=1 INK_CONTAINER=ink-hip-verify-run2 bash "$S/run.sh" "$@"; }
 PS="$(cat "$REPO/scripts/cmx/ids-prompts/short-0.txt")"
