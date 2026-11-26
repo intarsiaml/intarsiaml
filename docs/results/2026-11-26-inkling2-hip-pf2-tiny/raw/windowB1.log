@@ -1,0 +1,29 @@
+fleetq: #12222 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12221 "ink-hip-bpf: build b6 + test bins (packed dump diff) + main 80719483a tiny test bins, no GPU" (claude-04c0e1cd) loads it
+fleetq:   #12221 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12221 set, or it will wait for #12221 to be released.
+fleetq: #12222 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=25 bash ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/window.sh ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_b1.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_b1.sh; cap 25s; stopping radiance 2026-11-26 16:56:14
+[window] radiance stopped 2026-11-26 16:56:18 (inactive)
+G1B mask=151 r1 FAILED | v00.attn_out: rel err 8.361e-1 > budget 1.801e-2 [16:56:18]
+G1B mask=151 r2 FAILED | v00.attn_out: rel err 8.484e-1 > budget 1.801e-2 [16:56:19]
+G1B mask=0 r1 ok |  [16:56:19]
+G1B mask=0 r2 ok |  [16:56:20]
+G1B mask=150 r1 ok |  [16:56:20]
+G1B mask=150 r2 ok |  [16:56:21]
+G1B mask=149 r1 FAILED | v00.attn_out: rel err 8.452e-1 > budget 1.801e-2 [16:56:21]
+G1B mask=149 r2 FAILED | v00.attn_out: rel err 8.520e-1 > budget 1.801e-2 [16:56:22]
+G1B mask=147 r1 FAILED | v00.attn_out: rel err 8.488e-1 > budget 1.801e-2 [16:56:22]
+G1B mask=147 r2 FAILED | v00.attn_out: rel err 8.460e-1 > budget 1.801e-2 [16:56:23]
+G1B mask=135 r1 FAILED | v00.attn_out: rel err 8.399e-1 > budget 1.801e-2 [16:56:23]
+G1B mask=135 r2 FAILED | v00.attn_out: rel err 8.602e-1 > budget 1.801e-2 [16:56:24]
+G1B mask=23 r1 FAILED | v00.attn_out: rel err 8.435e-1 > budget 1.801e-2 [16:56:24]
+G1B mask=23 r2 FAILED | v00.attn_out: rel err 8.324e-1 > budget 1.801e-2 [16:56:25]
+G1B mask=1 r1 FAILED | v00.attn_out: rel err 8.400e-1 > budget 1.801e-2 [16:56:25]
+G1B mask=2 r1 ok |  [16:56:26]
+G1B mask=4 r1 ok |  [16:56:27]
+G1B mask=16 r1 ok |  [16:56:27]
+G1B mask=128 r1 ok |  [16:56:28]
+[stage] done 16:56:28 (10s)
+[window] stage done 2026-11-26 16:56:29 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 16:56:29
+[window] radiance answers 2026-11-26 16:56:39 (after 15 s)
+fleetq: #12222 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
