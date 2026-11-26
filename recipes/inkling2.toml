@@ -57,7 +57,8 @@ busy_chunk = 2048
 # sampled decode about 11-12 % faster (user decision 2026-11-22; docs/results/2026-11-21-inkling2-hostgap.md).
 # INTARSIA_GUMBEL_SAMPLING=0 reverts.
 gumbel_sampling = true
-# speculation with the checkpoint's own DSpark draft (mtp.safetensors) at k 3, gate 0.8, for greedy requests at one sequence
+# speculation with the checkpoint's own DSpark draft (mtp.safetensors) at k 3, cumulative cut 0.5 (was the per-step gate 0.8 until
+# lane ink-spec-cut, 2026-11-26; INTARSIA_DSPARK_TAU=0.8 restores it), for greedy requests at one sequence
 # (no --max-batch above 1, no prefix store): decode 1.12-1.28x at 141 / 1k / 4k / 16k prompt tokens, prefill within 0.5 %
 # (docs/results/2026-11-21-inkling2-mtp.md; user decision 5, 2026-11-22). The same key as CUDA's above: without [mtp], an Inkling-2
 # recipe's mtp_default_k is its DSpark draft's default. --spec off, INTARSIA_SPEC_DEFAULT=0, or delete this line turns it off.
