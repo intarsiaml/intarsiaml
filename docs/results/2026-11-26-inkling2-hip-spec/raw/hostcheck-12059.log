@@ -1,0 +1,20 @@
+fleetq: #12059 running on endor: bash .scratch/hostcheck2.sh
+[host] core dspark rule tests 12:32:27
+test model::dspark::rule_tests::cut_rule_backends ... ok
+test model::dspark::rule_tests::defaults_and_env_overrides ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 269 filtered out; finished in 0.00s
+[host] models load tests 12:32:29
+test load::dspark_default_tests::dspark_default_only_where_the_recipe_sets_it ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 79 filtered out; finished in 0.00s
+[host] models lib all 12:32:38
+dsv41: the tensor-parallel group failed (backend error: dsv41 engine worker panicked: scripted panic); aborting the communicator and marking the engine failed
+dsv41: the tensor-parallel group failed (backend error: dsv41 engine worker panicked: scripted panic); aborting the communicator and marking the engine failed
+test result: ok. 80 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.35s
+[host] recipe tests (core lib all) 12:32:43
+test result: ok. 267 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 19.52s
+[host] hip type-check 12:33:02
+check exit 0
+[host] docs_env_vars 12:33:11
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+[host] done 12:33:20
+fleetq: #12059 done (exit 0)

@@ -653,13 +653,14 @@ impl Model {
 
     /// Whether [`Model::forward_verify`] can run its `q` rows on `st` as the replay of a captured verify-only pass: graphs
     /// usable, a backend whose verify attention is one decode call per row at a device position (so the recording names no
-    /// position; HIP or CUDA), one rank, and `INTARSIA_VERIFY_GRAPH=1` (default off). The eager pass and the replay launch the same ops on
+    /// position; HIP or CUDA), one rank, and `INTARSIA_VERIFY_GRAPH` on (`verify_graph_env`: default on for Inkling-2 on CUDA and HIP only). The eager pass and the replay launch the same ops on
     /// the same kernels in the same order, so their outputs are bitwise equal (`tests/verify_rows_real.rs` checks it on the
     /// real model).
     pub(super) fn verify_graph_ok(&self, st: &SequenceState, q: usize, profile: bool) -> bool {
         !profile
-            // unset: on for Inkling-2 on CUDA (lane ink-cuda-mtp; bitwise the eager pass), off elsewhere; `0` off, `1` on
-            && verify_graph_env().unwrap_or(self.ink.is_some() && self.backend.name() == "cuda")
+            // unset: on for Inkling-2 on CUDA (lane ink-cuda-mtp) and HIP (lane ink-hip-spec; bitwise the eager pass), off elsewhere;
+            // `0` off, `1` on
+            && verify_graph_env().unwrap_or(self.ink.is_some() && matches!(self.backend.name(), "cuda" | "hip"))
             && self.graphs.usable(self)
             && self.graphs.spec_fail.load(Ordering::Relaxed) < SPEC_CAPTURE_FAILURES_MAX
             // Inkling-2 runs no AttnPrefill / AttnDecode: its verify attention is the rows-exact InkAttnDecode at the device
@@ -766,8 +767,8 @@ fn spec_graph_tp_env_on() -> bool {
 }
 
 /// `INTARSIA_VERIFY_GRAPH`: `1` turns the captured verify-only pass on, `0` off; unset = the model's default (on for Inkling-2
-/// on CUDA, lane ink-cuda-mtp; off elsewhere: at tp=1 on HIP it gains 0.2-2% over the eager pass, lane dfh window 3, and
-/// default-on there is decided at tp=2 from an interleaved measurement), read once.
+/// on CUDA, lane ink-cuda-mtp, and on HIP, lane ink-hip-spec; off elsewhere: for the Qwen models at tp=1 on HIP it gains 0.2-2%
+/// over the eager pass, lane dfh window 3, and default-on there is decided at tp=2 from an interleaved measurement), read once.
 fn verify_graph_env() -> Option<bool> {
     static ON: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var("INTARSIA_VERIFY_GRAPH").ok().map(|v| v == "1"))

@@ -1266,7 +1266,13 @@ impl Model {
         let mut vl = vec![0u8; ids.len() * v * 4];
         self.backend.download(&self.ws.logits, 0, &mut vl, 0)?;
         st.truncate(len0, &*self.backend)?;
-        let vl: Vec<f32> = vl.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+        let mut vl: Vec<f32> = vl.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+        // the verify head leaves pre-softcap logits in `ws.logits`; a decode step's readback is capped (`Model::softcap_logits`,
+        // Gemma-2 and Inkling-2; a no-op for every other model), so cap the verify rows the same way before comparing (lane
+        // ink-hip-spec: uncapped, every Inkling-2 row "differed" by up to 37 with the argmax equal)
+        for row in vl.chunks_exact_mut(v).take(ids.len()) {
+            self.softcap_logits(row);
+        }
         Ok(steps
             .iter()
             .enumerate()

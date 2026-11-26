@@ -22,8 +22,11 @@ fn backend() -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
         #[cfg(target_os = "macos")]
         Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
+        Ok("cuda") => intarsia_backend_cuda::create(0).unwrap(),
+        // lane ink-hip-spec: one R9700 (HIP_VISIBLE_DEVICES picks the card)
+        Ok("hip") => intarsia_backend_hip::create(0).unwrap(),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
-        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or metal"),
+        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal, cuda or hip"),
     }
 }
 

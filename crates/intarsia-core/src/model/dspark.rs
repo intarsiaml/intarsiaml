@@ -35,25 +35,37 @@ const MIX_ROWS: usize = 512;
 /// Metal's default rule (lane ink-spec-cut, docs/results/2026-11-26-inkling2-spec-cut.md): no per-step gate (`INTARSIA_DSPARK_TAU`
 /// unset = 0) and the cumulative cut (`INTARSIA_DSPARK_CUT`) 0.5: stop drafting once the product of the kept drafts' top-1
 /// probabilities is below it, with k3. Before it Metal ran the gate 0.8 (k3 the fastest gate measured, #10874: 80.6 tok/s greedy
-/// against 80.5 at 0.6, docs/results/2026-11-21-inkling2-mtp.md); `INTARSIA_DSPARK_TAU=0.8` alone restores it.
+/// against 80.5 at 0.6, docs/results/2026-11-21-inkling2-mtp.md); `INTARSIA_DSPARK_TAU=0.8` alone restores it. HIP takes the same
+/// rule (lane ink-hip-spec, docs/results/2026-11-26-inkling2-hip-spec.md: on one R9700 the cut beat the gate 0.8 at every length).
 const CUT_DEFAULT_METAL: f32 = 0.5;
+/// Whether `backend` defaults to the cut rule ([`CUT_DEFAULT_METAL`], no per-step gate): Metal (lane ink-spec-cut) and HIP (lane
+/// ink-hip-spec).
+fn cut_rule_default(backend: &str) -> bool {
+    matches!(backend, "metal" | "hip")
+}
 /// Default per-step gate of every other backend (CUDA, cpu), unmeasured against the cut: 0.8, no cut.
 const TAU_DEFAULT: f32 = 0.8;
 
-/// The draft's stopping rule `(tau, cut)` from the backend and the two environment values (`INTARSIA_DSPARK_TAU`,
-/// `INTARSIA_DSPARK_CUT`; `None`: unset or unparsable). Metal, neither set: the cut default. TAU set, CUT not: that gate alone (the
-/// old rule). CUT set: it (`<= 0`: off). Other backends: TAU 0.8 unless set, the cut only when set.
-fn draft_rule(metal: bool, tau_env: Option<f32>, cut_env: Option<f32>) -> (f32, Option<f32>) {
+/// The draft's stopping rule `(tau, cut)` from the backend's default ([`cut_rule_default`]: Metal and HIP) and the two environment
+/// values (`INTARSIA_DSPARK_TAU`, `INTARSIA_DSPARK_CUT`; `None`: unset or unparsable). A cut backend, neither set: the cut default. TAU
+/// set, CUT not: that gate alone (the old rule). CUT set: it (`<= 0`: off). Other backends: TAU 0.8 unless set, the cut only when set.
+fn draft_rule(cut_backend: bool, tau_env: Option<f32>, cut_env: Option<f32>) -> (f32, Option<f32>) {
     let cut = match cut_env {
         Some(c) => Some(c).filter(|c| *c > 0.0),
-        None => (metal && tau_env.is_none()).then_some(CUT_DEFAULT_METAL),
+        None => (cut_backend && tau_env.is_none()).then_some(CUT_DEFAULT_METAL),
     };
-    (tau_env.unwrap_or(if metal { 0.0 } else { TAU_DEFAULT }), cut)
+    (tau_env.unwrap_or(if cut_backend { 0.0 } else { TAU_DEFAULT }), cut)
 }
 
 #[cfg(test)]
 mod rule_tests {
-    use super::draft_rule;
+    use super::{cut_rule_default, draft_rule};
+
+    #[test]
+    fn cut_rule_backends() {
+        assert!(cut_rule_default("metal") && cut_rule_default("hip"), "Metal (ink-spec-cut) and HIP (ink-hip-spec): the cut");
+        assert!(!cut_rule_default("cuda") && !cut_rule_default("cpu"), "CUDA and cpu: the gate 0.8");
+    }
 
     #[test]
     fn defaults_and_env_overrides() {
@@ -461,7 +473,7 @@ pub(super) fn load(
     }
     dflare.push(norm_w("markov_head.dflare_norm.weight", h)?);
     let env_f32 = |k: &str| std::env::var(k).ok().and_then(|v| v.trim().parse::<f32>().ok());
-    let (tau, cut) = draft_rule(b.name() == "metal", env_f32("INTARSIA_DSPARK_TAU"), env_f32("INTARSIA_DSPARK_CUT"));
+    let (tau, cut) = draft_rule(cut_rule_default(b.name()), env_f32("INTARSIA_DSPARK_TAU"), env_f32("INTARSIA_DSPARK_CUT"));
     let ds = Dspark {
         c: c.clone(),
         layers,
