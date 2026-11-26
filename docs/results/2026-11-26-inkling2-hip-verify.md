@@ -21,7 +21,7 @@ per row and by checking the draft length; greedy output stays identical to `--sp
   pass, k5's geomean is higher), and the unit test that pins it. No kernel or engine code changed (`kernels/` identical to main).
 - Gates run: greedy md5 = main (k4 binary, window 4), verify probe rows 2..5 worst diff 0, tiny suites and G2 as on main; window 6:
   ids of all 12 processes (k3 / k4 / k5, 16 prompts x 128 tokens) identical, so the k5 default's output is k3's and `--spec off`'s.
-  Not yet run on the k5 binary: the md5 runs and the probe's row 6 (section 8).
+  The k5 build's own gates (window 7): probe rows 2..6 worst diff 0, md5 = main in all eight runs, tiny suites as on main (section 8).
 - **Where a verify row goes** (section 1, kernel trace at 1-8 rows): at 4 rows the pass is 21.2 ms of kernels against 12.6 at 1 row.
   The experts grow with their union's bytes at the kernels' own 1-row bandwidth (no row cost; an expert-slice split gained < 1 % and
   was reverted, section 2). The row-dependent excess with a flat floor is the verify attention (+1.20 ms at 4 rows: op 75 runs a
@@ -310,6 +310,7 @@ tree in CPU job #12168), the same command as the branch's in window 4: **14 pass
 | 4 | #12164 | gates of k4: md5, verify probe, tiny suites, G2 | 15:26:17-15:29:00 | 2:43 | 12:27 |
 | 5 | #12171 | main's tiny suite | 15:35:59-15:36:16 | 0:17 | **12:44** (brief 1's budget) |
 | 6 | #12180 | k3 / k4 / k5 4 + 4 on the merged head (brief 2, part 1: <= 7 min) | 15:42:19-15:46:17 | 3:58 | 16:42 |
+| 7 | #12192 | the k5 build's gates (card 1) + lane ink-hip-vrow's first measurements (card 0; part 2's budget) | 16:05:24-16:08:23 | 2:59 | 19:41 |
 
 Radiance answered after every window (15 s after the restart; checked with `/v1/models`). CPU jobs (tatooine `--load cpu`): #12110
 (seed volume, main `3226af2b9`), #12117 (probe dry run), #12131 (split1), #12147 (`--recipe` flag check), #12153 (main2), #12161
@@ -334,10 +335,17 @@ t-interval lower bound >= 1.000); (b) >= +2 % at >= 2 lengths with lower bounds 
 geometric mean: **k5** (1.036 against 1.028). #534 now ships `mtp_default_k = 5` (recipe line + the pin test
 `dspark_default_only_where_the_recipe_sets_it`).
 
-Still to run on the k5 binary (`verify2`, CPU job #12183, md5 `c3a8ad40…`; the pin test and `docs_env_vars` pass in that job): the md5 runs (short / 4k x 64 / 256, spec default, against main) and the
-verify probe's row 6 (rows 2..6; rows 2..5 passed in window 4). The ids above already show k5's default output equals k3's and `--spec
-off`'s on 16 prompts; the probe and md5 runs go into the follow-up lane's first window (brief 2 part 2's budget) unless the coordinator
-wants them before merging #534.
+**The k5 build's gates** (window 7, fleetq #12192, radiance down 16:05:24-16:08:23 EST, **2:59**, card 1; the window was lane
+ink-hip-vrow's first and is counted against brief 2 part 2's budget; logs `raw/window7-12192.log`, `raw/w7/`). Binary `verify2` (CPU job
+#12183, md5 `c3a8ad40…`) and its test executables, saved from the volume before the next build:
+- Verify probe, bitwise sections, rows 2..6 (= k5 + 1) at 17 / 1024 / 4000 ids + 16 greedy windows: 156 rows, 0 windows with a diff,
+  0 argmax flips, **worst |logit diff| 0**.
+- Greedy md5, `--spec off` and the spec default (which names `--spec-k 5`), short-0 / 4k-0 x 64 / 256: `04cdb28a6849…`,
+  `9a27c21b6fdc…`, `2252566a5c54…`, `9675bbb95ada…`, **all eight equal to main2's** (window 4).
+- hip tiny suites: `inkling2_dspark` 4 / 4, `inkling2_dspark_cut` 1 / 1, `inkling2_verify_softcap` 1 / 1, `inkling2` 14 / 17 with
+  main's three failures (section 6).
+- The pin test and `docs_env_vars` passed in CPU job #12183. G2 is a prefill mode and does not read `mtp_default_k` (window 4's
+  values hold).
 
 Correction to sections 1 and 3: the verify attention is not "one decode call per row". Op 75 (`ink_attn_decode_bf16`) takes all 1..16
 verify rows in one dispatch per visit (the trace's dispatch count is flat from 3 to 8 rows); its fused kernel's grid has a block row
