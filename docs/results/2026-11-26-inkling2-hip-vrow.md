@@ -9,20 +9,22 @@ Tatooine side: the lane folder and cargo volume of ink-hip-verify (`~/intarsiaml
 
 ## Result
 
-| Inkling-2-Mini, one R9700, spec-default decode (main's recipe, k3; 4 + 4 processes ABBA) | main | this branch | ratio, 95 % CI |
+| Inkling-2-Mini, one R9700, spec-default decode (main's recipe since #534, k5; 4 + 4 processes ABBA, window 10, merged binary `vrow3`) | main rules | this branch | ratio, 95 % CI |
 |---|---:|---:|---|
-| short (12 golden prompts) | 103.66 tok/s | 104.00 | 1.003 [1.002-1.005] |
-| 1k | 90.05 | 92.16 | **1.023** [1.022-1.025] |
-| 4k | 114.94 | 117.81 | **1.025** [1.024-1.026] |
-| 16k | 91.75 | 93.78 | **1.022** [1.020-1.024] |
+| short (12 golden prompts) | 104.46 tok/s | 104.68 | 1.003 [1.002-1.004] |
+| 1k | 91.12 | 93.00 | **1.022** [1.016-1.028] |
+| 4k | 124.47 | 127.12 | **1.023** [1.019-1.027] |
+| 16k | 96.51 | 98.56 | **1.023** [1.019-1.026] |
+| at k3 (window 9, `vrow2`, base `12c6c78ac`) | 103.66 / 90.05 / 114.94 / 91.75 | 104.00 / 92.16 / 117.81 / 93.78 | 1.003 / **1.023** / **1.025** / **1.022** |
 | verify pass at 1k, 4 / 5 rows (probe) | 22.38 / 24.77 ms | 21.49 / 23.63 ms | -4.0 % / -4.6 % |
 
 - **Change, bitwise:**
   - The loop blend keeps the fused row-kernel launch up to 8 rows (was 2); the fused norm stays at 2 rows.
   - Op 75 takes its fused kernel for 1-row calls only; verify passes take its split path.
   - Both are existing forms with the same bits, now chosen by rows. Env knobs `INTARSIA_HIP_INK_BLEND_FUSE`, `INTARSIA_HIP_INK_DEC_FUSED_ROWS`; revert `=2` / `=16`.
-- **Gates** (section 3): verify probe rows 2..8 worst diff 0; md5 = main x 8; hip tests incl. `ink_rows` pass; admission 0 FAIL;
-  G2 identical; tiny suites as on main.
+- **Gates** (section 3, on `vrow2`): verify probe rows 2..8 worst diff 0; md5 = main x 8; hip tests incl. `ink_rows` pass; admission 0 FAIL;
+  G2 identical; tiny suites as on main. On the merged binary `vrow3` (window 10): md5 = main at short / 4k, 64 tokens, spec default (k5)
+  and `--spec off` (4 runs).
 - **Lever 1 as asked** (a multi-row op 75 form sharing the K / V reads) was not built: the 4k trace shows the per-row cost is per-row work, not K / V
   bytes (section 2).
 
@@ -165,13 +167,32 @@ ink-hip-verify window 4); no plain ABBA was run.
 blend (S 1 and 3) at 1 / 2 / 3 / 5 / 16 sequences against the solo T = 1 calls and passed on `vrow2` (window 8). Its speed was not
 measured. The row-table attention (`ink_attn_decode_bf16_rows`) has its own launcher and keeps the fused kernel.
 
+## 4b. Window 10: the merged binary at main's k5 (4 + 4 processes, same binary)
+
+fleetq #12217, radiance down 16:46:50-16:49:50 EST (**3:00**), both cards. Binary `vrow3` = this branch merged with main `b7450223e`
+(#534: built-in HIP `mtp_default_k = 5`; every process logs "up to 5 drafts"). Same protocol as window 9: arm **new** = the defaults,
+arm **main** = the revert env, spec default with no `--spec` / `--recipe` / TAU / CUT env, speed.json, 128 tokens, ABBA per card
+(`raw/w10/speed-k5.txt`, `raw/w10/c0.log`, `raw/w10/c1.log`).
+
+| spec-default decode, k5 | short (12) | 1k | 4k | 16k |
+|---|---:|---:|---:|---:|
+| main rules (tok/s, median of 4) | 104.46 | 91.12 | 124.47 | 96.51 |
+| new rules | 104.68 | 93.00 | 127.12 | 98.56 |
+| **new / main (4 + 4)** | **1.003** [1.002-1.004] | **1.022** [1.016-1.028] | **1.023** [1.019-1.027] | **1.023** [1.019-1.026] |
+
+Ids identical in all 8 processes, spec counters equal arm for arm (694 passes, 2177 proposed, 1161 accepted, 53.3 %). The brief's bar
+holds at k5 too: no length slower, >= +2 % with the CI lower bound above 1.0 at 1k, 4k and 16k. Gate-1 md5 on `vrow3`, 64 tokens,
+greedy: short `04cdb28a6849728e8aa5be39bf65c07e` and 4k `2252566a5c54cf52cb564bd214c9af2b`, spec default and `--spec off` alike,
+equal to main's (`verify2` = #534's code, window 7) and to `vrow2`'s (window 8).
+
 ## 5. Windows, jobs, radiance
 
 | window | fleetq | what | radiance down (EST) | down | part 2 total |
 |---|---|---|---|---:|---:|
 | 7 | #12192 | bench, probe sweeps, 4k trace (card 1 also PR #534's k5 gates) | 16:05:24-16:08:23 | 2:59 | 2:59 |
 | 8 | #12197 | gates of vrow2 | 16:13:27-16:16:34 | 3:07 | 6:06 |
-| 9 | #12198 | speed 4 + 4 (+ k5 2 + 2) | 16:17:04-16:21:00 | 3:56 | **10:02** of 15:00 |
+| 9 | #12198 | speed 4 + 4 (+ k5 2 + 2) | 16:17:04-16:21:00 | 3:56 | 10:02 |
+| 10 | #12217 | merged `vrow3`: k5 speed 4 + 4, gate-1 md5 short / 4k | 16:46:50-16:49:50 | 3:00 | **13:02** of 15:00 |
 
 Radiance answered 15 s after each restart (`/v1/models` checked). CPU jobs on tatooine (`--load cpu`): #12190 (vrow1, saving
 verify2's test executables), #12196 (vrow2 + test targets).
@@ -181,6 +202,6 @@ verify2's test executables), #12196 (vrow2 + test targets).
 as before the merge, apart from `verify_rows_real.rs`, whose timing knobs both branches carried and which is now main's copy. Checks
 on the merged tree, no GPU: tatooine #12205 (`--load cpu`) builds `vrow3` (md5 `9d2ba4dc44263671de42380d9a9bd768`) and the hip test
 targets `ink_mix` / `ink_attn` / `ink_rows` plus `verify_rows_real`, and `docs_env_vars` passes (2/2); endor #12206 (prepush:
-`docs_env_vars`, `recipes_doc`) and #12212 (`intarsia-models --lib dspark_default`, 1/1) pass. The gates and speed above were
-measured on `vrow2` (base `12c6c78ac`, k3, plus a k5 leg); not rerun on `vrow3`: the merge adds only #534's recipe k change and
-its tests, which window 9's k5 leg already measured with this change (1.003 / 1.021 / 1.023 / 1.023).
+`docs_env_vars`, `recipes_doc`) and #12212 (`intarsia-models --lib dspark_default`, 1/1) pass. The merge adds only #534 (the recipe k change
+and its tests). Window 10 measured `vrow3` at k5 (section 4b); the probe, hip tests, admission, tiny suites and G2 were run on `vrow2`
+(window 8) and not rerun, since the kernel and crate code is the same.
