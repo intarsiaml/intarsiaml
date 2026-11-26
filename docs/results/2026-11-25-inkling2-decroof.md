@@ -1,7 +1,8 @@
 # Inkling-2-Mini Metal decode toward the bandwidth floor (lane ink-decroof, 2026-11-25)
 
 Status: step 0 done; fresh profile of main done; CONV_PRE (1760c5228) and BIAS_PRE / BIAS_EARLY (bb8457ccf) built and
-bitwise on every gate (#11936); A/B #11941 running. Branch `ink/decroof` from
+bitwise on every gate (#11936); A/B #11941 done: BIAS_PRE default on (7bab2fa92, +1.3 %), BIAS_EARLY stays off, CONV_PRE
+borderline at 143 (follow-up #11981 queued). Branch `ink/decroof` from
 origin/main d8c3c7148 (includes #496: DSpark k=3 default on Metal, so `--spec off` is plain decode), worktree
 `.worktrees/ink-decroof`. Not pushed.
 
@@ -109,7 +110,8 @@ at 143 and the median is >= 1.0 at 1k and 4k.
 |---|---|---|
 | #11930 | build base d8c3c7148 (md5 c887ead6), cand 84bd490dd (= bb8457ccf code; 277c7697), diag (cand + the arm patch; 17cfcf8c), each its own target dir; test binaries; docs_env_vars 2 / 2 (`--load cpu`, 22:07-22:09) | done |
 | #11936 | gates (ids, Metal tests, G2) + fresh profile of main (exclusive, 22:10-22:17) | done, all pass |
-| #11941 | A/B: within-process 4 arms x 3 processes + cross-process ABBA 6 x 2 (exclusive, from 22:17) | running |
+| #11941 | A/B: within-process 4 arms x 3 processes + cross-process ABBA 6 x 2 (exclusive, 22:17-22:38) | done |
+| #11981 | A2: within-process A / E (BIAS_PRE alone) / C (both), 3 processes; tip build, ids vs base, docs_env_vars, attn tests | queued |
 
 Diag patch (`.scratch/diag`, never committed): `generate --prompt-ids` reads `INTARSIA_DIAG_ARMS` (one letter per prompt) and
 sets the Switch overrides before each prompt: A all off, B CONV_PRE, C + BIAS_PRE, D + BIAS_EARLY; it prints per prompt how
@@ -164,3 +166,34 @@ projections and head at the floor. The ranking is unchanged: controllers, attent
   self-goldens are byte-equal to the base's (stcmp EQUAL, both).
 - First timing signal (one run each, not the A/B): `--spec off` base 73.1 / 70.5 / 71.3 tok/s, cand 77.3 / 74.8 / 72.2; in
   the diag process arm C/D prompts ran 63-69 tok/s against 71-77 for A/B, a hint that BIAS_PRE is slower. The A/B decides.
+
+## A/B (#11941, 22:17-22:38; `raw/jobA.log`)
+
+Within one process (diag binary, arms set per prompt through the Switch overrides; 7 cycles ABCD / DCBA x 143 / 1k / 4k, cycle 0
+dropped, 3 processes = 18 pairs per comparison and length; `--spec off`, 256 greedy tokens, `--ignore-eos`). Paired ratio of
+decode tok/s, median, bootstrap 95 % CI, pairs above 1, per-process medians:
+
+| comparison | 143 | 1k | 4k |
+|---|---|---|---|
+| B / A (CONV_PRE) | 1.0050 [0.9950-1.0079], 12 / 18, (0.998 1.005 1.007) | 1.0064 [1.0018-1.0108], 14 / 18 | 1.0065 [1.0041-1.0142], 14 / 18 |
+| C / B (BIAS_PRE on top) | **1.0136 [1.0069-1.0173]**, 14 / 18, (1.009 1.014 1.016) | **1.0131 [1.0082-1.0218]**, 16 / 18 | **1.0133 [1.0093-1.0165]**, 17 / 18 |
+| D / C (BIAS_EARLY on top) | 1.0047 [1.0022-1.0134], 15 / 18 | 0.9969 [0.9876-1.0023], 6 / 18 | 1.0017 [0.9968-1.0053], 10 / 18 |
+| C / A (both, vs main's code paths) | **1.0182 [1.0081-1.0221]** | **1.0237 [1.0167-1.0257]** | **1.0201 [1.0140-1.0267]** |
+
+Arm medians (tok/s): 143 A 77.01, B 76.85, C 76.96, D 78.53; 1k A 73.98, B 74.11, C 75.22, D 74.69; 4k A 71.95, B 72.35,
+C 73.06, D 73.36. Within a process the arms spread 70-79 tok/s (the fast / slow mode moves every arm of a cycle together),
+so the arm medians are noisier than the paired ratios; the per-process ratio medians agree within ~0.5 %.
+
+Cross-process ABBA (base binary d8c3c7148 vs cand = CONV_PRE on, BIAS_PRE then off; 6 processes each, the three prompts per
+process): the first five processes ran in the slow mode (63-69 tok/s), the last seven in the fast one (72-77), so the
+spread (143: base 65.1-77.5, cand 68.5-77.1) is ~10x the effect. cand / base by median: 0.987 at 143, 1.030 at 1k, 1.051 at
+4k; restricted to the seven fast-mode processes, 143 is base 76.7-77.5 vs cand 75.5-77.1. Nothing here resolves a 0.5-1 %
+effect; it does not contradict the within-process result beyond the process spread.
+
+Decisions by the pre-registered rules:
+- **BIAS_PRE: default on** (7bab2fa92). C / B's CI lies above 1 at all three lengths. `INTARSIA_INK_BIAS_PRE=0` reverts.
+- **BIAS_EARLY: stays off.** Its 1k median is below 1.0.
+- **CONV_PRE: the rule is not met at 143** (CI 0.995-1.008 includes 1; +0.6 % with CIs above 1 at 1k and 4k). By the rule
+  its default would go off, but that leaves BIAS_PRE without CONV_PRE, a combination no arm timed. #11981 times exactly
+  that (A all off / E BIAS_PRE alone / C both, same within-process method): CONV_PRE stays on only if C / E's CI lies above
+  1 at 143 and its median is >= 1.0 at 1k and 4k; otherwise its default goes off and E is the shipped state.
