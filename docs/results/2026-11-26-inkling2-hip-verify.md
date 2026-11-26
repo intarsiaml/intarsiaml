@@ -158,3 +158,46 @@ A fix needs a deterministic numbering pass in `group_pairs` for a gain below 1 %
 What this means for the experts: the decode / rows kernels already run a multi-row call at the 1-row bandwidth (445 GB/s at T = 1,
 464-480 at T = 2..6 in the bench). A verify row costs its union's bytes; making that cheaper means raising the kernels' base rate
 (470 of ~600 GB/s attainable), which is decode work as much as verify work, or fewer distinct experts per pass (drafter side).
+
+## 3. Stop and report: the verify-row levers are in lane ink-hip-batch's files
+
+The brief's step 2 condition: the largest row-dependent excess with a flat byte floor is in attention and the loop blend, both owned by
+lane ink-hip-batch (`kernels/hip/ink_attn*.hip`, `kernels/hip/ink_mix*.hip`). Nothing in those files was changed here. The numbers
+for their owner (window 1, 1021-id context, kernel time per pass, ms):
+
+| lead | 1 row | 2 | 3 | 4 | 6 | 8 | what it is | likely gain at 3-4 rows |
+|---|---:|---:|---:|---:|---:|---:|---|---|
+| verify attention `ink_attn_dec_k` (+ `_s1_k`, comb, prologue) | 0.96 | 1.40 | 1.81 | 2.17 | 2.96 | 3.60 | one decode call per row (`ink_attn_decode_bf16` rows-exact), +0.37 ms a row, each row reading the 1k context's K / V again | a row-batched rows-exact form reading K / V once: up to ~0.8 / 1.1 ms a pass |
+| loop blend (`ink_blend_gate`, from 3 rows `ink_ctl_gemv_kernel` + `ink_blend_norm`) | 0.36 | 0.46 | 1.04 | 1.21 | 1.56 | 1.90 | `ink_mix.hip` `kFuseRowsMax = 2`: 3+ rows leave the fused launch, +96 dispatches a pass | the fused form up to 4 (or 8) rows: ~0.55 / 0.7 ms a pass |
+
+A k3 pass verifies 3.44 rows on average (W1 screen), so the two leads are worth ~1.3-1.8 ms of a ~20 ms pass (6-9 %), more at
+larger k. Neither the experts (section 2: the kernels already run multi-row calls at their 1-row bandwidth) nor route / spec ops in
+this lane's files hold a comparable row cost.
+
+## 4. Window 3: the draft length on the ship path (4 + 4 processes)
+
+fleetq #12152, radiance down 15:05:04-15:08:58 EST (**3:54**), both cards. Binary `main` (main `3226af2b9`; main `80719483a`, #529
+merged meanwhile, changes no solo-decode code: its results doc, "solo device code = main's"). No `--spec`, no TAU / CUT env: the spec
+default (DSpark, cut 0.5) with the recipe's `[tuning.hip] mtp_default_k` from `--recipe` copies of `recipes/inkling2.toml` (k3 verbatim;
+k4 / k5 with only that line changed). Card 1's k3 arm ran with the built-in recipe (no `--recipe`): its counters equal card 0's
+verbatim-copy k3 arm, so the copy is the default path. speed.json = a warm-up + the 12 short golden prompts + 1021 / 4108 / 16455
+ids, 128 tokens, greedy, EOS honoured. Order ABCCBA per card (card 0 k3 k5 k4 k4 k5 k3, card 1 k4 k3 k5 k5 k3 k4): 4 processes per
+arm, 2 per card. Ratio per (prompt, process) to the k3 process of the same card and rep, geometric mean per class; 95 % CI: t over the
+4 processes [bootstrap over processes x prompts] (`raw/w3/speed-analysis.txt`, logs `raw/window3-12152.log`, `raw/w3/`).
+
+| decode, arm / k3 | short (12) | 1k | 4k | 16k | tokens / pass |
+|---|---:|---:|---:|---:|---:|
+| k3 (103.7 / 90.1 / 115.0 / 91.7 tok/s) | 1 | 1 | 1 | 1 | 2.46 |
+| **k4** | **1.018** [1.017-1.019; 1.010-1.027] | 1.001 [1.000-1.002] | **1.059** [1.058-1.061] | **1.034** [1.034-1.035] | 2.61 |
+| k5 | 1.006 [1.006-1.007; 0.998-1.015] | 1.008 [1.008-1.009] | **1.080** [1.079-1.081] | **1.051** [1.049-1.052] | 2.67 |
+
+Ids identical in all 12 processes (and to `--spec off`: the verify pass is bitwise the decode steps). Per short prompt k4 / k3 runs
+0.978-1.089 (5 of 12 below 1), k5 / k3 0.964-1.090 (6 of 12 below 1): a longer draft loses where acceptance is low. Against the bar
+(>= +2 % with a CI lower bound above 1.0 at >= 2 lengths, no length slower) both pass by the t-interval; k5 gains more at 4k / 16k
+(+2.0 / +1.6 % over k4) but its short class sits at 1.006 with a bootstrap low of 0.998, k4's at 1.018 (bootstrap low 1.010). **The
+branch ships k4** (`recipes/inkling2.toml` `[tuning.hip] mtp_default_k = 4`), the length that clears the bar at every length by both
+intervals; k5 is a one-line alternative for the coordinator (numbers above). Plain decode (`--spec off`) never reads
+`mtp_default_k`, so it runs the same code as main.
+
+Why HIP takes a longer draft than Metal (where k5 / k7 lost): a verify row costs ~2.3 ms against a 13.4 ms decode step here (section
+1: r / P ~0.17), and the draft ~0.7 ms a step.
