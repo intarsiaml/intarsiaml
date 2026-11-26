@@ -1,0 +1,17 @@
+MD5 main2 off short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 824 ms (76.45 tok/s) |  | 
+MD5 main2 dflt short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 661 ms (95.33 tok/s) | spec: verify passes=23 proposed=49 accepted=31 (acceptance 63.3%, 2.35 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 verify1 off short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 824 ms (76.46 tok/s) |  | 
+MD5 verify1 dflt short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 664 ms (94.88 tok/s) | spec: verify passes=22 proposed=55 accepted=32 (acceptance 58.2%, 2.45 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 4: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 main2 off short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 3318 ms (76.86 tok/s) |  | 
+MD5 main2 dflt short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 2800 ms (91.07 tok/s) | spec: verify passes=106 proposed=232 accepted=119 (acceptance 51.3%, 2.12 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 verify1 off short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 3320 ms (76.81 tok/s) |  | 
+MD5 verify1 dflt short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 2822 ms (90.36 tok/s) | spec: verify passes=104 proposed=262 accepted=121 (acceptance 46.2%, 2.16 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 4: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 main2 off 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 862 ms (73.12 tok/s) |  | 
+MD5 main2 dflt 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 768 ms (82.06 tok/s) | spec: verify passes=21 proposed=39 accepted=26 (acceptance 66.7%, 2.24 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 verify1 off 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 859 ms (73.36 tok/s) |  | 
+MD5 verify1 dflt 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 781 ms (80.70 tok/s) | spec: verify passes=21 proposed=41 accepted=26 (acceptance 63.4%, 2.24 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 4: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 main2 off 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 3444 ms (74.04 tok/s) |  | 
+MD5 main2 dflt 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 2616 ms (97.49 tok/s) | spec: verify passes=92 proposed=216 accepted=143 (acceptance 66.2%, 2.55 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 verify1 off 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 3444 ms (74.04 tok/s) |  | 
+MD5 verify1 dflt 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 2562 ms (99.51 tok/s) | spec: verify passes=87 proposed=235 accepted=148 (acceptance 63.0%, 2.70 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 4: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+[c0] done 15:28:48

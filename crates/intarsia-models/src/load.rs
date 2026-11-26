@@ -952,7 +952,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let mut opts = opts;
     let mut dspark_dflt = false;
     // brief 32 (user decision 5): Inkling-2 speculates with its own DSpark draft when no `--spec` is given, where the recipe sets
-    // `[tuning.<backend>] mtp_default_k` (CUDA, Metal and HIP: k3), one sequence at one rank; sampled requests take plain steps
+    // `[tuning.<backend>] mtp_default_k` (CUDA and Metal: k3; HIP: k5), one sequence at one rank; sampled requests take plain steps
     if let Some(k) = dspark_default(opts, &recipe, backend_name, backends.len(), local) {
         if dspark_draft_present(&cfg, dir) {
             eprintln!(
@@ -1383,8 +1383,8 @@ mod dspark_default_tests {
         assert_eq!(recipe.resolve_draft_default("metal"), Some(3), "recipes/inkling2.toml [tuning.metal] mtp_default_k");
         assert_eq!(d(&base, "cuda", 1, true), Some(k));
         assert_eq!(d(&base, "metal", 1, true), Some(3));
-        assert_eq!(recipe.resolve_draft_default("hip"), Some(3), "recipes/inkling2.toml [tuning.hip] mtp_default_k (lane ink-hip-spec)");
-        assert_eq!(d(&base, "hip", 1, true), Some(3));
+        assert_eq!(recipe.resolve_draft_default("hip"), Some(5), "recipes/inkling2.toml [tuning.hip] mtp_default_k (lane ink-hip-spec k3; lane ink-hip-verify k5)");
+        assert_eq!(d(&base, "hip", 1, true), Some(5));
         assert_eq!(d(&base, "cpu", 1, true), None);
         for b in ["cuda", "metal", "hip"] {
             assert_eq!(d(&base, b, 2, true), None, "{b} at tp 2");
@@ -1397,7 +1397,7 @@ mod dspark_default_tests {
         }
         assert_eq!(d(&EngineOptions { max_batch: Some(1), ..base.clone() }, "cuda", 1, true), Some(k));
         assert_eq!(d(&EngineOptions { max_batch: Some(1), ..base.clone() }, "metal", 1, true), Some(3));
-        assert_eq!(d(&EngineOptions { max_batch: Some(1), ..base.clone() }, "hip", 1, true), Some(3));
+        assert_eq!(d(&EngineOptions { max_batch: Some(1), ..base.clone() }, "hip", 1, true), Some(5));
         for entry in std::fs::read_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../recipes")).unwrap() {
             let path = entry.unwrap().path();
             if path.extension().is_none_or(|e| e != "toml") || path.file_stem().is_some_and(|s| s == "inkling2") {

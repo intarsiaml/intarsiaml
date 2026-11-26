@@ -1,0 +1,162 @@
+fleetq: #12133 waiting (#2 in line): in line behind #12132 "ink-sampled: hip rebuild branch tests (cpu only)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12132 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12132 set, or it will wait for #12132 to be released.
+fleetq: #12133 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12132 "ink-sampled: hip rebuild branch tests (cpu only)" (claude-04c0e1cd) loads it
+fleetq:   #12132 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12132 set, or it will wait for #12132 to be released.
+fleetq: #12133 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=210 LIMIT=150 bash ~/intarsiaml-ink-hip-verify/.scratch/window.sh ~/intarsiaml-ink-hip-verify/.scratch/stage_w2.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-verify/.scratch/stage_w2.sh; cap 210s; stopping radiance 2026-11-26 14:39:20
+[window] radiance stopped 2026-11-26 14:39:23 (inactive)
+[stage] start 14:39:23
+---- card 0
+[c0] exes /target/release/deps/verify_rows_real-520c2daf27fcc6e0 /target/release/deps/ink_moe-34ae8a06fbc12c09
+[c0] (a) probe 1k rows 1..8, split 1 14:39:23
+rc 0
+PROBE_TIME decode1 13.37 ms, verify2 16.59 ms (1.24x), verify3 20.04 ms (1.50x), verify4 22.34 ms (1.67x), verify5 24.71 ms (1.85x), verify6 26.97 ms (2.02x), verify7 29.32 ms (2.19x), verify8 31.54 ms (2.36x)
+PROBE_TIME_MIN len=1021 decode1 13.31 ms, verify2 16.52 ms, verify3 19.93 ms, verify4 22.26 ms, verify5 24.58 ms, verify6 26.84 ms, verify7 29.16 ms, verify8 31.41 ms
+[c0] (a) probe 1k rows 1..8, split unset 14:39:31
+rc 0
+PROBE_TIME decode1 13.39 ms, verify2 16.66 ms (1.24x), verify3 20.06 ms (1.50x), verify4 22.26 ms (1.66x), verify5 13.76 ms (1.03x), verify6 14.58 ms (1.09x), verify7 15.18 ms (1.13x), verify8 16.22 ms (1.21x)
+PROBE_TIME_MIN len=1021 decode1 13.32 ms, verify2 16.59 ms, verify3 19.96 ms, verify4 22.18 ms, verify5 13.67 ms, verify6 14.47 ms, verify7 15.08 ms, verify8 16.10 ms
+[c0] (a) probe 1k rows 1..8, split 0:1 14:39:37
+rc 0
+PROBE_TIME decode1 13.37 ms, verify2 16.51 ms (1.23x), verify3 19.95 ms (1.49x), verify4 22.14 ms (1.66x), verify5 13.54 ms (1.01x), verify6 14.29 ms (1.07x), verify7 14.94 ms (1.12x), verify8 15.86 ms (1.19x)
+PROBE_TIME_MIN len=1021 decode1 13.32 ms, verify2 16.41 ms, verify3 19.83 ms, verify4 22.08 ms, verify5 13.43 ms, verify6 14.16 ms, verify7 14.77 ms, verify8 15.70 ms
+[c0] (a) probe 1k rows 1..8, split 1b 14:39:43
+rc 0
+PROBE_TIME decode1 13.37 ms, verify2 16.65 ms (1.24x), verify3 20.08 ms (1.50x), verify4 22.40 ms (1.68x), verify5 24.75 ms (1.85x), verify6 27.06 ms (2.02x), verify7 29.36 ms (2.20x), verify8 31.63 ms (2.36x)
+PROBE_TIME_MIN len=1021 decode1 13.31 ms, verify2 16.55 ms, verify3 20.00 ms, verify4 22.29 ms, verify5 24.65 ms, verify6 26.93 ms, verify7 29.24 ms, verify8 31.46 ms
+[c0] (b) ink_moe rows_exact + odd ids 14:39:51
+rc 101
+test ink_moe_rows_exact ... FAILED
+test ink_moe_wave_grouping_odd_ids ... ok
+thread 'ink_moe_rows_exact' panicked at crates/intarsia-backend-hip/tests/ink_moe.rs:217:25:
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.46s
+[c0] (c) bitwise verify probe, rows 2..8 at 17 / 1024 / 4000 + 16 greedy windows, the rule 14:39:52
+rc 101
+DIFF len=17 q=5: max|dlogit|=5.510049e-1 argmax mismatches=4
+DIFF len=17 q=6: max|dlogit|=0e0 argmax mismatches=6
+DIFF len=17 q=7: max|dlogit|=0e0 argmax mismatches=7
+DIFF len=17 q=8: max|dlogit|=0e0 argmax mismatches=8
+DIFF len=1024 q=5: max|dlogit|=0e0 argmax mismatches=5
+DIFF len=1024 q=6: max|dlogit|=0e0 argmax mismatches=6
+DIFF len=1024 q=7: max|dlogit|=0e0 argmax mismatches=7
+DIFF len=1024 q=8: max|dlogit|=0e0 argmax mismatches=8
+DIFF len=4000 q=5: max|dlogit|=0e0 argmax mismatches=5
+DIFF len=4000 q=6: max|dlogit|=0e0 argmax mismatches=6
+DIFF len=4000 q=7: max|dlogit|=0e0 argmax mismatches=7
+DIFF len=4000 q=8: max|dlogit|=0e0 argmax mismatches=8
+[c0] done 14:40:04
+---- card 1
+[c1] (d) MoE bench, real-text unions 14:39:23
+rc 0
+INKMOEBENCH nvfp4 T=1    default              both      80.6 us    445 GB/s | gate_up      49.6 us   481 GB/s | down      29.8 us   401 GB/s | 35.8 MB / call, union 8.0 (real-text union)
+INKMOEBENCH nvfp4 T=2    split 1:1            both     125.6 us    464 GB/s | gate_up      80.4 us | down      46.8 us | union 13.0 (real-text union)
+INKMOEBENCH nvfp4 T=2    split 2:1            both     122.2 us    476 GB/s | gate_up      78.3 us | down      47.2 us | union 13.0 (real-text union)
+INKMOEBENCH nvfp4 T=2    split 3:1            both     122.2 us    476 GB/s | gate_up      78.1 us | down      47.1 us | union 13.0 (real-text union)
+INKMOEBENCH nvfp4 T=2    split 4:1            both     122.1 us    477 GB/s | gate_up      78.0 us | down      47.1 us | union 13.0 (real-text union)
+INKMOEBENCH nvfp4 T=2    split 2:2            both     126.5 us    460 GB/s | gate_up      78.2 us | down      50.3 us | union 13.0 (real-text union)
+INKMOEBENCH nvfp4 T=2    split 3:3            both     126.6 us    460 GB/s | gate_up      78.3 us | down      50.3 us | union 13.0 (real-text union)
+INKMOEBENCH nvfp4 T=2    split 4:4            both     125.7 us    463 GB/s | gate_up      78.2 us | down      50.3 us | union 13.0 (real-text union)
+INKMOEBENCH nvfp4 T=2    split 0:0            both     125.8 us    463 GB/s | gate_up      77.9 us | down      50.2 us | union 13.0 (real-text union)
+INKMOEBENCH nvfp4 T=2    split 0:1            both     122.3 us    476 GB/s | gate_up      77.7 us | down      46.7 us | union 13.0 (real-text union)
+INKMOEBENCH nvfp4 T=2    default              both     126.2 us    461 GB/s | gate_up      78.0 us   497 GB/s | down      50.0 us   388 GB/s | 58.2 MB / call, union 13.0 (real-text union)
+INKMOEBENCH nvfp4 T=3    split 1:1            both     150.0 us    478 GB/s | gate_up      96.2 us | down      56.1 us | union 16.0 (real-text union)
+INKMOEBENCH nvfp4 T=3    split 2:1            both     149.8 us    478 GB/s | gate_up      95.7 us | down      56.3 us | union 16.0 (real-text union)
+INKMOEBENCH nvfp4 T=3    split 3:1            both     150.3 us    477 GB/s | gate_up      95.4 us | down      56.2 us | union 16.0 (real-text union)
+INKMOEBENCH nvfp4 T=3    split 4:1            both     150.2 us    477 GB/s | gate_up      95.3 us | down      56.3 us | union 16.0 (real-text union)
+INKMOEBENCH nvfp4 T=3    split 2:2            both     152.9 us    469 GB/s | gate_up      95.5 us | down      59.4 us | union 16.0 (real-text union)
+INKMOEBENCH nvfp4 T=3    split 3:3            both     154.5 us    464 GB/s | gate_up      95.4 us | down      60.4 us | union 16.0 (real-text union)
+INKMOEBENCH nvfp4 T=3    split 4:4            both     154.5 us    464 GB/s | gate_up      95.4 us | down      60.4 us | union 16.0 (real-text union)
+INKMOEBENCH nvfp4 T=3    split 0:0            both     153.6 us    467 GB/s | gate_up      95.5 us | down      59.6 us | union 16.0 (real-text union)
+INKMOEBENCH nvfp4 T=3    split 0:1            both     150.1 us    477 GB/s | gate_up      95.6 us | down      56.5 us | union 16.0 (real-text union)
+INKMOEBENCH nvfp4 T=3    default              both     153.6 us    466 GB/s | gate_up      95.4 us   501 GB/s | down      59.5 us   401 GB/s | 71.7 MB / call, union 16.0 (real-text union)
+INKMOEBENCH nvfp4 T=4    split 1:1            both     181.4 us    469 GB/s | gate_up     115.5 us | down      68.6 us | union 19.0 (real-text union)
+INKMOEBENCH nvfp4 T=4    split 2:1            both     178.8 us    476 GB/s | gate_up     112.0 us | down      68.3 us | union 19.0 (real-text union)
+INKMOEBENCH nvfp4 T=4    split 3:1            both     177.3 us    480 GB/s | gate_up     111.2 us | down      68.6 us | union 19.0 (real-text union)
+INKMOEBENCH nvfp4 T=4    split 4:1            both     177.5 us    480 GB/s | gate_up     111.2 us | down      68.4 us | union 19.0 (real-text union)
+INKMOEBENCH nvfp4 T=4    split 2:2            both     181.4 us    469 GB/s | gate_up     112.1 us | down      70.8 us | union 19.0 (real-text union)
+INKMOEBENCH nvfp4 T=4    split 3:3            both     179.8 us    473 GB/s | gate_up     111.3 us | down      70.4 us | union 19.0 (real-text union)
+INKMOEBENCH nvfp4 T=4    split 4:4            both     181.6 us    469 GB/s | gate_up     110.8 us | down      70.9 us | union 19.0 (real-text union)
+INKMOEBENCH nvfp4 T=4    split 0:0            both     179.6 us    474 GB/s | gate_up     111.1 us | down      70.2 us | union 19.0 (real-text union)
+INKMOEBENCH nvfp4 T=4    split 0:1            both     177.2 us    480 GB/s | gate_up     111.3 us | down      68.7 us | union 19.0 (real-text union)
+INKMOEBENCH nvfp4 T=4    default              both     179.4 us    474 GB/s | gate_up     111.2 us   510 GB/s | down      70.0 us   405 GB/s | 85.1 MB / call, union 19.0 (real-text union)
+INKMOEBENCH nvfp4 T=6    split 1:1            both     224.0 us    480 GB/s | gate_up     147.5 us | down      81.6 us | union 24.0 (real-text union)
+INKMOEBENCH nvfp4 T=6    split 2:1            both     224.0 us    480 GB/s | gate_up     143.4 us | down      81.8 us | union 24.0 (real-text union)
+INKMOEBENCH nvfp4 T=6    split 3:1            both     223.5 us    481 GB/s | gate_up     142.2 us | down      81.8 us | union 24.0 (real-text union)
+INKMOEBENCH nvfp4 T=6    split 4:1            both     223.5 us    481 GB/s | gate_up     141.2 us | down      81.7 us | union 24.0 (real-text union)
+INKMOEBENCH nvfp4 T=6    split 2:2            both     226.7 us    474 GB/s | gate_up     143.5 us | down      84.1 us | union 24.0 (real-text union)
+INKMOEBENCH nvfp4 T=6    split 3:3            both     226.8 us    474 GB/s | gate_up     142.1 us | down      85.0 us | union 24.0 (real-text union)
+INKMOEBENCH nvfp4 T=6    split 4:4            both     228.1 us    471 GB/s | gate_up     141.1 us | down      85.7 us | union 24.0 (real-text union)
+INKMOEBENCH nvfp4 T=6    split 0:0            both     228.0 us    471 GB/s | gate_up     141.3 us | down      85.7 us | union 24.0 (real-text union)
+INKMOEBENCH nvfp4 T=6    split 0:1            both     222.6 us    483 GB/s | gate_up     141.3 us | down      81.7 us | union 24.0 (real-text union)
+INKMOEBENCH nvfp4 T=6    default              both     227.9 us    472 GB/s | gate_up     141.0 us   508 GB/s | down      85.8 us   418 GB/s | 107.5 MB / call, union 24.0 (real-text union)
+INKMOEBENCH nvfp4 T=8    split 1:1            both     278.1 us    451 GB/s | gate_up     183.0 us | down     100.3 us | union 28.0 (real-text union)
+INKMOEBENCH nvfp4 T=8    split 2:1            both     285.6 us    439 GB/s | gate_up     185.1 us | down     100.3 us | union 28.0 (real-text union)
+INKMOEBENCH nvfp4 T=8    split 3:1            both     288.3 us    435 GB/s | gate_up     186.5 us | down     100.6 us | union 28.0 (real-text union)
+INKMOEBENCH nvfp4 T=8    split 4:1            both     290.4 us    432 GB/s | gate_up     189.0 us | down     100.1 us | union 28.0 (real-text union)
+INKMOEBENCH nvfp4 T=8    split 2:2            both     288.8 us    434 GB/s | gate_up     185.6 us | down     101.8 us | union 28.0 (real-text union)
+INKMOEBENCH nvfp4 T=8    split 3:3            both     296.0 us    424 GB/s | gate_up     186.7 us | down     107.3 us | union 28.0 (real-text union)
+INKMOEBENCH nvfp4 T=8    split 4:4            both     297.3 us    422 GB/s | gate_up     189.0 us | down     105.5 us | union 28.0 (real-text union)
+INKMOEBENCH nvfp4 T=8    split 0:0            both     297.5 us    422 GB/s | gate_up     188.4 us | down     106.3 us | union 28.0 (real-text union)
+INKMOEBENCH nvfp4 T=8    split 0:1            both     290.4 us    432 GB/s | gate_up     188.1 us | down     100.4 us | union 28.0 (real-text union)
+INKMOEBENCH nvfp4 T=8    default              both     297.8 us    421 GB/s | gate_up     188.3 us   444 GB/s | down     106.0 us   394 GB/s | 125.4 MB / call, union 28.0 (real-text union)
+INKMOEBENCH mxfp8 T=1    default              both     118.8 us    553 GB/s | gate_up      73.4 us   597 GB/s | down      45.9 us   477 GB/s | 65.7 MB / call, union 8.0 (real-text union)
+INKMOEBENCH mxfp8 T=2    split 1:1            both     192.7 us    554 GB/s | gate_up     119.0 us | down      73.6 us | union 13.0 (real-text union)
+INKMOEBENCH mxfp8 T=2    split 2:1            both     189.7 us    563 GB/s | gate_up     116.4 us | down      73.7 us | union 13.0 (real-text union)
+INKMOEBENCH mxfp8 T=2    split 3:1            both     189.5 us    563 GB/s | gate_up     116.1 us | down      73.8 us | union 13.0 (real-text union)
+INKMOEBENCH mxfp8 T=2    split 4:1            both     189.8 us    562 GB/s | gate_up     116.4 us | down      73.5 us | union 13.0 (real-text union)
+INKMOEBENCH mxfp8 T=2    split 2:2            both     194.2 us    550 GB/s | gate_up     116.3 us | down      78.0 us | union 13.0 (real-text union)
+INKMOEBENCH mxfp8 T=2    split 3:3            both     194.2 us    550 GB/s | gate_up     116.0 us | down      77.7 us | union 13.0 (real-text union)
+INKMOEBENCH mxfp8 T=2    split 4:4            both     194.5 us    549 GB/s | gate_up     116.2 us | down      77.7 us | union 13.0 (real-text union)
+INKMOEBENCH mxfp8 T=2    split 0:0            both     194.4 us    549 GB/s | gate_up     116.1 us | down      77.6 us | union 13.0 (real-text union)
+INKMOEBENCH mxfp8 T=2    split 0:1            both     189.4 us    564 GB/s | gate_up     116.1 us | down      73.2 us | union 13.0 (real-text union)
+INKMOEBENCH mxfp8 T=2    default              both     194.2 us    550 GB/s | gate_up     115.9 us   614 GB/s | down      77.5 us   459 GB/s | 106.7 MB / call, union 13.0 (real-text union)
+INKMOEBENCH mxfp8 T=3    split 1:1            both     230.4 us    570 GB/s | gate_up     142.7 us | down      87.6 us | union 16.0 (real-text union)
+INKMOEBENCH mxfp8 T=3    split 2:1            both     230.1 us    571 GB/s | gate_up     142.8 us | down      87.5 us | union 16.0 (real-text union)
+INKMOEBENCH mxfp8 T=3    split 3:1            both     230.2 us    571 GB/s | gate_up     142.8 us | down      87.4 us | union 16.0 (real-text union)
+INKMOEBENCH mxfp8 T=3    split 4:1            both     229.9 us    572 GB/s | gate_up     142.6 us | down      87.5 us | union 16.0 (real-text union)
+INKMOEBENCH mxfp8 T=3    split 2:2            both     236.6 us    555 GB/s | gate_up     142.9 us | down      93.4 us | union 16.0 (real-text union)
+INKMOEBENCH mxfp8 T=3    split 3:3            both     236.8 us    555 GB/s | gate_up     142.7 us | down      93.8 us | union 16.0 (real-text union)
+INKMOEBENCH mxfp8 T=3    split 4:4            both     237.1 us    554 GB/s | gate_up     142.6 us | down      94.0 us | union 16.0 (real-text union)
+INKMOEBENCH mxfp8 T=3    split 0:0            both     236.9 us    555 GB/s | gate_up     142.5 us | down      93.4 us | union 16.0 (real-text union)
+INKMOEBENCH mxfp8 T=3    split 0:1            both     229.9 us    572 GB/s | gate_up     142.7 us | down      87.3 us | union 16.0 (real-text union)
+INKMOEBENCH mxfp8 T=3    default              both     236.7 us    555 GB/s | gate_up     142.8 us   614 GB/s | down      93.7 us   467 GB/s | 131.4 MB / call, union 16.0 (real-text union)
+INKMOEBENCH mxfp8 T=4    split 1:1            both     277.1 us    563 GB/s | gate_up     171.2 us | down     105.8 us | union 19.0 (real-text union)
+INKMOEBENCH mxfp8 T=4    split 2:1            both     272.7 us    572 GB/s | gate_up     167.1 us | down     106.0 us | union 19.0 (real-text union)
+INKMOEBENCH mxfp8 T=4    split 3:1            both     273.2 us    571 GB/s | gate_up     167.3 us | down     106.0 us | union 19.0 (real-text union)
+INKMOEBENCH mxfp8 T=4    split 4:1            both     272.1 us    573 GB/s | gate_up     167.0 us | down     105.8 us | union 19.0 (real-text union)
+INKMOEBENCH mxfp8 T=4    split 2:2            both     275.5 us    566 GB/s | gate_up     166.9 us | down     108.2 us | union 19.0 (real-text union)
+INKMOEBENCH mxfp8 T=4    split 3:3            both     274.8 us    568 GB/s | gate_up     167.0 us | down     106.5 us | union 19.0 (real-text union)
+INKMOEBENCH mxfp8 T=4    split 4:4            both     275.0 us    567 GB/s | gate_up     166.7 us | down     107.8 us | union 19.0 (real-text union)
+INKMOEBENCH mxfp8 T=4    split 0:0            both     274.5 us    568 GB/s | gate_up     167.2 us | down     106.7 us | union 19.0 (real-text union)
+INKMOEBENCH mxfp8 T=4    split 0:1            both     273.4 us    571 GB/s | gate_up     167.1 us | down     106.1 us | union 19.0 (real-text union)
+INKMOEBENCH mxfp8 T=4    default              both     274.4 us    569 GB/s | gate_up     166.9 us   623 GB/s | down     106.6 us   488 GB/s | 156.0 MB / call, union 19.0 (real-text union)
+INKMOEBENCH mxfp8 T=6    split 1:1            both     349.1 us    564 GB/s | gate_up     222.1 us | down     127.4 us | union 24.0 (real-text union)
+INKMOEBENCH mxfp8 T=6    split 2:1            both     346.8 us    568 GB/s | gate_up     218.8 us | down     127.5 us | union 24.0 (real-text union)
+INKMOEBENCH mxfp8 T=6    split 3:1            both     342.0 us    576 GB/s | gate_up     214.4 us | down     127.5 us | union 24.0 (real-text union)
+INKMOEBENCH mxfp8 T=6    split 4:1            both     342.6 us    575 GB/s | gate_up     214.1 us | down     127.6 us | union 24.0 (real-text union)
+INKMOEBENCH mxfp8 T=6    split 2:2            both     348.0 us    566 GB/s | gate_up     218.7 us | down     128.3 us | union 24.0 (real-text union)
+INKMOEBENCH mxfp8 T=6    split 3:3            both     344.0 us    573 GB/s | gate_up     214.7 us | down     128.1 us | union 24.0 (real-text union)
+INKMOEBENCH mxfp8 T=6    split 4:4            both     344.2 us    573 GB/s | gate_up     214.3 us | down     129.0 us | union 24.0 (real-text union)
+INKMOEBENCH mxfp8 T=6    split 0:0            both     344.1 us    573 GB/s | gate_up     214.4 us | down     128.7 us | union 24.0 (real-text union)
+INKMOEBENCH mxfp8 T=6    split 0:1            both     342.1 us    576 GB/s | gate_up     214.2 us | down     127.8 us | union 24.0 (real-text union)
+INKMOEBENCH mxfp8 T=6    default              both     344.5 us    572 GB/s | gate_up     214.3 us   613 GB/s | down     128.8 us   510 GB/s | 197.1 MB / call, union 24.0 (real-text union)
+INKMOEBENCH mxfp8 T=8    split 1:1            both     420.3 us    547 GB/s | gate_up     270.2 us | down     151.3 us | union 28.0 (real-text union)
+INKMOEBENCH mxfp8 T=8    split 2:1            both     413.2 us    557 GB/s | gate_up     261.8 us | down     151.4 us | union 28.0 (real-text union)
+INKMOEBENCH mxfp8 T=8    split 3:1            both     413.1 us    557 GB/s | gate_up     262.1 us | down     151.2 us | union 28.0 (real-text union)
+INKMOEBENCH mxfp8 T=8    split 4:1            both     410.1 us    561 GB/s | gate_up     258.4 us | down     151.7 us | union 28.0 (real-text union)
+INKMOEBENCH mxfp8 T=8    split 2:2            both     414.5 us    555 GB/s | gate_up     261.7 us | down     151.2 us | union 28.0 (real-text union)
+INKMOEBENCH mxfp8 T=8    split 3:3            both     416.2 us    552 GB/s | gate_up     262.0 us | down     152.7 us | union 28.0 (real-text union)
+INKMOEBENCH mxfp8 T=8    split 4:4            both     410.0 us    561 GB/s | gate_up     258.6 us | down     149.5 us | union 28.0 (real-text union)
+INKMOEBENCH mxfp8 T=8    split 0:0            both     409.9 us    561 GB/s | gate_up     258.0 us | down     150.6 us | union 28.0 (real-text union)
+INKMOEBENCH mxfp8 T=8    split 0:1            both     409.6 us    561 GB/s | gate_up     258.0 us | down     151.5 us | union 28.0 (real-text union)
+INKMOEBENCH mxfp8 T=8    default              both     410.1 us    561 GB/s | gate_up     258.0 us   594 GB/s | down     150.8 us   508 GB/s | 229.9 MB / call, union 28.0 (real-text union)
+[c1] (e) k screen under the rule 14:39:45
+[sweep] k3 rc 0 t+49s | decode overall: 1256 tokens after the first, 11933 ms (105.25 tok/s) | spec: verify passes=400 proposed=969 accepted=651 (acceptance 67.2%, 2.63 tokens per pass)
+[sweep] k5 rc 0 t+80s | decode overall: 1270 tokens after the first, 15773 ms (80.52 tok/s) | spec: verify passes=56 proposed=125 accepted=43 (acceptance 34.4%, 1.77 tokens per pass)
+[sweep] k4 rc 0 t+110s | decode overall: 1270 tokens after the first, 15805 ms (80.36 tok/s) | spec: verify passes=56 proposed=120 accepted=40 (acceptance 33.3%, 1.71 tokens per pass)
+[c1] done 14:41:13
+[stage] done 14:41:13
+[window] stage done 2026-11-26 14:41:14 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 14:41:14
+[window] radiance answers 2026-11-26 14:41:24 (after 15 s)
+fleetq: #12133 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
