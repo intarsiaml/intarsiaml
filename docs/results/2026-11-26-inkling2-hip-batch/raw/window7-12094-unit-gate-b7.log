@@ -1,0 +1,52 @@
+fleetq: #12094 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'BR=b7 MA=main3 CAP=280 bash ~/intarsiaml-ink-hip-batch/.scratch/window.sh ~/intarsiaml-ink-hip-batch/.scratch/stage_w6.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-batch/.scratch/stage_w6.sh; cap 280s; stopping radiance 2026-11-26 13:40:19
+[window] radiance stopped 2026-11-26 13:40:23 (inactive)
+[stage] unit: ink_rows (row-table TUs) 2026-11-26 13:40:23
+test attn_decode_rows_bitwise_solo ... ink_attn_decode_bf16_rows: 40 row-table calls bitwise the solo calls (every row, every cache / ring byte)
+test conv_mix_rows_bitwise_solo ... conv_mix_bf16_rows: 645 row-table calls bitwise the solo calls (every row, every ring byte)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.79s
+[stage] unit: ink_attn rows_exact_real_shapes 2026-11-26 13:40:36
+test rows_exact_real_shapes ... 63 rows-exact cases bitwise
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 7.66s
+[stage] kernels test conv_mix 2026-11-26 13:40:44
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+[stage] kernels test ink_attn_decode 2026-11-26 13:40:50
+ink_attn_decode ink_attn_decode_bf16           70      0    1.033e-3    7.283e-5  ADMITTED
+[stage] inkling2_batch tiny on hip 2026-11-26 13:40:56
+test inkling2_batch_argmax_equals_solo ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_equals_solo_2_5_16 ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_failed_pass_resets_every_sequence ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_membership_changes ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_rollback_per_sequence ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batch_sampler_rows_are_softcapped ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test inkling2_batched_engine_equals_solo_engine ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.57s
+[stage] solo gate 2026-11-26 13:41:02
+[stage] md5 64 2026-11-26 13:41:02
+SPD main short 64 r1 04cdb28a6849728e8aa5be39bf65c07e | decode 824 ms (76.47 tok/s) | prefill 94 ms (329.6 tok/s) | steps=64 graph replays=63 (captures 1) eager decode steps=0
+SPD branch short 64 r1 04cdb28a6849728e8aa5be39bf65c07e | decode 823 ms (76.53 tok/s) | prefill 95 ms (326.0 tok/s) | steps=64 graph replays=63 (captures 1) eager decode steps=0
+SPD main 4k 64 r1 2252566a5c54cf52cb564bd214c9af2b | decode 858 ms (73.42 tok/s) | prefill 1550 ms (2728.2 tok/s) | steps=66 graph replays=63 (captures 1) eager decode steps=0
+SPD branch 4k 64 r1 2252566a5c54cf52cb564bd214c9af2b | decode 858 ms (73.44 tok/s) | prefill 1552 ms (2724.2 tok/s) | steps=66 graph replays=63 (captures 1) eager decode steps=0
+[stage] speed + md5 256 2026-11-26 13:41:28
+SPD main short 256 r1 9a27c21b6fdc4ea7700439c818e698d8 | decode 3317 ms (76.87 tok/s) | prefill 95 ms (324.9 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r1 9a27c21b6fdc4ea7700439c818e698d8 | decode 3316 ms (76.89 tok/s) | prefill 95 ms (326.4 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r1 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3444 ms (74.04 tok/s) | prefill 1554 ms (2721.2 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r1 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3442 ms (74.09 tok/s) | prefill 1553 ms (2721.8 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r2 9a27c21b6fdc4ea7700439c818e698d8 | decode 3314 ms (76.95 tok/s) | prefill 96 ms (323.6 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main short 256 r2 9a27c21b6fdc4ea7700439c818e698d8 | decode 3316 ms (76.91 tok/s) | prefill 98 ms (315.7 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r2 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3442 ms (74.08 tok/s) | prefill 1558 ms (2713.0 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r2 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3442 ms (74.09 tok/s) | prefill 1564 ms (2703.9 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD main short 256 r3 9a27c21b6fdc4ea7700439c818e698d8 | decode 3317 ms (76.87 tok/s) | prefill 97 ms (320.7 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r3 9a27c21b6fdc4ea7700439c818e698d8 | decode 3317 ms (76.88 tok/s) | prefill 96 ms (323.6 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r3 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3443 ms (74.06 tok/s) | prefill 1568 ms (2697.1 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r3 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3444 ms (74.05 tok/s) | prefill 1569 ms (2695.3 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r4 9a27c21b6fdc4ea7700439c818e698d8 | decode 3316 ms (76.89 tok/s) | prefill 97 ms (319.4 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main short 256 r4 9a27c21b6fdc4ea7700439c818e698d8 | decode 3318 ms (76.86 tok/s) | prefill 99 ms (314.1 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r4 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3444 ms (74.04 tok/s) | prefill 1571 ms (2691.0 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r4 9675bbb95adabf53ce09c1f77a1d34b4 | decode 3444 ms (74.04 tok/s) | prefill 1574 ms (2686.6 tok/s) | steps=258 graph replays=255 (captures 1) eager decode steps=0
+[stage] done 2026-11-26 13:43:51
+[window] stage done 2026-11-26 13:43:52 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 13:43:52
+[window] radiance answers 2026-11-26 13:44:02 (after 15 s)
+fleetq: #12094 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

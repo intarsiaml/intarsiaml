@@ -1,0 +1,5 @@
+# name;bin;serve args;localeval speed args | bitwise:<mode>[,localeval args]
+# W8 (b7): one --max-batch 16 server (KV fraction 0.9, context 4608, busy chunk 2048 = the solo chunk, no --spec: the default, which
+# loads no draft at --max-batch > 1): the 16 real prompts at once (compared with W9's solo server), then localeval 1k prompts, 256 forced
+# tokens, 1/4/8/16 streams, LEREPS=3 (metrics poller on: per-level ITL / step histograms).
+mb16-bc2048;b7;--max-batch 16 --max-seq 4608 --kv-fraction 0.9 --busy-chunk 2048;bitwise:conc,--sizes 1024 --gen 256 --reps 1 --concurrency 1,4,8,16

@@ -1,0 +1,48 @@
+1795718907.090 [localeval] calibrated: 22.4 tokens/sentence, 47 base tokens, ctx=4608
+1795718907.091 [localeval]   1024 tok rep 1/1: prompt=1035 ttft=0.44s prefill=2345 tok/s decode=75.3 tok/s peak=100.1 tok/s out=256
+1795718907.091 [localeval] 1 streams: aggregate 67.0 tok/s
+1795718907.091 [localeval] 4 streams: aggregate 134.1 tok/s
+1795718907.091 [localeval] 8 streams: aggregate 167.9 tok/s
+1795718907.091 [localeval] 16 streams: aggregate 190.2 tok/s
+1795718907.091 # localeval: adhoc — 2026-11-26T13:47
+1795718907.091 
+1795718907.091 - model: `ink` on ? (?), url `http://tatooine:18131/v1`
+1795718907.091 - thinking: default; run kind: speed; label: ink-hip-batch-mb16-bc2048-r2
+1795718907.091 - harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git 2c5524c
+1795718907.091 - command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:18131/v1 --model ink --sizes 1024 --gen 256 --reps 1 --concurrency 1,4,8,16 --label ink-hip-batch-mb16-bc2048-r2 --recipe intarsia serve -m Inkling-2-Mini --backend hip --max-batch 16 --max-seq 4608 --kv-fraction 0.9 --busy-chunk 2048 (tree b7)`
+1795718907.091 - result file: `results/20261126-134734-adhoc-ink-hip-batch-mb16-bc2048-r2/result.json`
+1795718907.091 
+1795718907.091 ## Launch recipe
+1795718907.091 
+1795718907.091 from inline command (secrets redacted):
+1795718907.091 
+1795718907.091 ````
+1795718907.091 intarsia serve -m Inkling-2-Mini --backend hip --max-batch 16 --max-seq 4608 --kv-fraction 0.9 --busy-chunk 2048 (tree b7)
+1795718907.091 ````
+1795718907.091 
+1795718907.091 ## Speed sweep
+1795718907.091 
+1795718907.091 served `ink`, fingerprint `None`, ctx 4608, 1 reps, 256 forced output tokens
+1795718907.091 
+1795718907.091 | prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1795718907.091 |---:|---:|---:|---:|---:|---:|---:|---:|---:|
+1795718907.091 | 1035 | 0.44 | 2345 (2345–2345) | - | 75.3 (75.3–75.3) | 100.1 (100.1–100.1) | - | - | 256 |
+1795718907.091 
+1795718907.091 Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+1795718907.091 
+1795718907.091 Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+1795718907.091 
+1795718907.091 
+1795718907.091 | streams | aggregate decode tok/s | per-stream decode | TTFT s |
+1795718907.091 |---:|---:|---:|---:|
+1795718907.091 | 1 | 67.0 | 75.6 (75.6–75.6) | 0.44 |
+1795718907.091 | 4 | 134.1 | 41.9 (37.8–43.3) | 1.51 |
+1795718907.091 | 8 | 167.9 | 26.2 (22.9–29.4) | 2.38 |
+1795718907.091 | 16 | 190.2 | 14.9 (12.7–17.8) | 4.17 |
+1795718907.091 
+1795718907.091 ## Method
+1795718907.091 
+1795718907.091 Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+1795718907.091 
+1795718907.091 [localeval] saved /opt/code/deepeval/results/20261126-134734-adhoc-ink-hip-batch-mb16-bc2048-r2/result.json
+1795718907.091 [localeval] logged to unanimis: bf2a52c2-1f8a-431f-afc2-9d53f07577fd

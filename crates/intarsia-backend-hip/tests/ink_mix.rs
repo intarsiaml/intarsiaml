@@ -381,7 +381,13 @@ fn ink_mix_ops_match_the_reference() {
     )
     .unwrap();
     println!("{}", report.render(true));
+    // a row-table twin (`conv_mix_bf16_rows`, lane ink-hip-batch) is not graded: it takes its base kernel's admission
+    // (`Registry::effective_admission`); its gate is tests/ink_rows.rs (bitwise the base, row by row)
+    let row_table: Vec<String> = hip.kernels().into_iter().filter(|k| k.row_table).map(|k| k.name).collect();
     for (name, _) in intarsia_backend_hip::inkmix::TABLE {
+        if row_table.iter().any(|r| r == name) {
+            continue;
+        }
         let k = report.kernels.iter().find(|k| k.kernel == *name).unwrap_or_else(|| panic!("{name}: no summary"));
         assert!(k.cases > 0, "{name}: no admission case ran it");
         assert!(k.admitted, "{name}: not admitted");
