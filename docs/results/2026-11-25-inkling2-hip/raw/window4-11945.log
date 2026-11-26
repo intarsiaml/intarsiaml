@@ -1,0 +1,121 @@
+fleetq: #11945 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #11944 "ink-hip-moe: asm (VGPR counts)" (claude-04c0e1cd) loads it
+fleetq:   #11944 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11944 set, or it will wait for #11944 to be released.
+fleetq: #11945 running on tatooine-r9700, tatooine-r9700-2: .scratch/win.sh 1400 stage_speed.sh decode optable rocprof prefill
+[window] job 11945; stage: /home/josef/intarsiaml-ink-hip/docs/results/2026-11-25-inkling2-hip/raw/stage_speed.sh decode optable rocprof prefill; cap 1400s; stopping radiance 2026-11-25 21:56:33
+[window] radiance stopped 2026-11-25 21:56:37 (inactive)
+==== decode (21:56:37)
+-- short, 256 tokens, rep 1
+prefill chunk 256 (default)
+  • uncomfortable: not pleasantfinish=length prompt=31 (cached 0) completion=256 | prefill 83 ms (373.3 tok/s) | decode 4077 ms (62.54 tok/s)
+steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+-- 4k prompt, 256 tokens, rep 1
+prefill chunk 256 (default)
+finish=length prompt=4228 (cached 0) completion=256 | prefill 7958 ms (531.3 tok/s) | decode 4213 ms (60.53 tok/s)
+steps=272 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+-- short, 256 tokens, rep 2
+prefill chunk 256 (default)
+  • uncomfortable: not pleasantfinish=length prompt=31 (cached 0) completion=256 | prefill 81 ms (384.2 tok/s) | decode 4080 ms (62.50 tok/s)
+steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+-- 4k prompt, 256 tokens, rep 2
+prefill chunk 256 (default)
+| Embedded web UI: chat, live dashboard, live architecture map | **partial** | [`crates/intarsia-ui/src/lib.rs`](../crates/intarsia-ui/srcfinish=length prompt=4228 (cached 0) completion=256 | prefill 8030 ms (526.5 tok/s) | decode 4214 ms (60.52 tok/s)
+steps=272 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+==== optable (21:57:29)
+-- eager decode op table (short, 64 tokens, every step profiled)
+prefill chunk 256 (default)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.1 s
+loaded Inkling-2-Mini on AMD Radeon Graphics in 4.2s: 24 layers, hidden 2304, act bf16, kv bf16, weights 13.31 GB, context 8192 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+prompt: 31 tokens
+
+
+Sample answer
+
+Subject: Request to repair heating this week
+
+Dear [Landlord’s name],
+
+I hope you are well. I am writing to ask whether the heating in the apartment can be repaired this week. The apartment has been cold for several days, and it is becoming uncomfortable,finish=length pr
+op table (estimated ms over all launches; total 1615.8 ms):
+op                               ms  share%    calls   timed
+moe_experts                  400.75   24.80     2816    2816
+ink_in_proj                  261.22   16.17     3072    3072
+conv_mix                     260.91   16.15     6144    6144
+logits                especially
+        180.48   11.17     3136    3136
+matmul                       132.11    8.18     3072    3072
+rel_sink_attn                 98.09    6.07     3072    3072
+ink_kv_prologue               93.66    5.80     3072    3072
+moe_route                     81.27    5.03     3072    3072
+moe_experts_mxfp8             47.30    2.93      256     256
+attn_res_mix                  43.93    2.72     1664    1664
+loop_blend                     6.24    0.39      128     128
+argmax                         4.04    0.25       64      64
+rmsnorm                        3.32    0.21      128     128
+embedding                      2.47    0.15       64      64
+steps=64 graph replays=0 (captures 0) eager decode steps=63 (profiled 63) top ops: moe_experts=401ms/2816 ink_in_proj=261ms/3072 conv_mix=261ms/6144 logits=180ms/3136 matmul=132ms/3072
+-- prefill op table (4k prompt, chunk 256, 1 token)
+prefill chunk 256 (default)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.1 s
+loaded Inkling-2-Mini on AMD Radeon Graphics in 4.2s: 24 layers, hidden 2304, act bf16, kv bf16, weights 13.31 GB, context 8192 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+prompt: 4228 tokens
+
+
+finish=length prompt=4228 (cached 0) completion=1 | prefill 8184 ms (516.6 tok/s) | decode 0 ms (0.00 tok/s)
+op table (estimated ms over all launches; total 8174.7 ms):
+op                               ms  share%    calls   timed
+moe_experts                 5764.13   70.51      748     748
+rel_sink_attn               1054.54   12.90      816     816
+moe_experts_mxfp8            595.26    7.28       68      68
+conv_mix                     220.26    2.69     1632    1632
+ink_kv_prologue              191.72    2.35      816     816
+ink_in_proj                  167.65    2.05      816     816
+matmul                        75.26    0.92      816     816
+logits                        47.23    0.58      817     817
+attn_res_mix                  24.39    0.30      442     442
+moe_route                     22.57    0.28      816     816
+loop_blend                     7.74    0.09       34      34
+embedding                      1.72    0.02       17      17
+rmsnorm                        1.59    0.02       34      34
+argmax                         0.64    0.01        1       1
+steps=17 graph replays=0 (captures 0) eager decode steps=0 (profiled 0) top ops: moe_experts=5764ms/748 rel_sink_attn=1055ms/816 moe_experts_mxfp8=595ms/68 conv_mix=220ms/1632 ink_kv_prologue=192ms/81
+==== rocprof (21:57:48)
+/target/release/intarsia: error while loading shared libraries: libdw.so.1: cannot open shared object file: No such file or directory
+kernel trace: none
+==== prefill (21:57:48)
+-- 4k prompt, chunk 256, rep 1
+prefill chunk 256 (--prefill-chunk)
+finish=length prompt=4228 (cached 0) completion=8 | prefill 8077 ms (523.5 tok/s) | decode 120 ms (58.26 tok/s)
+steps=24 graph replays=7 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+-- 4k prompt, chunk 256, rep 2
+prefill chunk 256 (--prefill-chunk)
+finish=length prompt=4228 (cached 0) completion=8 | prefill 8070 ms (523.9 tok/s) | decode 120 ms (58.29 tok/s)
+steps=24 graph replays=7 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+-- 4k prompt, chunk 512, rep 1
+prefill chunk 512 (--prefill-chunk)
+**Status (sectionfinish=length prompt=4228 (cached 0) completion=8 | prefill 7762 ms (544.7 tok/s) | decode 120 ms (58.28 tok/s)
+steps=16 graph replays=7 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+-- 4k prompt, chunk 512, rep 2
+prefill chunk 512 (--prefill-chunk)
+finish=length prompt=4228 (cached 0) completion=8 | prefill 7738 ms (546.4 tok/s) | decode 120 ms (58.29 tok/s)
+steps=16 graph replays=7 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+-- 4k prompt, chunk 1024, rep 1
+prefill chunk 1024 (--prefill-chunk)
+finish=length prompt=4228 (cached 0) completion=8 | prefill 7655 ms (552.3 tok/s) | decode 120 ms (58.32 tok/s)
+steps=12 graph replays=7 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+-- 4k prompt, chunk 1024, rep 2
+prefill chunk 1024 (--prefill-chunk)
+finish=length prompt=4228 (cached 0) completion=8 | prefill 7673 ms (551.0 tok/s) | decode 120 ms (58.29 tok/s)
+steps=12 graph replays=7 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+-- 4k prompt, chunk 2048, rep 1
+prefill chunk 2048 (--prefill-chunk)
+finish=length prompt=4228 (cached 0) completion=8 | prefill 7652 ms (552.6 tok/s) | decode 120 ms (58.30 tok/s)
+steps=10 graph replays=7 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+-- 4k prompt, chunk 2048, rep 2
+prefill chunk 2048 (--prefill-chunk)
+**Status (sectionfinish=length prompt=4228 (cached 0) completion=8 | prefill 7737 ms (546.5 tok/s) | decode 120 ms (58.33 tok/s)
+steps=10 graph replays=7 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+[window] stage done 2026-11-25 21:59:29 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-25 21:59:29
+[window] radiance answers 2026-11-25 21:59:39 (after 15 s)
+fleetq: #11945 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit=0

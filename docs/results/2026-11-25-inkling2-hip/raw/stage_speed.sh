@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stage: first speed numbers of Inkling-2-Mini on one R9700 (`intarsia generate`, greedy, spec off, graphs as the default).
-# Usage: stage_speed.sh [decode] [prefill] [optable] [rocprof]
+# Usage: stage_speed.sh [decode] [prefill] [optable] [rocprof] [trace]
 set -uo pipefail
 REPO=$HOME/intarsiaml-ink-hip
 R=$REPO/docs/results/2026-11-25-inkling2-hip/raw
@@ -31,10 +31,13 @@ for s in "$@"; do
       bash "$R/run.sh" $I $G --no-graphs --profile-every 1 --op-table --max-tokens 1 -p "$P4" 2>&1 | tail -45 | cut -c1-200 ;;
     rocprof)
       rm -rf "$REPO/logs/rocprof"; mkdir -p "$REPO/logs/rocprof"
-      bash "$R/run.sh" rocprofv3 --kernel-trace --output-format csv -d /work/logs/rocprof -o run -- $I $G --profile-every 0 --max-tokens 24 -p "$PS" 2>&1 | tail -6 | cut -c1-300
+      INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 bash "$R/run.sh" rocprofv3 --kernel-trace --output-format csv -d /work/logs/rocprof -o run -- $I $G --profile-every 0 --max-tokens 24 -p "$PS" 2>&1 | tail -6 | cut -c1-300
       csv=$(find "$REPO/logs/rocprof" -name '*kernel_trace.csv' | head -1)
       echo "kernel trace: ${csv:-none}"
       [ -n "$csv" ] && gzip -kf "$csv" && python3 "$R/ktrace.py" "$csv" ;;
+    trace)
+      echo "-- INTARSIA_HIP_TRACE=1, eager decode (short, 24 tokens): per-kernel GPU time from event pairs"
+      INTARSIA_HIP_TRACE=1 bash "$R/run.sh" $I $G --no-graphs --profile-every 0 --max-tokens 24 -p "$PS" 2>&1 | tail -70 | cut -c1-220 ;;
     *) echo "unknown stage $s" ;;
   esac
 done
