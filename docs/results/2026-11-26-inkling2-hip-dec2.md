@@ -3,7 +3,7 @@
 Branch `ink/hip-dec2` from origin/main `f569b46a1`. Tatooine, card 0, dev image ROCm 7.2.4; repo `~/intarsiaml-ink-hip-dec2`, target
 volume `intarsia-cargo-target-ink-hip-dec2`. Scripts and logs: `2026-11-26-inkling2-hip-dec2/raw/`.
 
-Status (2026-11-26 03:25 EST): **one bitwise lever, +2.0 % decode at short and 4k, gated; PR opened (not merged).** Three
+Status (2026-11-26 03:25 EST): **one bitwise lever, +2.0 % decode at short and 4k, gated; PR #523 (https://github.com/intarsiaml/intarsiaml/pull/523), not merged.** Three
 order-preserving latency cuts in the small decode kernels behind `INTARSIA_HIP_INK_DEC_FAST` (bit mask, default 7 = on, `=0` =
 main's forms): the experts' one-wave grouping at <= 16 pairs (+0.8 %), the blend gate kernel's fused-norm tail (+1.1 %), the
 `moe_route` tail (+0.2 %). Main `f569b46a1` vs the branch `751f15646`, 4 + 4 processes ABBA, 256 tokens: **72.75 -> 74.22 tok/s
