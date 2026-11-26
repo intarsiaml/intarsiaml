@@ -130,7 +130,7 @@ Reading:
   the same arm) and keeping `wr` / `sink` / `sconv` bf16 does not matter for either format (D1 / D2 inside the seed spread of B / C):
   the error is the 3-bit mantissa, spread evenly over all tensors, not the few sensitive ones.
 - **G2 short is a coin toss at the bound for e4m3, with margin for int8**: every e4m3 variant and the 2.5 % noise land at 4.1-5.6e-3 on
-  the 4e-3 bound (none passes; the mean is 4.3e-3); int8 and noise below 1 % land at 1.4-3.5e-3 and pass in all seven runs.
+  the 4e-3 bound (none passes; the mean is 4.3e-3); int8 and noise below 1 % land at 1.4-3.5e-3 and pass in all twelve runs.
 
 ## Verdict
 
