@@ -75,6 +75,15 @@ Branch `ink/hip-moe`, base origin/main `d8c3c7148` + `ink/hip` `6c5ee5d67` (lead
   (one window, one PR for both). First add `docs/tuning.md` rows for every new env knob (`INTARSIA_HIP_INK_MOE_LEAN`, others),
   run `docs_env_vars` and the host tests, commit, send "rows at <commit>". Then S2 (WMMA prefill), based on origin/main.
 
+- Coordinator message after S2 (`2ba2d4154`): tonight's rule is bitwise defaults only, so S2 ships off by default; the flip
+  is the user's call in the morning, next to the attn lane's flash prefill (`INTARSIA_HIP_INK_ATTN_FLASH`, also not bitwise).
+  Do: (1) `INTARSIA_HIP_INK_MOE_WMMA` default 0, the 16-pairs-per-expert rule kept as the value to flip to, one constant,
+  tuning row updated; (2) merge `ink/hip-speed` (head `083e30f8f`: a154a5704 + attn op 75 + mix, md5 == main and G2 passed);
+  (3) one evaluation window, 5 min or less down (13:37 left): admission with WMMA on incl. the real-shape T=2048 cases
+  (`INK_MOE_BIG=1`); WMMA off: greedy md5 equal to `ink/hip-speed` at 64 tokens on a 4k prompt; G2 short and long with WMMA
+  on, flash on, both on; 4k and 16k prefill tok/s for off, WMMA, flash, both; (4) full table in this doc, then "ready to
+  merge at <commit>" with the table; PR after ink/hip-speed merges, defaults off.
+
 ## 0b. Radiance down time under the time budget (20 min from the rule change; windows 1 and 2 predate it: 52 s, 63 s)
 
 | Window | fleetq | Down | Budget used |
