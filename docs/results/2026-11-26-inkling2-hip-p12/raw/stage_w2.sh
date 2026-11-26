@@ -10,4 +10,4 @@ echo "[stage] bitwise tests $(now)"
 bash "$R/run.sh" env INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-hip --test ink_p12 -- --nocapture --test-threads=1 2>&1 | grep -aE "^test |test result|bitwise|escapes|panicked|differs|error" | head -20
 echo "[stage] microbench rows 1 2 4 8 $(now)"
 bash "$R/run.sh" env P12_BENCH=1 P12_MS=1,2,4,8 INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-hip --test ink_p12 p12_microbench -- --nocapture --test-threads=1 2>&1 | grep -aE "^BENCH|test result|panicked|error" | head -80
-BR=${BR:-p12b} PARTS="md5 g2 adm tiny" bash "$R/stage_gate.sh"
+BR=${BR:-p12b} PARTS="md5 g2 adm" bash "$R/stage_gate.sh"

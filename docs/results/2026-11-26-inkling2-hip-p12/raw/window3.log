@@ -1,0 +1,61 @@
+fleetq: #12145 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12142 "ink-sampled: hip rebuild branch tests br2 (cpu only)" (claude-04c0e1cd) loads it
+fleetq:   #12142 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12142 set, or it will wait for #12142 to be released.
+fleetq: #12145 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12144 "ink-hip-batch: rebuild mixmode PR tests (b11, on 80719483a) + negative control (cpu)" (claude-04c0e1cd) loads it
+fleetq:   #12144 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12144 set, or it will wait for #12144 to be released.
+fleetq: #12145 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=290 bash ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/window.sh ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w3.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w3.sh; cap 290s; stopping radiance 2026-11-26 14:55:46
+[window] radiance stopped 2026-11-26 14:55:50 (inactive)
+[stage] G2 short main 14:55:50
+prefill floor [4bit]: top-1 (all rows) 99.47% (not gated for this class) ok | 21-way KL (scored rows, n=569) 4.491e-3 (need <= 3.0e-2) ok [all rows, n=569: 4.491e-3, reported only] | tail mass (all rows) ours 0.0665 vs ref 0.0679, excess -0.0014 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+[stage] G2 short p12b 14:55:59
+prefill floor [4bit]: top-1 (all rows) 99.47% (not gated for this class) ok | 21-way KL (scored rows, n=569) 4.491e-3 (need <= 3.0e-2) ok [all rows, n=569: 4.491e-3, reported only] | tail mass (all rows) ours 0.0665 vs ref 0.0679, excess -0.0014 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+[stage] G2 long main 14:56:10
+prefill floor [4bit]: top-1 (all rows) 98.98% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 4.083e-3 (need <= 3.0e-2) ok [all rows, n=1569: 4.083e-3, reported only] | tail mass (all rows) ours 0.0405 vs ref 0.0407, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+[stage] G2 long p12b 14:56:21
+prefill floor [4bit]: top-1 (all rows) 98.98% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 4.083e-3 (need <= 3.0e-2) ok [all rows, n=1569: 4.083e-3, reported only] | tail mass (all rows) ours 0.0405 vs ref 0.0407, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+[stage] tiny inkling2 14:56:34
+test inkling2_tiny_chunk_scan ... ok
+test inkling2_tiny_chunked_and_decode_match_prefill_bitwise ... ok
+test inkling2_tiny_failed_pass_resets_the_sequence ... ok
+test inkling2_tiny_g1a_f32_vs_f64 ... ok
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+test inkling2_tiny_graph_decode_is_bitwise_the_eager_decode ... ok
+test inkling2_tiny_interleaved_sequences_equal_solo ... ok
+test inkling2_tiny_launch_diff ... ok
+test inkling2_tiny_loads ... ok
+test inkling2_tiny_logits_dump ... ok
+test inkling2_tiny_no_kernel_refusal_names_the_op ... ok
+test inkling2_tiny_p12_forced_on ... ok
+test inkling2_tiny_rollback_by_length ... ok
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+test inkling2_tiny_verify_graph_replays_equal_decode_bitwise ... ok
+test inkling2_tiny_verify_rows_equal_decode_bitwise ... ok
+thread 'inkling2_tiny_g1b_teacher_forced_bf16' panicked at crates/intarsia-models/tests/inkling2.rs:292:5:
+thread 'inkling2_tiny_screen_keeps_batching' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+thread 'inkling2_tiny_screened_head_one_row_only' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.87s
+[stage] tiny inkling2 control, INTARSIA_INK_PACK12=0 14:56:36
+test inkling2_tiny_failed_pass_resets_the_sequence ... ok
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.74s
+error: test failed, to rerun pass `-p intarsia-models --test inkling2`
+[stage] tiny inkling2_dspark 14:56:38
+test dspark_greedy_ids_equal_spec_off ... ok
+test dspark_partial_acceptance_keeps_ids_identical ... ok
+test dspark_runs_with_admitted_kernels_only ... ok
+test dspark_unsynced_draft_keeps_the_prefix_and_skips_drafting ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 154.62s
+[stage] tiny inkling2_dspark_cut 14:59:13
+test dspark_cumulative_cut_keeps_ids_and_shortens_drafts ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.26s
+[stage] tiny inkling2_verify_softcap 14:59:17
+test verify_logits_rows_are_the_softcapped_decode_logits ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+[stage] done 14:59:17

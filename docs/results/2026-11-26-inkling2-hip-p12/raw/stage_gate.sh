@@ -35,7 +35,8 @@ if has g2; then
   for g in short long; do
     for a in main $BR; do
       echo "[stage] G2 $g $a $(now)"
-      bash "$R/run.sh" /work/.scratch/bin/intarsia-$a accuracy -m $M --backend hip --max-seq 4096 --mode prefill --golden golden/oracle/inkling2-mini-oracle-w4a16-$g-top20.safetensors 2>&1 | grep -aE "prefill floor|floor verdict|kl|KL|Error|panicked" | head -4 | cut -c1-400
+      bash "$R/run.sh" /work/.scratch/bin/intarsia-$a accuracy -m $M --backend hip --max-seq 4096 --mode prefill --golden golden/oracle/inkling2-mini-oracle-w4a16-$g-top20.safetensors > "$OUT/g2-$g-$a.log" 2>&1
+      grep -aE "prefill floor|floor verdict|Error|panicked" "$OUT/g2-$g-$a.log" | cut -c1-400
     done
   done
 fi
@@ -48,6 +49,8 @@ fi
 if has tiny; then
   echo "[stage] tiny inkling2 $(now)"
   bash "$R/run.sh" env INTARSIA_INKLING2_BACKEND=hip cargo test --release -p intarsia-models --test inkling2 -- --test-threads 1 2>&1 | grep -aE "^test |test result|panicked" | head -30
+  echo "[stage] tiny inkling2 control, INTARSIA_INK_PACK12=0 $(now)"
+  bash "$R/run.sh" env INTARSIA_INKLING2_BACKEND=hip INTARSIA_INK_PACK12=0 cargo test --release -p intarsia-models --test inkling2 -- --test-threads 1 2>&1 | grep -aE "FAILED|failed|test result" | head -6
   for t in inkling2_dspark inkling2_dspark_cut inkling2_verify_softcap; do
     echo "[stage] tiny $t $(now)"
     bash "$R/run.sh" env INTARSIA_INKLING2_BACKEND=hip cargo test --release -p intarsia-models --test $t -- --test-threads 1 2>&1 | grep -aE "^test |test result|panicked" | head -10

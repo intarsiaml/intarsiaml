@@ -1,0 +1,139 @@
+fleetq: #12138 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 97% busy with work fleetq does not track
+fleetq: #12138 waiting (#1 in line): needs tatooine-r9700-2 quiet, but its GPU is 95% busy with work fleetq does not track
+fleetq: #12138 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 73% busy with work fleetq does not track
+fleetq: #12138 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=295 bash ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/window.sh ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w2.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w2.sh; cap 295s; stopping radiance 2026-11-26 14:46:34
+[window] radiance stopped 2026-11-26 14:46:38 (inactive)
+[stage] bitwise tests 2026-11-26 14:46:38
+test p12_bitwise_real_shapes ... unembed: 42371 escapes
+p12_bitwise_real_shapes: 199 cases bitwise
+test p12_bitwise_small_and_adversarial ... p12_bitwise_small_and_adversarial: 324 cases bitwise
+test p12_microbench ... skipping: P12_BENCH unset
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+[stage] microbench rows 1 2 4 8 2026-11-26 14:46:40
+BENCH wo | 1 | matmul_bf16_gemv | 28.43 | 497.8 | 1.000
+BENCH wo | 1 | matmul_p12_gemv default | 23.08 | 460.4 | 1.232
+BENCH wo | 1 | matmul_p12_gemv R=1,U=8 | 21.55 | 493.2 | 1.319
+BENCH wo | 1 | matmul_p12_gemv R=1,U=4 | 21.65 | 490.8 | 1.313
+BENCH wo | 1 | matmul_p12_gemv R=1,U=9 | 22.31 | 476.5 | 1.275
+BENCH wo | 1 | matmul_p12_gemv R=1,U=12 | 22.82 | 465.7 | 1.246
+BENCH wo | 1 | matmul_p12_gemv R=1,U=16 | 22.89 | 464.4 | 1.242
+BENCH wo | 1 | matmul_p12_gemv R=2,U=4 | 23.38 | 454.6 | 1.216
+BENCH wo | 1 | matmul_p12_gemv R=2,U=8 | 24.16 | 439.9 | 1.177
+BENCH wo | 2 | matmul_bf16_gemv | 25.87 | 547.3 | 1.000
+BENCH wo | 2 | matmul_p12_gemv default | 22.48 | 472.8 | 1.151
+BENCH wo | 2 | matmul_p12_gemv R=2,U=4 | 22.34 | 475.7 | 1.158
+BENCH wo | 2 | matmul_p12_gemv R=2,U=8 | 23.90 | 444.8 | 1.082
+BENCH wo | 2 | matmul_p12_gemv R=1,U=4 | 22.52 | 471.8 | 1.148
+BENCH wo | 2 | matmul_p12_gemv R=1,U=8 | 22.29 | 476.7 | 1.160
+BENCH wo | 4 | matmul_bf16_gemv | 27.74 | 510.4 | 1.000
+BENCH wo | 4 | matmul_p12_gemv default | 23.80 | 446.6 | 1.166
+BENCH wo | 4 | matmul_p12_gemv R=2,U=4 | 25.45 | 417.5 | 1.090
+BENCH wo | 4 | matmul_p12_gemv R=2,U=8 | 54.59 | 194.7 | 0.508
+BENCH wo | 4 | matmul_p12_gemv R=1,U=4 | 23.69 | 448.6 | 1.171
+BENCH wo | 4 | matmul_p12_gemv R=1,U=8 | 26.83 | 396.1 | 1.034
+BENCH wo | 8 | matmul_bf16_gemv_rows | 30.68 | 461.4 | 1.000
+BENCH wo | 8 | matmul_p12_gemv_rows default | 28.24 | 376.3 | 1.086
+BENCH wo | 8 | matmul_p12_gemv_rows R=2,U=4 | 28.09 | 378.4 | 1.092
+BENCH wo | 8 | matmul_p12_gemv_rows R=2,U=8 | 101.04 | 105.2 | 0.304
+BENCH wo | 8 | matmul_p12_gemv_rows R=1,U=4 | 29.40 | 361.6 | 1.044
+BENCH wo | 8 | matmul_p12_gemv_rows R=1,U=8 | 73.11 | 145.4 | 0.420
+BENCH unembed | 1 | logits_bf16_gemv | 1450.11 | 635.7 | 1.000
+BENCH unembed | 1 | matmul_p12_logits_gemv default | 1100.12 | 629.4 | 1.318
+BENCH unembed | 1 | matmul_p12_logits_gemv R=1,U=8 | 1213.96 | 570.3 | 1.195
+BENCH unembed | 1 | matmul_p12_logits_gemv R=1,U=4 | 1248.52 | 554.6 | 1.161
+BENCH unembed | 1 | matmul_p12_logits_gemv R=1,U=9 | 1107.28 | 625.3 | 1.310
+BENCH unembed | 1 | matmul_p12_logits_gemv R=1,U=12 | 1101.47 | 628.6 | 1.317
+BENCH unembed | 1 | matmul_p12_logits_gemv R=1,U=16 | 1100.28 | 629.3 | 1.318
+BENCH unembed | 1 | matmul_p12_logits_gemv R=2,U=4 | 1306.61 | 529.9 | 1.110
+BENCH unembed | 1 | matmul_p12_logits_gemv R=2,U=8 | 1239.85 | 558.4 | 1.170
+BENCH unembed | 1 | one launch each (dec3=3): bf16 1711.14 / P12 1355.77 | | 1.262
+BENCH unembed | 2 | logits_bf16_gemv | 1721.13 | 535.6 | 1.000
+BENCH unembed | 2 | matmul_p12_logits_gemv default | 1255.46 | 551.5 | 1.371
+BENCH unembed | 2 | matmul_p12_logits_gemv R=2,U=4 | 1312.66 | 527.5 | 1.311
+BENCH unembed | 2 | matmul_p12_logits_gemv R=2,U=8 | 1227.74 | 563.9 | 1.402
+BENCH unembed | 2 | matmul_p12_logits_gemv R=1,U=4 | 1256.55 | 551.0 | 1.370
+BENCH unembed | 2 | matmul_p12_logits_gemv R=1,U=8 | 1220.68 | 567.2 | 1.410
+BENCH unembed | 4 | logits_bf16_gemv | 1746.94 | 527.7 | 1.000
+BENCH unembed | 4 | matmul_p12_logits_gemv default | 1283.91 | 539.3 | 1.361
+BENCH unembed | 4 | matmul_p12_logits_gemv R=2,U=4 | 1322.00 | 523.7 | 1.321
+BENCH unembed | 4 | matmul_p12_logits_gemv R=2,U=8 | 3467.52 | 199.7 | 0.504
+BENCH unembed | 4 | matmul_p12_logits_gemv R=1,U=4 | 1281.99 | 540.1 | 1.363
+BENCH unembed | 4 | matmul_p12_logits_gemv R=1,U=8 | 1425.75 | 485.6 | 1.225
+BENCH unembed | 8 | logits_bf16_gemv_rows | 1820.61 | 506.4 | 1.000
+BENCH unembed | 8 | matmul_p12_logits_gemv_rows default | 1499.09 | 461.9 | 1.214
+BENCH unembed | 8 | matmul_p12_logits_gemv_rows R=2,U=4 | 1505.21 | 460.0 | 1.210
+BENCH unembed | 8 | matmul_p12_logits_gemv_rows R=2,U=8 | 7159.51 | 96.7 | 0.254
+BENCH unembed | 8 | matmul_p12_logits_gemv_rows R=1,U=4 | 1719.17 | 402.7 | 1.059
+BENCH unembed | 8 | matmul_p12_logits_gemv_rows R=1,U=8 | 5776.88 | 119.9 | 0.315
+BENCH in_proj | 1 | ink_in_proj_bf16_gemv | 67.07 | 595.2 | 1.000
+BENCH in_proj | 1 | ink_in_proj_p12_gemv default | 53.94 | 555.9 | 1.244
+BENCH in_proj | 1 | ink_in_proj_p12_gemv u=0 | 56.41 | 531.5 | 1.189
+BENCH in_proj | 1 | ink_in_proj_p12_gemv u=4 | 56.41 | 531.6 | 1.189
+BENCH in_proj | 1 | ink_in_proj_p12_gemv u=9 | 53.90 | 556.3 | 1.244
+BENCH in_proj | 2 | ink_in_proj_bf16_gemv | 66.01 | 604.8 | 1.000
+BENCH in_proj | 2 | ink_in_proj_p12_gemv default | 54.15 | 553.7 | 1.219
+BENCH in_proj | 2 | ink_in_proj_p12_gemv u=0 | 57.03 | 525.8 | 1.157
+BENCH in_proj | 2 | ink_in_proj_p12_gemv u=4 | 57.30 | 523.3 | 1.152
+BENCH in_proj | 2 | ink_in_proj_p12_gemv u=9 | 54.09 | 554.3 | 1.220
+BENCH in_proj | 4 | ink_in_proj_bf16_gemv | 70.05 | 569.9 | 1.000
+BENCH in_proj | 4 | ink_in_proj_p12_gemv default | 55.12 | 543.9 | 1.271
+BENCH in_proj | 4 | ink_in_proj_p12_gemv u=0 | 58.95 | 508.6 | 1.188
+BENCH in_proj | 4 | ink_in_proj_p12_gemv u=4 | 60.14 | 498.5 | 1.165
+BENCH in_proj | 4 | ink_in_proj_p12_gemv u=9 | 55.29 | 542.2 | 1.267
+BENCH in_proj | 8 | ink_in_proj_bf16_gemv | 77.02 | 518.4 | 1.000
+BENCH in_proj | 8 | ink_in_proj_p12_gemv default | 63.93 | 469.0 | 1.205
+BENCH in_proj | 8 | ink_in_proj_p12_gemv u=0 | 64.02 | 468.4 | 1.203
+BENCH in_proj | 8 | ink_in_proj_p12_gemv u=4 | 81.55 | 367.6 | 0.944
+BENCH in_proj | 8 | ink_in_proj_p12_gemv u=9 | 223.13 | 134.4 | 0.345
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 4.05s
+MD5 main off-short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 824 ms (76.46 tok/s) | 0 P12 load lines [14:46:50]
+MD5 branch off-short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 759 ms (82.95 tok/s) | 2 P12 load lines [14:46:56]
+MD5 main default-short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 660 ms (95.46 tok/s) | 0 P12 load lines [14:47:04]
+MD5 branch default-short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 617 ms (102.05 tok/s) | 2 P12 load lines [14:47:13]
+MD5 branch0 off-short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 823 ms (76.55 tok/s) | 0 P12 load lines [14:47:19]
+MD5 main off-4k 64 2252566a5c54cf52cb564bd214c9af2b | decode 858 ms (73.45 tok/s) | 0 P12 load lines [14:47:26]
+MD5 branch off-4k 64 2252566a5c54cf52cb564bd214c9af2b | decode 793 ms (79.41 tok/s) | 2 P12 load lines [14:47:33]
+MD5 main default-4k 64 2252566a5c54cf52cb564bd214c9af2b | decode 775 ms (81.33 tok/s) | 0 P12 load lines [14:47:42]
+MD5 branch default-4k 64 2252566a5c54cf52cb564bd214c9af2b | decode 727 ms (86.71 tok/s) | 2 P12 load lines [14:47:52]
+MD5 branch0 off-4k 64 2252566a5c54cf52cb564bd214c9af2b | decode 858 ms (73.43 tok/s) | 0 P12 load lines [14:47:59]
+[stage] G2 short main 14:47:59
+--spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe inkling2, hip)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.1 s
+accuracy: Inkling-2-Mini on AMD Radeon Graphics (vocab 200058, weights/act/kv bf16/bf16)
+[stage] G2 short p12b 14:48:09
+--spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe inkling2, hip)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.6 s
+accuracy: Inkling-2-Mini on AMD Radeon Graphics (vocab 200058, weights/act/kv bf16/bf16)
+[stage] G2 long main 14:48:19
+--spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe inkling2, hip)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.0 s
+accuracy: Inkling-2-Mini on AMD Radeon Graphics (vocab 200058, weights/act/kv bf16/bf16)
+[stage] G2 long p12b 14:48:30
+--spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe inkling2, hip)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.5 s
+accuracy: Inkling-2-Mini on AMD Radeon Graphics (vocab 200058, weights/act/kv bf16/bf16)
+[stage] kernels test matmul_p12 14:48:42
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_p12     matmul_p12_gemv                34      0    1.026e-6    3.988e-8  ADMITTED
+matmul_p12     matmul_p12_gemv_rows           59      0    3.644e-6    1.203e-7  ADMITTED
+matmul_p12     matmul_p12_logits_gemv         34      0    2.392e-7    1.105e-7  ADMITTED
+matmul_p12     matmul_p12_logits_gemv_rows     50      0    2.392e-7    1.105e-7  ADMITTED
+4 kernels, 177 cases in 71.4s
+[stage] kernels test ink_in_proj 14:49:54
+op             kernel                      cases   fail     max_abs      rel_l2  result
+ink_in_proj    ink_in_proj_bf16_gemv          24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_gemv_rows     24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_matmul         5      0    3.125e-3    4.706e-5  ADMITTED
+ink_in_proj    ink_in_proj_p12_gemv           48      0    1.748e-3    6.599e-5  ADMITTED
+ink_in_proj    ink_in_proj_p12_gemv_rows      48      0    1.748e-3    6.599e-5  ADMITTED
+5 kernels, 149 cases in 66.9s
+[stage] done 14:51:02
+[window] stage done 2026-11-26 14:51:03 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 14:51:03
+[window] radiance answers 2026-11-26 14:51:13 (after 15 s)
+fleetq: #12138 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
