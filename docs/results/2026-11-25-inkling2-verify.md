@@ -13,7 +13,7 @@ its own against the base:
   calls in 1500+ real-model layer checks) and **engage** on the real model, in `generate` and in a default `serve`.
 - Neither lever reaches the Neon estimates (+8-12 %, +3-6 %). Lever 1 (screened verify head) gives **nothing measurable** (within-process
   paired decode ratios 0.996 / 0.991 / 1.004 at 143 / 1k / 4k, 48 pairs each). Lever 2 (one-launch draft attention) gives **nothing at 143 and
-  1k and about +2 % at 4k** (1.022, 95 % CI 1.000-1.034). TTFT is not affected beyond noise by either.
+  1k and +2 % at 4k, at the noise floor** (1.022, 95 % CI 1.000-1.034, p 0.059). TTFT is not affected beyond noise by either.
 - Gate 3: both levers ship behind env knobs, **default off** (`INTARSIA_INK_VERIFY_SCREEN=1`, `INTARSIA_DSPARK_ATTN_ROWS=1`), rows in
   `docs/tuning.md`. With both off the code paths are the base's (spec-on decode identical to `b2afb4eaa`). Lever 2 is the only candidate for
   default-on (byte-identical, +2 % at 4k, nothing lost below); I did not flip it because 48 pairs put its lower bound at 1.000.
@@ -74,7 +74,7 @@ ids of the 1k prompt, 1021 and 4108 tokens: `longp.json` of lane ink-spec), spec
 |---|---|---|---|
 | spec off (new binary) | n/a (reference) | 0 / 0 / 0 | |
 | base binary `b2afb4eaa` | yes / yes / yes | 219 / 504 / 404 (80.2 %) | |
-| new, lever 1 (default) | yes / yes / yes | 219 / 504 / 404 | 219 verify groups screened, 0 full-head fallback passes (364 screened launches = 145 decode + 219 verify) |
+| new, lever 1 (default) | yes / yes / yes | 219 / 504 / 404 | 219 verify groups screened, 0 forced fallbacks (real per-row fallbacks on the device are not counted; 364 screened launches = 145 decode + 219 verify) |
 | new, both knobs off | yes / yes / yes | 219 / 504 / 404 | 0 verify groups (145 decode launches) |
 | new, lever 2 only (`ATTN_ROWS=1 VERIFY_SCREEN=0`) | yes / yes / yes | 219 / 504 / 404 | `dspark attention rows: engaged` |
 | new, lever 2 only + `ATTN_ROWS_CHECK=1` | yes / yes / yes | 219 / 504 / 404 | `1500+ checks, 0 mismatches` (every draft layer of every draft step, all three lengths) |
@@ -113,8 +113,8 @@ per-process fast / slow mode L8 found (10-14 % at 16k). Both are bigger than eit
 
 ### A/B 1: cross-process ABBA against the base binary (fleetq #11914, exclusive, 20:49-21:06)
 
-Arms: A = base binary (`b2afb4eaa`), B = new binary, lever 1 on (`INTARSIA_INK_VERIFY_SCREEN=1` at the time of the run, when the
-default was on), C = new binary, lever 2 only (`INTARSIA_DSPARK_ATTN_ROWS=1 INTARSIA_INK_VERIFY_SCREEN=0`), D = both. Eight rounds,
+Arms: A = base binary (`b2afb4eaa`), B = new binary, lever 1 on (the variable was not set: lever 1 was default-on in that binary; reproduce with
+`INTARSIA_INK_VERIFY_SCREEN=1` now), C = new binary, lever 2 only (`INTARSIA_DSPARK_ATTN_ROWS=1 INTARSIA_INK_VERIFY_SCREEN=0`), D = both. Eight rounds,
 order A B C D / D C B A alternating, each process runs the three prompts twice (so 2 samples per length per round, 16 per arm, and
 **14 with round 4 dropped: a release build of mine ran on the box during it (20:55-20:57) and r04-B fell to 68 / 50 tok/s**).
 Medians over the 14 samples; "ratio" is the median of the per-round, per-repeat ratio to arm A of the same round.
@@ -157,15 +157,22 @@ own cycle and length; median, 95 % bootstrap CI of the median, pairs above 1.0 w
 The per-process medians of the paired ratio (p1..p6) are within 0.92-1.07 for every arm and length, so no single process carries a result. The
 CI printed is of the median of the paired ratios; the table's ratios are those medians (B / A at 4k: 1.0039, C / A at 4k: 1.0221, D / A at 4k: 1.0171).
 
+All 648 within-process runs (6 processes x 108 requests, levers flipped per request, `--show-ids`) produced ids identical to the spec-off ids of the
+same prompt (`.scratch/job1/off.err`): the bitwise gate also holds on the override path, across mid-process toggles.
+
 TTFT (engine prefill ms), medians A / B / C / D: 143 153 / 158 / 150 / 153, 1k 576 / 530 / 554 / 554, 4k 2247 / 2347 / 2269 / 2337. Paired ratios
 B / A 1.00-1.04 (143: CI 1.000-1.038), C / A and D / A 0.95-1.03; two 4k cells (C, D) have CIs just below 1 (p 0.03 and 0.01). The levers act
 only in decode, so these are chance (3 arms x 3 lengths x 2 metrics = 18 cells); the checks that matter, no regression beyond noise, hold:
 the TTFT ratios of B, C and D against A are within +-4 % at every length with CIs that include 1.0 except the two cells that point at a *faster*
 prefill.
 
-Reading: **lever 1 gives nothing** (decode ratios 0.996 / 0.991 / 1.004, every CI includes 1.0). **Lever 2 gives nothing at 143 and 1k and about
-+2 % at 4k** (1.022, CI 1.000-1.034, sign test p 0.059): the effect is at the edge of what 48 pairs resolve, and it points the same way in the
-cross-process A/B (+0.8 / +1.1 / +1.3 % alone). That is the only result near the noise floor, and it is a third of Neon's low estimate (+3-6 %).
+Reading: **lever 1 gives nothing** (decode ratios 0.996 / 0.991 / 1.004, every CI includes 1.0). **Lever 2 gives nothing at 143 and 1k and sits at the noise floor at 4k, +2 %**
+(1.022, CI 1.000-1.034, sign test p 0.059): not an established effect, though it has the same sign in the cross-process A/B (+0.8 / +1.1 / +1.3 %
+alone). That is the only result near the noise floor, and it is a third of Neon's low estimate (+3-6 %).
+Metal tests ran at `266dd813f` and were not re-run on the branch head (the slots before 23:00 are taken by other lanes): since then only the run-time
+override indirection, the two default constants (both off) and the tiny test's explicit `set_verify_override` changed; the lever-on code is
+unchanged apart from one atomic read, and the default path is the base's. The cpu tests were re-run on the head.
+
 The first three processes alone (loaded box) gave 0.97-1.05 with intervals around 1.0; the three later ones (quieter) gave 1.00-1.03.
 
 ### Why the estimates did not hold
@@ -174,6 +181,9 @@ The first three processes alone (loaded box) gave 0.97-1.05 with intervals aroun
   is P12 (`matmul_p12_logits_gemv`, 1-row 1.2 ms, 1.58 ms for bf16: `docs/results/2026-11-21-inkling2-fp8.md` 1b), and the screen's fp8
   copy is 0.46 GB against P12's roughly 0.7 GB. The screen can therefore save about a third of 1.2 ms (0.4 ms, ~1.2 % of a pass) before
   it pays for the extra launches (one fp8 matmul, a screen, an argmax and one gather per row, against one head launch plus an argmax).
+  Hypothesis for the rest: the screen's candidate cap leaves about 2.8 % of rows to the full head on the short golden set
+  (`INTARSIA_INK_HEAD_SCREEN_CAP` row of tuning.md); each such row now re-reads the full head by itself (about 1.2 ms) where the old group read it
+  once, and a group has up to 4 rows, which eats a share of the 0.4 ms. Real fallbacks are not counted, so this was not checked.
   The measurement agrees: no gain, a hint of a loss.
 - Lever 2: it replaces `t x layers` single-row calls per draft step (8 rows, up to two dispatches each) by `layers` row-table launches. The
   saving is host and dispatch overhead, which grows with the context only through the kernel itself; it shows at 4k (+2 %) and not below.
@@ -196,7 +206,7 @@ no case: the full verify head is already cheap on the P12 unembed.
 - Lever 1 `hs.rows_ok` accepts the bf16 or the P12 rows head without checking that its format equals the gather's (harmless for the gate:
   decode without speculation uses the same 1-row kernel as the gather). A verify row that falls back reads the full head by itself, so a
   workload with many fallbacks would cost more than the old one-read full head; the counter of real (not forced) fallbacks is not exposed
-  per row. Gate 1 saw 0 fallback passes on 219 groups.
+  per row. Gate 1's `0 full-head fallback pass(es)` counts only forced fallbacks (the test hook); a real fallback happens on the device and is not counted.
 - Lever 2 is Metal only and needs `OpCall::rows` (`supports_row_tables`); the tiny fixture's draft has no row-table kernel, so the
   Metal tiny-draft tests do not exercise it. Its exactness evidence is the real-model byte check (1500+ layer checks, 0 mismatches, at
   143 / 1k / 4k with the 8-row block and both window and full-attention layers), not a unit test.
