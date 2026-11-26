@@ -1,0 +1,167 @@
+fleetq: #11940 running on tatooine-r9700, tatooine-r9700-2: .scratch/win.sh 1700 stage_gates.sh admit gen tiny g2short g2long
+[window] job 11940; stage: /home/josef/intarsiaml-ink-hip/docs/results/2026-11-25-inkling2-hip/raw/stage_gates.sh admit gen tiny g2short g2long; cap 1700s; stopping radiance 2026-11-25 21:49:49
+[window] radiance stopped 2026-11-25 21:49:52 (inactive)
+==== admit (21:49:52)
+== kernels test --backend hip --op attn_res_mix (21:49:52)
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+attn_res_mix   attn_res_mix_bf16              93      0    2.016e-3    4.909e-5  ADMITTED
+1 kernels, 93 cases in 0.5s
+== attn_res_mix exit 0
+== kernels test --backend hip --op loop_blend (21:49:53)
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.637e-4  ADMITTED
+1 kernels, 27 cases in 1.3s
+== loop_blend exit 0
+== kernels test --backend hip --op sconv_res (21:49:55)
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+sconv_res      sconv_res_bf16                 64      0    1.880e-3    1.234e-5  ADMITTED
+1 kernels, 64 cases in 0.6s
+== sconv_res exit 0
+== kernels test --backend hip --op conv_mix (21:49:56)
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+1 kernels, 532 cases in 6.1s
+== conv_mix exit 0
+== kernels test --backend hip --op ink_in_proj (21:50:03)
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+ink_in_proj    ink_in_proj_bf16_gemv          24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_gemv_rows     24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_matmul         5      0    3.125e-3    4.706e-5  ADMITTED
+3 kernels, 53 cases in 40.1s
+== ink_in_proj exit 0
+== kernels test --backend hip --op ink_kv_prologue (21:50:43)
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+ink_kv_prologue ink_kv_prologue_bf16          117      0    5.464e-3    4.346e-4  ADMITTED
+1 kernels, 117 cases in 2.9s
+== ink_kv_prologue exit 0
+== kernels test --backend hip --op rel_sink_attn (21:50:47)
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+rel_sink_attn  rel_sink_attn_bf16             63      0    1.678e-3    1.161e-4  ADMITTED
+1 kernels, 63 cases in 5.4s
+== rel_sink_attn exit 0
+== kernels test --backend hip --op moe_experts (21:50:52)
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_bf16_v2            12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_bf16_v3            12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_bf16_rows           4      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_situ_bf16          10      0    3.472e-3    1.719e-4  ADMITTED
+moe_experts    moe_experts_situ_bf16_rows      7      0    1.748e-3    1.266e-4  ADMITTED
+6 kernels, 57 cases in 61.0s
+== moe_experts exit 0
+== kernels test --backend hip --op moe_experts_mxfp8 (21:51:54)
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+moe_experts_mxfp8 moe_experts_mxfp8_bf16         19      0    3.378e-3    1.634e-4  ADMITTED
+moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows     14      0    2.058e-3    1.634e-4  ADMITTED
+2 kernels, 33 cases in 18.2s
+== moe_experts_mxfp8 exit 0
+== kernels test --backend hip --op moe_route (21:52:12)
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+moe_route      moe_route                      19      0    2.048e-7    9.806e-8  ADMITTED
+1 kernels, 19 cases in 0.0s
+== moe_route exit 0
+==== admit exit 0
+==== gen (21:52:13)
+prefill chunk 256 (default)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 4.2 s
+loaded Inkling-2-Mini on AMD Radeon Graphics in 5.5s: 24 layers, hidden 2304, act bf16, kv bf16, weights 13.31 GB, context 4096 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+prompt: 5 tokens
+
+Error: generation failed: invalid op call: ik_matmul_bf16 returned IK_ERR_DTYPE (2); inputs [Bf16, Bf16] shapes [[5, 2304], [128, 2304]]
+==== gen exit 1
+==== tiny (21:52:19)
+test inkling2_tiny_chunk_scan ... ok
+test inkling2_tiny_chunked_and_decode_match_prefill_bitwise ... FAILED
+test inkling2_tiny_failed_pass_resets_the_sequence ... FAILED
+test inkling2_tiny_g1a_f32_vs_f64 ... ok
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+test inkling2_tiny_graph_decode_is_bitwise_the_eager_decode ... FAILED
+test inkling2_tiny_interleaved_sequences_equal_solo ... FAILED
+test inkling2_tiny_launch_diff ... ok
+test inkling2_tiny_loads ... FAILED
+test inkling2_tiny_logits_dump ... ok
+test inkling2_tiny_no_kernel_refusal_names_the_op ... ok
+test inkling2_tiny_p12_forced_on ... ok
+test inkling2_tiny_rollback_by_length ... FAILED
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+test inkling2_tiny_verify_graph_replays_equal_decode_bitwise ... FAILED
+test inkling2_tiny_verify_rows_equal_decode_bitwise ... FAILED
+thread 'inkling2_tiny_chunked_and_decode_match_prefill_bitwise' panicked at crates/intarsia-models/tests/inkling2.rs:129:6:
+thread 'inkling2_tiny_failed_pass_resets_the_sequence' panicked at crates/intarsia-models/tests/inkling2.rs:129:6:
+thread 'inkling2_tiny_g1b_teacher_forced_bf16' panicked at crates/intarsia-models/tests/inkling2.rs:283:55:
+thread 'inkling2_tiny_graph_decode_is_bitwise_the_eager_decode' panicked at crates/intarsia-models/tests/inkling2.rs:129:6:
+thread 'inkling2_tiny_interleaved_sequences_equal_solo' panicked at crates/intarsia-models/tests/inkling2.rs:129:6:
+thread 'inkling2_tiny_loads' panicked at crates/intarsia-models/tests/inkling2.rs:129:6:
+thread 'inkling2_tiny_rollback_by_length' panicked at crates/intarsia-models/tests/inkling2.rs:129:6:
+thread 'inkling2_tiny_screen_keeps_batching' panicked at crates/intarsia-models/tests/inkling2.rs:91:38:
+thread 'inkling2_tiny_screened_head_one_row_only' panicked at crates/intarsia-models/tests/inkling2.rs:91:38:
+thread 'inkling2_tiny_verify_graph_replays_equal_decode_bitwise' panicked at crates/intarsia-models/tests/inkling2.rs:129:6:
+thread 'inkling2_tiny_verify_rows_equal_decode_bitwise' panicked at crates/intarsia-models/tests/inkling2.rs:129:6:
+test result: FAILED. 6 passed; 11 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+error: test failed, to rerun pass `-p intarsia-models --test inkling2`
+==== tiny exit 101
+==== g2short (21:52:20)
+prefill chunk 256 (default)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.8 s
+accuracy: Inkling-2-Mini on AMD Radeon Graphics (vocab 200058, weights/act/kv bf16/bf16)
+accuracy: the golden's template "chatml" does not fit this tokenizer (turn format chatml: turn-close marker "<|im_end|>" is not a single token (got [27, 91, 315, 62, 406, 91, 29])); using inkling2 (recipe inkling2)
+KL row mask: inkling2 (recipe inkling2, golden template "chatml" does not fit the tokenizer): 0 of 569 rows lie inside a system or user turn and are not scored by the KL floor
+golden: golden/oracle/inkling2-mini-oracle-w4a16-short-top20.safetensors (8 prompts, 569 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine inkling2_ref 0.1.dev25855+g7cb5dae22 | model thinkingmachines/Inkling-2-Mini | revision not in the model root path | dtype torch.float32 | KV dtype auto | template chatml
+  reference cache config: {"_block_size_resolved": "True", "_extensible_kv_cache_resolved": "True", "block_size": "16", "cache_dtype": "auto", "cache_hit_alignment_tokens": "None", "effective_attention_block_size": "64", "enable_extensible_kv_cache": "True", "enable_mamba_shared_prefix_checkpoint": "False", "enable_prefix_caching": "False", "engine": "0", "gpu_memory_utilization": "0.3", "hash_block_size": "None", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_layout": "None", "kv_cache_max_concurrency": "3.286881307063912", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "26926", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "None", "mamba_cache_dtype": "auto", "mamba_cache_mode": "none", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "auto", "num_cpu_blocks": "None", "num_gpu_blocks": "6840", "num_gpu_blocks_override": "None", "prefix_cache_retention_interval": "0", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "simple_cpu_offload_num_blocks": "None", "skip_page_size_padded": "None", "sliding_window": "None", "swa_bounded_replay": "True", "use_kda_recoverssm": "False", "use_replayssm": "False", "user_specified_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server", "cache_salt": "not used (prefix cache not controlled: unverified whether prompt_logprobs requests read cached fp8 KV blocks)"} | prompt files ["golden.jsonl"] | add_special_tokens true | max_model_len 8192 | launch flags: not observable through the API; note: vllm/vllm-openai:inkling-2-mini (vLLM 0.1.dev25855+g7cb5dae22) on spark2 (GB10), docker run --gpus all --ipc host --network host --shm-size 16g, args: thinkingmachines/Inkling-2-Mini --served-model-name inkling-2-mini --tensor-parallel-size 1 --max-model-len 8192 --gpu-memory-utilization 0.30 --max-num-seqs 16 --reasoning-parser inkling --no-enable-prefix-caching (plain decoding, no speculative config, KV cache dtype auto); weights snapshot ed40e7da625f594fc9c4990f5f66be24873c22d7 (model-00001-of-00001.safetensors sha256 65e60f51...; identical blobs in b85c3cfa...); run tag run1
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 256; longest prompt 106; prompts spanning more than one chunk: 0/8
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 35 or a golden with longer prompts
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+Error: count: invalid op call: ik_matmul_bf16 returned IK_ERR_DTYPE (2); inputs [Bf16, Bf16] shapes [[35, 2304], [128, 2304]]
+==== g2short exit 1
+==== g2long (21:52:24)
+prefill chunk 256 (default)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.0 s
+accuracy: Inkling-2-Mini on AMD Radeon Graphics (vocab 200058, weights/act/kv bf16/bf16)
+accuracy: the golden's template "chatml" does not fit this tokenizer (turn format chatml: turn-close marker "<|im_end|>" is not a single token (got [27, 91, 315, 62, 406, 91, 29])); using inkling2 (recipe inkling2)
+KL row mask: inkling2 (recipe inkling2, golden template "chatml" does not fit the tokenizer): 0 of 1569 rows lie inside a system or user turn and are not scored by the KL floor
+golden: golden/oracle/inkling2-mini-oracle-w4a16-long-top20.safetensors (10 prompts, 1569 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine inkling2_ref 0.1.dev25855+g7cb5dae22 | model thinkingmachines/Inkling-2-Mini | revision not in the model root path | dtype torch.float32 | KV dtype auto | template chatml
+  reference cache config: {"_block_size_resolved": "True", "_extensible_kv_cache_resolved": "True", "block_size": "16", "cache_dtype": "auto", "cache_hit_alignment_tokens": "None", "effective_attention_block_size": "64", "enable_extensible_kv_cache": "True", "enable_mamba_shared_prefix_checkpoint": "False", "enable_prefix_caching": "False", "engine": "0", "gpu_memory_utilization": "0.3", "hash_block_size": "None", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_layout": "None", "kv_cache_max_concurrency": "3.286881307063912", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "26926", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "None", "mamba_cache_dtype": "auto", "mamba_cache_mode": "none", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "auto", "num_cpu_blocks": "None", "num_gpu_blocks": "6840", "num_gpu_blocks_override": "None", "prefix_cache_retention_interval": "0", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "simple_cpu_offload_num_blocks": "None", "skip_page_size_padded": "None", "sliding_window": "None", "swa_bounded_replay": "True", "use_kda_recoverssm": "False", "use_replayssm": "False", "user_specified_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server", "cache_salt": "not used (prefix cache not controlled: unverified whether prompt_logprobs requests read cached fp8 KV blocks)"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len 8192 | launch flags: not observable through the API; note: vllm/vllm-openai:inkling-2-mini (vLLM 0.1.dev25855+g7cb5dae22) on spark2 (GB10), docker run --gpus all --ipc host --network host --shm-size 16g, args: thinkingmachines/Inkling-2-Mini --served-model-name inkling-2-mini --tensor-parallel-size 1 --max-model-len 8192 --gpu-memory-utilization 0.30 --max-num-seqs 16 --reasoning-parser inkling --no-enable-prefix-caching (plain decoding, no speculative config, KV cache dtype auto); weights snapshot ed40e7da625f594fc9c4990f5f66be24873c22d7 (model-00001-of-00001.safetensors sha256 65e60f51...; identical blobs in b85c3cfa...); run tag run1
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 256; longest prompt 700; prompts spanning more than one chunk: 2/10
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+Error: count: invalid op call: ik_matmul_bf16 returned IK_ERR_DTYPE (2); inputs [Bf16, Bf16] shapes [[35, 2304], [128, 2304]]
+==== g2long exit 1
+[window] stage done 2026-11-25 21:52:29 (exit 1; 124 = cap hit)
+[window] starting radiance 2026-11-25 21:52:29
+[window] radiance answers 2026-11-25 21:52:44 (after 20 s)
+fleetq: #11940 done (exit 1); radiance-rank0, radiance-rank1 must come back before others can use it
+exit=1

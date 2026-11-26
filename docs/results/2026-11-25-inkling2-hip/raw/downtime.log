@@ -1,0 +1,5 @@
+#11924 first contact: radiance stopped 21:37:45, answers 21:38:02 (tatooine clock; 17 s down). moe_route ADMITTED 19/19 (max_abs 2.0e-7).
+#11940 integration window 1: radiance stopped 21:49:52, answers 21:52:44. Admission of all ops passed; generate / G2 stopped at the router Matmul (f32 output selected matmul_bf16: registration fixed).
+#11943 integration window 2: radiance stopped 21:53:57, answers 21:54:40. generate OK (62.68 tok/s decode, graphs), tiny G1(a)/(b) pass, G2 short + long PASS.
+#11945 speed window 1: radiance stopped 21:56:37, answers 21:59:39. decode 62.5 tok/s short / 60.5 at 4k; prefill 4k 524-552 tok/s (chunk 256..2048); rocprofv3 failed in the dev image (libdw.so.1).
+#11947 profile window: radiance stopped 22:00:08, answers 22:00:31. rocprofv3 kernel trace (prof image) + HIP trace.

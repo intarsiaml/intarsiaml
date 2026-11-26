@@ -1,0 +1,76 @@
+fleetq: #11947 running on tatooine-r9700, tatooine-r9700-2: .scratch/win.sh 420 stage_speed.sh rocprof trace
+[window] job 11947; stage: /home/josef/intarsiaml-ink-hip/docs/results/2026-11-25-inkling2-hip/raw/stage_speed.sh rocprof trace; cap 420s; stopping radiance 2026-11-25 22:00:04
+[window] radiance stopped 2026-11-25 22:00:08 (inactive)
+==== rocprof (22:00:08)
+I
+W20261126 03:00:14.253007 126884199734656 simple_timer.cpp:55] [rocprofv3] '/target/release/intarsia generate -m /models/Inkling-2-Mini --backend hip --max-seq 8192 --spec off --ignore-eos --profile-every 0 --max-tokens 24 -p Write a short, friendly email to my landlord asking whether the heating ca
+E20261126 03:00:14.265312 126884199734656 output_stream.cpp:111] Opened result file: /work/logs/rocprof/run_kernel_trace.csv
+E20261126 03:00:14.284517 126884199734656 output_stream.cpp:111] Opened result file: /work/logs/rocprof/run_agent_info.csv
+W20261126 03:00:14.285389 126884199734656 simple_timer.cpp:55] [rocprofv3] output generation ::     0.025186 sec
+W20261126 03:00:14.285461 126884199734656 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.025270 sec
+kernel trace: /home/josef/intarsiaml-ink-hip/logs/rocprof/run_kernel_trace.csv
+steady decode: 8 steps, 712 dispatches / step, wall 17360 us / step (57.6 tok/s), kernel time 14803 us / step (85 %), gaps 2557 us
+kernel                                                                  n/step   us/step  us/call  %wall
+in_proj_gemv_kernel<1>                                                    48.0    3316.7     69.1   19.1
+ink_moe_gu_kernel<0, 2, 3>                                                44.0    2819.9     64.1   16.2
+ink_moe_dn_kernel<0, 2, ik_bf16, 3>                                       44.0    1712.3     38.9    9.9
+gemv_kernel<1, 1, 8, float>                                               49.0    1579.3     32.2    9.1
+ink_row_kernel<3>                                                        124.0    1392.6     11.2    8.0
+gemv_kernel<1, 1, 8, ik_bf16>                                             48.0    1198.6     25.0    6.9
+ink_attn_s1_k<3>                                                          48.0     505.2     10.5    2.9
+ink_prologue_k<4>                                                         48.0     492.4     10.3    2.8
+moe_route_kernel                                                          48.0     382.4      8.0    2.2
+ink_moe_gu_kernel<1, 2, 3>                                                 4.0     362.4     90.6    2.1
+ink_ctl_gemv_kernel                                                       48.0     306.0      6.4    1.8
+ink_moe_dn_kernel<1, 2, ik_bf16, 3>                                        4.0     218.4     54.6    1.3
+ink_blend_gate_kernel                                                     48.0     218.0      4.5    1.3
+ink_blend_norm_kernel                                                     48.0     179.1      3.7    1.0
+argmax_kernel<float>                                                       1.0      51.6     51.6    0.3
+ink_attn_comb_k                                                           48.0      46.9      1.0    0.3
+__amd_rocclr_copyBuffer                                                    7.0      13.2      1.9    0.1
+rmsnorm_kernel<false, true, false>                                         2.0       5.9      3.0    0.0
+embedding_kernel<true>                                                     1.0       2.1      2.1    0.0
+==== trace (22:00:14)
+-- INTARSIA_HIP_TRACE=1, eager decode (short, 24 tokens): per-kernel GPU time from event pairs
+prefill chunk 256 (default)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.3 s
+loaded Inkling-2-Mini on AMD Radeon Graphics in 4.6s: 24 layers, hidden 2304, act bf16, kv bf16, weights 13.31 GB, context 8192 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+prompt: 31 tokens
+
+
+Sample answer
+
+Subject: Request to repair heating this week
+
+Dear [Landlord’s name],
+
+I
+finish=length prompt=31 (cached 0) completion=24 | prefill 87 ms (357.9 tok/s) | decode 458 ms (50.26 tok/s)
+steps=24 graph replays=0 (captures 0) eager decode steps=23 (profiled 0) top ops: off (pass --profile-every 16)
+hip trace: 24 batches, 11160 launches, kernel GPU time 483.1 ms, stream wall time 530.3 ms, idle between launches 47.2 ms (9% of wall)
+kernel                         launches   total ms    avg us % kern
+moe_experts_situ_bf16              1056     165.27     156.5  34.2%
+ink_in_proj_bf16_gemv              1104      76.93      69.7  15.9%
+conv_mix_bf16                      2304      66.32      28.8  13.7%
+logits_bf16_gemv                   1128      44.07      39.1   9.1%
+matmul_bf16_gemv                   1104      32.18      29.2   6.7%
+ink_kv_prologue_bf16               1152      19.86      17.2   4.1%
+moe_experts_mxfp8_bf16               96      19.23     200.3   4.0%
+rel_sink_attn_bf16                 1152      17.59      15.3   3.6%
+moe_route                          1152      16.00      13.9   3.3%
+ink_in_proj_bf16_matmul              48       9.02     187.8   1.9%
+attn_res_mix_bf16                   624       7.90      12.7   1.6%
+matmul_bf16                          48       2.21      46.0   0.5%
+loop_blend_bf16                      48       1.77      36.9   0.4%
+embedding_bf16                       24       1.42      59.1   0.3%
+logits_bf16                          48       1.39      28.9   0.3%
+argmax_f32                           24       0.97      40.4   0.2%
+rmsnorm_bf16                         48       0.96      20.0   0.2%
+hip trace gaps after launches of < 0.1 ms: n 9905 sum 36.64 ms, us min 3.5 p10 3.6 median 3.6 p90 3.7 max 10.6
+hip trace gaps after launches of 0.1 to 1 ms: n 1161 sum 4.23 ms, us min 3.5 p10 3.6 median 3.6 p90 3.7 max 5.9
+hip trace gaps after launches of >= 1 ms: n 70 sum 6.38 ms, us min 3.5 p10 3.6 median 3.8 p90 261.2 max 266.8
+[window] stage done 2026-11-25 22:00:21 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-25 22:00:21
+[window] radiance answers 2026-11-25 22:00:31 (after 15 s)
+fleetq: #11947 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit=0

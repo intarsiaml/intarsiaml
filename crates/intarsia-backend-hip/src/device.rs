@@ -137,6 +137,36 @@ impl Drop for HipGraph {
     }
 }
 
+/// One launch as the Inkling-2 lane modules see it (`inkattn::launch::launch` and its twins): the call and its tensors as
+/// `HipBackend::launch` converted them. Everything is borrowed from that frame and valid for the launch only.
+pub(crate) struct InkArgs<'a> {
+    pub call: &'a OpCall,
+    pub inp: &'a [IkTensor],
+    pub out: *mut IkTensor,
+    /// The plan-reserved scratch, or null.
+    pub sc: *const ffi::IkScratch,
+    /// The device position (`OpCall::pos`, i32 [1]), or null: the host `attrs.pos0`.
+    pub pos: *const IkTensor,
+    /// The row table (`OpCall::rows`: ptrs, stride, index, byte offset), or null and zeros for an ordinary call.
+    pub tab: *const IkTensor,
+    pub tab_stride: i64,
+    pub tab_index: i64,
+    pub tab_off: i64,
+    pub s: *mut c_void,
+}
+
+#[allow(dead_code)] // the lanes' launchers use these
+impl InkArgs<'_> {
+    /// Input `n` (the kernel's launcher bounds-checks nothing here: `n` must be an input of the op's contract).
+    pub fn i(&self, n: usize) -> *const IkTensor {
+        &self.inp[n] as *const IkTensor
+    }
+    /// Output `n`.
+    pub fn o(&self, n: usize) -> *mut IkTensor {
+        self.out.wrapping_add(n)
+    }
+}
+
 pub struct HipBackend {
     ordinal: i32,
     name: String,
@@ -1445,7 +1475,18 @@ impl Backend for HipBackend {
                 }
                 "argmax_f32" => ffi::ik_argmax_f32(i(0), o, s),
                 "argmax_bf16" => ffi::ik_argmax_bf16(i(0), o, s),
-                other => return Err(Error::NoKernel(format!("hip kernel '{other}' has no dispatch entry"))),
+                // the Inkling-2 lane modules (inkattn / inkmix / inkmoe): their own tables and launchers
+                other => {
+                    let ia = InkArgs { call, inp: &inp, out: o, sc, pos, tab, tab_stride, tab_index, tab_off, s };
+                    match crate::inkattn::launch::launch(other, &ia)
+                        .or_else(|| crate::inkmix::launch::launch(other, &ia))
+                        .or_else(|| crate::inkmoe::launch::launch(other, &ia))
+                        .or_else(|| crate::inkroute::launch::launch(other, &ia))
+                    {
+                        Some(rc) => rc,
+                        None => return Err(Error::NoKernel(format!("hip kernel '{other}' has no dispatch entry"))),
+                    }
+                }
             }
         };
         // lane hprof: INTARSIA_HIP_ROUTE_STATS reads back the grouped block's top-k ids (eager launches only)
