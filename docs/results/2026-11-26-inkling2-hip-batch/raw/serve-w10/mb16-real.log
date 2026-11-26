@@ -1,0 +1,8 @@
+[supervisor] started server pid 7
+prefill chunk 2048 (recipe inkling2, hip)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.2 s
+admission on plan shapes: 23 kernel(s) checked, 0 case(s) run, 134 cached
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+loaded ink on hip (AMD Radeon Graphics) in 16.1s, context 4608 tokens
+sampling defaults: temperature=1 top_p=1 top_k=0 (from /models/Inkling-2-Mini/generation_config.json; a request's own values win)
+intarsia server listening on http://0.0.0.0:8131

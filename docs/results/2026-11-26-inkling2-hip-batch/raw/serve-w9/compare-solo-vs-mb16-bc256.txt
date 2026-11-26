@@ -1,0 +1,17 @@
+EQUAL        short-0: prompt    56 tok, 128 / 128 out, md5 2aac1fe54b88 / 2aac1fe54b88, cached 0 / 0
+EQUAL        short-1: prompt    49 tok, 128 / 128 out, md5 6d1c9868b552 / 6d1c9868b552, cached 0 / 0
+EQUAL        short-2: prompt    57 tok, 128 / 128 out, md5 b090e7cc5642 / b090e7cc5642, cached 0 / 0
+DIFF           mid-0: prompt   570 tok, 128 / 128 out, md5 cbeba43e08a9 / 3f5a247a7c55, cached 0 / 0, first differing character 123 of 474 / 487
+EQUAL          mid-1: prompt   234 tok, 128 / 128 out, md5 653d8a0ed9fd / 653d8a0ed9fd, cached 0 / 0
+EQUAL           4k-0: prompt  4253 tok, 128 / 128 out, md5 68e2b2fbc60a / 68e2b2fbc60a, cached 0 / 0
+EQUAL           4k-1: prompt  4237 tok, 128 / 128 out, md5 c26af6075d12 / c26af6075d12, cached 0 / 0
+EQUAL     4k-0[:700]: prompt   226 tok, 128 / 128 out, md5 0827408680cd / 0827408680cd, cached 0 / 0
+DIFF     4k-1[:1500]: prompt   546 tok, 128 / 128 out, md5 7fbdce70e4c9 / abb0139f8876, cached 0 / 0, first differing character 135 of 509 / 467
+EQUAL    4k-0[:2600]: prompt   823 tok, 128 / 128 out, md5 745ddc08d51f / 745ddc08d51f, cached 0 / 0
+DIFF     4k-1[:4000]: prompt  1410 tok, 128 / 128 out, md5 0d8bc8c49df0 / 0b27677da581, cached 0 / 0, first differing character 61 of 476 / 503
+DIFF     4k-0[:6000]: prompt  1914 tok, 128 / 128 out, md5 9bac0fa88f8e / 9280f397df37, cached 0 / 0, first differing character 67 of 509 / 462
+DIFF     4k-1[:8000]: prompt  3017 tok, 128 / 128 out, md5 a5220e16698c / 52558b6d6df6, cached 0 / 0, first differing character 185 of 444 / 531
+DIFF    4k-0[:10000]: prompt  3144 tok, 128 / 128 out, md5 e30567033459 / 8df4a85e06a2, cached 0 / 0, first differing character 19 of 497 / 515
+DIFF     4k-1[:9500]: prompt  3556 tok, 128 / 128 out, md5 dbc4f8144c95 / 7e25835f83ab, cached 0 / 0, first differing character 83 of 429 / 495
+DIFF     4k-0[:5200]: prompt  1660 tok, 128 / 128 out, md5 7a14e8775828 / d2d230b46e7e, cached 0 / 0, first differing character 321 of 564 / 554
+8 / 16 replies equal

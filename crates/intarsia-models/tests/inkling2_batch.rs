@@ -6,6 +6,7 @@
 //!
 //! `INTARSIA_INKLING2_BACKEND=metal` runs the same tests on Metal (row-exact kernels for the B-row ops, the `_rows`
 //! row-table kernels for the stateful ones). Skipped (loudly) without the fixture; fails under `CI=1`.
+//! `INTARSIA_INKLING2_BACKEND=hip` runs them on one R9700 (lane ink-hip-batch: `conv_mix_bf16_rows`, `ink_attn_decode_bf16_rows`).
 
 mod common;
 use common::ByteCodec;
@@ -36,18 +37,25 @@ fn on_metal() -> bool {
     std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() == Ok("metal")
 }
 
+/// A GPU backend (Metal or HIP) rather than the cpu reference.
+fn on_gpu() -> bool {
+    matches!(std::env::var("INTARSIA_INKLING2_BACKEND").as_deref(), Ok("metal") | Ok("hip"))
+}
+
 fn backend() -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
         #[cfg(target_os = "macos")]
         Ok("metal") => intarsia_backend_metal::MetalBackend::arc().unwrap(),
+        // lane ink-hip-batch: one R9700 (HIP_VISIBLE_DEVICES picks the card)
+        Ok("hip") => intarsia_backend_hip::create(0).unwrap(),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
-        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or metal (CUDA registers no row-table kernels for Inkling-2)"),
+        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal or hip (CUDA registers no row-table kernels for Inkling-2)"),
     }
 }
 
-/// Prefill chunk: one pass on cpu; 16 on Metal (passes of 2..=16 rows take the row-exact kernels).
+/// Prefill chunk: one pass on cpu; 16 on Metal and HIP (passes of 2..=16 rows take the row-exact kernels on Metal).
 fn chunk() -> usize {
-    if on_metal() {
+    if on_gpu() {
         16
     } else {
         64
@@ -163,7 +171,7 @@ fn inkling2_batch_sampler_rows_are_softcapped() {
     let Some(dir) = tiny_dir() else { return skip("no fixture") };
     // cpu: the backend with device-side top-k (`CpuBackend::arc_topk`), so `LastTopK` rows take the device top-k path; Metal has
     // no `supports_topk`, so its sampled rows are logits rows (the host sampler takes the top-k there)
-    let inner = if on_metal() { backend() } else { intarsia_backend_cpu::CpuBackend::arc_topk() };
+    let inner = if on_gpu() { backend() } else { intarsia_backend_cpu::CpuBackend::arc_topk() };
     let m = load_on(&dir, Arc::new(Failing { inner, fail: Arc::new(AtomicBool::new(false)) }), 16).unwrap();
     let all = [1usize, 7, 8, 9, 12, 13, 3, 30, 17, 64, 5, 41, 2, 24, 50, 11];
     let mut max_d = 0f32;
