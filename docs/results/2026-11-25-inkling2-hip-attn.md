@@ -54,6 +54,7 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
 | 1 (70/71 unit) | #11939 | 21:47:58-21:48:32, 34 s | no (before the rule) |
 | 2 (op 75 v1: admission, bitwise pair, bench, model decode) | #11952 | 22:10:16-22:12:09, 1 min 53 s | yes (total 1:53 of 20:00) |
 | 3 (op 75 v2 + flash: admission, bitwise, benches, G2, model) | #11960 | 22:16:53-22:18:54, 2 min 01 s | yes (total 3:54 of 20:00) |
+| 4 (op 75 rule + flash knob: admission x2, bitwise, benches, G2 x2, model) | #11970 | 22:26:29-22:29:07, 2 min 38 s | yes (total 6:32 of 20:00) |
 
 ## Step 0
 
@@ -162,6 +163,68 @@ blocks for the 1024-key case), a combine-free path for one split.
   Flash prefill vs window 2 (split-KV prefill): 4k prefill 8026 / 8049 -> 7030 / 7060 ms (-12.4 %), 472 -> 414 ms per chunk.
   Short prompt "prefill" 83 -> 92 ms with fused = 1 (it includes the first decode step's capture; to be checked).
 
+## Op 75 with the <= 2048-key rule + flash behind a knob (commit 71158ebf8; window 4 #11970, raw/window4-11970.log)
+
+Op 75's launcher picks its path (`INTARSIA_INK_DEC_FUSED_KEYS`, default 2048): a visit that reads at most 2048 keys (every window
+layer; a full layer at a host position up to 2048 context) takes the one-dispatch fused kernel; others (full layers past 2048,
+and full layers under a device position, where the launcher sees only the capacity bound) take the split path: the prologue
+writing r instead of the [T,H,E] rel table, stage 1 forming its split's bias from r, the combine. Both paths are bitwise the
+pair (63 rows-exact cases incl. both paths, host and device positions; admission 70/70). The rule lives in lane files only; the
+one core line op 75 needs on HIP is the selection in `crates/intarsia-core/src/model/inkling2.rs` (about line 1203):
+`self.backend.name() == "cuda"` -> `matches!(self.backend.name(), "cuda" | "hip")` (measured below with
+`INTARSIA_INK_ATTN_FUSED=1`, which forces the same).
+
+Flash prefill now runs inside `rel_sink_attn_bf16` (calls of more than 16 rows) when `INTARSIA_HIP_INK_ATTN_FLASH=1`; default off
+(`INK_ATTN_FLASH_DEFAULT` in inkattn.rs, the one-line flip). Off is bitwise the #516 form. `docs/tuning.md` rows added for
+`INTARSIA_HIP_INK_ATTN_FLASH`, `INTARSIA_INK_DEC_FUSED_KEYS`, `INTARSIA_INK_DEC_DIAG`. (`docs_env_vars` still fails on
+`INTARSIA_HIP_INK_MOE_PRE` and `INTARSIA_HIP_SELECTION_DUMP`, other lanes' knobs already on ink/hip, not added here.)
+
+- Admission (full sweep): flash off: 70 117/117, 71 63/63 (max_abs 1.7e-3), 75 70/70. Flash on: 71 63/63 (max_abs 6.0e-3).
+- Decode kernel bench (us; host position), op 75 by path:
+
+| Case | Pair | Op 75, rule (2048) | Op 75, split path only (`=0`) | Op 75, fused only |
+|---|---|---|---|---|
+| SWA 1024 keys | 30.8 | **25.1** (fused) | 30.3 | 25.1 |
+| full 4k | 46.2 | **41.9** (split) | 42.2 | 51.3 |
+| full 8k | 65.8 | **61.8** (split) | 61.9 | 79.4 |
+| full 16k | 108.4 | 110.1 (split) | 111.3 | 148.6 |
+
+- Prefill attention bench, one 256-row chunk (us): SWA at 3840 split-KV 1510 -> flash 180; full at 3840 5610 -> 437; full at 0
+  262 -> 58.
+- G2 (`accuracy --mode prefill`, oracle W4A16 goldens; same build, flash off vs on):
+
+| Golden | Flash off: KL21 / top-1 | Flash on: KL21 / top-1 | Verdict |
+|---|---|---|---|
+| short (569 rows) | 2.566e-3 / 98.95 % | 4.491e-3 / 99.47 % | PASS / PASS (floor 3.0e-2) |
+| long (1569 rows) | 3.251e-3 / 99.30 % | 4.521e-3 / 99.04 % | PASS / PASS |
+
+  Flash raises KL21 by 1.3-1.9e-3 (bf16 WMMA operands, P rounded to bf16 against the running max). Within the class floor; the
+  short value is above the 4e-3 figure in the lead's gate-script comment, so the user's flip decision should see it.
+- Whole model (`generate`, graphs, 256 tokens):
+
+| Run | Short decode | 4k decode | 4k prefill |
+|---|---|---|---|
+| pair (`INTARSIA_INK_ATTN_FUSED=0`), flash off | 62.44 tok/s | 60.83 tok/s | 8093 ms |
+| op 75 with the rule (`=1`), flash off | **63.62 tok/s (+1.9 %)** | **61.79 tok/s (+1.6 %)** | 8143 ms |
+| op 75 with the rule, flash on | | 61.62 tok/s | **7082 ms (-12.5 %; 476 -> 417 ms per 256-token chunk)** |
+
+## Handoff (wiring; HANDOFF.md was removed by the ink/hip merge bcfbcf066, so it lives here)
+
+| Launcher (TABLE, src/inkattn.rs) | Op | ABI symbol (ik_hip_abi_inkattn.h) | Inputs -> outputs | Scratch |
+|---|---|---|---|---|
+| `ink_kv_prologue_bf16` | 70 | `ik_ink_kv_prologue_bf16` | i(0..8) -> o(0..6), pos | none |
+| `rel_sink_attn_bf16` | 71 | `ik_rel_sink_attn_bf16` | i(0..7) -> o(0..3), sc, pos | `attn_scratch`: min(T, 64) * H * 32 * (Dh + 2) * 4 B |
+| `ink_attn_decode_bf16` | 75 | `ik_ink_attn_decode_bf16` | i(0..10) -> o(0..5), sc, pos | `decode_scratch`: T * H * 32 * (Dh + 2) * 4 + 2 * T * Hk * Dh * 2 + T * H * (Dh + 32) * 2 B (T <= 16) |
+
+- Registration: bf16, `Exactness::Deterministic`, `BF16_TOL (1.5e-2, 6e-3)`; no `.rows_exact()` / `.row_table()` / `.priority()`.
+  Op 75: `decode_ok` (attention shapes, T <= 16, Hk <= 256).
+- Core line for op 75 on HIP: `crates/intarsia-core/src/model/inkling2.rs` about line 1203, `self.backend.name() == "cuda"` ->
+  `matches!(self.backend.name(), "cuda" | "hip")`. Nothing else outside lane files.
+- Op 75's merge uses a self-resetting device ticket array (`ink_dec_tick`): launches on one stream (decode is single-stream;
+  graph replay is fine). No `build.rs` change: `ink_attn.hip` has `#pragma clang fp contract(off)` and build.rs passes no
+  `-ffp-contract` / `-ffast-math`.
+- Flash prefill default: `inkattn::INK_ATTN_FLASH_DEFAULT = false` (the one-line flip, user's call).
+
 ## Next
 
-- Lead: merge `ink/hip-attn` (HANDOFF.md). Op 75 is the stretch, not started.
+- Coordinator: integrate `ink/hip-attn` (HANDOFF.md) with the one core line above; the flash default flip is the user's call.
