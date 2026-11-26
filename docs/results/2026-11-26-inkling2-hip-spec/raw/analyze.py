@@ -10,18 +10,21 @@ import sys
 from pathlib import Path
 
 d = Path(sys.argv[1])
-CLASSES = [("short", range(0, 12)), ("1k", [12]), ("4k", [13]), ("16k", [14])]
+# prompt 0 is a warm-up copy of prompt 1 (startup, first graph captures), left out of every class
+CLASSES = [("short", range(1, 13)), ("1k", [13]), ("4k", [14]), ("16k", [15])]
+NPROMPTS = 16
 T975 = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306}
 dec = re.compile(r"^decode\[([^\]]*)\]: (\d+) tokens, (\d+) ms \(([\d.]+) tok/s\)")
 idl = re.compile(r"^ids\[([^\]]*)\]: (.*)$")
 spec = re.compile(r"^spec: verify passes=(\d+) proposed=(\d+) accepted=(\d+)")
+pf = re.compile(r"^prefill\[([^\]]*)\]: (\d+) tokens, (\d+) ms")
 
 
 def read(arm, rep):
     e, o = d / f"{arm}-r{rep}.err", d / f"{arm}-r{rep}.out"
     if not e.exists():
         return None
-    rates, ids, sp = [], [], None
+    rates, ids, sp, pre = [], [], None, []
     for line in e.read_text(errors="replace").splitlines() + (o.read_text(errors="replace").splitlines() if o.exists() else []):
         m = dec.match(line)
         if m:
@@ -32,13 +35,16 @@ def read(arm, rep):
         m = spec.match(line)
         if m:
             sp = tuple(int(x) for x in m.groups())
-    return rates, ids, sp
+        m = pf.match(line)
+        if m:
+            pre.append((int(m.group(2)), int(m.group(3))))
+    return rates, ids, sp, pre
 
 
 arms = ["off", "gate", "cut"]
 reps = sorted({int(p.stem.split("-r")[1]) for p in d.glob("*-r*.err")})
 data = {(a, r): read(a, r) for a in arms for r in reps}
-data = {k: v for k, v in data.items() if v and len(v[0]) == 15}
+data = {k: v for k, v in data.items() if v and len(v[0]) == NPROMPTS}
 ref_ids = None
 bad = []
 for k, v in sorted(data.items()):
@@ -103,4 +109,14 @@ for a in arms:
     for cname, idx in CLASSES:
         xs = sorted(gm([data[(a, r)][0][i][1] for i in idx]) for r in reps if (a, r) in data)
         cells.append(f"{xs[len(xs) // 2]:.2f} [{xs[0]:.2f}-{xs[-1]:.2f}]" if xs else "n/a")
+    print(f"| {a} | " + " | ".join(cells) + " |")
+
+print()
+print("| median prefill tok/s | 1k | 4k | 16k |")
+print("|---|---:|---:|---:|")
+for a in arms:
+    cells = []
+    for i in (13, 14, 15):
+        xs = sorted(data[(a, r)][3][i][0] / data[(a, r)][3][i][1] * 1e3 for r in reps if (a, r) in data and len(data[(a, r)][3]) == NPROMPTS)
+        cells.append(f"{xs[len(xs) // 2]:.0f} [{xs[0]:.0f}-{xs[-1]:.0f}]" if xs else "n/a")
     print(f"| {a} | " + " | ".join(cells) + " |")

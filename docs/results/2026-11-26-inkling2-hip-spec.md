@@ -107,3 +107,21 @@ pfflip's G2 at the same defaults (4.491e-3 / 4.083e-3), so spec off is unchanged
 
 Single-process speed seen in passing (card 1, not the measurement): greedy set off 77.54 tok/s, gate 100.68 (+29.8 %), cut 102.06
 (+31.6 %); prose off 76.13, gate 87.93, cut 92.52.
+
+## 4. cpu and Metal tests unchanged
+
+| Suite (tiny fixtures) | cpu (endor `--load cpu`, fleetq #12040, branch `d54ba1cf9`) | Metal (endor `--exclusive`, fleetq #12055, branch `0b17500ae`) |
+|---|---|---|
+| `inkling2` | 17 / 17 | 17 / 17 (screened-head tests included: Metal has `HeadScreen`) |
+| `inkling2_dspark` | 4 / 4 | 4 / 4 |
+| `inkling2_dspark_cut` | 1 / 1 | 1 / 1 |
+| `inkling2_verify_softcap` | 1 / 1 | 1 / 1 |
+| `intarsia-core` lib (incl. `dspark::rule_tests`) | 266 passed, 4 ignored | n/a |
+| `intarsia-models` lib (incl. load / `dspark_default`) | 80 / 80 | n/a |
+| `intarsia-cli --test docs_env_vars` | 2 / 2 | n/a |
+
+The Metal run is the brief 4 one-off: build in fleetq #12054 (`--load cpu`), tests alone in #12055 (12:24:30-12:27:42), tiny models only.
+Why nothing on Metal or cpu can move: `ink_rows_exact` is `matches!(backend, "metal" | "cuda" | "hip")`, the same value for "metal"; the
+verify-graph default adds "hip" beside "cuda"; the loader admits one more backend name; `verify_check` (a diagnostic, not the decode
+path) now softcaps the verify rows, which is a no-op on models without a softcap and fixes the Inkling-2 / Gemma-2 comparison on every
+backend.

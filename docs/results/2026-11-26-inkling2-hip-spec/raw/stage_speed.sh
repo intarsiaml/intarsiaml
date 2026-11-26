@@ -2,14 +2,15 @@
 # Speed stage (lane ink-hip-spec): cross-process A/B of DSpark on HIP. Arms: off (--spec off), gate (--spec dflash k3, gate 0.8 = the
 # non-Metal default rule), cut (--spec dflash k3, INTARSIA_DSPARK_TAU=0 INTARSIA_DSPARK_CUT=0.5 = Metal's default rule). One process per
 # arm and rep over speed.json (the 12 greedy golden prompts = short, then the 1021 / 4108 / 16455-id prompts), 128 tokens, greedy,
-# no --ignore-eos. Reps alternate the arm order (off gate cut / cut gate off). REPS="1 2" picks the reps of this window.
+# no --ignore-eos; prompt 0 is a warm-up copy of prompt 1. Reps alternate the arm order (odd: off gate cut, even: cut gate off).
+# REPS="1 2" picks the reps of this window. Card 0 only (run.sh: HIP_VISIBLE_DEVICES=0), one process at a time.
 set -uo pipefail
 REPO=$HOME/intarsiaml-ink-hip-spec
 S=$REPO/.scratch
 OUT=$REPO/logs/speed
 mkdir -p "$OUT"
 M=/models/Inkling-2-Mini
-B=/work/.scratch/bin/intarsia-${BR:-spec1}
+B=/work/.scratch/bin/intarsia-${BR:-spec2}
 G="generate -m $M --backend hip --max-seq 20480 --profile-every 0 --show-ids --max-tokens 128 --prompt-ids /work/.scratch/prompts/speed.json"
 D="--spec dflash --spec-draft $M --spec-k 3"
 now() { date '+%F %T'; }

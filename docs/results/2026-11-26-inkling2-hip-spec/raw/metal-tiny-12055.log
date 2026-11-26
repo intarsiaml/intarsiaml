@@ -1,0 +1,36 @@
+fleetq: #12055 running on endor: bash .scratch/metal_run.sh
+start 12:24:30 git 0b17500ae
+     Running tests/inkling2.rs (target/release/deps/inkling2-5d42fbab12d913d8)
+test inkling2_tiny_chunk_scan ... ok
+test inkling2_tiny_launch_diff ... ok
+test inkling2_tiny_logits_dump ... ok
+test inkling2_tiny_p12_forced_on ... ok
+test inkling2_tiny_no_kernel_refusal_names_the_op ... ok
+test inkling2_tiny_g1a_f32_vs_f64 ... ok
+test inkling2_tiny_verify_graph_replays_equal_decode_bitwise ... ok
+test inkling2_tiny_g1b_teacher_forced_bf16 ... ok
+test inkling2_tiny_loads ... ok
+test inkling2_tiny_graph_decode_is_bitwise_the_eager_decode ... ok
+test inkling2_tiny_screen_keeps_batching ... ok
+test inkling2_tiny_failed_pass_resets_the_sequence ... ok
+test inkling2_tiny_rollback_by_length ... ok
+test inkling2_tiny_interleaved_sequences_equal_solo ... ok
+test inkling2_tiny_screened_head_one_row_only ... ok
+test inkling2_tiny_verify_rows_equal_decode_bitwise ... ok
+test inkling2_tiny_chunked_and_decode_match_prefill_bitwise ... ok
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.36s
+     Running tests/inkling2_dspark.rs (target/release/deps/inkling2_dspark-cfe0bff7e3649813)
+test dspark_unsynced_draft_keeps_the_prefix_and_skips_drafting ... ok
+test dspark_partial_acceptance_keeps_ids_identical ... ok
+test dspark_greedy_ids_equal_spec_off ... ok
+test dspark_runs_with_admitted_kernels_only has been running for over 60 seconds
+test dspark_runs_with_admitted_kernels_only ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 172.66s
+     Running tests/inkling2_dspark_cut.rs (target/release/deps/inkling2_dspark_cut-9039d7115e9aeec8)
+test dspark_cumulative_cut_keeps_ids_and_shortens_drafts ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.07s
+     Running tests/inkling2_verify_softcap.rs (target/release/deps/inkling2_verify_softcap-f0d363c52a7f027b)
+test verify_logits_rows_are_the_softcapped_decode_logits ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+end 12:27:42
+fleetq: #12055 done (exit 0)
