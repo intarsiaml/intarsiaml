@@ -383,3 +383,19 @@ mod tests {
         assert_eq!(ink_attn_flash(), resolve_flash(std::env::var("INTARSIA_HIP_INK_ATTN_FLASH").ok().as_deref()));
     }
 }
+
+/// Tests / benchmarks (lane ink-hip-vrow): op 75 (`ink_attn_decode_bf16`) takes its fused kernel only for calls of at most `v` rows,
+/// more take the split path (prologue, stage 1, combine); `-1` = the env (`INTARSIA_HIP_INK_DEC_FUSED_ROWS`) or the default (16).
+/// Process-wide; the same bits for every value.
+pub fn set_dec_fused_rows(v: i32) {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_ink_attn_dec_fused_rows(v: std::ffi::c_int);
+        }
+        // SAFETY: sets a plain int of the kernel library.
+        unsafe { ik_ink_attn_dec_fused_rows(v) }
+    }
+    #[cfg(not(ik_hip))]
+    let _ = v;
+}
