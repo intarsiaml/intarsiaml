@@ -10,7 +10,7 @@ is plain sampling's exactly. Sampled decode, DSpark default draft, spec on / off
 |---|---|---|---|---|---|
 | hip (R9700) | 1.0 | 70.1 -> 82.1 tok/s, **1.172** (1.163-1.181) | 68.6 -> 73.5, **1.070** (1.049-1.092) | 67.4 -> 95.8, **1.422** (1.386-1.458) | 49 / 50 / 73 % |
 | hip (R9700) | 0.7 | 70.3 -> 83.2, **1.184** (1.179-1.189) | 68.5 -> 73.5, **1.074** (1.060-1.088) | 67.3 -> 94.0, **1.396** (1.378-1.414) | 51 / 52 / 77 % |
-| Metal (M5 Max) | 1.0 / 0.7 | **not measured**: exclusive slot queued (#12167, behind ~7 h of cpu jobs) | | | |
+| Metal (M5 Max) | 1.0 / 0.7 | **not measured**: the exclusive slot waited behind ~5-7 h of cpu jobs; cancelled, re-dispatch command in 3.2 | | | |
 
 Gates: 1 law test pass on the fixture (cpu, n 1500 + 1500, 3 configurations) and on the real model on Metal and hip (T 1.0 / 0.6, about
 500 + 900 requests per temperature; no p below 0.06 in 20 tests per backend); 2 seed equality exact (tiny fixtures on cpu / Metal / hip;
@@ -248,10 +248,22 @@ acceptance is a possible follow-up. For reference, greedy on the md5 set (W3): 7
 
 ### 3.2 Metal (endor, M5 Max)
 
-**Not measured yet.** The exclusive slot (`.scratch/metal/slotB.sh` = `raw/metal/slotB.sh`: the same A/B, 45 s GPU-idle gap before
-every process, `macmon pipe -i 250` for the slot, `raw/speed.py --macmon` groups processes by GPU power) is queued as fleetq #12167
-behind ink-q8's cpu accuracy jobs #12149 / #12150 (estimated start 22:51; a reservation at 16:30 was refused because it collides with
-them). The Metal path's correctness is in (tiny suites, the law test with the device sampler, greedy md5); its speed is the open item.
+**Not measured.** The exclusive slot waited behind ink-q8's cpu accuracy jobs #12149 (`--expect 300`) / #12150 (estimated start
+21:05-22:51; a reservation at 16:30 was refused because it collides with them), so it was cancelled at report time (#12157, #12167)
+rather than left to a session that ends. Re-dispatch (about 27 min; binary `br1` = this lane's core code, already built):
+
+```
+fleetq run --host endor --exclusive --expect 28 --label "ink-sampled: Metal sampled speed A/B" -- \
+  bash /opt/code/intarsiaml/.worktrees/ink-sampled/.scratch/metal/slotB.sh s1
+python3 docs/results/2026-11-26-inkling2-sampled-dspark/raw/speed.py .scratch/metal/B-s1 --macmon
+grep -E '^seeds' <the fleetq run output>   # real-model seed equality + device-draw trace count
+```
+
+`slotB.sh` (= `raw/metal/slotB.sh`) first runs the real-model harness on seeds 0..100 in both arms (the on arm with
+`INTARSIA_SPEC_TRACE=1`, counting `keyed verify ... (device draws)` passes: the Metal seed-equality and device-sampler checks still
+open in 2.2 / 2.3), then the A/B above with a 45 s GPU-idle gap before every process and `macmon pipe -i 250`; `speed.py --macmon` lists
+each process's GPU seconds above 65 W and mean GPU power, to compare within one power group. The Metal path's correctness otherwise is in
+(tiny suites with both samplers, the law test, greedy md5).
 
 ## Fleet log (fleetq ids, radiance downtime, endor slots)
 
@@ -271,8 +283,8 @@ them). The Metal path's correctness is in (tiny suites, the law test with the de
 | #12165 | endor `--load cpu` | host checks on the merged branch: `docs_env_vars` 2 / 2, `recipes_doc` 3 / 3, core lib 268 / 268 (4 ignored), models `--tests` check | ok. `cargo fmt --check` fails on main already (files this lane does not touch); the lane's four new test files were then run through rustfmt (repo config) and compile (#12170) |
 | #12170 | endor `--load cpu` | the formatted test files compile | ok |
 | #12172 | tatooine `--load cpu` | PR-head tiny suites, cpu backend | 6 / 6 suites pass (2.1) |
-| #12157 / #12167 | endor `--exclusive` slot 2 | Metal speed A/B | queued (#12157 cancelled for a reservation that fleetq refused; requeued as #12167) |
+| #12157 / #12167 | endor `--exclusive` slot 2 | Metal speed A/B | never started: #12157 cancelled for a reservation fleetq refused, requeued as #12167, cancelled at report time (est. start 21:05) |
 
 Radiance: 3 windows (W1a, W2, W3), **8:57 in total** (2:17 + 3:15 + 3:25), each under 5:00; radiance was back after every window
 (fleetq health checks).
-endor exclusive slots: 1 used (28:42), 1 queued.
+endor exclusive slots: 1 used (28:42); none queued.
