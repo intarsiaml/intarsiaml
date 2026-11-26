@@ -34,7 +34,8 @@ real 16 at once 1.016, filler 16 streams 0.994, 8 x 512 1.28.
 | 2 serve, 16 real prompts vs the solo server | **16 / 16 at 4 at once (4 waves), 16 / 16 at 8 (2 waves), 16 / 16 at 16** (W5); 16 / 16 with the 4096-row workspace; in the speed windows every packed arm's replies equal main's on the same requests, **232 / 232**. Prefix reuse: the HIP batching engine never resumes an Inkling-2 prompt (`prefix_reuse` off: no batched snapshots), so resumed packs do not arise at serve level; they are unit-tested |
 | 3 solo unchanged | `generate` greedy md5 **8 / 8 = main** (spec off and the DSpark default, short / 4k, 64 / 256; W3). Solo server (no `--max-batch`) **16 / 16 = main's** (W4). G2 short 4.491e-3 / long 4.083e-3: main's values exactly |
 | 4 tests | `inkling2_batch` hip tiny 9 / 9; `inkling2` hip tiny 14 / 17 (the same 3 as main: g1b (PF2), 2 screened-head); `intarsia-core` lib 270 (scheduler, registry, ops); `plan` 10; `docs_env_vars` 2 / 2; admission: `conv_mix_bf16` 532 cases, `moe_experts` 57 cases ADMITTED, serve admission 135 cases with nothing rejected (b10). ISA of `ink_mix` / `ink_mix_rows` / `ink_moe` kernels identical to main (31 / 55 / 427) |
-| 5 speed | above and section 4; the default rule's condition (4) is not shown (the 4-stream filler TTFT p50: 1.020, interval [0.870, 1.170]), so opt-in |
+| 5 speed | above and section 4 (B and R: 2 paired reps each, A: 3; the window budget ran out); the default rule's condition (4) fails on the mean (4-stream filler TTFT p50 R / A 1.020: +0.8 % and +3.2 %), so opt-in |
+| knob off == main | `INTARSIA_INK_PACK` unset: every new path is behind `ink_pack_on()` (`Model::ink_pack_capable`, the workspace growth at load, the `Phase::Pack` plan probe through `ink_pack_capable`); `pack_rows_max` then falls back to main's (0 for Inkling), so the scheduler never packs; `pack_last_alone` and the long-chunk lookup in `pack_body_rows` matter only where packing runs. Shown by code read and the cpu `core` / `plan` / `inkling2_packed` tests on b11; a knob-off `--max-batch` server was not run on the GPU (the solo server and `generate` were: = main) |
 
 Radiance: 8 windows, **25:42** down in total (the longest 4:38), restored within 15 s each time. Overlap (R3d) was not built
 (section 1.5 says what it needs).
@@ -426,6 +427,16 @@ prompts are 2078 rows. The design's estimate (section 1.6: 8 x 0.66 s instead of
 
 (A / B / R columns are unpaired means over their windows, whose N = 4 / 8 subsets differ; the ratio columns are paired.)
 
+TTFT p95 of the real-prompt levels (per-request TTFTs, linear-interpolated p95; mean over windows, paired ratio per window):
+
+| N at once | A p95 s | B p95 s | R p95 s | B / A | R / A |
+|---|---|---|---|---|---|
+| 4 | 2.16 | 2.04 | 1.98 | 1.027, 1.002 (mean 1.015) | 0.887, 0.902 (mean **0.894**) |
+| 8 | 4.51 | 4.49 | 4.32 | 0.998, 0.947 (mean 0.973) | 0.939, 0.937 (mean **0.938**) |
+| 16 | 9.82 | 9.57 | 9.00 | 0.986, 0.960 (mean 0.973) | 0.914, 0.917 (mean **0.915**) |
+
+The filler sweep's localeval result keeps only the median / min / max TTFT per level (no per-request list), so 4.1 shows median and max.
+
 ### 4.3 Pure prefill rows (prompt tok/s)
 
 | K x L (prompt tokens each) | A | B | R | B / A | **R / A** |
@@ -442,7 +453,7 @@ stay on the SIMT pair kernels, which cost per pair, so packing saves launches, n
 
 ### 4.4 VRAM
 
-Peak over the visit (card 0): A 28 529 MiB, B 28 531 MiB, R **29 135 MiB** (+606 MiB: the 4096-row Inkling workspace and the experts'
+Peak over the whole visit (card 0; one server ran every N of a visit, so this is the peak over all N, not per N): A 28 529 MiB, B 28 531 MiB, R **29 135 MiB** (+606 MiB: the 4096-row Inkling workspace and the experts'
 scratch for a 4096-row call). Context 4608 tokens in all three.
 
 ### 4.5 Verdict against the default rule (coordinator, brief 2)
@@ -452,10 +463,10 @@ scratch for a 4096-row call). Context 4608 tokens in all three.
 | (1) every stream bitwise its solo run | yes (W5 16 / 16 at 4, 8, 16; W6 / W7 cross-arm 116 / 116) | yes (W5 16 / 16; W7 / W8 cross-arm 116 / 116; unit 2 x 2048, 16 segments) |
 | (2) solo path unchanged | yes (md5 8 / 8, solo server 16 / 16, G2 = main) | yes (same binary) |
 | (3) 16 streams: aggregate or TTFT p50 >= 5 % better, beyond the spread | **no** (real 1.016, filler 0.994; TTFT p50 0.879 with an interval over 1) | **yes**: filler aggregate 1.095 [1.076, 1.114], filler TTFT p50 0.916 [0.870, 0.962], real TTFT p50 0.779 [0.569, 0.990], real aggregate 1.050 [1.000, 1.099] |
-| (4) no stream count > 1 % worse on aggregate or TTFT p50 | (not met) | **not shown**: filler 4-stream TTFT p50 1.020 (1.008, 1.032; interval [0.870, 1.170]) and the noise floor of these single-request TTFTs is +-5 % (1 stream, where nothing packs: 0.995 / 0.914); every other row is better or within 1 % |
+| (4) no stream count > 1 % worse on aggregate or TTFT p50 | (not met) | **fails on the mean**: filler 4-stream TTFT p50 R / A = 1.008 (W7) and 1.032 (W8), mean **1.020**, over the 1 % bar (interval [0.870, 1.170]: within the noise of these 4-request medians, whose 1-stream ratio, where nothing packs, is 0.995 / 0.914). Every other row of aggregate and TTFT p50 is better or within 1 % on the mean |
 
-**So packing ships opt-in** (`INTARSIA_INK_PACK`, default off): B does not reach (3); R reaches (3) but (4) is not shown at the 4-stream
-filler TTFT p50 with two reps. **Recommended for `--max-batch` servers: `INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096`** (+606 MiB),
+**So packing ships opt-in** (`INTARSIA_INK_PACK`, default off): B does not reach (3); R reaches (3) but fails (4) on the mean of the
+4-stream filler TTFT p50 (+2.0 %, two reps). B and R got 2 paired reps each, not the brief's 3: the radiance budget (8 windows) ran out. **Recommended for `--max-batch` servers: `INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096`** (+606 MiB),
 which makes the measured gains: up to +9.5 % aggregate and -8 % TTFT p50 at 16 filler streams, +5 % aggregate and -22 % TTFT p50 at
 16 real prompts, +48 % prompt tok/s on 8 x 512, every reply bitwise. Flipping it default-on (both knobs) is the coordinator's / user's
 call; what it would take: one more paired rep of the 4-stream filler row (radiance budget spent: 8 windows, 25:42).
