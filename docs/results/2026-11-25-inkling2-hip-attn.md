@@ -65,6 +65,13 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
   window with attn + moe only. (4) Same window (admission, G2 short / long, md5 64 / 256 short / 4k vs main `4fc9901d4`, must
   match exactly; decode short / 4k both builds). (5) Also 4k prefill for both builds. (6) Same PR rules; the coordinator merges.
 
+- 2026-11-25 ~22:45 EST, coordinator: mix ready at `9c737ed4a` (ink/hip-mix): row-kernel fast form at T <= 16, blend fused at
+  T <= 2, `ink_route_bf16` registered (T <= 4; bitwise, not faster; no core line, leave `model/inkling2.rs` alone for op 76),
+  revert `INTARSIA_INK_MIX_FAST=0`. Merge into ink/hip-speed, then run the window on the final tree. Watch: (1) drop the
+  mix lane's root `HANDOFF.md` in the merge; (2) `docs/tuning.md` rows for `INTARSIA_INK_MIX_FAST` / `INTARSIA_INK_ROUTE_FUSED`
+  (add in the merge commit if missing); (3) graph capture is untested with the blend / route device-global tickets: whole-model
+  decode under graph replay is the check, report capture / replay / eager counts with the md5s; (4) md5 vs main must match.
+
 ## Radiance down time (this lane)
 
 | Window | fleetq | Down | Counts toward the 20 min budget |
