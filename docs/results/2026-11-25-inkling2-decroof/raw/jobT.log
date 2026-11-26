@@ -1,0 +1,17 @@
+fleetq: #11992 running on endor: bash /opt/code/intarsiaml/.worktrees/ink-decroof/.scratch/jobT.sh
+fleetq: #11992 went ahead of the line and must end within 2h41m (by Thu 03:00); it is stopped then
+jobT start 00:18:55 tip 1d4a1424a dirty 0 md5 e6c4494a0a881a7af7e5646ec7c91dbc base c887ead6af056a0a2d1c515d527fd6e1
+IDS off prompt 1: base 66d75868a1b6939b6dfc96045c9b9930 tip 66d75868a1b6939b6dfc96045c9b9930: EQUAL | decode[0]: 256 tokens, 3219 ms (79.21 tok/s)
+IDS off prompt 2: base 442bd780f9715df0889dadb7c53d7210 tip 442bd780f9715df0889dadb7c53d7210: EQUAL | decode[1]: 256 tokens, 3313 ms (76.97 tok/s)
+IDS off prompt 3: base f9adc9df4353d0fc654e4cce8c8612e3 tip f9adc9df4353d0fc654e4cce8c8612e3: EQUAL | decode[2]: 256 tokens, 3397 ms (75.07 tok/s)
+IDS spec prompt 1: base 66d75868a1b6939b6dfc96045c9b9930 tip 66d75868a1b6939b6dfc96045c9b9930: EQUAL | decode[0]: 256 tokens, 2012 ms (126.73 tok/s)
+IDS spec prompt 2: base 442bd780f9715df0889dadb7c53d7210 tip 442bd780f9715df0889dadb7c53d7210: EQUAL | decode[1]: 256 tokens, 3165 ms (80.57 tok/s)
+IDS spec prompt 3: base f9adc9df4353d0fc654e4cce8c8612e3 tip f9adc9df4353d0fc654e4cce8c8612e3: EQUAL | decode[2]: 256 tokens, 2534 ms (100.64 tok/s)
+IDS long prompt 1 (8216 tokens): base 463e6cff497239441ac98f411443ea62 tip 463e6cff497239441ac98f411443ea62: EQUAL | base decode[0]: 256 tokens, 3595 ms (70.94 tok/s) | tip decode[0]: 256 tokens, 3511 ms (72.63 tok/s)
+IDS long prompt 2 (16432 tokens): base 95fa80ba120bae7d63ca0a4c0aba1c9d tip 95fa80ba120bae7d63ca0a4c0aba1c9d: EQUAL | base decode[1]: 256 tokens, 3766 ms (67.72 tok/s) | tip decode[1]: 256 tokens, 3672 ms (69.44 tok/s)
+== tests metal_ink exit 0 23 s: 24 passed, 0 failed
+== tests models_metal exit 0 52 s: 25 passed, 0 failed
+== tests core_lib exit 0 7 s: 4 passed, 0 failed
+== tests docs_env_vars exit 0 8 s: 2 passed, 0 failed
+jobT done 00:21:40
+fleetq: #11992 done (exit 0)

@@ -1,0 +1,36 @@
+fleetq: #11981 running on endor: bash /opt/code/intarsiaml/.worktrees/ink-decroof/.scratch/jobA2.sh
+fleetq: #11981 went ahead of the line and must end within 3h49m (by Thu 03:00); it is stopped then
+jobA2 start 23:11:09 diag2 f5f822dfaa88e1981efe695001e50ced tree bb8457ccf dirty 2
+within p1 exit 0 271 s, launch counts:   21 0/0/0    7 0/10200/0   14 0/12240/0    7 10200/10200/0   14 12240/12240/0  distinct id lists: 3
+within p2 exit 0 255 s, launch counts:   21 0/0/0    7 0/10200/0   14 0/12240/0    7 10200/10200/0   14 12240/12240/0  distinct id lists: 3
+within p3 exit 0 254 s, launch counts:   21 0/0/0    7 0/10200/0   14 0/12240/0    7 10200/10200/0   14 12240/12240/0  distinct id lists: 3
+within-process, processes ['1', '2', '3'], arms ['A', 'C', 'E'], cycle 0 dropped (decode tok/s, 256 tokens)
+  143 A: median 77.16 [67.00-77.55] n=18
+  143 C: median 78.82 [64.09-79.20] n=18
+  143 E: median 78.22 [66.77-78.71] n=18
+  143 C/A: median 1.0212, 95% CI [1.0185-1.0249], min-max [0.8778-1.0315], 16/18 above 1, sign p=0.001, per-process [1.023, 1.0187, 1.0212]
+  143 E/A: median 1.0141, 95% CI [1.0132-1.0148], min-max [0.9145-1.0248], 16/18 above 1, sign p=0.001, per-process [1.0126, 1.0148, 1.0145]
+  143 C/E: median 1.0070, 95% CI [1.0052-1.0088], min-max [0.9599-1.0139], 16/18 above 1, sign p=0.001, per-process [1.0074, 1.0068, 1.0069]
+  1k A: median 74.73 [71.71-75.31] n=18
+  1k C: median 76.39 [64.76-77.00] n=18
+  1k E: median 75.98 [61.06-76.48] n=18
+  1k C/A: median 1.0235, 95% CI [1.0203-1.0263], min-max [0.9031-1.0410], 16/18 above 1, sign p=0.001, per-process [1.0168, 1.0236, 1.0236]
+  1k E/A: median 1.0160, 95% CI [1.0143-1.0167], min-max [0.8515-1.0268], 17/18 above 1, sign p=0.000, per-process [1.0138, 1.0164, 1.0153]
+  1k C/E: median 1.0070, 95% CI [1.0047-1.0093], min-max [0.9363-1.0606], 17/18 above 1, sign p=0.000, per-process [1.0042, 1.0066, 1.0072]
+  4k A: median 72.19 [58.32-72.87] n=18
+  4k C: median 73.70 [60.19-74.25] n=18
+  4k E: median 73.34 [58.61-73.63] n=18
+  4k C/A: median 1.0204, 95% CI [1.0172-1.0241], min-max [0.9410-1.0379], 17/18 above 1, sign p=0.000, per-process [1.0246, 1.0189, 1.0202]
+  4k E/A: median 1.0134, 95% CI [1.0126-1.0165], min-max [0.9997-1.0285], 17/18 above 1, sign p=0.000, per-process [1.013, 1.0135, 1.0149]
+  4k C/E: median 1.0069, 95% CI [1.0041-1.0080], min-max [0.9412-1.0270], 17/18 above 1, sign p=0.000, per-process [1.0085, 1.0059, 1.0054]
+tip 699d0bfc7 dirty 0 md5 2d61b4a6ef4d584af3fd5aced148ff13
+TIP IDS off prompt 1: base (#11936) 66d75868a1b6939b6dfc96045c9b9930 tip 66d75868a1b6939b6dfc96045c9b9930: EQUAL | decode[0]: 256 tokens, 3221 ms (79.18 tok/s)
+TIP IDS off prompt 2: base (#11936) 442bd780f9715df0889dadb7c53d7210 tip 442bd780f9715df0889dadb7c53d7210: EQUAL | decode[1]: 256 tokens, 3317 ms (76.88 tok/s)
+TIP IDS off prompt 3: base (#11936) f9adc9df4353d0fc654e4cce8c8612e3 tip f9adc9df4353d0fc654e4cce8c8612e3: EQUAL | decode[2]: 256 tokens, 3443 ms (74.06 tok/s)
+TIP IDS spec prompt 1: base (#11936) 66d75868a1b6939b6dfc96045c9b9930 tip 66d75868a1b6939b6dfc96045c9b9930: EQUAL | decode[0]: 256 tokens, 2061 ms (123.72 tok/s)
+TIP IDS spec prompt 2: base (#11936) 442bd780f9715df0889dadb7c53d7210 tip 442bd780f9715df0889dadb7c53d7210: EQUAL | decode[1]: 256 tokens, 3158 ms (80.76 tok/s)
+TIP IDS spec prompt 3: base (#11936) f9adc9df4353d0fc654e4cce8c8612e3 tip f9adc9df4353d0fc654e4cce8c8612e3: EQUAL | decode[2]: 256 tokens, 2556 ms (99.76 tok/s)
+docs_env_vars exit 0: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+tip inkling2_attn + rows_exact exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.92s test result: ok. 11 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 2.41s 
+jobA2 done 23:25:12
+fleetq: #11981 done (exit 0)

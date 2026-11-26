@@ -1,0 +1,51 @@
+fleetq: #11941 running on endor: bash /opt/code/intarsiaml/.worktrees/ink-decroof/.scratch/jobA.sh
+fleetq: #11941 went ahead of the line and must end within 42m (by Wed 23:00); it is stopped then
+jobA start 22:17:00 base c887ead6af056a0a2d1c515d527fd6e1 cand 277c769706947866d93b7ff15e9508a1 diag 17cfcf8ca6f5ddf4b0ec726cc48a7590 procs 3 nq 6
+within p1 exit 0 364 s, launch counts (conv_pre bias_pre bias_early) per prompt:   21 0/0/0    7 10200/0/0    7 10200/10200/0    7 10200/10200/10200   14 12240/0/0   14 12240/12240/0   14 12240/12240/12240 
+within p2 exit 0 354 s, launch counts (conv_pre bias_pre bias_early) per prompt:   21 0/0/0    7 10200/0/0    7 10200/10200/0    7 10200/10200/10200   14 12240/0/0   14 12240/12240/0   14 12240/12240/12240 
+within p3 exit 0 349 s, launch counts (conv_pre bias_pre bias_early) per prompt:   21 0/0/0    7 10200/0/0    7 10200/10200/0    7 10200/10200/10200   14 12240/0/0   14 12240/12240/0   14 12240/12240/12240 
+within-process, processes ['1', '2', '3'], arms ['A', 'B', 'C', 'D'], cycle 0 dropped (decode tok/s, 256 tokens)
+  143 A: median 77.01 [70.18-77.69] n=18
+  143 B: median 76.85 [72.70-78.13] n=18
+  143 C: median 76.96 [71.96-79.39] n=18
+  143 D: median 78.53 [73.31-79.53] n=18
+  143 B/A: median 1.0050, 95% CI [0.9950-1.0079], min-max [0.9848-1.0359], 12/18 above 1, sign p=0.238, per-process [0.9979, 1.005, 1.0068]
+  143 C/A: median 1.0182, 95% CI [1.0081-1.0221], min-max [0.9596-1.0408], 15/18 above 1, sign p=0.008, per-process [1.0066, 1.0186, 1.0193]
+  143 D/A: median 1.0200, 95% CI [1.0131-1.0257], min-max [0.9996-1.0446], 17/18 above 1, sign p=0.000, per-process [1.0131, 1.0197, 1.024]
+  143 C/B: median 1.0136, 95% CI [1.0069-1.0173], min-max [0.9534-1.0325], 14/18 above 1, sign p=0.031, per-process [1.0086, 1.0136, 1.0163]
+  143 D/C: median 1.0047, 95% CI [1.0022-1.0134], min-max [0.9894-1.0502], 15/18 above 1, sign p=0.008, per-process [1.0072, 1.0033, 1.0039]
+  1k A: median 73.98 [70.61-75.04] n=18
+  1k B: median 74.11 [70.00-75.75] n=18
+  1k C: median 75.22 [69.80-76.72] n=18
+  1k D: median 74.69 [68.34-76.93] n=18
+  1k B/A: median 1.0064, 95% CI [1.0018-1.0108], min-max [0.9765-1.0203], 14/18 above 1, sign p=0.031, per-process [1.0022, 1.0083, 1.0084]
+  1k C/A: median 1.0237, 95% CI [1.0167-1.0257], min-max [0.9885-1.0439], 16/18 above 1, sign p=0.001, per-process [1.0237, 1.0227, 1.0197]
+  1k D/A: median 1.0198, 95% CI [1.0093-1.0264], min-max [0.9517-1.0343], 15/18 above 1, sign p=0.008, per-process [1.0195, 1.0225, 1.0093]
+  1k C/B: median 1.0131, 95% CI [1.0082-1.0218], min-max [0.9920-1.0445], 16/18 above 1, sign p=0.001, per-process [1.0212, 1.02, 1.0082]
+  1k D/C: median 0.9969, 95% CI [0.9876-1.0023], min-max [0.9545-1.0096], 6/18 above 1, sign p=0.238, per-process [0.9947, 0.9978, 0.9967]
+  4k A: median 71.95 [56.28-72.36] n=18
+  4k B: median 72.35 [59.54-72.96] n=18
+  4k C: median 73.06 [60.73-73.91] n=18
+  4k D: median 73.36 [54.85-74.06] n=18
+  4k B/A: median 1.0065, 95% CI [1.0041-1.0142], min-max [0.9742-1.0579], 14/18 above 1, sign p=0.031, per-process [1.0058, 1.0065, 1.0073]
+  4k C/A: median 1.0201, 95% CI [1.0140-1.0267], min-max [0.9711-1.0791], 17/18 above 1, sign p=0.000, per-process [1.0216, 1.0201, 1.0213]
+  4k D/A: median 1.0196, 95% CI [1.0141-1.0242], min-max [0.9691-1.0418], 16/18 above 1, sign p=0.001, per-process [1.0173, 1.0204, 1.0183]
+  4k C/B: median 1.0133, 95% CI [1.0093-1.0165], min-max [0.9667-1.0445], 17/18 above 1, sign p=0.000, per-process [1.0165, 1.0108, 1.0133]
+  4k D/C: median 1.0017, 95% CI [0.9968-1.0053], min-max [0.9032-1.0336], 10/18 above 1, sign p=0.815, per-process [0.9961, 1.002, 1.0022]
+cross q1 base exit 0 23 s | [0]: 256 (65.05 tok/s) [1]: 256 (63.20 tok/s) [2]: 256 (64.89 tok/s) 
+cross q2 cand exit 0 20 s | [0]: 256 (68.53 tok/s) [1]: 256 (71.73 tok/s) [2]: 256 (65.91 tok/s) 
+cross q3 cand exit 0 21 s | [0]: 256 (68.45 tok/s) [1]: 256 (66.75 tok/s) [2]: 256 (68.82 tok/s) 
+cross q4 base exit 0 21 s | [0]: 256 (76.73 tok/s) [1]: 256 (69.82 tok/s) [2]: 256 (60.53 tok/s) 
+cross q5 base exit 0 22 s | [0]: 256 (67.40 tok/s) [1]: 256 (64.79 tok/s) [2]: 256 (63.86 tok/s) 
+cross q6 cand exit 0 19 s | [0]: 256 (76.06 tok/s) [1]: 256 (74.15 tok/s) [2]: 256 (72.10 tok/s) 
+cross q7 cand exit 0 18 s | [0]: 256 (75.53 tok/s) [1]: 256 (75.72 tok/s) [2]: 256 (71.67 tok/s) 
+cross q8 base exit 0 17 s | [0]: 256 (76.81 tok/s) [1]: 256 (74.20 tok/s) [2]: 256 (71.69 tok/s) 
+cross q9 base exit 0 17 s | [0]: 256 (77.46 tok/s) [1]: 256 (75.19 tok/s) [2]: 256 (72.77 tok/s) 
+cross q10 cand exit 0 17 s | [0]: 256 (76.71 tok/s) [1]: 256 (73.44 tok/s) [2]: 256 (71.90 tok/s) 
+cross q11 cand exit 0 17 s | [0]: 256 (77.11 tok/s) [1]: 256 (75.05 tok/s) [2]: 256 (72.09 tok/s) 
+cross q12 base exit 0 17 s | [0]: 256 (77.22 tok/s) [1]: 256 (73.46 tok/s) [2]: 256 (72.00 tok/s) 
+143: base median 76.77 [65.05-77.46] n=6 (65.05 76.73 67.40 76.81 77.46 77.22) | cand median 75.80 [68.45-77.11] n=6 (68.53 68.45 76.06 75.53 76.71 77.11) | cand/base 0.9873
+1k: base median 71.64 [63.20-75.19] n=6 (63.20 69.82 64.79 74.20 75.19 73.46) | cand median 73.80 [66.75-75.72] n=6 (71.73 66.75 74.15 75.72 73.44 75.05) | cand/base 1.0301
+4k: base median 68.29 [60.53-72.77] n=6 (64.89 60.53 63.86 71.69 72.77 72.00) | cand median 71.78 [65.91-72.10] n=6 (65.91 68.82 72.10 71.67 71.90 72.09) | cand/base 1.0512
+jobA done 22:38:38
+fleetq: #11941 done (exit 0)

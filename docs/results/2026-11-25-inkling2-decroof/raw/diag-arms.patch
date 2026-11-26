@@ -1,0 +1,88 @@
+diff --git a/crates/intarsia-backend-metal/src/inkattn.rs b/crates/intarsia-backend-metal/src/inkattn.rs
+index 54b49b3e1..ec938e685 100644
+--- a/crates/intarsia-backend-metal/src/inkattn.rs
++++ b/crates/intarsia-backend-metal/src/inkattn.rs
+@@ -214,6 +214,20 @@ fn encode(
+     }
+ }
+ 
++/// DIAG (lane ink-decroof, never in the tree): launches built with InkP flag 32 (CONV_PRE), 64 (BIAS_PRE), 128 (BIAS_EARLY).
++pub static DIAG_CPRE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
++pub static DIAG_BPRE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
++pub static DIAG_BEARLY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
++fn diag_flags() -> u32 {
++    let f = crate::inkctrl::attn_dec_flags();
++    for (b, c) in [(32, &DIAG_CPRE), (64, &DIAG_BPRE), (128, &DIAG_BEARLY)] {
++        if f & b != 0 {
++            c.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
++        }
++    }
++    f
++}
++
+ impl MetalBackend {
+     fn ink_pso(&self, name: &str) -> Result<&Pso> {
+         self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))
+@@ -462,7 +476,7 @@ impl MetalBackend {
+             cr: u(cr, "Cr")?,
+             pos0: u(a.pos0, "pos0")?,
+             use_dev,
+-            flags: u32::from(ink.dyn_conv) | if ring { 2 } else { 0 } | if kv_fused { 4 } else { 0 } | if ring_fused { 16 } else { 0 } | crate::inkctrl::attn_dec_flags(),
++            flags: u32::from(ink.dyn_conv) | if ring { 2 } else { 0 } | if kv_fused { 4 } else { 0 } | if ring_fused { 16 } else { 0 } | diag_flags(),
+             tau_floor: u(ink.tau_floor, "tau_floor")?,
+             window: u(a.window, "window")?,
+             nq: u(i[0].shape[1], "Nq")?,
+@@ -584,7 +598,7 @@ impl MetalBackend {
+             pos0: 0,
+             use_dev: 1,
+             // a T = 1 call per row: the cache and conv-ring writes never race a read
+-            flags: u32::from(ink.dyn_conv) | if ring { 2 } else { 0 } | 4 | 16 | crate::inkctrl::attn_dec_flags(),
++            flags: u32::from(ink.dyn_conv) | if ring { 2 } else { 0 } | 4 | 16 | diag_flags(),
+             tau_floor: u(ink.tau_floor, "tau_floor")?,
+             window: u(a.window, "window")?,
+             nq: u(i[0].shape[1], "Nq")?,
+diff --git a/crates/intarsia-cli/src/cmd/generate.rs b/crates/intarsia-cli/src/cmd/generate.rs
+index 596cf38de..6c31ad684 100644
+--- a/crates/intarsia-cli/src/cmd/generate.rs
++++ b/crates/intarsia-cli/src/cmd/generate.rs
+@@ -106,7 +106,26 @@ fn run_ids(args: &GenerateArgs, engine: &dyn intarsia_core::engine::Engine, f: &
+         bail!("{}: no prompts (or an empty one)", f.display());
+     }
+     let (mut toks, mut ms, mut ptoks, mut pms) = (0usize, 0f64, 0usize, 0f64);
+-    for (name, ids) in &prompts {
++    // DIAG (lane ink-decroof, never in the tree): INTARSIA_DIAG_ARMS=A,B,... one arm per prompt: A = INTARSIA_INK_CONV_PRE off,
++    // B = on, set before the prompt runs; the flag-32 launch count of each prompt is printed after it.
++    let arms: Vec<String> = std::env::var("INTARSIA_DIAG_ARMS").map(|v| v.split(',').map(str::to_string).collect()).unwrap_or_default();
++    for (pi, (name, ids)) in prompts.iter().enumerate() {
++        #[cfg(all(target_os = "macos", feature = "metal"))]
++        let c0 = {
++            use intarsia_backend_metal::inkattn::{DIAG_BEARLY, DIAG_BPRE, DIAG_CPRE};
++            [&DIAG_CPRE, &DIAG_BPRE, &DIAG_BEARLY].map(|c| c.load(std::sync::atomic::Ordering::Relaxed))
++        };
++        if let Some(a) = arms.get(pi) {
++            #[cfg(all(target_os = "macos", feature = "metal"))]
++            {
++                use intarsia_backend_metal::inkctrl::{BIAS_EARLY, BIAS_PRE, CONV_PRE};
++                // A all off, B CONV_PRE, C + BIAS_PRE, D + BIAS_EARLY, E BIAS_PRE alone
++                CONV_PRE.set(Some(a != "A" && a != "E"));
++                BIAS_PRE.set(Some(a == "C" || a == "D" || a == "E"));
++                BIAS_EARLY.set(Some(a == "D"));
++            }
++            eprintln!("arm[{name}]: {a}");
++        }
+         engine.forward_script(&[]).map_err(|e| anyhow::anyhow!("{e}"))?;
+         let req = GenRequest {
+             prompt: ids.clone(),
+@@ -143,6 +162,12 @@ fn run_ids(args: &GenerateArgs, engine: &dyn intarsia_core::engine::Engine, f: &
+             eprintln!("decode[{name}]: {completion_tokens} tokens, {decode_ms:.0} ms ({:.2} tok/s)", n as f64 / (decode_ms / 1e3).max(1e-9));
+             eprintln!("prefill[{name}]: {} tokens, {prefill_ms:.0} ms", prompt_tokens - cached_tokens);
+         }
++        #[cfg(all(target_os = "macos", feature = "metal"))]
++        {
++            use intarsia_backend_metal::inkattn::{DIAG_BEARLY, DIAG_BPRE, DIAG_CPRE};
++            let c1 = [&DIAG_CPRE, &DIAG_BPRE, &DIAG_BEARLY].map(|c| c.load(std::sync::atomic::Ordering::Relaxed));
++            eprintln!("cpre[{name}]: {} {} {} launches (conv_pre bias_pre bias_early)", c1[0] - c0[0], c1[1] - c0[1], c1[2] - c0[2]);
++        }
+     }
+     eprintln!("decode overall: {toks} tokens after the first, {ms:.0} ms ({:.2} tok/s)", toks as f64 / (ms / 1e3).max(1e-9));
+     eprintln!("prefill overall: {ptoks} tokens, {pms:.0} ms ({:.1} tok/s)", ptoks as f64 / (pms / 1e3).max(1e-9));

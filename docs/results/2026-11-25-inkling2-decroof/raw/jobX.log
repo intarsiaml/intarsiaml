@@ -1,0 +1,52 @@
+fleetq: #11995 running on endor: bash /opt/code/intarsiaml/.worktrees/ink-decroof/.scratch/jobX.sh
+fleetq: #11995 went ahead of the line and must end within 1h45m (by Thu 03:00); it is stopped then
+jobX start 01:14:39 base c887ead6af056a0a2d1c515d527fd6e1 tip e6c4494a0a881a7af7e5646ec7c91dbc
+q1 base exit 0 28 s | [0]: 256 (77.33 tok/s) [1]: 256 (74.51 tok/s) [2]: 256 (72.35 tok/s) [3]: 256 (77.49 tok/s) [4]: 256 (75.24 tok/s) [5]: 256 (72.96 tok/s) 
+q2 tip exit 0 29 s | [0]: 256 (78.93 tok/s) [1]: 256 (75.27 tok/s) [2]: 256 (73.62 tok/s) [3]: 256 (79.16 tok/s) [4]: 256 (76.52 tok/s) [5]: 256 (74.49 tok/s) 
+q3 tip exit 0 28 s | [0]: 256 (79.00 tok/s) [1]: 256 (76.24 tok/s) [2]: 256 (74.69 tok/s) [3]: 256 (79.31 tok/s) [4]: 256 (76.74 tok/s) [5]: 256 (74.67 tok/s) 
+q4 base exit 0 28 s | [0]: 256 (77.54 tok/s) [1]: 256 (75.01 tok/s) [2]: 256 (72.47 tok/s) [3]: 256 (77.39 tok/s) [4]: 256 (75.48 tok/s) [5]: 256 (73.08 tok/s) 
+q5 base exit 0 29 s | [0]: 256 (77.51 tok/s) [1]: 256 (74.89 tok/s) [2]: 256 (72.75 tok/s) [3]: 256 (77.83 tok/s) [4]: 256 (75.63 tok/s) [5]: 256 (73.04 tok/s) 
+q6 tip exit 0 28 s | [0]: 256 (78.99 tok/s) [1]: 256 (76.17 tok/s) [2]: 256 (74.66 tok/s) [3]: 256 (79.04 tok/s) [4]: 256 (76.66 tok/s) [5]: 256 (74.74 tok/s) 
+q7 tip exit 0 28 s | [0]: 256 (78.85 tok/s) [1]: 256 (76.13 tok/s) [2]: 256 (74.80 tok/s) [3]: 256 (79.15 tok/s) [4]: 256 (76.56 tok/s) [5]: 256 (74.68 tok/s) 
+q8 base exit 0 29 s | [0]: 256 (77.32 tok/s) [1]: 256 (74.95 tok/s) [2]: 256 (72.90 tok/s) [3]: 256 (77.94 tok/s) [4]: 256 (75.42 tok/s) [5]: 256 (73.07 tok/s) 
+q9 base exit 0 28 s | [0]: 256 (77.95 tok/s) [1]: 256 (75.01 tok/s) [2]: 256 (73.00 tok/s) [3]: 256 (78.06 tok/s) [4]: 256 (75.58 tok/s) [5]: 256 (73.11 tok/s) 
+q10 tip exit 0 29 s | [0]: 256 (78.99 tok/s) [1]: 256 (76.01 tok/s) [2]: 256 (74.19 tok/s) [3]: 256 (78.88 tok/s) [4]: 256 (76.95 tok/s) [5]: 256 (74.61 tok/s) 
+q11 tip exit 0 28 s | [0]: 256 (79.00 tok/s) [1]: 256 (75.96 tok/s) [2]: 256 (74.69 tok/s) [3]: 256 (79.37 tok/s) [4]: 256 (76.99 tok/s) [5]: 256 (74.46 tok/s) 
+q12 base exit 0 28 s | [0]: 256 (77.73 tok/s) [1]: 256 (75.60 tok/s) [2]: 256 (72.52 tok/s) [3]: 256 (77.60 tok/s) [4]: 256 (75.67 tok/s) [5]: 256 (73.11 tok/s) 
+q13 base exit 0 29 s | [0]: 256 (77.55 tok/s) [1]: 256 (75.12 tok/s) [2]: 256 (73.02 tok/s) [3]: 256 (77.56 tok/s) [4]: 256 (75.62 tok/s) [5]: 256 (73.05 tok/s) 
+q14 tip exit 0 28 s | [0]: 256 (79.03 tok/s) [1]: 256 (76.82 tok/s) [2]: 256 (74.62 tok/s) [3]: 256 (79.17 tok/s) [4]: 256 (76.36 tok/s) [5]: 256 (74.87 tok/s) 
+q15 tip exit 0 28 s | [0]: 256 (78.72 tok/s) [1]: 256 (76.20 tok/s) [2]: 256 (74.52 tok/s) [3]: 256 (79.19 tok/s) [4]: 256 (76.67 tok/s) [5]: 256 (74.69 tok/s) 
+q16 base exit 0 29 s | [0]: 256 (77.47 tok/s) [1]: 256 (75.61 tok/s) [2]: 256 (72.67 tok/s) [3]: 256 (77.87 tok/s) [4]: 256 (75.63 tok/s) [5]: 256 (72.97 tok/s) 
+q1 base: 77.41 74.88 72.66
+q2 tip: 79.05 75.89 74.06
+q3 tip: 79.16 76.49 74.68
+q4 base: 77.47 75.25 72.78
+q5 base: 77.67 75.26 72.90
+q6 tip: 79.02 76.41 74.70
+q7 tip: 79.00 76.34 74.74
+q8 base: 77.63 75.19 72.98
+q9 base: 78.00 75.30 73.06
+q10 tip: 78.94 76.48 74.40
+q11 tip: 79.19 76.47 74.57
+q12 base: 77.66 75.63 72.81
+q13 base: 77.56 75.37 73.03
+q14 tip: 79.10 76.59 74.75
+q15 tip: 78.95 76.44 74.60
+q16 base: 77.67 75.62 72.82
+143: all: base 77.65 [77.41-78.00] n=8, tip 79.03 [78.94-79.19] n=8, tip/base 1.0178 | fast: base 77.65 [77.41-78.00] n=8, tip 79.03 [78.94-79.19] n=8, tip/base 1.0178
+1k: all: base 75.28 [74.88-75.63] n=8, tip 76.45 [75.89-76.59] n=8, tip/base 1.0156 | fast: base 75.28 [74.88-75.63] n=8, tip 76.45 [75.89-76.59] n=8, tip/base 1.0156
+4k: all: base 72.86 [72.66-73.06] n=8, tip 74.64 [74.06-74.75] n=8, tip/base 1.0245 | fast: base 72.86 [72.66-73.06] n=8, tip 74.64 [74.06-74.75] n=8, tip/base 1.0245
+trace base 143 r1: 30 decode steps: GPU busy 13432 us, span 13358 us, dispatches 545 | ink_attn_decode_bf16 | 1476 | 48 | 30.50 |  | 
+trace base 4k r1: 31 decode steps: GPU busy 14412 us, span 14335 us, dispatches 553 | ink_attn_decode_bf16 | 1608 | 40 | 39.25 |  | | rel_sink_attn_bf16 | 541 | 8 | 66.63 |  | | ink_kv_prologue_bf16 | 180 | 8 | 22.00 |  | 
+trace tip 143 r1: 30 decode steps: GPU busy 13193 us, span 13119 us, dispatches 545 | ink_attn_decode_bf16 | 1258 | 48 | 26.12 |  | 
+trace tip 4k r1: 31 decode steps: GPU busy 14118 us, span 14041 us, dispatches 545 | ink_attn_decode_bf16 | 1962 | 48 | 34.21 |  | 
+trace tip 143 r2: 30 decode steps: GPU busy 13453 us, span 13377 us, dispatches 545 | ink_attn_decode_bf16 | 1271 | 48 | 26.33 |  | 
+trace tip 4k r2: 31 decode steps: GPU busy 14032 us, span 13961 us, dispatches 545 | ink_attn_decode_bf16 | 1966 | 48 | 34.25 |  | 
+trace base 143 r2: 30 decode steps: GPU busy 13413 us, span 13337 us, dispatches 545 | ink_attn_decode_bf16 | 1470 | 48 | 30.38 |  | 
+trace base 4k r2: 31 decode steps: GPU busy 14174 us, span 14098 us, dispatches 553 | ink_attn_decode_bf16 | 1550 | 40 | 38.75 |  | | rel_sink_attn_bf16 | 529 | 8 | 66.12 |  | | ink_kv_prologue_bf16 | 176 | 8 | 22.00 |  | 
+trace base 143 r3: 30 decode steps: GPU busy 13538 us, span 13462 us, dispatches 545 | ink_attn_decode_bf16 | 1475 | 48 | 30.46 |  | 
+trace base 4k r3: 31 decode steps: GPU busy 14184 us, span 14109 us, dispatches 553 | ink_attn_decode_bf16 | 1563 | 40 | 39.00 |  | | rel_sink_attn_bf16 | 524 | 8 | 65.75 |  | | ink_kv_prologue_bf16 | 175 | 8 | 21.83 |  | 
+trace tip 143 r3: 30 decode steps: GPU busy 13283 us, span 13207 us, dispatches 545 | ink_attn_decode_bf16 | 1254 | 48 | 26.04 |  | 
+trace tip 4k r3: 31 decode steps: GPU busy 13966 us, span 13891 us, dispatches 545 | ink_attn_decode_bf16 | 1937 | 48 | 34.00 |  | 
+jobX done 01:23:25
+fleetq: #11995 done (exit 0)

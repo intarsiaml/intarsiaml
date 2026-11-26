@@ -462,7 +462,7 @@ impl MetalBackend {
             cr: u(cr, "Cr")?,
             pos0: u(a.pos0, "pos0")?,
             use_dev,
-            flags: u32::from(ink.dyn_conv) | if ring { 2 } else { 0 } | if kv_fused { 4 } else { 0 } | if ring_fused { 16 } else { 0 },
+            flags: u32::from(ink.dyn_conv) | if ring { 2 } else { 0 } | if kv_fused { 4 } else { 0 } | if ring_fused { 16 } else { 0 } | crate::inkctrl::attn_dec_flags(),
             tau_floor: u(ink.tau_floor, "tau_floor")?,
             window: u(a.window, "window")?,
             nq: u(i[0].shape[1], "Nq")?,
@@ -584,7 +584,7 @@ impl MetalBackend {
             pos0: 0,
             use_dev: 1,
             // a T = 1 call per row: the cache and conv-ring writes never race a read
-            flags: u32::from(ink.dyn_conv) | if ring { 2 } else { 0 } | 4 | 16,
+            flags: u32::from(ink.dyn_conv) | if ring { 2 } else { 0 } | 4 | 16 | crate::inkctrl::attn_dec_flags(),
             tau_floor: u(ink.tau_floor, "tau_floor")?,
             window: u(a.window, "window")?,
             nq: u(i[0].shape[1], "Nq")?,
