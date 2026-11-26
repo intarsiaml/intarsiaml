@@ -99,6 +99,9 @@ pub const M_MAX: f32 = 1.2379400392853803e27;
 pub static LAUNCHES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static LOADED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+/// Screened verify groups (2..=4 rows) in this process (lane ink-verify); also counted in [`LAUNCHES`].
+pub static VERIFY_GROUPS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 /// `INTARSIA_INK_HEAD_SCREEN_STATS=1`: print the launch count when the model is dropped (a scope check for runs without
 /// `/metrics`).
 pub const STATS_ENV: &str = "INTARSIA_INK_HEAD_SCREEN_STATS";
@@ -127,8 +130,10 @@ pub fn metric() -> String {
         return String::new();
     }
     format!(
-        "# HELP intarsia_head_screen_launches_total Screened greedy head launches (INTARSIA_INK_HEAD_SCREEN).\n# TYPE intarsia_head_screen_launches_total counter\nintarsia_head_screen_launches_total {}\n",
-        LAUNCHES.load(std::sync::atomic::Ordering::Relaxed)
+        "# HELP intarsia_head_screen_launches_total Screened greedy head launches (INTARSIA_INK_HEAD_SCREEN).\n# TYPE intarsia_head_screen_launches_total counter\nintarsia_head_screen_launches_total {}\n\
+         # HELP intarsia_head_screen_verify_groups_total Screened greedy verify groups of 2..=4 rows, also counted above (INTARSIA_INK_VERIFY_SCREEN).\n# TYPE intarsia_head_screen_verify_groups_total counter\nintarsia_head_screen_verify_groups_total {}\n",
+        LAUNCHES.load(std::sync::atomic::Ordering::Relaxed),
+        VERIFY_GROUPS.load(std::sync::atomic::Ordering::Relaxed)
     )
 }
 

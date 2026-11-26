@@ -6034,6 +6034,7 @@ impl Model {
         }
         if verify_rows {
             hs.verify_groups.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            crate::screen::VERIFY_GROUPS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
         Ok(true)
     }
