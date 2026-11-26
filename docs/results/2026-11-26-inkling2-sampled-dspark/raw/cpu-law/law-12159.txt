@@ -1,0 +1,41 @@
+
+running 3 tests
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dspark: Markov fold [300 x 16] in 0.0 s
+dspark: draft head mxfp4 [300 x 64] in 0.0 s
+dflash: draft of 3 layers (taps [2, 6, 10, 16], block 7) loaded in 0.0 s
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dspark: Markov fold [300 x 16] in 0.0 s
+dspark: draft head mxfp4 [300 x 64] in 0.0 s
+dflash: draft of 3 layers (taps [2, 6, 10, 16], block 7) loaded in 0.0 s
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dspark: Markov fold [300 x 16] in 0.0 s
+dspark: draft head mxfp4 [300 x 64] in 0.0 s
+dflash: draft of 3 layers (taps [2, 6, 10, 16], block 7) loaded in 0.0 s
+dspark: device top-k unavailable (unsupported: cpu: device-side top-k (CpuBackend::arc_topk)); the host takes the candidates
+dspark: device top-k unavailable (unsupported: cpu: device-side top-k (CpuBackend::arc_topk)); the host takes the candidates
+dspark: device top-k unavailable (unsupported: cpu: device-side top-k (CpuBackend::arc_topk)); the host takes the candidates
+test law_t06_recipe_top_p has been running for over 60 seconds
+test law_t07_top_k20_top_p09 has been running for over 60 seconds
+test law_t10_recipe_top_p has been running for over 60 seconds
+fixture T 0.6 top_k 0 top_p 1 position 2: chi2 21.70 df 26 p 0.7052; n 1500 + 1500; distinct tokens 55 / 51; passes 2370 accepted 1008 of 3870 proposed
+fixture T 0.6 top_k 0 top_p 1 position 3: chi2 62.37 df 49 p 0.0950; n 1500 + 1500; distinct tokens 99 / 87; passes 2370 accepted 1008 of 3870 proposed
+fixture T 0.6 top_k 0 top_p 1 position 4: chi2 72.17 df 61 p 0.1551; n 1500 + 1500; distinct tokens 145 / 135; passes 2370 accepted 1008 of 3870 proposed
+fixture: Fisher over 3 tests X2 9.13 df 6 p 0.1662; min p 0.0950
+test law_t06_recipe_top_p ... ok
+fixture T 0.7 top_k 20 top_p 0.9 position 2: chi2 27.03 df 20 p 0.1344; n 1500 + 1500; distinct tokens 22 / 24; passes 2403 accepted 973 of 3903 proposed
+fixture T 0.7 top_k 20 top_p 0.9 position 3: chi2 29.10 df 39 p 0.8762; n 1500 + 1500; distinct tokens 58 / 57; passes 2403 accepted 973 of 3903 proposed
+fixture T 0.7 top_k 20 top_p 0.9 position 4: chi2 60.83 df 59 p 0.4099; n 1500 + 1500; distinct tokens 113 / 103; passes 2403 accepted 973 of 3903 proposed
+fixture: Fisher over 3 tests X2 6.06 df 6 p 0.4163; min p 0.1344
+test law_t07_top_k20_top_p09 ... ok
+fixture T 1 top_k 0 top_p 1 position 2: chi2 69.07 df 60 p 0.1978; n 1500 + 1500; distinct tokens 161 / 146; passes 2711 accepted 414 of 4211 proposed
+fixture T 1 top_k 0 top_p 1 position 3: chi2 95.83 df 89 p 0.2914; n 1500 + 1500; distinct tokens 207 / 206; passes 2711 accepted 414 of 4211 proposed
+fixture T 1 top_k 0 top_p 1 position 4: chi2 111.76 df 113 p 0.5153; n 1500 + 1500; distinct tokens 235 / 228; passes 2711 accepted 414 of 4211 proposed
+fixture: Fisher over 3 tests X2 7.03 df 6 p 0.3178; min p 0.1978
+test law_t10_recipe_top_p ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 83.68s
+

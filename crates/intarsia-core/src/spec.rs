@@ -2284,6 +2284,19 @@ mod tests {
     }
 
     #[test]
+    fn sampled_dflash_parse_and_default_off_everywhere() {
+        // lane ink-sampled: opt-in on every backend; `reject` has no DFlash form
+        for b in ["cpu", "metal", "cuda", "hip"] {
+            assert!(!sampled_dflash_default_for(b), "{b}");
+        }
+        for (v, want) in [("0", Some(false)), ("off", Some(false)), ("1", Some(true)), ("on", Some(true)), ("match", Some(true))] {
+            assert_eq!(sampled_dflash_parse(v), want, "{v}");
+        }
+        assert_eq!(sampled_dflash_parse("reject"), None);
+        assert_eq!(sampled_dflash_parse("yes"), None);
+    }
+
+    #[test]
     fn propose_longest_suffix_most_recent() {
         // "1 2 3 4 | 9 | 1 2 3 5 6 | 7 1 2 3": suffix [1 2 3] last seen at 5, followed by 5 6 7 1
         let ctx = [1, 2, 3, 4, 9, 1, 2, 3, 5, 6, 7, 1, 2, 3];

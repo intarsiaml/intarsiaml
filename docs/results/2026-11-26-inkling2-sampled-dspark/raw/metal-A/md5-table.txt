@@ -1,0 +1,11 @@
+| prompt | br-def @64 / @256 | br-off @64 / @256 | main-def @64 / @256 | main-off @64 / @256 | all equal |
+|---|---|---|---|---|---|
+| count | 9d58b98d / 9f731a14 (256) | 9d58b98d / 9f731a14 (256) | 9d58b98d / 9f731a14 (256) | 9d58b98d / 9f731a14 (256) | yes |
+| story | 539eaac6 / aafa223d (256) | 539eaac6 / aafa223d (256) | 539eaac6 / aafa223d (256) | 539eaac6 / aafa223d (256) | yes |
+| code | 5bd641ee / c69d1438 (256) | 5bd641ee / c69d1438 (256) | 5bd641ee / c69d1438 (256) | 5bd641ee / c69d1438 (256) | yes |
+| science | f02cd16e / c69886a3 (256) | f02cd16e / c69886a3 (256) | f02cd16e / c69886a3 (256) | f02cd16e / c69886a3 (256) | yes |
+| chat_short | 68fd9227 / 0fb1b1c7 (118) | 68fd9227 / 0fb1b1c7 (118) | 68fd9227 / 0fb1b1c7 (118) | 68fd9227 / 0fb1b1c7 (118) | yes |
+| chat_system | 234c5b1a / 2e047c9d (112) | 234c5b1a / 2e047c9d (112) | 234c5b1a / 2e047c9d (112) | 234c5b1a / 2e047c9d (112) | yes |
+| len4k | 0f621a97 / 9e85ba11 (256) | 0f621a97 / 9e85ba11 (256) | 0f621a97 / 9e85ba11 (256) | 0f621a97 / 9e85ba11 (256) | yes |
+
+all prompts identical across ['br-def', 'br-off', 'main-def', 'main-off']: yes
