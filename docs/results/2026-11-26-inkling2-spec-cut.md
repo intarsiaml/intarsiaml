@@ -75,9 +75,28 @@ short-prompt gain (1.006 against 1.019, inside the cross-process noise) and a ne
 1.138 / 1.042). Not re-measured within-process: cut 0.5 k5 (the sweep has it at most +1.5 % over cut k3 at 1k and 16k and below it at short and 4k,
 under the 2 % bar the lane set), so k stays 3.
 
-## Tests (flip tree `bb2eb28d7`, fleetq #11996, exclusive)
+## Tests (flip tree, fleetq #11996 exclusive and #11997)
 
-TESTS_PLACEHOLDER
+Head `bb2eb28d7` code (the results-doc commit on top changes docs only); release binary md5 `e9ec31e8`. #11996 was exclusive, 01:23-01:32, exit 0:
+
+- Host: `intarsia-core` unit test `rule_tests::defaults_and_env_overrides` 1 passed; cpu `inkling2` 17, `inkling2_dspark` 4, `inkling2_dspark_cut` 1 passed.
+  `cargo test -p intarsia-cli --test docs_env_vars` 2 passed (cpu slot #11997, exit 0; it lives in `intarsia-cli`).
+- Metal (`INTARSIA_INKLING2_BACKEND=metal INTARSIA_TEST_REAL_MODEL=1`, release): `inkling2` 17, `inkling2_batch` 8, `inkling2_dspark` 4,
+  `inkling2_dspark_cut` 1, `inkling2_verify_softcap` 1 passed. (Those tests set `INTARSIA_DSPARK_TAU=0` themselves, so they run the old
+  semantics; the default rule itself is covered by the unit test and the real-model run below.)
+- Real model, flipped binary, `generate --prompt-ids` per class, 128 tokens, default rule (`def`) and `INTARSIA_DSPARK_TAU=0.8` (`tau8`), against
+  the spec-off ids: **ids equal to spec off in 15/15, 3/3, 3/3, 3/3 prompts in both arms**. Engagement: the default's spec counters are the cut's and
+  the `TAU=0.8` counters are the old gate's (verify passes / proposed / accepted, acceptance):
+
+| class | default (cut 0.5) | `INTARSIA_DSPARK_TAU=0.8` (old gate) |
+|---|---|---|
+| short | 738 / 1686 / 973, 57.7 % | 577 / 1236 / 881, 71.3 % |
+| 1k | 121 / 265 / 190, 71.7 % | 96 / 206 / 165, 80.1 % |
+| 4k | 118 / 235 / 191, 81.3 % | 81 / 157 / 144, 91.7 % |
+| 16k | 127 / 288 / 236, 81.9 % | 111 / 243 / 219, 90.1 % |
+
+  These match the diag arms' acceptance (cut: 58 / 72 / 81 / 82 %, gate: 71 / 80 / 92 / 90 %), so the flip is in effect on Metal and the revert
+  reproduces today's rule. The decode tok/s of these single processes are not a speed comparison (cross-process).
 
 ## Revert
 
