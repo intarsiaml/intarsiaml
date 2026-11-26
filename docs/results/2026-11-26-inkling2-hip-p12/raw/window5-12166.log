@@ -1,0 +1,58 @@
+fleetq: #12166 waiting (#1 in line): radiance-rank0 is also taken down by #12164 "ink-hip-verify: W4 gates of k4 (md5 main2/branch, verify probe, hip tiny suites, G2; both cards, radiance down <= 5:00)" (claude-04c0e1cd)
+fleetq:   #12164 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12164 set, or it will wait for #12164 to be released.
+fleetq: #12166 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 44% busy with work fleetq does not track
+fleetq: #12166 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12166 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=280 bash ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/window.sh ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w5.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w5.sh; cap 280s; stopping radiance 2026-11-26 15:29:34
+[window] radiance stopped 2026-11-26 15:29:38 (inactive)
+MD5 main2 default-short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 654 ms (96.40 tok/s) | 0 P12 load lines [15:29:46]
+MD5 p12c default-short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 617 ms (102.08 tok/s) | 2 P12 load lines [15:29:55]
+[stage] tiny inkling2, main2's test binary 15:29:55
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+---- inkling2_tiny_g1b_teacher_forced_bf16 stdout ----
+thread 'inkling2_tiny_g1b_teacher_forced_bf16' panicked at crates/intarsia-models/tests/inkling2.rs:292:5:
+    inkling2_tiny_g1b_teacher_forced_bf16
+test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.75s
+[stage] tiny inkling2, p12c 15:29:57
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+---- inkling2_tiny_g1b_teacher_forced_bf16 stdout ----
+thread 'inkling2_tiny_g1b_teacher_forced_bf16' panicked at crates/intarsia-models/tests/inkling2.rs:292:5:
+    inkling2_tiny_g1b_teacher_forced_bf16
+test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.87s
+[stage] inkling2_batch on hip, p12c 15:29:59
+test inkling2_batch_argmax_equals_solo ... ok
+test inkling2_batch_equals_solo_2_5_16 ... ok
+test inkling2_batch_failed_pass_resets_every_sequence ... ok
+test inkling2_batch_membership_changes ... ok
+test inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo ... ok
+test inkling2_batch_rollback_per_sequence ... ok
+test inkling2_batch_sampler_rows_are_softcapped ... ok
+test inkling2_batched_engine_equals_solo_engine ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.66s
+SPD main off-16k 256 r1 93e0a15116abba2d998ccd8493215a45 | decode 3656 ms (69.75 tok/s) | prefill 5306 ms (3187.7 tok/s) | steps=264 graph replays=255 (captures 1) eager decode steps=0 [15:30:19]
+SPD branch off-16k 256 r1 93e0a15116abba2d998ccd8493215a45 | decode 3393 ms (75.16 tok/s) | prefill 5320 ms (3179.3 tok/s) | steps=264 graph replays=255 (captures 1) eager decode steps=0 [15:30:33]
+SPD branch off-16k 256 r2 93e0a15116abba2d998ccd8493215a45 | decode 3393 ms (75.14 tok/s) | prefill 5317 ms (3181.3 tok/s) | steps=264 graph replays=255 (captures 1) eager decode steps=0 [15:30:47]
+SPD main off-16k 256 r2 93e0a15116abba2d998ccd8493215a45 | decode 3648 ms (69.91 tok/s) | prefill 5323 ms (3177.7 tok/s) | steps=264 graph replays=255 (captures 1) eager decode steps=0 [15:31:01]
+SPD main off-16k 256 r3 93e0a15116abba2d998ccd8493215a45 | decode 3648 ms (69.90 tok/s) | prefill 5325 ms (3176.3 tok/s) | steps=264 graph replays=255 (captures 1) eager decode steps=0 [15:31:15]
+SPD branch off-16k 256 r3 93e0a15116abba2d998ccd8493215a45 | decode 3393 ms (75.16 tok/s) | prefill 5318 ms (3180.9 tok/s) | steps=264 graph replays=255 (captures 1) eager decode steps=0 [15:31:29]
+SPD branch off-16k 256 r4 93e0a15116abba2d998ccd8493215a45 | decode 3393 ms (75.16 tok/s) | prefill 5322 ms (3178.0 tok/s) | steps=264 graph replays=255 (captures 1) eager decode steps=0 [15:31:43]
+SPD main off-16k 256 r4 93e0a15116abba2d998ccd8493215a45 | decode 3648 ms (69.89 tok/s) | prefill 5324 ms (3177.2 tok/s) | steps=264 graph replays=255 (captures 1) eager decode steps=0 [15:31:57]
+[stage] done 15:31:57
+SPD main default-4k 256 r1 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2629 ms (96.99 tok/s) | prefill 1390 ms (3040.9 tok/s) | steps=115 graph replays=112 (captures 4) eager decode steps=0 [15:32:08]
+SPD branch default-4k 256 r1 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2484 ms (102.64 tok/s) | prefill 1386 ms (3049.9 tok/s) | steps=115 graph replays=112 (captures 4) eager decode steps=0 [15:32:20]
+SPD branch default-4k 256 r2 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2470 ms (103.25 tok/s) | prefill 1388 ms (3047.0 tok/s) | steps=115 graph replays=112 (captures 4) eager decode steps=0 [15:32:33]
+SPD main default-4k 256 r2 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2608 ms (97.77 tok/s) | prefill 1389 ms (3044.1 tok/s) | steps=115 graph replays=112 (captures 4) eager decode steps=0 [15:32:44]
+SPD main default-4k 256 r3 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2609 ms (97.75 tok/s) | prefill 1392 ms (3037.3 tok/s) | steps=115 graph replays=112 (captures 4) eager decode steps=0 [15:32:55]
+SPD branch default-4k 256 r3 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2471 ms (103.18 tok/s) | prefill 1390 ms (3041.3 tok/s) | steps=115 graph replays=112 (captures 4) eager decode steps=0 [15:33:07]
+SPD branch default-4k 256 r4 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2471 ms (103.21 tok/s) | prefill 1391 ms (3039.8 tok/s) | steps=115 graph replays=112 (captures 4) eager decode steps=0 [15:33:19]
+SPD main default-4k 256 r4 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2609 ms (97.74 tok/s) | prefill 1394 ms (3032.0 tok/s) | steps=115 graph replays=112 (captures 4) eager decode steps=0 [15:33:30]
+[stage] done 15:33:30
+[stage] done 15:33:30
+[window] stage done 2026-11-26 15:33:31 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 15:33:31
+[window] radiance answers 2026-11-26 15:33:41 (after 15 s)
+fleetq: #12166 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
