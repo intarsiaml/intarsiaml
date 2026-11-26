@@ -1510,3 +1510,19 @@ is bigger than the gap, so L8 removes that confound instead of adding cross-proc
 Stop rule: within-process 16k gap within noise → report that the TTFT miss is a cross-process measurement artifact (the coordinator then asks the user: waive, or redefine the bar as
 within-process). Gap holds at about +3 % → report which side (draft present vs speculating path) carries it, plus a fix sketch; fix it only if small (under about 2 h) and bitwise.
 Time box to 22:30 (fleetq `--expect` must end before the 23:00 reservation #11871). Report once. Push nothing.
+
+## Brief L8 step 1: fast / slow re-split of the `generate` runs, 2026-11-25 ~19:50 (no fleet time)
+
+Source: every `generate` prefill (L6 attribution slots #11890 / #11893 / #11897 / #11899 and L7 #11904 retry; 82 runs at 16k, 32 at 1k and 4k; one process per run).
+Cuts: 16k slow >= 6150 ms (the L7 cut; the 16k values are not cleanly bimodal, the largest gap in the sorted list is 193 ms). 4k and 1k have no stable cut: the 4k level is a slot property
+(L6a ~1390-1420 ms for both arms, L7 1322-1328 off vs 1581-1729 default, L7 test 3 ~1590-1700 for both arms), 1k is flat (off 633, default 634.5 median, one 1955 outlier).
+
+| 16k, `generate` | off | default | default / off (median) |
+|---|---|---|---|
+| fast processes (< 6150 ms) | n 20, median 5769 | n 14, median 5913 | +2.5 % |
+| slow processes (>= 6150 ms) | n 24, median 6388 | n 24, median 6466 | +1.2 % |
+| all | n 44 | n 38 | pooled slow shares 55 % / 63 % |
+
+4k (by slot, where both arms ran): L6a off ~1405, default ~1420 ms (+1 %); L7 off 1324, default 1698 (+28 %, and only default sat in the slow level, 9 of 12 vs 1 of 12); L7 test 3 off 1666, default 1685 (+1 %).
+So the 4k and 1k cells are slot / mode-assignment effects (the two arms never differ in two of three slots), as the brief expected. The 16k within-mode gap is +1.2 to +2.5 % in `generate`
+(medians, 14 to 24 runs per cell, ranges overlapping), close to the `serve` +2.1 to +3.4 %; step 2 separates it within one process.
