@@ -111,6 +111,9 @@ pub(super) struct Dspark {
     /// `INTARSIA_DSPARK_ATTN_ROWS` (lane ink-verify): the block attention of a draft layer as one row-table launch over the
     /// block's rows (see [`Model::ds_attn_rows`]) instead of one decode call per row.
     attn_rows: bool,
+    /// The backend has the row-table decode kernel this launch needs (Metal), whatever the knob says: what a run-time override
+    /// ([`set_attn_rows_override`]) may turn on.
+    attn_rows_capable: bool,
     /// The row-table launch's device tables: per draft layer `ATAB_LAYER` bytes, the rows' positions (i32) then the rows' K / V
     /// cache addresses (u64 pairs), rewritten once per block pass.
     attn_tab: Buffer,
@@ -132,6 +135,22 @@ fn attn_rows_wanted(env: Option<&str>) -> bool {
         Some(v) if matches!(v.as_str(), "1" | "on" | "true") => true,
         _ => ATTN_ROWS_DEFAULT_ON,
     }
+}
+
+/// Run-time override of the row-table launch (A/B runs inside one process; `Model::set_dspark_attn_rows_override`): 0 = the knob
+/// ([`Dspark::attn_rows`]), 1 = off, 2 = on where the backend can.
+pub(super) static ATTN_ROWS_OVERRIDE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+
+/// [`set_attn_rows_override`]'s argument as the static's value.
+pub(super) fn set_attn_rows_override(v: Option<bool>) {
+    ATTN_ROWS_OVERRIDE.store(
+        match v {
+            None => 0,
+            Some(false) => 1,
+            Some(true) => 2,
+        },
+        std::sync::atomic::Ordering::Relaxed,
+    );
 }
 
 /// What an unset `INTARSIA_DSPARK_ATTN_ROWS` means.
@@ -474,6 +493,7 @@ pub(super) fn load(
         cut: std::env::var("INTARSIA_DSPARK_CUT").ok().and_then(|v| v.trim().parse::<f32>().ok()).filter(|c| *c > 0.0),
         // Metal only: its row-table decode kernel is the one-row kernel's arithmetic per row, and the window is a cache offset there
         attn_rows: attn_rows_wanted(std::env::var("INTARSIA_DSPARK_ATTN_ROWS").ok().as_deref()) && b.name() == "metal" && b.supports_row_tables(),
+        attn_rows_capable: b.name() == "metal" && b.supports_row_tables(),
         attn_tab: b.alloc((c.n_layers * ATAB_LAYER).max(16), MemKind::Device)?,
         bufs,
     };
@@ -481,6 +501,15 @@ pub(super) fn load(
 }
 
 impl Dspark {
+    /// Whether this draft takes the row-table block attention now: the knob, or the run-time override.
+    fn attn_rows_on(&self) -> bool {
+        match ATTN_ROWS_OVERRIDE.load(std::sync::atomic::Ordering::Relaxed) {
+            1 => false,
+            2 => self.attn_rows_capable,
+            _ => self.attn_rows,
+        }
+    }
+
     pub(super) fn n_layers(&self) -> usize {
         self.layers.len()
     }
@@ -711,7 +740,7 @@ impl Model {
         rec: bool,
         profile: bool,
     ) -> Result<bool> {
-        if !ds.attn_rows || !(2..=16).contains(&t) || self.tp.world != 1 || !self.peers.is_empty() {
+        if !ds.attn_rows_on() || !(2..=16).contains(&t) || self.tp.world != 1 || !self.peers.is_empty() {
             return Ok(false);
         }
         let mut tab = self.view(&ds.attn_tab, DType::U8, &[t, 2, 8]);
@@ -846,7 +875,7 @@ impl Model {
         }
         let last = p0 + t - 1;
         // the row-table launches' tables of this block pass, one upload (not in a plan dry run)
-        if ds.attn_rows && !rec {
+        if ds.attn_rows_on() && !rec {
             self.ds_attn_tab_fill(ds, st, last, t)?;
         }
         for (li, l) in ds.layers.iter().enumerate() {

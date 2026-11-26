@@ -51,6 +51,13 @@ pub(crate) mod dcoco;
 pub(crate) mod dflash;
 mod dflash2;
 mod dspark;
+
+/// Run-time override of `INTARSIA_DSPARK_ATTN_ROWS` (the DSpark draft's row-table block attention) for A/B runs inside one process;
+/// `None` goes back to the knob. A test and benchmark hook: the draft's outputs are bitwise the same either way.
+#[doc(hidden)]
+pub fn set_dspark_attn_rows_override(v: Option<bool>) {
+    dspark::set_attn_rows_override(v)
+}
 pub use dspark::DsparkConfig;
 mod dspine;
 pub mod dflash_tree;

@@ -153,8 +153,30 @@ pub const VERIFY_ENV: &str = "INTARSIA_INK_VERIFY_SCREEN";
 /// What an unset [`VERIFY_ENV`] means.
 pub const VERIFY_DEFAULT_ON: bool = true;
 
-/// The value of [`VERIFY_ENV`] (read once).
+/// Run-time override of [`VERIFY_ENV`] for A/B runs inside one process: 0 = the variable, 1 = off, 2 = on.
+static VERIFY_OVERRIDE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+
+/// Override [`verify_wanted`] at run time (`None`: back to the variable). A test and benchmark hook: the picks are bitwise the same
+/// either way.
+#[doc(hidden)]
+pub fn set_verify_override(v: Option<bool>) {
+    VERIFY_OVERRIDE.store(
+        match v {
+            None => 0,
+            Some(false) => 1,
+            Some(true) => 2,
+        },
+        std::sync::atomic::Ordering::Relaxed,
+    );
+}
+
+/// The value of [`VERIFY_ENV`] (read once), or the run-time override.
 pub fn verify_wanted() -> bool {
+    match VERIFY_OVERRIDE.load(std::sync::atomic::Ordering::Relaxed) {
+        1 => return false,
+        2 => return true,
+        _ => {}
+    }
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| verify_wanted_from(std::env::var(VERIFY_ENV).ok().as_deref()))
 }
