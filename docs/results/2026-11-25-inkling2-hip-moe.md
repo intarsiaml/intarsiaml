@@ -83,6 +83,8 @@ Branch `ink/hip-moe`, base origin/main `d8c3c7148` + `ink/hip` `6c5ee5d67` (lead
 | 4 | #11957 | 22:14:14 - 22:15:12, 58 s | 1:55 |
 | 5 | #11967 | 22:24:06 - 22:25:45, 99 s | 3:34 |
 | 6 | #11973 | 22:30:58 - 22:31:53, 55 s | 4:29 |
+| 7 (S2 window 1) | #11982 | 22:41:32 - 22:42:25, 53 s | 5:22 |
+| 8 (S2 window 2) | #11987 | 22:49:36 - 22:50:37, 61 s | 6:23 |
 
 ## 1. Status
 
@@ -95,7 +97,7 @@ Branch `ink/hip-moe`, base origin/main `d8c3c7148` + `ink/hip` `6c5ee5d67` (lead
 | Decode speed round 2 (LDS by the call, load windows; windows 3 and 4) | NVFP4 T=1 81.6 us (439 GB/s, 70 %), T=16 623.5 us (587 GB/s, 94 %); MXFP8 T=1 122.6 us (536 GB/s, 85 %); bitwise |
 | Decode speed round 3 (in-wave grouping; window 5) | negative (88.3 against 81.6 us at T=1), kept opt-in |
 | Row-count rule, no regression against `29b71ac67` (window 6) | done: every T from 1 to 2048 is 11 % to 35 % faster, both formats; bitwise |
-| Prefill | correct (pair-table SIMT path); slow: T=256 6.8 ms / call; WMMA is speed package S2, not started |
+| Prefill, S2 (bf16 WMMA on the pair table, ordinary names; windows 7 and 8) | done: NVFP4 T=2048 38.2 -> 6.2 ms per call, MXFP8 41.7 -> 4.9 ms; passes vs cpu-ref; not run in the model (admission, G2, end-to-end prefill) |
 
 ## 2. Design (kernels/hip/ink_moe.hip)
 
@@ -265,15 +267,59 @@ NVFP4 128 experts, MXFP8 64 experts in the bench (so MXFP8 is twice as dense per
 No row count is slower. Prefill stays SIMT: 38.2 ms per NVFP4 call at T = 2048 (S2 is the fix).
 Limits: one run per cell; MXFP8 measured at 64 experts, not 128; the rule's thresholds come from top-8 only.
 
+### S2: tensor-core prefill (windows 7 and 8, fleetq #11982, #11987; logs `raw/window7-11982.log`, `raw/window8-11987.log`)
+
+`ink_moe_wmma_kernel` in `ink_moe.hip`: the scheme of `moe_wmma.h` (`moe_wmma_kernel`: bf16 WMMA, weights dequantised into
+the A fragments in registers, activation tile through LDS, 3 weight blocks in flight per lane) with this op's epilogues
+(situ / silu / gelu, the routing weight), both formats (NVFP4 and MXFP8 through this file's fp8-conversion decode) and this
+file's pair table. Ordinary names only, on the pair-table path (more than 512 pairs), H and I multiples of 64, and by default
+from 16 pairs per expert on average; `INTARSIA_HIP_INK_MOE_WMMA` = 0 | 32 | 64. The `_rows` twins never take it.
+Numerics: other f32 accumulation order than the decode kernels, so not their bits; within the registered tolerance.
+
+Tests (`ink_moe_matches_cpu_reference ink_moe_rows_exact ink_moe_wmma_prefill`): 3 passed in both windows.
+`ink_moe_wmma_prefill`: 3 shapes x (NVFP4 situ, MXFP8 situ / silu / gelu) x tiles 32 and 64: all pass against the cpu
+reference with the admission's `judge` (worst rel_l2 1.3e-4, budget 1e-3 / 2e-3); the same bits run to run; tiles 32 and 64
+give the same bits; the rows of a call reversed give the output reversed, bitwise.
+
+Window 8, us per call (same bench as above; NVFP4 128 experts, MXFP8 64 experts):
+
+| Format | T | 29b71ac67 form | decode kernels (lean) | WMMA tile 32 | WMMA tile 64 | default |
+|---|---|---|---|---|---|---|
+| NVFP4 | 128 | 3505 | 2882 | 5697 | 5080 | 2842 (decode kernels: 8 pairs per expert) |
+| NVFP4 | 256 | 6860 | 5537 | 5810 | 5208 | 5209 |
+| NVFP4 | 512 | 13079 | 10370 | 6192 | 5368 | 5373 |
+| NVFP4 | 2048 | 50980 | 39597 | 6259 | 6179 | 6238 |
+| MXFP8 | 128 | 3849 | 3226 | 2780 | 2487 | 2489 |
+| MXFP8 | 256 | 7641 | 5800 | 2901 | 2582 | 2585 |
+| MXFP8 | 512 | 14850 | 10863 | 3051 | 2732 | 2747 |
+| MXFP8 | 2048 | 58958 | 42451 | 5596 | 4922 | 4909 |
+
+NVFP4 at T = 2048: 51.0 ms (`29b71ac67`) -> 39.6 (decode round) -> 6.2 ms (8.2x and 6.3x). The default is never slower
+than the decode kernels in this table.
+
+Open in S2:
+- A WMMA call costs about 5 ms for NVFP4 whatever the pair count (5.2 ms at 16 pairs per expert, 6.2 at 128): it is bound
+  by reading and dequantising the weights (573 MB at about 110 GB/s), not by the tensor cores. The 64-pair kernels take
+  217 - 240 VGPRs and 34 KB of LDS per gate_up block (one block per 64 KB). Not ported from the 35B kernels: the
+  occupancy variant (up accumulators aliased onto the activation tile, 8 waves per SIMD), empty-fragment skip, the `r7`
+  variants. Why the 32-pair tile (143 VGPRs, 17 KB) is slower than the 64-pair one at the same block count is not explained.
+- The threshold (16 pairs per expert) comes from one NVFP4 point each side (8: slower, 16: 5 % faster) at 128 experts.
+- MXFP8 weights with an E8M0 scale of 0 or 255, or products outside bf16 range, are not handled specially (admission's
+  scales are 116 .. 119).
+- Not run: admission (`intarsia kernels test --backend hip`), the sweep's T = 2048 real-shape cases against the cpu
+  reference (`INK_MOE_BIG=1`), G2 and an end-to-end prefill measurement in the model.
+
 ### Knobs and integration notes (HANDOFF.md left the tree with the `ink/hip` merge)
 
-None of these changes a bit of the output, so none belongs in a fingerprint:
+The first two change no bit of the output:
 - `INTARSIA_HIP_INK_MOE_PRE` = `v` or `gu:dn`, each 1 | 3 | 6 | 9: load window; default by format and pair density (`moe_pre`).
 - `INTARSIA_HIP_INK_MOE_LEAN=0`: the first form (the code of `29b71ac67`).
+- `INTARSIA_HIP_INK_MOE_WMMA` = 0 | 32 | 64: the tensor-core prefill (this one changes bits: other f32 order).
 - Test / bench setters in `inkmoe.rs`: `set_probe`, `set_pre`, `set_lean`, `set_sz`, `set_nb`.
-`docs/tuning.md` has rows for both env knobs (PRE updated, LEAN added; `docs_env_vars` passes).
+`docs/tuning.md` has rows for all three env knobs (`docs_env_vars` passes). Whether WMMA belongs in a fingerprint is the lead's call.
 
 ## 4. Next steps
 
-1. S2: WMMA prefill with a SiTU epilogue (I = 1152), not started. Prefill is 38 ms per NVFP4 call at T = 2048 until then.
-2. Not planned tonight: one launch for gate_up + down (the `moe_experts_bf16_v3` scheme; about 3 us of the 82 at T = 1).
+1. Lead: admission + G2 + end-to-end prefill with S2 in the model (this lane ran only its own unit tests and bench).
+2. S2 speed: the occupancy variant and fragment skip of `moe_wmma.h`, then the `r7` variants; the call is weight-read bound.
+3. Not planned tonight: one launch for gate_up + down at decode (about 3 us of the 82 at T = 1).

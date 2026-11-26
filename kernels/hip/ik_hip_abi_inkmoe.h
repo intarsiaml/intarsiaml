@@ -42,6 +42,8 @@ void ik_ink_moe_set_lean(int v);
 void ik_ink_moe_set_sz(int v);
 /* pairs per accumulator batch below the pair table (4 | 8; anything else = the default rule); bitwise the same output */
 void ik_ink_moe_set_nb(int v);
+/* the tensor-core prefill of the ordinary names: 0 off, 32 | 64 its pair tile, -1 = INTARSIA_HIP_INK_MOE_WMMA / the default */
+void ik_ink_moe_set_wmma(int v);
 
 #ifdef __cplusplus
 }
