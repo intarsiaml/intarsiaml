@@ -1,0 +1,2 @@
+wall 5.57 s, aggregate 91.9 tok/s, latency median 5.54 s max 5.57 s, prompt tokens 5241, cached 0
+conc:4:0: 4 replies, 512 tokens -> .scratch/serve-w10/mb16-real-real-r1-n4.json

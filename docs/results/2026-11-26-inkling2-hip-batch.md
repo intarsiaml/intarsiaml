@@ -5,42 +5,51 @@ for Inkling-2-Mini on the HIP backend. Today HIP refuses `--max-batch > 1` with 
 (`model/batch.rs` `row_tables_wanted`: Inkling-2 needs row-table kernels of `ConvMix` and `InkAttnDecode`, or of the pair).
 Raw: `docs/results/2026-11-26-inkling2-hip-batch/raw/`.
 
-## 0. Summary (final binary b7 = this branch merged onto main `3c6ff64f0`)
+## 0. Summary (final binary b8 = this branch merged onto main `3226af2b9`, #528)
 
-| tok/s, one R9700 | main `3c6ff64f0` | branch b7 | change |
+| tok/s, one R9700 | main `3226af2b9` | branch b8 | change |
 |---|---|---|---|
-| Prefill 4k (defaults: chunk 2048, MoE WMMA, flash) | 2702 | 2705 | +0.1 % (ratio 1.0014 ± 0.0030) |
-| Prefill 16k | 2793 (COMMON-1126) | not run; solo device code identical to main (section 7) | 0 expected |
-| Decode short (`--spec off`, 256 tok) | 76.88 | 76.90 | +0.03 % (1.0003 ± 0.0003) |
-| Decode 4k (`--spec off`, 256 tok) | 74.06 | 74.06 | +0.01 % (1.0001 ± 0.0006) |
-| Serve aggregate, 1 stream (1k prompt, 256 tok, TTFT included) | solo engine (not run) | 66.6 | |
-| Serve aggregate, 4 streams | refused (NoKernel) | **130.0** | new |
-| Serve aggregate, 8 streams | refused | **168.4** | new |
-| Serve aggregate, 16 streams | refused | **189.9** | new |
+| Prefill 4k (defaults since #528: chunk 2048, MoE WMMA, flash, PF2 forms) | 3094 / 3080 | 3084 / 3072 | -0.3 % (single runs, noise; ABBA on b7: 1.0014 ± 0.0030) |
+| Prefill 16k | not run (COMMON-1126 baseline 2793 predates #528) | not run; solo device code identical to main (section 12) | 0 expected |
+| Decode short (`--spec off`, 256 tok) | 76.90 | 76.83 | -0.1 % (single run; ABBA on b7 vs main3: 1.0003 ± 0.0003) |
+| Decode 4k (`--spec off`, 256 tok) | 74.09 | 74.03 | -0.1 % (single run; ABBA on b7 vs main3: 1.0001 ± 0.0006) |
+| Serve, 16 real prompts one at a time (solo server, 128 tok each, prefill included) | 54.4 | 54.4 (same engine) | |
+| Serve, real prompts at once: 4 / 8 / 16 (128 tok each, prefill included, 2 reps each) | refused (NoKernel) | **94.2 / 106.0 / 116.2** | 16 at once: **2.14x** the same 16 one at a time |
+| Serve aggregate, localeval 1k filler: 1 / 4 / 8 / 16 streams (256 tok, 3 reps) | refused at > 1 | 66.6 / **130.0 / 168.4 / 189.9** | new |
 | Pure batched decode B 16 (`batch_step`, real text), short / 4k | refused | **289.1 / 253.0** (3.77x / 3.45x the solo step; measured on b5, section 5.3) | new |
 
-- **Verdict: ships, opt-in by `--max-batch`.**
+- **Verdict: ships, opt-in by `--max-batch`.** Two bar items are short (below), both for lack of radiance time, not for a failure.
   - Batched == solo holds bitwise at every level:
-    - kernels: 645 + 40 row-table calls;
+    - kernels: 645 + 40 row-table calls (b5, b6, b7, b8);
     - model: 2800 tokens at B 1 / 4 / 8 / 16 (section 5.2);
-    - server: 16 / 16 real prompts at once against solo (section 10.2).
+    - server: the real prompts sent at once against the solo server's replies: 16 / 16 (window 8), and 4 / 4, 8 / 8, 16 / 16
+      (window 10).
   - The solo path is main's:
-    - solo device code identical to main;
-    - greedy md5 at 64 / 256, short and 4k, equal to main;
-    - solo decode ratio 1.000.
-- **ITL p50 / p99** (server histogram buckets) at 1 / 4 / 8 / 16 streams:
-  - p50: 10-20 / 20-35 / 20-35 / 50-75 ms;
-  - p99: 10-20 / 20-35 to 250-500 / 250-500 / 250-500 ms, where the tail is other streams' 1k prefill chunks.
+    - solo device code identical to main 3226af2b9, kernel for kernel (31 / 31, 32 / 32);
+    - greedy md5 at 64 / 256, short and 4k, equal to main on b8;
+    - solo decode ratio 1.000 (ABBA, b7).
+- **Real-prompt sweep (window 10)**: the 16 real prompts are 49 to 4253 tokens (25 752 in all) against 2048 generated tokens, so the
+  aggregate is prefill-bound. Sending them all at once takes 17.6-17.7 s. Sending them one at a time to the solo server takes 37.6 s.
+- **ITL p50 / p99** (server histogram buckets):
+  - localeval 1k, at 1 / 4 / 8 / 16 streams: p50 10-20 / 20-35 / 20-35 / 50-75 ms; p99 10-20 / 20-35 to 250-500 / 250-500 /
+    250-500 ms. The tail is other streams' 1k prefill chunks.
+  - real prompts at once, at 4 / 8 / 16: p50 20-35 / 20-35 / 50-75 ms; p99 250-1000 ms. Here the tail is the 2048-token chunks of
+    the 3-4k prompts.
   - Pure decode step time p50 / p99 at B 16: 55.4 / 56.6 ms.
-- **VRAM**: 19.7 GB for the solo server and 28.6 GB for `--max-batch 16 --max-seq 4608 --kv-fraction 0.9`. B 4 / 8 were not
-  measured (estimate in 10.5). The largest B at 4k on 32 GB is 16, the engine's row cap, with about 4 GB to spare. It needs
-  `--kv-fraction` of 0.6 or more.
+- **VRAM**:
+  - measured: 19.7 GB for the solo server; 28.5-28.6 GB for `--max-batch 16 --max-seq 4608 --kv-fraction 0.9` (4 visits);
+  - **B 4 / B 8 not measured**: interpolated between the measured B1 19.7 and B16 28.6 GB, about 21.5 / 23.9 GB.
+  - The largest B at 4k on 32 GB is 16, the engine's row cap, with about 4 GB to spare. It needs `--kv-fraction` of 0.6 or more.
 - **Recipe**:
   - `max_batch = 16` (the `[defaults]` value) is the right cap on HIP.
   - No `busy_chunk` line is needed: HIP's default busy chunk is the solo chunk 2048. Busy chunk 256 breaks batched == solo and
     costs 25 % at 8 streams.
 - **Since #527**: a batching server loads no DSpark draft and takes plain batched steps (section 9.1). One stream is faster on the
   solo server with DSpark.
+- **Bar items not met (radiance budget, coordinator's call)**:
+  1. The real-prompt sweep has 2 reps per level, not 3. N 16's two reps are window 8's and window 10's 16-at-once runs.
+  2. VRAM per B is measured at B 1 and B 16 only; B 4 / B 8 are interpolated, as above.
+- **Radiance down, whole lane: 31:30** over 10 windows (cap 30:00; the coordinator allowed up to 32:00 for window 10).
 
 ## Briefs and messages received
 
@@ -62,6 +71,11 @@ Raw: `docs/results/2026-11-26-inkling2-hip-batch/raw/`.
      - run the solo greedy md5 check (64 / 256, short / 4k) on the rebased binary with no env vars set;
      - say here which paths the batched forward took.
   Reminder: no `--mem` on tatooine jobs.
+- 2026-11-26 ~14:05 (coordinator, after #528 merged as `3226af2b9`): one more window, about 3:30, hard limit 32:00 lane total,
+  under 5:00. Order: (1) the full #528 re-gate, ink_rows bitwise first, then the 4k-256 md5 for each arm, then the 64-token md5 and
+  the rest; (2) the real-prompt sweep on one B16 server, serve_bitwise conc mode on the ids-prompts at 4, 8 and 16 at once,
+  aggregate plus server ITL. Skip the VRAM fix: write B4 / B8 as interpolated between the measured B1 and B16, labelled not
+  measured. If step 1 fails, stop and report, no retry window. Final radiance total in the doc and the PR body.
 - 2026-11-26 ~13:35 (coordinator): PR #527 (HIP DSpark default-on) is merged; main is `3c6ff64f0`. Rebase onto it before the gate.
   1. `inkling2::ink_rows_exact` on main already lists "hip". Take main's line and drop ours. (This branch never changed that line,
      so the merge took main's as is.)
@@ -459,12 +473,10 @@ to the solo chunk, and that is HIP's default.
 - The batching server reserves its 16 sequences at load (section 5.5: 348 MiB of rings and snapshots plus 32 KiB per token of
   full-attention KV per sequence, about 492 MiB at 4608 tokens). The peak is therefore that of 16 sequences at a 4.6k context,
   whatever the prompts.
-- B 4 and B 8 servers were not measured; the window time went to the third rep and the busy-chunk check.
-  - Both engines reserve KV for their context, not the whole `--kv-fraction` budget (`memplan.rs`: `kv_total = cap x bytes per
-    token`).
-  - So a server at B costs about the solo server + (B - 1) x 492 MiB (plan, at 4608 tokens) + the batch workspace. That workspace
-    is the rest of the B 16 difference: 28 611 - 19 662 - 15 x 492 = about 1.6 GB at B 16, and unmeasured at B 4 / 8.
-  - Estimate, not measured: B 4 about 21.1-22.7 GB, B 8 about 23.1-24.7 GB.
+- **B 4 and B 8 were not measured** (coordinator's call: the radiance budget went to the re-gate and the real-prompt sweep).
+  Interpolated linearly between the measured B1 19.7 and B16 28.6 GB: B 4 about 21.5 GB, B 8 about 23.9 GB. The B1 end is the
+  solo engine at `--kv-fraction 0.5`. Both engines reserve KV for their context, not the whole budget (`memplan.rs`), so the
+  fraction does not move the peak; the batch workspace at B 4 / 8 is the unknown.
 - **Largest B at 4k on 32 GB: 16**, the engine's row cap (`kernels::ROWS_MAX` = `Model::BATCH_MAX_ROWS` = 16). It fits with about
   4 GB to spare at a 4608-token context. Memory alone would allow about 8 more sequences at 480-492 MiB each, if the row cap were
   raised.
@@ -492,17 +504,78 @@ to the solo chunk, and that is HIP's default.
 | 7 | #12094 | unit + solo gate b7 (on main `3c6ff64f0`) | 13:40:19 - 13:44:02, 3:43 |
 | 8 | #12095 | serve: batched replies, localeval reps 1-2 | 13:44:34 - 13:49:06, 4:32 |
 | 9 | #12096 | serve: solo replies, rep 3, busy chunk 256 | 13:49:34 - 13:53:37, 4:03 |
-| | | **total** | **28:25** (cap 30:00) |
+| 10 | #12108 | #528 re-gate (b8 vs main4) + real-prompt sweep 4 / 8 / 16 (coordinator-approved past 30:00, limit 32:00) | 14:08:55 - 14:12:00, 3:05 |
+| | | **total** | **31:30** (cap 30:00; 32:00 allowed for window 10) |
 
-- CPU jobs: builds #12035 (cancelled by the coordinator: `--mem`), #12087, #12091 and others; device-ISA jobs #12083, #12086;
-  push #12098 (endor).
+- CPU jobs: builds #12035 (cancelled by the coordinator: `--mem`), #12087, #12091, #12102 and others; device-ISA jobs #12083,
+  #12086, #12102; pushes #12098, #12100, #12106 (endor).
 - PR: https://github.com/intarsiaml/intarsiaml/pull/529.
 - Left on tatooine:
-  - `~/intarsiaml-ink-hip-batch` (382 MB): binaries `intarsia-b7` and `intarsia-main3`, logs, and the serve admission cache in
-    `.scratch/home`;
+  - `~/intarsiaml-ink-hip-batch`: binaries `intarsia-b8` and `intarsia-main4` (b7 / main3 deleted after window 10), logs, and the
+    serve admission cache in `.scratch/home`;
   - the volume `intarsia-cargo-target-ink-hip-batch` (2.3 GB).
   No container or process of the lane is running.
 - Not measured, because the window time went to the gates and the serve checks:
-  - serve at a 4k prompt (the pure-decode 4k numbers are section 5.3);
-  - VRAM of B 4 / B 8 servers (interpolated in 10.5);
-  - prefill 16k (same device code as main).
+  - bar items: a third rep of the real-prompt sweep, and VRAM of B 4 / B 8 servers (interpolated in 10.5) — see section 0;
+  - not in the bar: serve at a 4k filler prompt (the pure-decode 4k numbers are section 5.3), and prefill 16k (same device code as
+    main).
+
+## 12. Window 10: #528 re-gate and the real-prompt sweep (fleetq #12108; radiance down 14:08:55 - 14:12:00, 3:05)
+
+Raw: `raw/serve-w10/` (pre-stage output `pre.out`, its verdict `gate10-check.txt`, driver log, server log, per-level replies and
+meta, `/metrics` poll gzipped, `summary.txt`). Scripts: `raw/stage_w10.sh`, `raw/gate10_check.py`, `raw/serve_window.sh` (the `PRE`
+stage and the `real:` mode), `raw/serve_bitwise.py` (`conc:N:OFF`), `raw/real_sum.py`, `raw/itl_seg.py`. Plan: `raw/visits-w10.txt`.
+
+### 12.1 The merge of #528
+
+- #528 (`3226af2b9`, HIP prefill PF2 forms default-on) conflicted with this branch in `ink_attn.hip`. The conflict was two
+  independent additions next to each other: `InkRt` / `InkPR` here, the PF2 helpers there. Both were kept. Merge `8dc0db447`.
+- `InkPR` inherits `InkP`, so it gets #528's new field `qhi`. Only `ink_flash_k` reads it, `ink_attn_dec_k` does not, and the rows
+  launcher value-initialises `InkP` (`InkP p = {};`).
+- Device ISA against main `3226af2b9` (#12102, cpu): `ink_mix.hip` 31 / 31 and `ink_attn.hip` 32 / 32 kernels identical, none added.
+- Binaries: main4 = `3226af2b9` (md5 `fdd5c44e…`), b8 = `8dc0db447` (`2f41908f…`). No env vars set.
+
+### 12.2 Re-gate (pre-stage, 100 s, verdict GATE PASS)
+
+| Check, in run order | Result |
+|---|---|
+| `tests/ink_rows.rs` | 2 / 2 PASS: row-table calls bitwise the solo calls |
+| greedy md5 4k 256, main4 / b8 | `9675bbb9…` / `9675bbb9…` **equal** (the same md5 as main before #528) |
+| greedy md5 short 256 | `9a27c21b…` **equal** |
+| greedy md5 short 64 / 4k 64 | `04cdb28a…` / `2252566a…` **equal** |
+| `tests/ink_attn.rs` `rows_exact_real_shapes` | PASS |
+| `kernels test --op conv_mix` / `--op ink_attn_decode` | 532 / 70 cases, 0 fail, ADMITTED |
+| `tests/inkling2_batch.rs` on HIP, tiny, `CI=1` | 8 / 8 PASS |
+
+Single runs, main4 / b8: decode 4k 74.09 / 74.03 tok/s, short 76.90 / 76.83 tok/s, prefill 4k 3094 / 3084 tok/s. These are noise
+around equal; the ABBA ratio is section 9's. The device code is main's (12.1).
+
+### 12.3 Real-prompt sweep: 4, 8 and 16 of the real prompts at once
+
+- One `--max-batch 16 --max-seq 4608 --kv-fraction 0.9` server, default busy chunk (2048), no `--spec`. Binary **b7**: its
+  plan-shape admission was cached, so it started in 18 s; b8's would have rerun 134 cases (about 85 s) and not fit the window. b7 and
+  b8 differ only by #528's prefill forms.
+- Prompts: the 16 of `serve_bitwise.py` (49 to 4253 tokens), sorted by length. A level of N takes every (16 / N)-th from an offset,
+  so each set spans short to 4k. Rep r uses offset r - 1. Rep 1 sends the plain prompts, so its replies can be compared with the
+  solo server's (window 9). Rep 2 puts a tag in front, so no prefix is shared (the server reported 0 cached tokens in every rep).
+- 128 forced greedy tokens per request. Aggregate = all completion tokens / the wall time from the first send to the last reply,
+  prefill included. ITL and step buckets come from the server histograms over the level's span.
+
+| N at once | rep | prompt tokens | aggregate tok/s | request latency median / max s | ITL p50 / p99 bucket | replies equal to solo |
+|---|---|---|---|---|---|---|
+| 4 | 1 | 5 241 | 91.9 | 5.54 / 5.57 | 20-35 / 500-1000 ms | **4 / 4** |
+| 4 | 2 | 5 434 | 96.6 | 5.27 / 5.30 | 20-35 / 250-500 ms | (tagged) |
+| 8 | 1 | 12 019 | 110.8 | 9.21 / 9.24 | 20-35 / 500-1000 ms | **8 / 8** |
+| 8 | 2 | 13 789 | 101.3 | 9.98 / 10.11 | 20-35 / 500-1000 ms | (tagged) |
+| 16 | 1 | 25 752 | 115.7 | 17.31 / 17.70 | 50-75 / 500-1000 ms | **16 / 16** |
+| 16 | window 8 | 25 752 | 116.7 (wall 17.55 s) | | | 16 / 16 |
+| 1 (solo server, one at a time) | window 9 | 25 752 | 54.4 (wall 37.63 s) | | | (reference) |
+
+- Means: **94.2 / 106.0 / 116.2 tok/s** at 4 / 8 / 16 at once, with 2 reps each. The 16-at-once set is the same workload as the solo
+  server's one-at-a-time run, and it finishes in 17.6 s instead of 37.6 s: **2.14x**.
+- This workload is prefill-bound: about 12.6 prompt tokens per generated token. So the gain over the 1k filler sweep (189.9 at 16)
+  is smaller. Every decoding row waits while the 3-4k prompts prefill in 2048-token chunks of about 0.7 s each, and those waits are
+  the 500-1000 ms p99 bucket. The p50 bucket is the batched decode step (20-35 ms at 4 / 8 rows, 50-75 ms at 16).
+- Rep 2 of N 16 was skipped by the time guard (24 s left, 46 needed), so the bar's 3 reps were not reached (section 0).
+- VRAM peak of the visit: 28 518 MiB (card 0), as in windows 8 and 9.
+

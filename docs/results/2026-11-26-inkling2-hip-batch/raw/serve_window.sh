@@ -33,6 +33,16 @@ for i in $(seq 1 60); do grep -q "radiance stopped" "$OUT/win.out" 2>/dev/null &
 grep -q "radiance stopped" "$OUT/win.out" || { say "window did not start: $(cat "$OUT/win.out")"; exit 3; }
 t0=$(date +%s)
 say "radiance down"
+if [ -n "${PRE:-}" ]; then  # PRE=<stage on tatooine> (e.g. stage_w10.sh): run first; PRE_CHECK=<script on the Mac> must pass or no visit runs
+  say "pre-stage $PRE ($(left) s left)"
+  to $(( $(left) - 20 )) ssh -o BatchMode=yes "$T" "bash $RR/.scratch/$PRE" < /dev/null > "$OUT/pre.out" 2>&1
+  say "pre-stage exit $? ($(left) s left)"
+  if [ -n "${PRE_CHECK:-}" ]; then
+    python3 "$SD/$PRE_CHECK" "$OUT/pre.out" > "$OUT/pre-check.out" 2>&1; pc=$?
+    say "pre-check: $(tail -n 1 "$OUT/pre-check.out")"
+    if [ $pc != 0 ]; then say "pre-check failed: no visits"; VISITS=/dev/null; fi
+  fi
+fi
 while IFS=';' read -r name bin sargs largs; do
   [ -z "$name" ] && continue
   case "$name" in \#*) continue ;; esac
@@ -50,6 +60,22 @@ while IFS=';' read -r name bin sargs largs; do
   # the two clocks (Mac before / tatooine / Mac after) for the poll log's segmentation (itl_seg.py)
   { mt; ssh -o BatchMode=yes "$T" "bash $RR/.scratch/serve_ctl.sh clock" < /dev/null; mt; } > "$OUT/$name-clock.txt" 2>&1
   case "$largs" in
+    real:*)  # real:<N,N,..>:<reps>: N of the 16 real prompts at once (serve_bitwise.py conc:N:OFF), rep by rep while time lasts;
+             # rep 1 plain (its replies compare with the solo server's), later reps with a nonce in front; levels file for itl_seg.py
+      spec=${largs#real:}; lv=${spec%%:*}; nr=${spec##*:}; largs=none
+      for r in $(seq 1 "$nr"); do
+        for n in ${lv//,/ }; do
+          need=$(( n * 2 + 14 ))
+          if (( $(left) < need )); then say "$name: SKIP real rep $r N=$n: $(left) s left (need $need)"; break 2; fi
+          off=$(( r - 1 )); nz=""; (( r > 1 )) && nz=":r${r}n${n}"
+          mt > "$OUT/$name-real-r$r-n$n.t0"
+          to 120 python3 "$SD/serve_bitwise.py" "http://$T:$PORT/v1" "conc:$n:$off$nz" "$OUT/$name-real-r$r-n$n.json" < /dev/null > "$OUT/$name-real-r$r-n$n.out" 2>&1
+          rc=$?
+          mt > "$OUT/$name-real-r$r-n$n.t1"
+          echo "$r $n $(cat "$OUT/$name-real-r$r-n$n.t0") $(cat "$OUT/$name-real-r$r-n$n.t1")" >> "$OUT/$name-levels.txt"
+          say "$name: real rep $r N=$n exit $rc ($(left) s left): $(head -n 1 "$OUT/$name-real-r$r-n$n.out")"
+        done
+      done ;;
     bitwise:*)  # bitwise:<solo|conc>[,<localeval speed args>]: the serve-level batched == solo check (serve_bitwise.py) first
       bm=${largs#bitwise:}; largs=none
       case "$bm" in *,*) largs=${bm#*,}; bm=${bm%%,*} ;; esac

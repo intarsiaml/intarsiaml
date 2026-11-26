@@ -1,0 +1,22 @@
+fleetq: #12108 running on tatooine-r9700, tatooine-r9700-2: env VISITS=.scratch/visits-w10.txt OUT=.scratch/serve-w10 CAP=192 PRE=stage_w10.sh PRE_CHECK=gate10_check.py bash .scratch/serve_window.sh
+[14:08:59] radiance down
+[14:08:59] pre-stage stage_w10.sh (192 s left)
+[14:10:39] pre-stage exit 0 (92 s left)
+[14:10:39] pre-check: GATE PASS
+[14:10:39] mb16-real: start (b7; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[14:10:58] mb16-real: up (IP 172.17.0.2 after 18s ; 73 s left)
+[14:11:04] mb16-real: real rep 1 N=4 exit 0 (67 s left): wall 5.57 s, aggregate 91.9 tok/s, latency median 5.54 s max 5.57 s, prompt tokens 5241, cached 0
+[14:11:14] mb16-real: real rep 1 N=8 exit 0 (57 s left): wall 9.24 s, aggregate 110.8 tok/s, latency median 9.21 s max 9.24 s, prompt tokens 12019, cached 0
+[14:11:31] mb16-real: real rep 1 N=16 exit 0 (40 s left): wall 17.71 s, aggregate 115.7 tok/s, latency median 17.31 s max 17.7 s, prompt tokens 25752, cached 0
+[14:11:37] mb16-real: real rep 2 N=4 exit 0 (34 s left): wall 5.30 s, aggregate 96.6 tok/s, latency median 5.27 s max 5.3 s, prompt tokens 5434, cached 0
+[14:11:47] mb16-real: real rep 2 N=8 exit 0 (24 s left): wall 10.11 s, aggregate 101.3 tok/s, latency median 9.98 s max 10.11 s, prompt tokens 13789, cached 0
+[14:11:47] mb16-real: SKIP real rep 2 N=16: 24 s left (need 46)
+[14:11:49] mb16-real: stopped: VRAM peak mb16-real: card0 28518 MiB, card1 57 MiB
+[14:11:49] visits done (22 s left)
+[14:12:00] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-batch/.scratch/hold.sh; cap 192s; stopping radiance 2026-11-26 14:08:55
+[window] radiance stopped 2026-11-26 14:08:59 (inactive)
+[window] stage done 2026-11-26 14:11:50 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 14:11:50
+[window] radiance answers 2026-11-26 14:12:00 (after 15 s)
+fleetq: #12108 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

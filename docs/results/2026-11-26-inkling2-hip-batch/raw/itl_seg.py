@@ -145,6 +145,18 @@ for le in sorted(glob.glob(os.path.join(out, f"{visit}-r*-le.out"))):
                     "itl_ms_p50": pct(itl, 0.5), "itl_ms_p99": pct(itl, 0.99), "itl_gaps": int(itl[-1][1]) if itl else 0,
                     "step_ms_p50": pct(step, 0.5), "step_ms_p99": pct(step, 0.99), "decode_rows": rows(a, b)})
         start = t
+lvf = os.path.join(out, f"{visit}-levels.txt")
+if os.path.exists(lvf):  # serve_window.sh real: mode: "rep N t0 t1" (Mac times) per level
+    for line in open(lvf):
+        p = line.split()
+        if len(p) != 4:
+            continue
+        rep, n, t0, t1 = int(p[0]), int(p[1]), float(p[2]), float(p[3])
+        a, b = at(t0 + off), at(t1 + off + 0.25)
+        itl, step = delta(a, b, "intarsia_batch_itl_seconds"), delta(a, b, "intarsia_batch_step_seconds")
+        res.append({"rep": rep, "streams": n, "real": True, "span_s": round(t1 - t0, 2), "itl_ms_p50": pct(itl, 0.5),
+                    "itl_ms_p99": pct(itl, 0.99), "itl_gaps": int(itl[-1][1]) if itl else 0, "step_ms_p50": pct(step, 0.5),
+                    "step_ms_p99": pct(step, 0.99), "decode_rows": rows(a, b)})
 bw0, bw1 = (os.path.join(out, f"{visit}-bw.t{i}") for i in (0, 1))
 if os.path.exists(bw0) and os.path.exists(bw1):
     t0, t1 = float(open(bw0).read()), float(open(bw1).read())
