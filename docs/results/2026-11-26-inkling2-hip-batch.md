@@ -337,3 +337,100 @@ and these are the plain-decode bits that the RT = false instantiations must pin.
   `INTARSIA_BATCHED_MTP`). The Inkling-2 recipe sets neither.
 - So no batched path ever runs per-row spec on HIP. The servers of windows 8 and 9 run without `--spec`, and their logs show the
   path (section 10).
+
+## 10. Serve level: windows 8 and 9 (fleetq #12095, #12096; radiance down 13:44:34 - 13:49:06, 4:32, and 13:49:34 - 13:53:37, 4:03)
+
+Raw: `raw/serve-w8/`, `raw/serve-w9/` (driver logs, server logs, localeval result.json and timestamped output, `/metrics` polls every
+0.2 s gzipped, summaries). Scripts: `raw/serve_window.sh`, `raw/serve_ctl.sh`, `raw/hold.sh`, `raw/serve_bitwise.py`, `raw/itl_seg.py`,
+`raw/serve_sum.py`. Plans: `raw/visits-w8.txt`, `raw/visits-w9.txt`. Binary b7 throughout. `intarsia serve -m Inkling-2-Mini
+--backend hip --max-seq 4608`, plus `--max-batch 16 --kv-fraction 0.9` for the batching servers. No env vars set.
+
+### 10.1 The path the servers took
+
+- Batching servers: `continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048`. No DSpark line, so no draft
+  was loaded. This is the default with no `--spec` (section 9.1): plain batched steps.
+- The default busy chunk on HIP is the solo chunk, 2048, even without `--busy-chunk`. HIP batches Inkling-2 as a hybrid model
+  (`allow_recurrent_batch`), and `load.rs` then sets `busy_chunk = model.prefill_chunk()`. Window 9's `mb16-def` server ran
+  without the flag and logged `busy prefill chunk 2048`. So `[tuning.hip]` needs no `busy_chunk` line.
+- Admission on plan shapes: the first start ran 134 cases in 101 s, with 23 kernels checked. Later starts hit the cache
+  (`134 cached`) and started in 17-18 s.
+
+### 10.2 Batched == solo through the server (16 real prompts)
+
+The 16 prompts of `serve_bitwise.py` come from `scripts/cmx/ids-prompts`: the 7 files plus 9 prefixes of the two 4k documents, 49 to
+4253 prompt tokens each, greedy, 128 forced tokens.
+- **Batched**: all 16 sent at once to a `--max-batch 16` server (window 8, busy chunk 2048).
+- **Solo**: the same 16, one at a time, to a server with no `--max-batch` and `--spec off` (window 9).
+
+| Batched server | Replies equal to solo (text md5 and token count) |
+|---|---|
+| busy chunk 2048 (the default) | **16 / 16**. No cached tokens. The 4253-token prompts prefill in three 2048 chunks beside decoding rows. |
+| busy chunk 256 (`--busy-chunk 256`) | 8 / 16. Equal: the three prompts under 60 tokens, prompts of 226 and 234 tokens, one of 823 tokens and the two 4k prompts. These fit one 256 chunk, or prefilled before the server got busy (a lone prompt takes the solo chunk). The 8 others diverge from character 19-321. |
+
+The prefill (chunk 2048, MoE WMMA and flash attention) is not chunk-invariant. Batched == solo therefore needs the busy chunk equal
+to the solo chunk, and that is HIP's default.
+
+### 10.3 Throughput and latency: localeval speed, 1k prompt, 256 forced tokens, 1 / 4 / 8 / 16 streams
+
+- Each stream count ran three times: window 8 reps 1-2 (`mb16-bc2048`) and window 9 rep 3 (`mb16-def`, the same configuration with
+  the default busy chunk).
+- Every stream sends localeval's filler prompt with its own nonce. These are synthetic prompts. Real text is in 10.2 and in
+  section 5.3 (`batch_step --prompts text`).
+- The aggregate is completed tokens over the wall time of the whole level, so it includes every stream's prefill and TTFT.
+- ITL and step percentiles come from the server's own histograms (`intarsia_batch_itl_seconds`, `intarsia_batch_step_seconds`),
+  split by level. They are given as the bucket the percentile falls in; the bounds are 10, 20, 35, 50, 75, 150, 250, 500 ms.
+
+| Streams | aggregate tok/s, reps 1 / 2 / 3 | mean | x 1 stream | per-stream decode tok/s (median) | TTFT median / max s | ITL p50 bucket | ITL p99 bucket |
+|---|---|---|---|---|---|---|---|
+| 1 | 65.7 / 67.0 / 67.0 | **66.6** | 1.00 | 74.1 / 75.6 / 75.6 | 0.45 / 0.45 | 10-20 ms | 10-20 ms |
+| 4 | 128.1 / 134.1 / 127.8 | **130.0** | 1.95 | 39.5 / 41.9 / 39.4 | 1.51 / 1.75 | 20-35 ms | 20-35 to 250-500 ms |
+| 8 | 168.7 / 167.9 / 168.5 | **168.4** | 2.53 | 26.4 / 26.2 / 26.3 | 2.37 / 3.51 | 20-35 ms | 250-500 ms |
+| 16 | 189.2 / 190.2 / 190.2 | **189.9** | 2.85 | 14.8 / 14.9 / 14.8 | 4.17 / 7.20 | 50-75 ms | 250-500 ms |
+
+- The ITL p50 bucket holds the pure decode step of section 5.3: 13.0 / 23.6 / 33.3 / 55.4 ms at B 1 / 4 / 8 / 16.
+- The p99 bucket of 250-500 ms is a decoding row's wait while another stream's 1k prompt prefills in one 2048-row chunk, about
+  0.45 s. At 4 streams it is about 3 waits in roughly 1000 gaps, right at the 99th percentile, so the two splits read it on either
+  side.
+- Per-stream decode tok/s is localeval's rate after the first token. At 16 streams it is lower than 1 / 55 ms = 18 tok/s, because
+  of those prefill waits.
+- Over the whole of window 8, 97.3 % of the 19 882 gaps between tokens were at most 75 ms, and 136 were over 500 ms. Those 136 were
+  the 4k prompts' 2048 chunks in the real-prompt phase.
+- Pure decode, no prefill in the window (section 5.3, `batch_step`, real text, b5; the row-table kernels' code is unchanged since):
+  aggregate 77.0 / 169.6 / 240.6 / **289.1** tok/s at B 1 / 4 / 8 / 16 short (3.77x the solo step), and 73.4 / 156.2 / 217.6 /
+  **253.0** at 4k (3.45x). Metal's B 16 was 173.7 tok/s, 3.18x (`2026-11-21-inkling2-batch.md` section 4).
+
+### 10.4 Busy-chunk check (window 9, `--busy-chunk 256` against the default 2048, 8 streams once)
+
+| Busy chunk | 8 streams aggregate tok/s | ITL p99 bucket | step p99 bucket | 16 real prompts at once: wall | ... equal to solo |
+|---|---|---|---|---|---|
+| 2048 (default) | 168.4 (3 reps) | 250-500 ms | 250-500 ms | 17.6 s | 16 / 16 |
+| 256 | 126.4 (-25 %) | 150-250 ms | 250-500 ms | 35.1 s | 8 / 16 |
+
+- A 256 chunk halves the worst ITL bucket, but costs a quarter of the aggregate at 8 streams and doubles the wall time of the
+  real-prompt mix. It also breaks batched == solo.
+- **Keep the default** (the solo chunk). The 16-stream level of the 256 arm ran out of window time and was cut (localeval exit 142).
+
+### 10.5 Memory
+
+| Server | VRAM peak, card 0 (sysfs, sampled every 0.5 s over the visit) |
+|---|---|
+| solo (no `--max-batch`, `--max-seq 4608`, default `--kv-fraction 0.5`) | **19 662 MiB** |
+| `--max-batch 16 --max-seq 4608 --kv-fraction 0.9` (window 8, and window 9 twice) | **28 611 / 28 518 / 28 518 MiB** |
+
+- The batching server reserves its 16 sequences at load (section 5.5: 348 MiB of rings and snapshots plus 32 KiB per token of
+  full-attention KV per sequence, about 492 MiB at 4608 tokens). The peak is therefore that of 16 sequences at a 4.6k context,
+  whatever the prompts.
+- B 4 and B 8 servers were not measured; the window time was used for the third rep and the busy-chunk check. Interpolated
+  between B 1 and B 16 (about 597 MiB per extra sequence, batch workspace included), they would be about 21.4 GB and 23.8 GB.
+- **Largest B at 4k on 32 GB: 16**, the engine's row cap (`kernels::ROWS_MAX` = `Model::BATCH_MAX_ROWS` = 16). It fits with about
+  4 GB to spare at a 4608-token context. Memory alone would allow about 6 more.
+- B 16 at 4k needs a KV budget of at least about 7.9 GB, which means `--kv-fraction` of 0.6 or more (0.9 tested). At the default
+  0.5, the plan clamps B 16 to 3285 tokens per sequence (window 2).
+
+### 10.6 Recipe cap on HIP
+
+- `max_batch = 16`, the `[defaults]` value, is the right cap on HIP. It equals the engine's row cap and fits at a 4k context, so
+  no HIP override is needed.
+- Batching stays opt-in (`--max-batch`). A one-stream user keeps the solo server, which since #527 speculates with DSpark (1.19x at
+  1k, 1.34x short). A batching server loads no draft, so it starts to win at 2 or more streams: 130 tok/s at 4 against 66.6 plain
+  and about 80-90 with DSpark.
