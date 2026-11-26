@@ -75,8 +75,9 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(BF16_TOL)
                     .priority(-1)
                     .rows_exact(),
-                // prefill: three WMMA GEMMs (matmul_bf16)
-                "ink_in_proj_bf16_matmul" => k.weights(bf).when(|s| s.m > PROJ_ROWS_MAX).tol(BF16_TOL),
+                // prefill: three WMMA GEMMs (matmul_bf16); `Fast` like CUDA's cuBLAS form: the GEMM's variant may depend on M, so a row
+                // of a long call is not promised to equal the same row of a shorter one (not tested)
+                "ink_in_proj_bf16_matmul" => k.weights(bf).exact(Exactness::Fast).when(|s| s.m > PROJ_ROWS_MAX).tol(BF16_TOL),
                 "conv_mix_bf16" => {
                     k.weights(bf).when(|s| s.k > 0 && s.k <= MIX_D_MAX && s.n <= MIX_QUERIES_MAX).tol(BF16_TOL).tol_f32(F32_TOL).scratch(conv_mix_scratch)
                 }
