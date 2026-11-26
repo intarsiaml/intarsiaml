@@ -1,11 +1,17 @@
 # Inkling-2-Mini Metal decode toward the bandwidth floor (lane ink-decroof, 2026-11-25)
 
-Status: step 0 done; fresh profile of main done; CONV_PRE (1760c5228) and BIAS_PRE / BIAS_EARLY (bb8457ccf) built and
-bitwise on every gate (#11936); A/B #11941 + #11981 done: **CONV_PRE + BIAS_PRE default on, +2.0-2.4 % plain decode at 143 / 1k / 4k
-within one process, bitwise**; BIAS_EARLY stays off. Tip 699d0bfc7 ids equal to main. Lever 3 (fused attention above 4096
-keys) queued as #11983. Branch `ink/decroof` from
-origin/main d8c3c7148 (includes #496: DSpark k=3 default on Metal, so `--spec off` is plain decode), worktree
-`.worktrees/ink-decroof`. Not pushed.
+Status (2026-11-26 00:25): three bitwise levers on branch `ink/decroof` (tip eceba6809 + docs), all default on, every gate
+green at the tip (#11992). Plain decode (`--spec off`) within one process, vs main's code paths: **+2.1 % at 143, +2.4 % at
+1k, +2.0 % at 4k** (CONV_PRE + BIAS_PRE, #11981), plus **+0.8 % at 4k, +0.9 % at 8k, +0.6 % at 16k** from the fused-attention
+threshold (#11983). Greedy ids equal to main at 143 / 1k / 4k (spec off and spec default) and 8k / 16k. Branch from
+origin/main d8c3c7148, worktree `.worktrees/ink-decroof`, not pushed.
+
+| lever | commit | knob (`=0` reverts) | gain (within-process, paired, 95 % CI above 1) |
+|---|---|---|---|
+| K / V conv loads before the q prologue (ink/solo-38 port) | 1760c5228 | `INTARSIA_INK_CONV_PRE` | +0.7 % at 143 / 1k / 4k on top of BIAS_PRE |
+| rel bias one distance per thread, relproj loaded together | bb8457ccf, on in 7bab2fa92 | `INTARSIA_INK_BIAS_PRE` | +1.3-1.6 % at 143 / 1k / 4k |
+| solo one-row fused attention up to 16896 keys (was 4096) | eceba6809 | `INTARSIA_INK_ATTN_FUSED=0` forces the pair everywhere | +0.6-0.9 % at 4k-16k |
+| (bias loads at kernel entry) | bb8457ccf | `INTARSIA_INK_BIAS_EARLY=1` (stays off) | not significant |
 
 ## Brief (2026-11-25, coordinator, in substance)
 
@@ -113,7 +119,8 @@ at 143 and the median is >= 1.0 at 1k and 4k.
 | #11936 | gates (ids, Metal tests, G2) + fresh profile of main (exclusive, 22:10-22:17) | done, all pass |
 | #11941 | A/B: within-process 4 arms x 3 processes + cross-process ABBA 6 x 2 (exclusive, 22:17-22:38) | done |
 | #11981 | A2: within-process A / E (BIAS_PRE alone) / C (both), 3 processes; tip build, ids vs base, docs_env_vars, attn tests (23:11-23:25) | done |
-| #11983 | A3: fused attention above 4096 keys, within-process C / F at 4k / 8k / 16k | queued |
+| #11983 | A3: fused attention above 4096 keys, within-process C / F at 4k / 8k / 16k (23:25-23:32) | done |
+| #11992 | T: tip gates after the threshold change (00:18-00:21) | done, all pass |
 
 Diag patch (`.scratch/diag`, never committed): `generate --prompt-ids` reads `INTARSIA_DIAG_ARMS` (one letter per prompt) and
 sets the Switch overrides before each prompt: A all off, B CONV_PRE, C + BIAS_PRE, D + BIAS_EARLY; it prints per prompt how
@@ -250,3 +257,21 @@ By the rule the largest length whose CI lies above 1 is 16.4k (8k's lower bound 
 the one-row threshold goes to **16896 keys** for solo steps (eceba6809: the 16.4k prompt plus 256 tokens, rounded up; the
 pair stays above it, where ink-m-attn measured it faster at 32k). Batched steps' one-row calls keep 4096: no batched run
 was timed above it. Below ~4.1k context nothing changes (every visit was already fused). Tip gates: #11992 (`raw/jobT.sh`).
+
+## Tip gates (#11992, tip 1d4a1424a = eceba6809 + docs, md5 e6c4494a; `raw/jobT.log`)
+
+- Greedy ids, tip vs main's base binary: 143 / 1021 / 4108 tokens EQUAL with `--spec off` and with the spec default (the
+  same md5s as #11936); 8216 and 16432 tokens (`--spec off`, both binaries in this job) EQUAL (463e6cff / 95fa80ba).
+- Tests: backend-metal inkling2_attn, rows_exact, inkmix, inkctrl, inkload 24 / 24; models inkling2 (G1 tiny) +
+  inkling2_batch 25 / 25; intarsia-core lib inkling2 4 / 4; docs_env_vars 2 / 2.
+- Single runs (one process each, not an A/B): tip `--spec off` 79.2 / 77.0 / 75.1 tok/s at 143 / 1k / 4k; 8k base 70.9 vs
+  tip 72.6, 16k base 67.7 vs tip 69.4; spec default 126.7 / 80.6 / 100.6.
+
+## What is left (ranked by the fresh profile, short context)
+
+1. Controllers, 2.1 ms over the floor: no bitwise lever left after dfuse / mixsplit / dec-probe (see step 0); the router
+   GEMV fold into the norm / blend kernel belongs to the batch lane.
+2. Attention core, ~1.3 ms over: this lane took ~0.3 ms of it; the rest is the body's serial key steps and the combine
+   dispatch, whose levers (one split per head, fewer simdgroup merges) change the merge order (not bitwise).
+3. Experts NVFP4, 0.66 ms over; router 0.43 ms (mostly the routing tail after rank4).
+Not built: BIAS_EARLY's register cost cancels its overlap; a batched-step fused threshold above 4096 is unmeasured.
