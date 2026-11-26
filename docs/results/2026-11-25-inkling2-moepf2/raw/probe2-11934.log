@@ -1,0 +1,101 @@
+fleetq: #11934 running on endor: /opt/code/intarsiaml/.worktrees/ink-moepf2/.scratch/probe2.sh
+fleetq: #11934 went ahead of the line and must end within 51m (by Wed 23:00); it is stopped then
+35af9af69
+84b29f4fee5c2966d634ea7dbf410d12
+22:08:51
+Note: No thermal warning level has been recorded Note: No performance warning level has been recorded Note: No CPU power status has been recorded 
+ powermode            2 
+== drift control: mix 0 x 4, real routing
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T= 2048 interleaved mix 0         median   9085.2 us/call (min   7234.7, p25   9000.3, p75   9137.6; round 1   7234.7, round 16   9124.0)
+nv T= 2048 interleaved mix 0         median   9063.5 us/call (min   7251.1, p25   8932.1, p75   9106.6; round 1   7251.1, round 16   9154.5)
+nv T= 2048 interleaved mix 0         median   9072.2 us/call (min   7275.1, p25   8978.7, p75   9144.0; round 1   7275.1, round 16   9144.0)
+nv T= 2048 interleaved mix 0         median   9075.1 us/call (min   7244.5, p25   9008.7, p75   9153.7; round 1   7244.5, round 16   9153.7)
+nv T= 2048 series mix 0         7235 9677 9330 9162 9104 9056 9027 9069 9085 8987 9000 8789 8878 9104 9138 9124
+nv T= 2048 series mix 0         7251 7580 9229 9134 9090 9077 9028 9091 9063 9034 8932 8848 8910 9000 9107 9154
+nv T= 2048 series mix 0         7275 9324 9555 9139 9081 9056 9059 9089 9072 8979 8976 8854 8952 9065 9158 9144
+nv T= 2048 series mix 0         7244 9716 9413 9199 9093 9075 9016 9030 9009 8993 8980 9045 8964 9128 9138 9154
+nv T= 2048 mix 0         / mix 0: per-round ratio median 1.0001 (min 0.7833, max 1.0067), 16 rounds in 6.9 s
+nv T= 2048 mix 0         / mix 0: per-round ratio median 1.0022 (min 0.9635, max 1.0241), 16 rounds in 6.9 s
+nv T= 2048 mix 0         / mix 0: per-round ratio median 1.0021 (min 0.9916, max 1.0291), 16 rounds in 6.9 s
+== real routing rep 1 22:09:03
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T= 2048 interleaved mix 0         median   8858.7 us/call (min   7238.1, p25   8517.7, p75   8929.1; round 1   7238.1, round 24   8858.7)
+nv T= 2048 interleaved mix 16        median   8659.1 us/call (min   7130.7, p25   8388.8, p75   8734.1; round 1   7142.9, round 24   8734.1)
+nv T= 2048 interleaved mix 32        median   8692.9 us/call (min   7157.0, p25   8472.2, p75   8755.6; round 1   7164.6, round 24   8754.3)
+nv T= 2048 interleaved mix 16+32     median   8585.9 us/call (min   7137.5, p25   8422.0, p75   8697.4; round 1   7171.0, round 24   8688.2)
+nv T= 2048 interleaved mix 32k64     median   8500.8 us/call (min   7010.1, p25   8337.2, p75   8560.0; round 1   7015.3, round 24   8556.2)
+nv T= 2048 interleaved mix 16+32k64  median   8502.6 us/call (min   7023.3, p25   8344.3, p75   8545.7; round 1   7046.2, round 24   8502.6)
+nv T= 2048 series mix 0         7238 7264 7264 7283 7801 8088 8518 8884 8938 8896 8844 8773 8745 8819 8849 8978 9021 8993 8972 8892 8895 8920 8929 8859
+nv T= 2048 series mix 16        7143 7131 7138 7267 7695 7988 8389 8488 8768 8711 8656 8578 8574 8536 8659 8826 8847 8859 8780 8692 8722 8730 8722 8734
+nv T= 2048 series mix 32        7165 7157 7169 7473 7810 8148 8472 8550 8784 8733 8676 8620 8604 8623 8693 8842 8863 8827 8827 8723 8756 8755 8756 8754
+nv T= 2048 series mix 16+32     7171 7137 7150 7157 7781 8159 8422 8526 8697 8731 8568 8499 8518 8509 8586 8715 8917 8729 8728 8650 8637 8694 8621 8688
+nv T= 2048 series mix 32k64     7015 7010 7012 7023 7387 8097 8337 8446 8558 8571 8501 8408 8398 8384 8437 8560 8678 8593 8573 8525 8539 8556 8588 8556
+nv T= 2048 series mix 16+32k64  7046 7037 7023 7027 7463 7717 8344 8530 8558 8546 8497 8418 8380 8415 8432 8606 8620 8669 8567 8512 8503 8543 8543 8503
+nv T= 2048 mix 16        / mix 0: per-round ratio median 0.9807 (min 0.9554, max 0.9978), 24 rounds in 14.4 s
+nv T= 2048 mix 32        / mix 0: per-round ratio median 0.9838 (min 0.9625, max 1.0261), 24 rounds in 14.4 s
+nv T= 2048 mix 16+32     / mix 0: per-round ratio median 0.9740 (min 0.9598, max 1.0088), 24 rounds in 14.4 s
+nv T= 2048 mix 32k64     / mix 0: per-round ratio median 0.9603 (min 0.9469, max 1.0011), 24 rounds in 14.4 s
+nv T= 2048 mix 16+32k64  / mix 0: per-round ratio median 0.9586 (min 0.9529, max 0.9796), 24 rounds in 14.4 s
+== real routing rep 2 22:09:23
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T= 2048 interleaved mix 0         median   8749.2 us/call (min   7262.6, p25   7921.2, p75   9027.1; round 1   7262.6, round 24   8884.0)
+nv T= 2048 interleaved mix 16        median   8653.1 us/call (min   7114.6, p25   7768.5, p75   8804.0; round 1   7123.9, round 24   8704.2)
+nv T= 2048 interleaved mix 32        median   8679.7 us/call (min   7164.1, p25   7805.1, p75   8765.6; round 1   7168.9, round 24   8763.8)
+nv T= 2048 interleaved mix 16+32     median   8633.8 us/call (min   7130.0, p25   7775.8, p75   8798.8; round 1   7130.0, round 24   8633.8)
+nv T= 2048 interleaved mix 32k64     median   8540.0 us/call (min   7010.2, p25   7521.5, p75   8647.2; round 1   7010.2, round 24   8565.8)
+nv T= 2048 interleaved mix 16+32k64  median   8526.4 us/call (min   7052.7, p25   7556.3, p75   8666.7; round 1   7052.7, round 24   8503.9)
+nv T= 2048 series mix 0         7263 7292 7366 7677 7834 7924 8003 8749 8393 7704 7921 8073 8555 9043 9057 9156 9092 9069 9027 8858 8923 8891 8917 8884
+nv T= 2048 series mix 16        7124 7115 7222 7593 7720 7768 7878 9075 8676 7627 7840 8008 8461 8653 8917 8940 8949 8856 8804 8653 8716 8718 8692 8704
+nv T= 2048 series mix 32        7169 7164 7236 7691 7750 7805 7900 8280 8744 7686 7865 8087 8514 8680 8882 8980 8934 8898 8835 8726 8766 8763 8749 8764
+nv T= 2048 series mix 16+32     7130 7150 7180 7253 7709 7776 8378 7677 8902 8285 9088 8125 8475 8732 8832 8905 8854 8799 8689 8611 8659 8703 8648 8634
+nv T= 2048 series mix 32k64     7010 7077 7071 7277 7522 7668 9125 7514 8690 7421 7558 8080 8409 8631 8647 8768 8760 8666 8557 8501 8550 8540 8579 8566
+nv T= 2048 series mix 16+32k64  7053 7069 7084 7395 7556 7628 9132 7518 8667 7432 7642 7855 8427 8612 8667 8750 8750 8674 8555 8548 8563 8568 8526 8504
+nv T= 2048 mix 16        / mix 0: per-round ratio median 0.9809 (min 0.9568, max 1.0373), 24 rounds in 14.3 s
+nv T= 2048 mix 32        / mix 0: per-round ratio median 0.9851 (min 0.9464, max 1.0419), 24 rounds in 14.3 s
+nv T= 2048 mix 16+32     / mix 0: per-round ratio median 0.9751 (min 0.8775, max 1.1473), 24 rounds in 14.3 s
+nv T= 2048 mix 32k64     / mix 0: per-round ratio median 0.9605 (min 0.8588, max 1.1401), 24 rounds in 14.3 s
+nv T= 2048 mix 16+32k64  / mix 0: per-round ratio median 0.9633 (min 0.8593, max 1.1411), 24 rounds in 14.3 s
+== balanced 128 (empty small dispatches only) 22:09:42
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T= 2048 interleaved mix 0         median   6839.4 us/call (min   6272.9, p25   6722.6, p75   7751.2; round 1   6272.9, round 24   7847.6)
+nv T= 2048 interleaved mix 16        median   6856.1 us/call (min   6299.0, p25   6764.9, p75   7760.3; round 1   6299.0, round 24   7846.5)
+nv T= 2048 interleaved mix 32        median   6882.8 us/call (min   6343.3, p25   6741.8, p75   7750.3; round 1   6343.3, round 24   7857.0)
+nv T= 2048 interleaved mix 16+32     median   6859.5 us/call (min   6431.3, p25   6740.7, p75   7754.2; round 1   6431.3, round 24   7848.7)
+nv T= 2048 series mix 0         6273 6508 6575 6586 6603 6695 6723 6771 6781 6835 6808 6839 6808 7114 7169 7264 7456 7701 7751 7762 7778 7816 7820 7848
+nv T= 2048 series mix 16        6299 6445 6604 6629 6664 6707 6769 6765 6802 6837 6824 6839 6856 6903 7192 7343 7488 7628 7760 7798 7829 7816 7816 7847
+nv T= 2048 series mix 32        6343 6480 6555 6645 6654 6692 6742 6809 6805 6826 6803 6852 6893 6883 7172 7390 7538 7698 7750 7786 7803 7842 7828 7857
+nv T= 2048 series mix 16+32     6431 6496 6584 6596 6687 6717 6741 6747 6790 6790 6859 6848 6842 6863 7161 7252 7614 7705 7754 7795 7827 7821 7855 7849
+nv T= 2048 mix 16        / mix 0: per-round ratio median 1.0031 (min 0.9703, max 1.0109), 24 rounds in 8.2 s
+nv T= 2048 mix 32        / mix 0: per-round ratio median 1.0029 (min 0.9675, max 1.0174), 24 rounds in 8.2 s
+nv T= 2048 mix 16+32     / mix 0: per-round ratio median 1.0014 (min 0.9647, max 1.0252), 24 rounds in 8.2 s
+== random 22:09:55
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T= 2048 interleaved mix 0         median   9567.8 us/call (min   7501.9, p25   8176.4, p75  11410.9; round 1   7501.9, round 24   9235.5)
+nv T= 2048 interleaved mix 16        median   9086.0 us/call (min   7352.0, p25   8034.3, p75  10738.3; round 1   7946.5, round 24   8894.6)
+nv T= 2048 interleaved mix 32        median   9274.4 us/call (min   7546.2, p25   8195.7, p75  10819.5; round 1   7649.3, round 24   9066.9)
+nv T= 2048 interleaved mix 16+32     median   9271.7 us/call (min   7448.8, p25   7975.2, p75  10674.6; round 1   7454.1, round 24   8947.0)
+nv T= 2048 series mix 0         7502 7654 8174 7589 8023 7858 8176 9089 9996 10650 11912 11849 12485 12497 12090 11411 10962 9989 9717 9568 9522 9329 9283 9236
+nv T= 2048 series mix 16        7947 7469 7543 7352 7661 7589 8034 8151 8545 9458 10860 11425 11960 11950 11454 10738 10355 9843 9316 9155 9086 9001 8899 8895
+nv T= 2048 series mix 32        7649 8196 7612 7546 7648 7672 7895 8368 8867 9510 11103 11881 12236 12273 12065 10819 10444 9914 9709 9321 9274 9187 9142 9067
+nv T= 2048 series mix 16+32     7454 7522 7476 7449 7524 7601 7975 8067 9279 9887 10675 11120 12029 11993 11664 11199 10043 9612 9479 9272 9060 9016 8935 8947
+nv T= 2048 mix 16        / mix 0: per-round ratio median 0.9580 (min 0.8549, max 1.0593), 24 rounds in 10.9 s
+nv T= 2048 mix 32        / mix 0: per-round ratio median 0.9801 (min 0.8871, max 1.0707), 24 rounds in 10.9 s
+nv T= 2048 mix 16+32     / mix 0: per-round ratio median 0.9635 (min 0.8875, max 0.9936), 24 rounds in 10.9 s
+== mx real 22:10:11
+== MXFP8 experts, 3 layer copies of 1051 MB
+mx T= 2048 interleaved mix 0         median  11318.4 us/call (min   7746.5, p25  10969.3, p75  11773.7; round 1   7746.5, round 24  10969.3)
+mx T= 2048 interleaved mix 16        median  11115.0 us/call (min   8217.8, p25  10767.3, p75  11488.4; round 1   8217.8, round 24  10814.4)
+mx T= 2048 interleaved mix 32        median  11047.4 us/call (min   9797.4, p25  10730.2, p75  11500.8; round 1   9797.4, round 24  10730.2)
+mx T= 2048 interleaved mix 16+32     median  10946.8 us/call (min  10032.2, p25  10672.8, p75  11351.5; round 1  10946.8, round 24  10744.7)
+mx T= 2048 series mix 0         7746 11839 11785 12232 11640 10667 10391 10178 10389 11639 12064 11763 11774 11404 11861 11773 11313 11115 11140 11259 11318 11293 10851 10969
+mx T= 2048 series mix 16        8218 11586 11420 11714 11239 10729 10129 9940 10289 10819 11572 11579 11488 11151 11115 11232 11710 10767 10903 10822 11193 10788 10728 10814
+mx T= 2048 series mix 32        9797 11834 11549 11501 11119 10705 10358 10001 10499 11264 11797 11643 11454 11546 11249 11047 11222 10867 10947 10840 10962 10595 10986 10730
+mx T= 2048 series mix 16+32     10947 11601 11341 12020 10891 10486 10164 10032 10639 11223 11351 11617 11519 11170 11356 11339 10834 10806 10847 11134 10673 10541 10560 10745
+mx T= 2048 mix 16        / mix 0: per-round ratio median 0.9766 (min 0.9296, max 1.0608), 24 rounds in 12.7 s
+mx T= 2048 mix 32        / mix 0: per-round ratio median 0.9800 (min 0.9382, max 1.2648), 24 rounds in 12.7 s
+mx T= 2048 mix 16+32     / mix 0: per-round ratio median 0.9782 (min 0.9334, max 1.4131), 24 rounds in 12.7 s
+Note: No thermal warning level has been recorded Note: No performance warning level has been recorded Note: No CPU power status has been recorded 
+22:10:30
+done
+fleetq: #11934 done (exit 0)
