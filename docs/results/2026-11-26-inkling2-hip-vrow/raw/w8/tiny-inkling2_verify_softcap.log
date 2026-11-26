@@ -1,0 +1,6 @@
+
+running 1 test
+test verify_logits_rows_are_the_softcapped_decode_logits ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+

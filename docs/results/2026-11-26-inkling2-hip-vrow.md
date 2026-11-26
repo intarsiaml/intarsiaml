@@ -91,3 +91,27 @@ attention 1.15 / 1.65 / 2.11 / 2.53 / 3.07 / 3.44 / 4.19 ms at 1 / 2 / 3 / 4 / 5
 per-row cost hardly grows with the context (4x the keys), so it is the per-row work (prologue jobs per split block, the bias, the
 merge, the grid), not the K / V bytes. A multi-row op 75 form that shares the K / V reads would not remove it; the split path removes
 the per-split prologue repeats, which is what the rows rule takes. No new op 75 form was written: it would need per-row split boundaries with each row's own reduction order, beyond this budget.
+
+## 3. The change and window 8: its gates
+
+Defaults (commit after window 7): `INTARSIA_HIP_INK_BLEND_FUSE` 8:2 (`kFuseRowsMax` 2 -> 8; `kFnormRowsMax` 2) and
+`INTARSIA_HIP_INK_DEC_FUSED_ROWS` 1 (`kDecFusedRowsDefault`; main's rule = 16). Revert: `INTARSIA_HIP_INK_BLEND_FUSE=2
+INTARSIA_HIP_INK_DEC_FUSED_ROWS=16`. The 1-row decode step runs the same launches as main (both rules keep 1-row calls where they
+were); so do prefill chunks above 16 rows.
+
+fleetq #12197, radiance down 16:13:27-16:16:34 EST (**3:07**), both cards. Binary `vrow2` (CPU job #12196, md5 `96aee014…`) and its
+test targets. Logs `raw/window8-12197.log`, `raw/w8/`.
+
+1. **Verify probe**, bitwise sections at the defaults, rows 2..8 at 17 / 1024 / 4000 ids + 16 greedy windows: 233 rows, 0 windows
+   with a diff, 0 argmax flips, **worst |logit diff| 0** (graphs on).
+2. **Greedy md5**, `--spec off` and the spec default, `short-0.txt` / `4k-0.txt` x 64 / 256: `04cdb28a6849…`, `9a27c21b6fdc…`,
+   `2252566a5c54…`, `9675bbb95ada…`, **all eight equal to main's** (main2 = `80719483a`, lane ink-hip-verify window 4; `12c6c78ac`
+   changes no solo kernel) and `--spec off` = the spec default.
+3. **hip tests**: `ink_mix` (rows-exact LoopBlend / ConvMix / AttnResMix at every blend limit + the reference) 3 / 3;
+   `ink_attn` `rows_exact_real_shapes` 63 cases bitwise (op 75 at rules 0, 16 and the default); `ink_rows` 2 / 2. **Admission**
+   (`kernels test --backend hip`): `loop_blend` 27 / 0 FAIL, `conv_mix` 532 / 0, `attn_res_mix` 93 / 0, `ink_attn_decode` 70 / 0, all
+   ADMITTED. hip tiny suites: `inkling2_dspark` 4 / 4, `inkling2_dspark_cut` 1 / 1, `inkling2_verify_softcap` 1 / 1, `inkling2` 14 / 17
+   with main's three failures (lane ink-hip-verify window 5).
+4. **G2**: short 21-way KL 4.491e-3 PASS, long 4.083e-3 PASS (1 top-1 miss), identical to main.
+5. Verify cost probe at 1k, same binary, main's rules / the defaults (ms): decode 13.37 / 13.39; 2 rows 16.62 / 16.46; 3: 20.10 /
+   19.49; 4: 22.38 / **21.49 (-4.0 %)**; 5: 24.77 / **23.63 (-4.6 %)**; 6: 27.02 / 25.82; 8: 31.77 / 30.27.

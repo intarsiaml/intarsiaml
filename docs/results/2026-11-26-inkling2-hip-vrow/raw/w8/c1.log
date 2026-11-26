@@ -1,0 +1,26 @@
+[c1] (5) hip tests 16:13:31: /target/release/deps/ink_mix-75ba8a33168c1864 /target/release/deps/ink_attn-07d7d3420654ccc9 /target/release/deps/ink_rows-f79e3f6ea33bbe48
+ink_mix rc 0 | test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 59.44s
+ink_attn rc 0 | test rows_exact_real_shapes ... 63 rows-exact cases bitwise test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 9.07s 
+ink_rows rc 0 | test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.43s
+[c1] (6) kernels test loop_blend 16:14:54
+rc 0
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.637e-4  ADMITTED
+[c1] (6) kernels test conv_mix 16:14:56
+rc 0
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+[c1] (6) kernels test attn_res_mix 16:15:03
+rc 0
+attn_res_mix   attn_res_mix_bf16              93      0    2.016e-3    4.909e-5  ADMITTED
+[c1] (6) kernels test ink_attn_decode 16:15:04
+rc 0
+ink_attn_decode ink_attn_decode_bf16           70      0    1.033e-3    7.283e-5  ADMITTED
+[c1] (7) hip tiny suites 16:15:10
+inkling2 rc 101 | test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.95s
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.95s
+inkling2_verify_softcap rc 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+inkling2_dspark rc 0 | test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.39s
+inkling2_dspark_cut rc 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.14s
+[c1] done 16:16:23

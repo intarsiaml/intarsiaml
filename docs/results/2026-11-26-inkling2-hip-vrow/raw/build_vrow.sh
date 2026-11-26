@@ -14,4 +14,4 @@ if [ -n "${SAVE_T:-}" ]; then
   done
   docker rm -f ink-hip-verify-build >/dev/null 2>&1
 fi
-HTESTS="ink_mix" MTESTS="verify_rows_real" bash .scratch/build.sh "${NAME:-vrow1}" .scratch/vrow-src
+HTESTS="${HTESTS:-ink_mix}" MTESTS="${MTESTS:-verify_rows_real}" LIBTESTS="${LIBTESTS:-}" bash .scratch/build.sh "${NAME:-vrow1}" .scratch/vrow-src
