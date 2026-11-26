@@ -806,8 +806,21 @@ int row_threads(int D, int* ne) {
 // controller rows in the row kernel's launch, the norm in the gate kernel's last block) for chunks of at most kFuseRowsMax rows (-7 us at 1..2 rows),
 // 4 = the gate kernel's early loads (no gain measured, off), 8 = the fast row kernel at any row count (tests). 0 = the first forms of all. The bits
 // are the same for every mask (tests/ink_mix.rs). Default 3. INTARSIA_INK_MIX_FAST=<mask> or ik_ink_mix_mode(mask) overrides.
+}  // namespace
+// The two switches are shared by this TU and ink_mix_rows.hip's (lane ink-hip-batch): one definition here, so ik_ink_mix_mode /
+// ik_ink_mix_dec set them for the solo and the row-table launches alike (each TU had its own copy before, and the setters reached only this one).
+namespace ik_inkmix {
+#ifdef IK_INK_MIX_ROWS_TU
+extern int g_mix_mask;
+extern int g_mix_dec;
+#else
 int g_mix_mask = -1;
 int g_mix_dec = -1;  // tests: 0 | 1 the gate kernel's fast norm tail; < 0: INTARSIA_HIP_INK_DEC_FAST bit 2 / the default (on)
+#endif
+}  // namespace ik_inkmix
+namespace {
+using ik_inkmix::g_mix_dec;
+using ik_inkmix::g_mix_mask;
 bool mix_dec_tail() {
     if (g_mix_dec >= 0) return g_mix_dec != 0;
     static int v = -1;
