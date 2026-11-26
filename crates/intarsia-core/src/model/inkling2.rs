@@ -74,15 +74,21 @@ fn ink_prefill_fused_env() -> bool {
     *V.get_or_init(|| !std::env::var("INTARSIA_INK_PREFILL_FUSED").is_ok_and(|v| v.trim() == "0"))
 }
 
+/// The most keys a solo one-row decode visit reads and still takes the fused `InkAttnDecode` on Metal: the measured 16.4k prompt
+/// plus its 256 generated tokens, rounded up (lane ink-decroof #11983); above it the pair, as at 32k (lane ink-m-attn).
+const INK_ATTN_FUSED_SOLO_KEYS: usize = 16_896;
+
 /// Whether a visit's attention of `rows` rows ending at context `ctx` (positions `0..ctx`) takes the fused `InkAttnDecode`
 /// instead of the pair, on Metal. From lane ink-m-attn's per-visit timings (docs/results/2026-11-21-inkling2-metal-attn.md),
 /// keyed on the keys a row reads (`ctx`, at most the window on an SWA visit): 1 row fused up to 4096 keys (measured: fused wins at
-/// 512 / 1024 / 4096 keys, the pair at 32768; 8k / 16k not measured, so the pair there), 2..=4 rows fused up to 512 keys (pair at
-/// 1024 SWA), more rows the pair (the fused threadgroups each redo the row's q / r and their split's bias). A later lane retunes
-/// the thresholds here.
-pub(crate) fn ink_attn_fused_rule(rows: usize, local: bool, ctx: usize, window: usize) -> bool {
+/// 512 / 1024 / 4096 keys, the pair at 32768), 2..=4 rows fused up to 512 keys (pair at 1024 SWA), more rows the pair (the fused
+/// threadgroups each redo the row's q / r and their split's bias). A solo one-row step (`batched` false) is fused up to
+/// [`INK_ATTN_FUSED_SOLO_KEYS`] (lane ink-decroof #11983: within one process, fused vs the pair +0.8 % decode at 4.1k context,
+/// +0.9 % at 8.2k, +0.6 % at 16.4k); a batched step's one-row calls keep 4096 (not measured above it).
+pub(crate) fn ink_attn_fused_rule(rows: usize, local: bool, ctx: usize, window: usize, batched: bool) -> bool {
     let keys = if local && window > 0 { ctx.min(window) } else { ctx };
     match rows {
+        1 if !batched => keys <= INK_ATTN_FUSED_SOLO_KEYS,
         1 => keys <= 4096,
         2..=4 => keys <= 512,
         _ => false,
@@ -1202,8 +1208,8 @@ impl Model {
                     self.backend.name() == "cuda"
                         || (self.backend.name() == "metal"
                             && match batch {
-                                Some(bt) => ink_attn_fused_rule(1, l.local, bt.max_pos + 1, ink.window),
-                                None => ink_attn_fused_rule(t, l.local, pos0 + t, ink.window),
+                                Some(bt) => ink_attn_fused_rule(1, l.local, bt.max_pos + 1, ink.window, true),
+                                None => ink_attn_fused_rule(t, l.local, pos0 + t, ink.window, false),
                             })
                 }
             };
