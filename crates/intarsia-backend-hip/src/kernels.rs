@@ -143,7 +143,6 @@ pub const UNIMPLEMENTED: &[Op] = &[
     Op::HcMixes,
     Op::HcPre,
     Op::HcPost,
-    Op::MoeRoute,
     Op::SiluGluClamp,
     Op::ActQdq,
     Op::RopeTail,
@@ -158,15 +157,8 @@ pub const UNIMPLEMENTED: &[Op] = &[
     Op::EngramGather,
     Op::EngramMerge,
     Op::HcSublayer,
-    // Inkling-2 (lane ink-skel): cpu only so far
-    Op::AttnResMix,
-    Op::LoopBlend,
-    Op::SconvRes,
-    Op::InkKvPrologue,
-    Op::RelSinkAttn,
-    Op::MoeExpertsMxfp8,
-    Op::InkInProj,
-    Op::ConvMix,
+    // Inkling-2 (lane ink-hip): ops 67-74 and `MoeRoute` are ported (inkattn / inkmix / inkmoe / inkroute); the two optional
+    // fusions are not: the model runs `InkKvPrologue` + `RelSinkAttn` and the router matmul + `MoeRoute`
     Op::InkAttnDecode,
     // the screened greedy head (lane ink-fp8): cpu and Metal only
     Op::HeadScreen,
