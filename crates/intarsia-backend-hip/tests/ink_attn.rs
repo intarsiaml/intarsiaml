@@ -7,6 +7,7 @@
 //!   pos0 + R made in order (q / rel / k / v / o and the final conv rings and K / V caches), host and device positions; T up to
 //!   256 (the attention runs a call as 64-row slices). Port of the CUDA test (crates/intarsia-backend-cuda/tests/inkling2_attn.rs)
 //!   without its op-75 arms.
+//! * `bench_prefill` (ignored): one 256-row chunk at 4k context, split-KV vs flash (cache write included).
 //! * `bench_decode` (ignored; run with --ignored): one-row prologue + attention at real shapes against the KV-read roofline.
 //!
 //! Needs a GPU: without one the tests print SKIPPED (and fail under CI=1 / INTARSIA_REQUIRE_GPU=1).
@@ -255,7 +256,7 @@ fn admission_full_sweep() {
     let report = run_admission(&*cpu, &*hip, &opts).unwrap();
     let text = report.render(true);
     println!("{text}");
-    for name in ["ink_kv_prologue_bf16", "rel_sink_attn_bf16", "ink_attn_decode_bf16"] {
+    for name in ["ink_kv_prologue_bf16", "rel_sink_attn_bf16", "rel_sink_attn_bf16_flash", "ink_attn_decode_bf16"] {
         let k = report.kernels.iter().find(|k| k.kernel == name).unwrap_or_else(|| panic!("{name} not graded\n{text}"));
         assert!(k.cases > 0 && k.admitted, "{name}: {} cases, admitted {}\n{text}", k.cases, k.admitted);
     }
@@ -389,5 +390,63 @@ fn bench_decode() {
             bytes / (ta * 1e-6) / 1e9,
             roof / ta * 100.0
         );
+    }
+}
+
+/// A prefill chunk of 256 rows ending at 4k context (sliding and full layer), the split-KV kernel vs the flash kernel.
+#[test]
+#[ignore]
+fn bench_prefill() {
+    let Some(be) = device() else { return };
+    let be = be.as_ref();
+    let t = 256usize;
+    let ckv = HK * DH;
+    let nqw = nq(H, DH, DR);
+    for (name, l, pos0) in [
+        ("swa, 256 rows at 3840", Layer { window: 1024, ring: true, cr: 1040, dynamic: false }, 3840usize),
+        ("full, 256 rows at 3840", Layer { window: 0, ring: false, cr: 4200, dynamic: true }, 3840),
+        ("full, 256 rows at 0", Layer { window: 0, ring: false, cr: 4200, dynamic: true }, 0),
+    ] {
+        let inp = make(&l, t, 11);
+        let pq = upload(be, &inp.pq);
+        let st: Vec<Buffer> = inp.state0.iter().map(|v| upload(be, v)).collect();
+        let (q, rel, k, v, o) = (
+            upload(be, &rand_bf16(t * H * DH, 1, 1.5, 1.5)),
+            upload(be, &rand_bf16(t * H * E, 2, 1.0, 1.0)),
+            upload(be, &rand_bf16(t * ckv, 3, 1.5, 1.5)),
+            upload(be, &rand_bf16(t * ckv, 4, 1.0, 1.0)),
+            zeros(be, t * H * DH),
+        );
+        let mut att = OpCall::new(
+            Op::RelSinkAttn,
+            vec![
+                tr(&q, 0, &[t, H, DH]),
+                tr(&k, 0, &[t, HK, DH]),
+                tr(&v, 0, &[t, HK, DH]),
+                tr(&st[2], 0, &[HK, l.cr, DH]),
+                tr(&st[3], 0, &[HK, l.cr, DH]),
+                tr(&rel, 0, &[t, H, E]),
+                tr(&pq, 0, &[t, nqw]),
+            ],
+            vec![tr(&o, 0, &[t, H * DH]), tr(&st[2], 0, &[HK, l.cr, DH]), tr(&st[3], 0, &[HK, l.cr, DH])],
+            attrs(&l, pos0),
+        );
+        att.scratch = Some(scratch_for(be, "rel_sink_attn_bf16", &att));
+        let time = |kn: &str| {
+            for _ in 0..3 {
+                be.launch(kn, &att, 0).unwrap();
+            }
+            be.synchronize(0).unwrap();
+            let n = 20;
+            let t0 = std::time::Instant::now();
+            for _ in 0..n {
+                be.launch(kn, &att, 0).unwrap();
+            }
+            be.synchronize(0).unwrap();
+            t0.elapsed().as_secs_f64() * 1e6 / n as f64
+        };
+        let ts = time("rel_sink_attn_bf16");
+        let tf = time("rel_sink_attn_bf16_flash");
+        println!("BENCH prefill {name}: split-KV {ts:.0} us, flash {tf:.0} us ({:.1}x)", ts / tf);
     }
 }

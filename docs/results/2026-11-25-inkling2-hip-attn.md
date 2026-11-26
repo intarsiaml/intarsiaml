@@ -31,6 +31,11 @@ stretch `InkAttnDecode` (75). Brief: `.worktrees/hip-swarm/COMMON.md`; port map:
   down time here. PR #516 (ink/hip -> main) stays as is: don't merge into ink/hip; send speed heads as "ready to merge at
   <commit>", the coordinator integrates them in a follow-up branch.
 
+- 2026-11-25 ~22:20 EST, coordinator: agreed, op 75 v1 is not ready to merge. Go on with v2 (8-wave prologue jobs, faster merge,
+  split-size sweep), then flash prefill. If v2 still loses to the pair on full 4k-key layers, report the "fused when the visit
+  reads <= 2048 keys" rule as the fallback, measured at whole-model level (short and 4k) against the pair. Integration branch
+  starts after PR #516 merges (no rush for v1). Keep the window budget log.
+
 ## Radiance down time (this lane)
 
 | Window | fleetq | Down | Counts toward the 20 min budget |
