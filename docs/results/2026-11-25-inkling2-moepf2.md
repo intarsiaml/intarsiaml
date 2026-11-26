@@ -1,7 +1,6 @@
 # Inkling-2-Mini MoE experts prefill, round 2 (lane ink-moepf2, endor M5 Max, 2026-11-25)
 
-Branch `ink/moepf2` from main 072dd0863. Not pushed. **Status (final): the two levers of brief 1 were already measured slower on `ink/prefill` (below); brief 2's mixed-tile form is built, bitwise, opt-in, about 1.8 % of prefill GPU time.** Brief 1 status was: stopped before any code or GPU work, both levers of the
-brief were already built and measured on the unmerged branch `ink/prefill`, and both were slower.** No fleetq slot taken.
+Branch `ink/moepf2` from main 072dd0863. Not pushed. **Status (final): the two levers of brief 1 were already measured slower on `ink/prefill` (below); brief 2's mixed-tile form is built, bitwise, opt-in, about 1.8 % of prefill GPU time.** fleetq jobs and tests are listed at the end.
 
 ## Briefs received
 
