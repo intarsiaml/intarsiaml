@@ -512,6 +512,40 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     }
                 }
             }
+            if quick {
+                // the quick sweep's case for op 75 above 16 rows (CUDA `ink_attn_decode_prefill_bf16`: G = 3, more than 16 rows): a
+                // 40-row chunk on a sliding window of 64 over a ring of 80 rows; appended, so the cases above keep their data
+                let (h, hk, dh, dr, e, kk, win, cr, t, pos0) = (6usize, 2usize, 128usize, 16usize, 48usize, 4usize, 64usize, 80usize, 40usize, 0usize);
+                let ckv = hk * dh;
+                let rr = kk - 1 + 16;
+                let kc = rand_t(rng, W, &[hk, cr, dh], 1.5);
+                let vc = rand_t(rng, W, &[hk, cr, dh], 1.0);
+                let inputs = vec![
+                    rand_t(rng, W, &[t, nq(h, dh, dr)], 1.0),
+                    rand_t(rng, W, &[t, ckv], 1.0),
+                    rand_t(rng, W, &[t, ckv], 1.0),
+                    rand_t(rng, W, &[kk, ckv], 0.5),
+                    rand_t(rng, W, &[kk, ckv], 0.5),
+                    pos_t(rng, W, &[h, dh], 0.2, 3.0),
+                    pos_t(rng, W, &[h, dr], 0.2, 1.5),
+                    rand_t(rng, W, &[dr, e], 0.25),
+                    kc.clone(),
+                    vc.clone(),
+                ];
+                let outputs = vec![
+                    out(W, &[t, h * dh]),
+                    inout(kc),
+                    inout(vc),
+                    inout(rand_t(rng, W, &[rr, ckv], 1.0)),
+                    inout(rand_t(rng, W, &[rr, ckv], 1.0)),
+                ];
+                let mut a = OpAttrs { pos0, n_heads: h, n_kv_heads: hk, head_dim: dh, window: win, scale: (dh as f32).powf(-0.5), ..a0.clone() };
+                a.ink.qk_clip = 3.0;
+                a.ink.rel_clip = 2.0;
+                a.ink.d_rel = dr;
+                a.ink.kv_ring = true;
+                push(format!("prefill T={t} H={h} Hk={hk} Dh={dh} E={e} W={win} ring=true Cr={cr} Rr={rr} pos0={pos0} bf16"), inputs, outputs, a);
+            }
         }
         Op::MoeExpertsMxfp8 => {
             let mut shapes: Vec<(usize, usize, usize, usize, usize)> = vec![(1, 16, 4, 64, 32), (7, 16, 4, 64, 64), (16, 16, 4, 128, 32), (40, 16, 4, 64, 32)];

@@ -114,7 +114,7 @@ fn visit(be: &dyn Backend, window: usize, ring: bool, cr: usize, t: usize, pos0:
 /// Microseconds per visit of `body` over all visits: (eager, graph replay).
 /// Op 75's kernel: the stage-1 decode kernel to 16 rows, the prefill (r in flash) kernel above.
 fn fused_name(t: usize) -> &'static str {
-    if t > 16 { "ink_attn_prefill_bf16" } else { "ink_attn_decode_bf16" }
+    if t > 16 { "ink_attn_decode_prefill_bf16" } else { "ink_attn_decode_bf16" }
 }
 
 fn time(be: &dyn Backend, visits: &[Visit], reps: usize, body: &dyn Fn(&Visit)) -> (f64, f64) {

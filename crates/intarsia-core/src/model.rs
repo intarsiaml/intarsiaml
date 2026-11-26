@@ -106,6 +106,24 @@ thread_local! {
     /// thread that runs its body).
     pub(crate) static CAPTURES_ACTIVE: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
+thread_local! {
+    /// The screened greedy head is suspended in this scope ([`ScreenSuspend`]): a decode graph recorded for a `LastLogits`
+    /// step runs the full head, whose whole row the step reads back.
+    pub(crate) static SCREEN_SUSPENDED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+/// Suspends the screened greedy head for its scope when `on` (restores the previous state on drop).
+pub(crate) struct ScreenSuspend(bool);
+impl ScreenSuspend {
+    pub(crate) fn enter(on: bool) -> ScreenSuspend {
+        ScreenSuspend(SCREEN_SUSPENDED.with(|c| c.replace(c.get() || on)))
+    }
+}
+impl Drop for ScreenSuspend {
+    fn drop(&mut self) {
+        SCREEN_SUSPENDED.with(|c| c.set(self.0));
+    }
+}
+
 /// Lane postchain2: counts a graph capture in [`CAPTURES_ACTIVE`] for its scope.
 pub(crate) struct CaptureGuard;
 impl CaptureGuard {
@@ -176,6 +194,9 @@ pub struct LoadOptions {
     pub kv_fraction: f32,
     /// Tokens per forward pass (prefill chunk / activation workspace rows).
     pub prefill_chunk: usize,
+    /// Opt-in long-prompt chunk `(min prompt tokens, chunk)` ([`crate::recipe::PrefillChunk::long`], lane ink-prefill): a prompt of at
+    /// least that many tokens prefills in passes of `chunk` rows, others in `prefill_chunk`; the workspace holds `chunk` rows.
+    pub long_prefill_chunk: Option<(usize, usize)>,
     pub act_dtype: Option<DType>,
     pub kv_dtype: Option<DType>,
     /// Time every Nth step per op (synchronises the device); 1 = every step; 0 = never.
@@ -248,6 +269,7 @@ impl Default for LoadOptions {
             max_seq: 4096,
             kv_fraction: 0.5,
             prefill_chunk: 256,
+            long_prefill_chunk: None,
             act_dtype: None,
             kv_dtype: None,
             profile_every: 1,
@@ -798,6 +820,10 @@ pub struct Model {
     /// Opt-in prefill tail merge in rows (`INTARSIA_PREFILL_TAIL_MERGE`, already clamped; 0 = off). The workspace holds
     /// `prefill_chunk + tail_merge` rows when set.
     tail_merge: usize,
+    /// The prefill chunk of prompts below the long-prompt threshold, `Some` only with the opt-in long-prompt chunk
+    /// (`(threshold, chunk)` in `long_chunk`); `None`: the workspace rows are the chunk.
+    base_chunk: Option<usize>,
+    long_chunk: Option<(usize, usize)>,
     /// Prefill tail peel in rows (recipe `[tuning.<backend>] prefill_peel`, `INTARSIA_PREFILL_PEEL`; 0 = off):
     /// [`crate::scheduler::peel_tail`] in [`Model::forward_chunks`].
     prefill_peel: usize,
@@ -910,7 +936,22 @@ fn resolve(src: &dyn WeightSource, name: &str) -> Result<String> {
 impl Model {
     /// Tokens per forward pass (the prefill chunk); callers split long prompts on it to stay responsive.
     pub fn prefill_chunk(&self) -> usize {
-        self.ws.max_tokens
+        self.base_chunk.unwrap_or(self.ws.max_tokens)
+    }
+
+    /// The prefill chunk of a prompt of `plen` tokens: the opt-in long-prompt chunk ([`LoadOptions::long_prefill_chunk`]) when
+    /// the prompt reaches its threshold, else [`Model::prefill_chunk`]. Decided from the whole prompt, so a resumed prefix keeps
+    /// the schedule its prompt's cold prefill runs.
+    pub fn prefill_chunk_for(&self, plen: usize) -> usize {
+        match self.long_chunk {
+            Some((min, c)) if plen >= min => c,
+            _ => self.prefill_chunk(),
+        }
+    }
+
+    /// The opt-in long-prompt chunk `(threshold, chunk)`, if on.
+    pub fn long_prefill_chunk(&self) -> Option<(usize, usize)> {
+        self.long_chunk
     }
 
     /// Turn the dead-tail skip of non-final prefill chunks on or off (`INTARSIA_PREFILL_SKIP_DEAD`).
@@ -994,7 +1035,12 @@ impl Model {
                 return st.restorable_len(want);
             }
             // opt-in (`exact`): only where the prompt's own cold prefill leaves its state, written by that schedule's passes (lane hrr)
-            let cuts = crate::scheduler::recurrent_schedule_cuts(plen, self.prefill_chunk().max(1), self.tail_merge());
+            // with the long-prompt chunk the prompt may still run the recipe's chunk (a start while others decode): only the
+            // cuts both schedules share
+            let cuts: Vec<usize> = crate::scheduler::recurrent_schedule_cuts(plen, self.prefill_chunk_for(plen).max(1), self.tail_merge())
+                .into_iter()
+                .filter(|c| crate::scheduler::recurrent_schedule_cuts(plen, self.prefill_chunk().max(1), self.tail_merge()).contains(c))
+                .collect();
             return st.recurrent_reuse_len(want, &cuts);
         }
         match over {
@@ -1006,7 +1052,7 @@ impl Model {
             None if self.row_invariant_prefill() => return want.min(st.inv_len()),
             None => {}
         }
-        let chunk = self.prefill_chunk().max(1);
+        let chunk = self.prefill_chunk_for(plen).max(1);
         let avoid = self.backend.avoid_single_row_prefill();
         // a prefill tail peel can end the remainder in a 1-row pass the schedule below does not show
         let min_rows = self
@@ -1015,12 +1061,10 @@ impl Model {
             .map(|n| self.model_min_pass_rows(n))
             .filter(|_| over.is_none() && self.prefill_peel == 0);
         if let Some(n) = min_rows {
-            let mut cut = st.wide_reuse_len(want, n);
-            // the remainder runs as the schedule says from the cut: back off until none of its passes is below `n` rows
-            while cut > 0 && crate::scheduler::chunk_schedule_tm(cut, plen, chunk, avoid, self.tail_merge()).iter().any(|&(_, len)| len < n) {
-                cut -= 1;
-            }
-            return cut;
+            // the remainder runs as the schedule says from the cut: back off until none of its passes is below `n` rows. With
+            // the long-prompt chunk the remainder may still run the recipe's chunk (a start while others decode): both
+            let chunks = [chunk, self.prefill_chunk().max(1)];
+            return crate::scheduler::min_rows_back_off(st.wide_reuse_len(want, n), plen, &chunks, n, avoid, self.tail_merge());
         }
         let sched = crate::scheduler::chunk_schedule_tm(0, plen, chunk, avoid, self.tail_merge());
         let points: Vec<usize> = sched.iter().skip(1).map(|&(start, _)| start).collect();
@@ -1322,7 +1366,7 @@ impl Model {
         };
 
         // the screened greedy head (lane ink-fp8; crate::screen): an fp8 copy of the bf16 head and its row bounds. Default on
-        // Metal (`INTARSIA_INK_HEAD_SCREEN=0` off, `crate::screen::wanted`); the load notes below only when the variable is set or the
+        // Metal and CUDA (`INTARSIA_INK_HEAD_SCREEN=0` off, `crate::screen::wanted`); the load notes below only when the variable is set or the
         // model is Inkling-2
         let screen_env = std::env::var(crate::screen::ENV).ok();
         let head_screen = if crate::screen::wanted(screen_env.as_deref(), b.name()) && (dims.ink.is_some() || screen_env.is_some()) {
@@ -1741,10 +1785,14 @@ impl Model {
                 b.name()
             )));
         }
-        let chunk = opts.prefill_chunk.max(1);
+        let base_chunk = opts.prefill_chunk.max(1);
+        // the opt-in long-prompt chunk: the workspace (and every row-sized buffer below) holds its rows; prompts below its
+        // threshold keep `base_chunk` ([`Model::prefill_chunk_for`])
+        let long_chunk = opts.long_prefill_chunk.filter(|&(_, c)| c > base_chunk);
+        let chunk = long_chunk.map_or(base_chunk, |(_, c)| c);
         let tail_merge = crate::scheduler::effective_tail_merge(
             crate::scheduler::parse_tail_merge(std::env::var(crate::scheduler::TAIL_MERGE_ENV).ok().as_deref())?,
-            chunk,
+            base_chunk,
         );
         // the recipe's prefill tail peel for this backend, `INTARSIA_PREFILL_PEEL` over it (0 = off)
         let prefill_peel =
@@ -1810,12 +1858,13 @@ impl Model {
                 if let Some(k) = attn_quant {
                     eprintln!("inkling2: attention projections quantised to {} at load ({} = {}; changes outputs)", k.name(), inkling2::ATTN_QUANT_ENV, k.name());
                 }
-                let mut m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, &mut slot_specs, &mut nbytes)?;
-                // opt-in W4A4 expert activations: the variable wins over the recipe
-                m.act_quant = match std::env::var(inkling2::ACT_QUANT_ENV).ok().filter(|v| !v.is_empty()) {
+                // opt-in W4A4 expert activations: the variable wins over the recipe (resolved before the load: the CUDA expert
+                // repack, `inkling2::MOE_REPACK_ENV`, is on only with 16-bit activations)
+                let act_quant = match std::env::var(inkling2::ACT_QUANT_ENV).ok().filter(|v| !v.is_empty()) {
                     Some(v) => inkling2::parse_act_quant(&v)?,
                     None => recipe.ink_act_quant(backend.name()).map(inkling2::parse_act_quant).transpose()?.unwrap_or(0),
                 };
+                let m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, act_quant, &mut slot_specs, &mut nbytes)?;
                 if m.act_quant == 1 {
                     eprintln!("inkling2: W4A4 expert activations ({} / recipe act_quant; changes outputs)", inkling2::ACT_QUANT_ENV);
                 }
@@ -2208,6 +2257,8 @@ impl Model {
             spec_sampled: std::sync::atomic::AtomicU8::new(0),
             feedback_hold,
             tail_merge,
+            base_chunk: long_chunk.map(|_| base_chunk),
+            long_chunk,
             prefill_peel,
             prefill_peel_period,
             macro_rows,
@@ -3434,7 +3485,10 @@ impl Model {
         mode: HeadMode,
         on_row: Option<RowCallback<'_>>,
     ) -> Result<StepOut> {
-        let out = self.forward_prefill_inner(st, ids, mode, on_row)?;
+        let out = self.forward_prefill_inner(st, ids, mode, on_row);
+        // the engine's cut applies to this call only
+        st.prefill_chunk_rows = 0;
+        let out = out?;
         if self.ring_snapshots() > 0 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_) | HeadMode::LastTopK(_)) {
             st.ring_snapshot(&*self.backend)?;
         }
@@ -3789,10 +3843,21 @@ impl Model {
     /// are `1..=peel` runs those rows as their own pass ([`crate::scheduler::peel_tail`]).
     fn forward_chunks<'a>(&self, st: &SequenceState, ids: &'a [u32]) -> Vec<&'a [u32]> {
         let avoid = self.backend.avoid_single_row_prefill() && !st.has_recurrent();
-        let mut out = Vec::with_capacity(ids.len().div_ceil(self.ws.max_tokens));
+        // the long-prompt chunk: an engine's call cut by the long chunk (`SequenceState::prefill_chunk_rows` above the recipe's
+        // chunk) runs in passes of it; any other engine call (recipe, store or busy chunk) is cut by the recipe's chunk, as
+        // with the switch off; a whole-prompt caller (no hint) takes the chunk of the prompt (rows before it plus these).
+        // Off: the workspace rows
+        let base = self.prefill_chunk();
+        let rows = match self.long_chunk {
+            Some(_) if st.prefill_chunk_rows > base => st.prefill_chunk_rows.min(self.ws.max_tokens),
+            Some(_) if st.prefill_chunk_rows > 0 => base,
+            Some(_) => self.prefill_chunk_for(st.len + ids.len()),
+            None => self.ws.max_tokens,
+        };
+        let mut out = Vec::with_capacity(ids.len().div_ceil(rows));
         let mut pos = 0;
         while pos < ids.len() {
-            let n = crate::scheduler::next_prefill_chunk_tm(ids.len() - pos, self.ws.max_tokens, avoid, self.tail_merge);
+            let n = crate::scheduler::next_prefill_chunk_tm(ids.len() - pos, rows, avoid, self.tail_merge);
             let n = crate::scheduler::peel_tail(n, self.prefill_peel, self.prefill_peel_period);
             out.push(&ids[pos..pos + n]);
             pos += n;
@@ -5836,6 +5901,9 @@ impl Model {
     /// or the head's `Logits` kernel is not one the gather reproduces (then the caller runs the full head).
     fn screened_argmax(&self, x: &TensorRef, c: usize, tok: &TensorRef, profile: bool) -> Result<bool> {
         let Some(hs) = self.head_screen.as_ref() else { return Ok(false) };
+        if SCREEN_SUSPENDED.with(|c| c.get()) {
+            return Ok(false); // a recording whose step reads the whole logits row (graph_step.rs `full_logits`)
+        }
         // brief 14 option B: 1-row heads only (verify and every multi-row head run the full head); bf16 activations (the
         // screen ops' contract), 16-byte aligned (the head kernels' vector form)
         if c != 1 || self.vocab_par || x.dtype != DType::Bf16 || x.offset % 16 != 0 || hs.disabled.load(std::sync::atomic::Ordering::Relaxed) {
@@ -5863,8 +5931,13 @@ impl Model {
             let k = self.registry.select(&head.call(xr.clone(), logits.clone())).map(|k| k.name.clone()).unwrap_or_default();
             Ok((k, OpCall::new(Op::LogitsGather, vec![xr.clone(), head.parts[0].clone(), cand.clone(), cnt.clone()], vec![logits.clone()], OpAttrs::default())))
         };
-        // head kernels whose index mode the gathers are (Metal), and the cpu dot both cpu heads use
-        let good = |n: &str| matches!(n, "logits_bf16_gemv" | "matmul_p12_logits_gemv" | "cpu_f32_logits" | "cpu_f32_matmul_p12");
+        // head kernels whose index mode the gathers are (Metal; CUDA's P12 head, whose one-row `_rows` call launches the same
+        // kernel instance, inkscreen.rs), and the cpu dot both cpu heads use
+        let cuda = self.backend.name() == "cuda";
+        let good = |n: &str| {
+            matches!(n, "logits_bf16_gemv" | "matmul_p12_logits_gemv" | "cpu_f32_logits" | "cpu_f32_matmul_p12")
+                || (cuda && n == "matmul_p12_logits_gemv_rows")
+        };
         let ok = recording
             || *hs.ok.get_or_init(|| {
                 let xs = self.view(&self.ws.n, self.act, &[1, d]);
@@ -5872,8 +5945,15 @@ impl Model {
                     Ok(v) => v,
                     Err(_) => return false,
                 };
-                let kernels_ok = good(&hk);
                 let a = TensorRef::new(hs.a.clone(), DType::F32, &[1, v]);
+                // CUDA: the screen GEMV must be a CUDA-core fp8 GEMV, whose f32 sums are the correctly rounded adds / fmas
+                // the selection bound assumes (kernels/cuda/ink_screen.cu header); it runs with `exact_rows` set below
+                let gemv_ok = !cuda || {
+                    let mut c = hs.q.call(xs.clone(), a.clone());
+                    c.exact_rows = true;
+                    self.registry.select(&c).is_ok_and(|k| matches!(k.name.as_str(), "matmul_fp8_gemv" | "matmul_fp8_gemv_rows"))
+                };
+                let kernels_ok = good(&hk) && gemv_ok;
                 // the screen calls run with `exact_rows` set (Metal registers them rows-exact)
                 let screen_ok = [
                     OpCall::new(Op::HeadScreen, vec![a, xs.clone(), hs.beta.clone()], vec![cand.clone(), cnt.clone()], OpAttrs::default()),
@@ -5886,8 +5966,12 @@ impl Model {
                     self.registry.select(&c).is_ok()
                 });
                 // one real gather (row 0 as the only candidate): a backend whose gather cannot take this head (Metal: a
-                // weight that is not 16-byte aligned, where the head runs another GEMV) refuses it here
-                let probe_ok = kernels_ok && screen_ok && (|| -> Result<()> {
+                // weight that is not 16-byte aligned, where the head runs another GEMV) refuses it here. Not inside a graph
+                // capture (CUDA's decode graph records the first head: the probe's upload and synchronize cannot run there);
+                // CUDA's gather checks the head's own operand preconditions (inkling2_p12.cu), so the head running implies the
+                // gather can
+                let capturing = CAPTURES_ACTIVE.with(|c| c.get()) > 0;
+                let probe_ok = kernels_ok && screen_ok && (capturing || (|| -> Result<()> {
                     self.backend.upload(&hs.cand, 0, &0i32.to_le_bytes(), self.stream)?;
                     self.backend.upload(&hs.cnt, 0, &1i32.to_le_bytes(), self.stream)?;
                     let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);
@@ -5896,7 +5980,7 @@ impl Model {
                     r?;
                     self.backend.synchronize(self.stream)
                 })()
-                .is_ok();
+                .is_ok());
                 if kernels_ok && screen_ok && !probe_ok {
                     eprintln!("{}: off (the backend's gather refuses this head, e.g. a weight that is not 16-byte aligned)", crate::screen::ENV);
                 }
@@ -5925,7 +6009,13 @@ impl Model {
         let forced = !recording && hs.force_fallback.load(std::sync::atomic::Ordering::Relaxed) & 1 == 1;
         let r = (|| -> Result<()> {
             let sc = hs.q.call(x.clone(), a.clone());
-            self.exec(sc.op, sc.inputs, sc.outputs, sc.attrs, profile)?;
+            // CUDA: with `exact_rows` set, the CUDA-core GEMV the probe checked (`gemv_ok`)
+            let prev = if self.backend.name() == "cuda" { Some(self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed)) } else { None };
+            let r = self.exec(sc.op, sc.inputs, sc.outputs, sc.attrs, profile);
+            if let Some(p) = prev {
+                self.exact_rows.store(p, std::sync::atomic::Ordering::Relaxed);
+            }
+            r?;
             // the screen ops are per-row by contract; their Metal kernels are registered rows-exact, which a call selects
             // only with `exact_rows` set (Registry::select)
             let prev = self.exact_rows.swap(true, std::sync::atomic::Ordering::Relaxed);

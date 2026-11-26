@@ -53,7 +53,8 @@ int64_t ik_ink_blend_scratch_bytes(int64_t s, int64_t r, int64_t d, int64_t g);
 /* moe_experts (NVFP4, ink.situ): x [T,H] bf16, ids i32 [T,K], weights f32 [T,K], gate_up w u8 [E,2I,H/2], scales e4m3
  * [E,2I,H/16], down w u8 [E,H,I/2], scales e4m3 [E,H,I/16], global scales f32 [E,3] -> out [T,H] (bf16 or f32).
  * Union-grouped: each expert's rows are read once per call for all the pairs routed to it. Scratch: the core
- * `moe_experts_scratch` layout. */
+ * `moe_experts_scratch` layout. `aq`: bit 0 = ink.act_quant, bit 1 = ink.moe_layout (the four weight tensors repacked by
+ * `inkling2::ops::moe_repack_rows`: only the decode kernels read it, every call takes them; not with bit 0). */
 int ik_moe_experts_situ_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* guw,
                              const ik_tensor* gus, const ik_tensor* dnw, const ik_tensor* dns, const ik_tensor* gsc,
                              float gate_cap, float up_cap, int aq, ik_tensor* out, const ik_scratch* scratch, void* stream);
@@ -83,6 +84,9 @@ void ik_ink_moe_probe(int v);
 /* Tests / benchmarks: an ordinary experts call takes the tensor-core path above this many pairs (default 512, env
  * INTARSIA_INK_MOE_MMA_MIN; INT_MAX: never). */
 void ik_ink_moe_set_mma_min(int pairs);
+/* Tests / benchmarks: NVFP4 tensor-core prefill at BM 128 + padding-warp skip where the pick is 64 (1), or BM 64 (0); -1 = the env
+ * (INTARSIA_INK_MOE_BM128, unset: on). Bitwise either way. */
+void ik_ink_moe_set_bm128(int v);
 
 #ifdef __cplusplus
 }

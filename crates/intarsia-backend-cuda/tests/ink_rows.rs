@@ -5,6 +5,8 @@
 //! SconvRes (every epilogue, mix and blend variant at D 2304 with the real ring, and D 64 with a ring the call's own rows
 //! wrap), AttnResMix, LoopBlend. A negative control checks that the comparison sees a one-element change.
 //!
+//! ConvMix / SconvRes at T 20 (above the decode row counts) also takes the deferred ring write at the real ring.
+//!
 //! Needs a GPU: without one the tests print SKIPPED (and fail under CI=1 / INTARSIA_REQUIRE_GPU=1).
 #![cfg(ik_cuda)]
 
@@ -342,7 +344,7 @@ fn ink_conv_mix_rows_exact() {
     let kt = 4usize;
     // (D, Rr): the real ring, and a small ring the call's own rows wrap (deferred ring write above 4 rows)
     for (d, rr, g) in [(2304usize, kt - 1 + 16, 64usize), (64, kt - 1 + 4, 8)] {
-        for t in [2usize, 3, 7, 16] {
+        for t in [2usize, 3, 7, 16, 20] {
             for pos0 in [0usize, 29] {
                 // (op, res, add, sum, N, Q, norm, S)
                 let variants: &[(Op, bool, bool, bool, usize, usize, bool, usize)] = &[
@@ -570,6 +572,50 @@ fn ink_experts_mma_chunk_invariant() {
     }
 }
 
+/// The NVFP4 tensor-core prefill at BM 128 with the padding-warp skip (the default since brief 51) is BITWISE its revert, BM 64
+/// (`INTARSIA_INK_MOE_BM128=0`): real shape (128 experts, H 2304, I 1152, top-8), T 600 and 1100 (mu 37.5 / 68.75: the pick is
+/// 64), plain and repacked layouts, and W4A4 (plain only: the repack refuses it).
+#[test]
+fn ink_experts_mma_shapes_bitwise() {
+    use intarsia_core::inkling2::ops::moe_repack_rows;
+    let _knob = MMA_MIN_KNOB.lock().unwrap_or_else(|e| e.into_inner());
+    let Some(rig) = Rig::new("ink_experts_mma_shapes_bitwise") else { return };
+    intarsia_backend_cuda::inkmoe::set_mma_min(512);
+    let mut rng = SplitMix64::new(0x50b4);
+    let (e, k, h, i) = (128usize, 8usize, 2304usize, 1152usize);
+    let ex = random_experts(&mut rng, e, h, i);
+    let plain = vec![ex.gate_up_w.clone(), ex.gate_up_s.clone(), ex.down_w.clone(), ex.down_s.clone(), ex.gscales.clone()];
+    let mut rp = plain.clone();
+    moe_repack_rows(&mut rp[0].data, h / 2, 4, 8, 16);
+    moe_repack_rows(&mut rp[1].data, h / 16, 4, 8, 2);
+    moe_repack_rows(&mut rp[2].data, i / 2, 8, 4, 16);
+    moe_repack_rows(&mut rp[3].data, i / 16, 8, 4, 2);
+    for t in [600usize, 1100] {
+        let (ids, ws) = random_routing(&mut rng, t, e, k);
+        let ws = HostTensor::from_f32(&[t, k], &ws.to_f32().iter().map(|v| v * 8.0).collect::<Vec<_>>());
+        let x = rnd(&mut rng, DType::Bf16, &[t, h], 1.0);
+        for (layout, aq) in [(0u8, 0u8), (1, 0), (0, 1)] {
+            let mut a = OpAttrs { top_k: k, ..OpAttrs::default() };
+            (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
+            a.ink.moe_layout = layout;
+            a.ink.act_quant = aq;
+            let w = if layout == 1 { &rp } else { &plain };
+            let run = || {
+                let mut v: Vec<HostTensor> = vec![x.clone(), ids.clone(), ws.clone()];
+                v.extend(w.iter().cloned());
+                rig.run("moe_experts_situ_bf16", Op::MoeExperts, &v, &[(DType::Bf16, vec![t, h], None)], &a).remove(0)
+            };
+            intarsia_backend_cuda::inkmoe::set_bm128(0);
+            let base = run();
+            assert!(base.to_f32().iter().all(|v| v.is_finite()), "T {t} layout {layout} aq {aq}: non-finite");
+            intarsia_backend_cuda::inkmoe::set_bm128(1);
+            let o = run();
+            assert_eq!(base.data, o.data, "T {t} layout {layout} aq {aq}: BM 128 + skip differs from BM 64");
+        }
+    }
+    intarsia_backend_cuda::inkmoe::set_bm128(-1);
+}
+
 /// The DSpark draft head's MXFP4 GEMV (`matmul_mxfp4_gemv_ink_rows`, 5..=8 rows, 4 output rows per warp): BITWISE
 /// `matmul_mxfp4_gemv_rows` (the generic row-exact GEMV it replaces) at every element, both output dtypes; N tails (not a
 /// multiple of 4, 1, 3), K of 1, 33, 72 and 96 groups.
@@ -589,6 +635,49 @@ fn ink_mxfp4_head_bitwise_gemv() {
                 let a = rig.run("matmul_mxfp4_gemv_ink_rows", Op::MatmulMxfp4, &ins, &[(odt, vec![m, n], None)], &attrs);
                 let b = rig.run("matmul_mxfp4_gemv_rows", Op::MatmulMxfp4, &ins, &[(odt, vec![m, n], None)], &attrs);
                 assert_eq!(a[0].data, b[0].data, "N {n} K {k} M {m} out {odt}: differs from matmul_mxfp4_gemv_rows");
+            }
+        }
+    }
+}
+
+/// The decode repack (`ink.moe_layout = 1`, brief 36 stage A): the NVFP4 situ kernels on repacked weights are BITWISE the same
+/// kernels on the checkpoint layout, ordinary and `_rows`, T 1 / 4 / 16, the real shape (H 2304, I 1152) and a small one; and an
+/// 80-row call (640 pairs: the tensor-core prefill `ink_moe_mma`, which reads the repacked address map since brief 44) equals the
+/// plain layout's 80-row call. (No process-wide setter here: the tests run in parallel.)
+#[test]
+fn ink_experts_repack_bitwise() {
+    use intarsia_core::inkling2::ops::moe_repack_rows;
+    let Some(rig) = Rig::new("ink_experts_repack_bitwise") else { return };
+    let mut rng = SplitMix64::new(0x7e9a);
+    for &(e, h, i) in &[(8usize, 2304usize, 1152usize), (16, 256, 128)] {
+        let k = 8usize;
+        let ex = random_experts(&mut rng, e, h, i);
+        let plain = vec![ex.gate_up_w.clone(), ex.gate_up_s.clone(), ex.down_w.clone(), ex.down_s.clone(), ex.gscales.clone()];
+        let mut rp = plain.clone();
+        moe_repack_rows(&mut rp[0].data, h / 2, 4, 8, 16);
+        moe_repack_rows(&mut rp[1].data, h / 16, 4, 8, 2);
+        moe_repack_rows(&mut rp[2].data, i / 2, 8, 4, 16);
+        moe_repack_rows(&mut rp[3].data, i / 16, 8, 4, 2);
+        for t in [1usize, 4, 16, 80] {
+            let (ids, ws) = random_routing(&mut rng, t, e, k);
+            let ws = HostTensor::from_f32(&[t, k], &ws.to_f32().iter().map(|v| v * 8.0).collect::<Vec<_>>());
+            let x = rnd(&mut rng, DType::Bf16, &[t, h], 1.0);
+            let mut a = OpAttrs { top_k: k, ..OpAttrs::default() };
+            (a.ink.situ, a.ink.gate_cap, a.ink.up_cap) = (true, 4.0, 25.0);
+            let names: &[&str] = if t <= 16 { &["moe_experts_situ_bf16", "moe_experts_situ_bf16_rows"] } else { &["moe_experts_situ_bf16"] };
+            for kn in names {
+                let run = |w: &Vec<HostTensor>, layout: u8| {
+                    let mut v: Vec<HostTensor> = vec![x.clone(), ids.clone(), ws.clone()];
+                    v.extend(w.iter().cloned());
+                    let mut a = a.clone();
+                    a.ink.moe_layout = layout;
+                    rig.run(kn, Op::MoeExperts, &v, &[(DType::Bf16, vec![t, h], None)], &a)
+                };
+                let on = run(&rp, 1);
+                let off = run(&plain, 0);
+                assert!(off[0].to_f32().iter().all(|v| v.is_finite()), "{kn} non-finite");
+                // T 80 (640 pairs): both layouts take the tensor-core prefill (`ink_moe_mma`, which reads the repack, brief 44)
+                assert_eq!(on[0].data, off[0].data, "{kn} H {h} I {i} T {t}: repacked differs from the plain layout");
             }
         }
     }

@@ -356,6 +356,8 @@ impl ModelArgs {
                 max_seq: self.max_seq,
                 kv_fraction: self.kv_fraction,
                 prefill_chunk: self.prefill_chunk.unwrap_or(intarsia_core::recipe::DEFAULT_PREFILL_CHUNK),
+                // resolved from the recipe at load (`PrefillChunk::long`)
+                long_prefill_chunk: None,
                 act_dtype: None,
                 kv_dtype,
                 profile_every: self.profile_every.unwrap_or(default_profile_every(&self.backend)),

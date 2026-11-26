@@ -59,6 +59,10 @@ impl Switch {
 /// `INTARSIA_INK_MIX_HOIST` (default on: -0.17 ms per decode step, job E #11003): the row kernels' `ink_mix_row_h_*`
 /// instances (every operand load before its first use).
 pub static MIX_HOIST: Switch = Switch::new("INTARSIA_INK_MIX_HOIST", true);
+/// `INTARSIA_INK_ROUTE_RANK4` (default on; lane ink-batch brief 45, docs/results/2026-11-21-inkling2-batch.md section 45): the
+/// rank routing's compares on float4 reads (8.5 -> 5.8 us per `ink_route_bf16` call in the microbench). Same bits.
+pub static ROUTE_RANK4: Switch = Switch::new("INTARSIA_INK_ROUTE_RANK4", true);
+
 /// `INTARSIA_INK_BLEND_NORM_C` (default on: -0.29 ms per decode step, job E #11003): the blend norm with one channel per
 /// thread (`ink_blend_norm_c`).
 pub static BLEND_NORM_C: Switch = Switch::new("INTARSIA_INK_BLEND_NORM_C", true);
@@ -106,7 +110,7 @@ struct InkRouteP {
     sx: u32,
     sw: u32,
     rank: u32,
-    pad: u32,
+    rank4: u32,
     scale: f32,
     temp: f32,
     fpad: [f32; 2],
@@ -191,6 +195,7 @@ impl MetalBackend {
             sx: if vec { 0 } else { xb.skip },
             sw: if vec { 0 } else { wb.skip },
             rank: route_rank() as u32,
+            rank4: ROUTE_RANK4.on() as u32,
             scale: a.scale,
             temp: a.temperature,
             ..Default::default()

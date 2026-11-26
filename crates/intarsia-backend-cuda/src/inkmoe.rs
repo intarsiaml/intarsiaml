@@ -149,6 +149,21 @@ pub fn set_mma_min(pairs: i32) {
     let _ = pairs;
 }
 
+/// Tests / benchmarks: the NVFP4 tensor-core prefill runs BM 128 with the padding-warp skip where the pick is 64 (`1`), or BM 64
+/// (`0`); `-1` = the env (`INTARSIA_INK_MOE_BM128`, unset: on). Bitwise either way.
+pub fn set_bm128(v: i32) {
+    #[cfg(ik_cuda)]
+    {
+        extern "C" {
+            fn ik_ink_moe_set_bm128(v: std::ffi::c_int);
+        }
+        // SAFETY: sets a plain int of the kernel library.
+        unsafe { ik_ink_moe_set_bm128(v) }
+    }
+    #[cfg(not(ik_cuda))]
+    let _ = v;
+}
+
 /// Benchmarks only: 1 launches only the gate+up kernel of an experts call, 2 only the down kernel (the output is garbage).
 pub fn set_probe(v: i32) {
     #[cfg(ik_cuda)]
@@ -221,7 +236,8 @@ mod launch {
                 0
             };
             let (gc, uc) = (ink.gate_cap, ink.up_cap);
-            let aq = ink.act_quant as c_int;
+            // bit 1: `ink.moe_layout` (the decode repack; NVFP4 situ only, ink_moe.cu refuses it elsewhere)
+            let aq = ink.act_quant as c_int | ((ink.moe_layout as c_int & 1) << 1);
             // SAFETY: tensors are bounds-checked views of live device buffers (held by `call`); the launchers validate dtype /
             // rank / shape / alignment / scratch and return an error status instead of faulting, and never synchronise or allocate.
             let rc = unsafe {

@@ -64,7 +64,22 @@ struct MoeArgs {
     const float* ho;
     // L2 prefetch of each warp's expert rows before its loads (INTARSIA_INK_MOE_PF, default on; bitwise: no value changes)
     int pf;
+    // programmatic dependent launch of down after gate_up (INTARSIA_INK_MOE_PDL): down's blocks become resident in gate_up's tail,
+    // group the pairs and prefetch their rows into L2, then wait for gate_up's grid (h complete and visible); no value changes
+    int pdl;
 };
+
+// griddepcontrol (sm_90+): no-ops for a grid launched without the programmatic-serialization attribute
+IK_DEVI void pdl_trigger() {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
+    asm volatile("griddepcontrol.launch_dependents;" ::: "memory");
+#endif
+}
+IK_DEVI void pdl_wait() {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
+    asm volatile("griddepcontrol.wait;" ::: "memory");
+#endif
+}
 
 // The warp's lanes request every 128-byte line of [p, p + bytes) into L2 at once: DRAM then streams the warp's whole
 // contiguous row block (gu: 4 consecutive gate rows, 4 up rows; dn: 8 consecutive rows; and their scales) instead of the
@@ -245,8 +260,12 @@ template <int FMT>
 IK_DEVI int64_t srow_bytes(int k) { return FMT == FMT_NV ? k / 16 : k / 32; }
 
 // ---- gate + up ---------------------------------------------------------------------------------------------------------
-template <int FMT, int ACT>
+// RP: the weights are repacked (`ink.moe_layout = 1`, `inkling2::ops::moe_repack_rows`): a warp step of the chunk loop (ch / 8
+// for gate / up, ch / 4 for down) is one contiguous run of 32 x 16 bytes (payload) and 32 x 2 bytes (scales) in lane order, at
+// the row block's base. The same chunks reach the same lanes, so the same bits.
+template <int FMT, int ACT, bool RP = false>
 __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
+    if (a.pdl) pdl_trigger();
     __shared__ SmemGroups sg;
     const Groups gr = get_groups(a, sg);
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
@@ -259,10 +278,11 @@ __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
     const int64_t wb = row_bytes<FMT>(H), sb = srow_bytes<FMT>(H);
     for (int d = warp; d < gr.nd; d += kWarpsB) {
         const int e = gr.dexp[d];
-        const uint8_t* wg = a.guw + ((int64_t)e * 2 * I + rr) * wb;
-        const uint8_t* wu = a.guw + ((int64_t)e * 2 * I + I + rr) * wb;
-        const uint8_t* sgp = a.gus + ((int64_t)e * 2 * I + rr) * sb;
-        const uint8_t* sup = a.gus + ((int64_t)e * 2 * I + I + rr) * sb;
+        const int rq = RP ? blockIdx.x * kGuRows : rr;  // RP: the block's base row (I % 4 == 0: every row is in range)
+        const uint8_t* wg = a.guw + ((int64_t)e * 2 * I + rq) * wb;
+        const uint8_t* wu = a.guw + ((int64_t)e * 2 * I + I + rq) * wb;
+        const uint8_t* sgp = a.gus + ((int64_t)e * 2 * I + rq) * sb;
+        const uint8_t* sup = a.gus + ((int64_t)e * 2 * I + I + rq) * sb;
         if (a.pf) {
             const int rb = blockIdx.x * kGuRows, nr = min(kGuRows, I - rb);
             warp_pf_l2(a.guw + ((int64_t)e * 2 * I + rb) * wb, nr * wb, lane);
@@ -282,8 +302,9 @@ __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
             }
             for (int ch = sub; ch < nch; ch += 8) {
                 WChunk cg, cu;
-                load_chunk<FMT>(wg, sgp, ch, cg);
-                load_chunk<FMT>(wu, sup, ch, cu);
+                const int ix = RP ? (ch >> 3) * IK_WARP + lane : ch;
+                load_chunk<FMT>(wg, sgp, ix, cg);
+                load_chunk<FMT>(wu, sup, ix, cu);
 #pragma unroll
                 for (int b = 0; b < kNB; ++b) {
                     if (b >= nb) break;
@@ -324,7 +345,7 @@ __global__ void __launch_bounds__(kThreads) ink_moe_gu_kernel(MoeArgs a) {
 }
 
 // ---- down + the token sum ----------------------------------------------------------------------------------------------
-template <int FMT, int ACT, typename OutT>
+template <int FMT, int ACT, typename OutT, bool RP = false>
 __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
     __shared__ SmemGroups sg;
     __shared__ float term[kDecPairs * kDnRows];
@@ -338,11 +359,22 @@ __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
     const int rr = on ? r : H - 1;
     const int nch = I / 32;
     const int64_t wb = row_bytes<FMT>(I), sb = srow_bytes<FMT>(I);
+    if (a.pdl) {
+        // in gate_up's tail: this block's expert rows into L2 (the same lines as the loop's prefetch), then wait for h
+        const int nr = min(kDnRows, H - r0);
+        for (int d = warp; d < gr.nd; d += kWarpsB) {
+            const int e = gr.dexp[d];
+            warp_pf_l2(a.dnw + ((int64_t)e * H + r0) * wb, nr * wb, lane);
+            warp_pf_l2(a.dns + ((int64_t)e * H + r0) * sb, nr * sb, lane);
+        }
+        pdl_wait();
+    }
     for (int d = warp; d < gr.nd; d += kWarpsB) {
         const int e = gr.dexp[d];
-        const uint8_t* wd = a.dnw + ((int64_t)e * H + rr) * wb;
-        const uint8_t* sd = a.dns + ((int64_t)e * H + rr) * sb;
-        if (a.pf) {
+        const int rq = RP ? r0 : rr;  // RP: the block's base row (H % 8 == 0)
+        const uint8_t* wd = a.dnw + ((int64_t)e * H + rq) * wb;
+        const uint8_t* sd = a.dns + ((int64_t)e * H + rq) * sb;
+        if (a.pf && !a.pdl) {
             const int nr = min(kDnRows, H - r0);
             warp_pf_l2(a.dnw + ((int64_t)e * H + r0) * wb, nr * wb, lane);
             warp_pf_l2(a.dns + ((int64_t)e * H + r0) * sb, nr * sb, lane);
@@ -359,7 +391,7 @@ __global__ void __launch_bounds__(kThreads) ink_moe_dn_kernel(MoeArgs a) {
             }
             for (int ch = sub; ch < nch; ch += 4) {
                 WChunk c;
-                load_chunk<FMT>(wd, sd, ch, c);
+                load_chunk<FMT>(wd, sd, RP ? (ch >> 2) * IK_WARP + lane : ch, c);
 #pragma unroll
                 for (int b = 0; b < kNB; ++b) {
                     if (b >= nb) break;
@@ -456,9 +488,23 @@ int moe_pf_on() {
     return v;
 }
 
+// down launched as a programmatic dependent of gate_up (decode kernels, 16-bit activations, T <= 2); default on since brief 45,
+// INTARSIA_INK_MOE_PDL=0 off
+int moe_pdl_on() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_INK_MOE_PDL");
+        return e && e[0] == '0' ? 0 : 1;
+    }();
+    return v;
+}
+
 template <int FMT, int ACT>
-int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool rows_kernel) {
+int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool rows_kernel, bool rp = false) {
     const int64_t P = (int64_t)a.T * a.K;
+    // repacked weights: the decode kernels only (no tensor-core path), 16-bit activations, the shapes the repack covers
+    if (rp && (FMT != FMT_NV || a.aq || a.I % kGuRows || a.H % kDnRows || (a.H / 32) % 8 || (a.I / 32) % 4))
+        return IK_ERR_INVALID_ARG;
+    // (a repacked call never reaches the FP4 path below: that needs W4A4, refused above; ink_moe_mma reads the repack, a.rp)
     a.pf = moe_pf_on();
     ik_scratch sc_rest{};
     const ik_scratch* sc = sc_in;
@@ -495,7 +541,7 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool r
     if (!rows_kernel && P > mma_min_pairs() && a.H % 128 == 0 && a.I % 128 == 0 && g_probe == 0 && sc && sc->data &&
         sc->bytes >= ink_moe_mma_scratch_bytes(P, a.E, a.H, a.I) && (reinterpret_cast<uintptr_t>(sc->data) & 15u) == 0) {
         const InkMmaArgs m{a.x, a.ids, a.wts, a.guw, a.gus, a.dnw, a.dns, a.gs, a.out, a.T, a.K, a.E, a.H, a.I, FMT, ACT, a.gc, a.uc,
-                           a.aq, a.xo, ho};
+                           a.aq, a.xo, ho, rp ? 1 : 0};
         return ink_moe_mma(m, sc->data, out_f32, st);
     }
     const int64_t need = rnd(P * 4) + rnd((int64_t)(a.E + 1) * 4) * 2 + rnd(P * a.I * 2) + rnd(P * a.H * 2);
@@ -512,8 +558,10 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool r
         ink_moe_group_kernel<<<1, 1024, 0, st>>>(a);
         IK_TRY(ik_launch_status());
     }
+    a.pdl = !a.aq && g_probe == 0 && a.T <= 2 && moe_pdl_on();  // T >= 4 lost to PDL (#11663)
     if (g_probe != 2) {
-        ink_moe_gu_kernel<FMT, ACT><<<(a.I + kGuRows - 1) / kGuRows, kThreads, 0, st>>>(a);
+        if (rp) ink_moe_gu_kernel<FMT, ACT, true><<<(a.I + kGuRows - 1) / kGuRows, kThreads, 0, st>>>(a);
+        else ink_moe_gu_kernel<FMT, ACT><<<(a.I + kGuRows - 1) / kGuRows, kThreads, 0, st>>>(a);
         IK_TRY(ik_launch_status());
     }
     if (a.aq) {
@@ -524,8 +572,29 @@ int run(MoeArgs a, int out_f32, const ik_scratch* sc_in, cudaStream_t st, bool r
     }
     if (g_probe != 1) {
         const unsigned g = (unsigned)((a.H + kDnRows - 1) / kDnRows);
-        if (out_f32) ink_moe_dn_kernel<FMT, ACT, float><<<g, kThreads, 0, st>>>(a);
-        else ink_moe_dn_kernel<FMT, ACT, ik_bf16><<<g, kThreads, 0, st>>>(a);
+        if (a.pdl) {
+            cudaLaunchConfig_t cfg{};
+            cfg.gridDim = dim3(g);
+            cfg.blockDim = dim3(kThreads);
+            cfg.stream = st;
+            cudaLaunchAttribute at[1];
+            at[0].id = cudaLaunchAttributeProgrammaticStreamSerialization;
+            at[0].val.programmaticStreamSerializationAllowed = 1;
+            cfg.attrs = at;
+            cfg.numAttrs = 1;
+            if (rp && out_f32) cudaLaunchKernelEx(&cfg, ink_moe_dn_kernel<FMT, ACT, float, true>, a);
+            else if (rp) cudaLaunchKernelEx(&cfg, ink_moe_dn_kernel<FMT, ACT, ik_bf16, true>, a);
+            else if (out_f32) cudaLaunchKernelEx(&cfg, ink_moe_dn_kernel<FMT, ACT, float>, a);
+            else cudaLaunchKernelEx(&cfg, ink_moe_dn_kernel<FMT, ACT, ik_bf16>, a);
+        } else if (rp && out_f32) {
+            ink_moe_dn_kernel<FMT, ACT, float, true><<<g, kThreads, 0, st>>>(a);
+        } else if (rp) {
+            ink_moe_dn_kernel<FMT, ACT, ik_bf16, true><<<g, kThreads, 0, st>>>(a);
+        } else if (out_f32) {
+            ink_moe_dn_kernel<FMT, ACT, float><<<g, kThreads, 0, st>>>(a);
+        } else {
+            ink_moe_dn_kernel<FMT, ACT, ik_bf16><<<g, kThreads, 0, st>>>(a);
+        }
         IK_TRY(ik_launch_status());
         if (a.table) {
             const dim3 gg((unsigned)((a.H + 255) / 256), (unsigned)a.T);
@@ -592,9 +661,11 @@ int situ_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, co
     a.out = out->data;
     a.T = (int)T, a.K = (int)ids->shape[1], a.E = (int)E, a.H = (int)H, a.I = (int)I;
     a.gc = gate_cap, a.uc = up_cap;
+    const bool rp = (aq & 2) != 0;  // ink.moe_layout (bit 1)
+    aq &= ~2;
     if (aq != 0 && aq != 1) return IK_ERR_INVALID_ARG;
     a.aq = aq;
-    return run<FMT_NV, ACT_SITU>(a, of, scratch, IK_STREAM(stream), rows_kernel);
+    return run<FMT_NV, ACT_SITU>(a, of, scratch, IK_STREAM(stream), rows_kernel, rp);
 }
 
 int mxfp8_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* w13, const ik_tensor* s13,

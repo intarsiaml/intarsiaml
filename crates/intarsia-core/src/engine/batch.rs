@@ -380,6 +380,8 @@ impl BatchModel for SlotModel {
     }
     fn prefill_begin(&mut self, slot: usize, tokens: &[u32], mode: Option<HeadMode>) -> Result<()> {
         if self.inflight.is_some() {
+            // the call does not run: its cut must not reach the slot's next one
+            self.states[slot].prefill_chunk_rows = 0;
             return Err(Error::Other("a prefill chunk is already in flight".into()));
         }
         let placeholder = self.model.placeholder_state();
@@ -423,6 +425,8 @@ impl BatchModel for SlotModel {
     }
     fn prefill_begin_paused(&mut self, slot: usize, tokens: &[u32], mode: Option<HeadMode>) -> Result<()> {
         if self.inflight.is_some() {
+            // the call does not run: its cut must not reach the slot's next one
+            self.states[slot].prefill_chunk_rows = 0;
             return Err(Error::Other("a prefill chunk is already in flight".into()));
         }
         let placeholder = self.model.placeholder_state();
@@ -503,6 +507,13 @@ impl BatchModel for SlotModel {
     fn avoid_single_row_prefill(&self) -> bool {
         // the backend flag (Metal), except for recurrent state (never batched; mirrors `Seq::prefill_step`)
         self.model.backend.avoid_single_row_prefill() && !self.states[0].has_recurrent()
+    }
+    fn long_prefill_chunk(&self, plen: usize) -> Option<usize> {
+        let m = &self.model;
+        m.long_prefill_chunk().map(|_| m.prefill_chunk_for(plen)).filter(|&c| c != m.prefill_chunk())
+    }
+    fn set_prefill_chunk_rows(&mut self, slot: usize, chunk: usize) {
+        self.states[slot].prefill_chunk_rows = chunk;
     }
     fn tail_merge(&self) -> usize {
         self.model.tail_merge()

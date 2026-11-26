@@ -25,6 +25,10 @@ const K: usize = 4;
 const RR: usize = K - 1 + 16;
 
 fn device() -> Option<Arc<dyn Backend>> {
+    // The prefill flash kernel's CUDA-core rel bias (INTARSIA_INK_FLASH_BIAS=0) is the form that is bitwise the prologue +
+    // rel_sink_attn pair; the default tensor-core form (lever 5) only reorders the f32 sums of that dot, which the accuracy
+    // gates cover. Read once per process, before any launch: every test of this binary runs the bitwise form.
+    std::env::set_var("INTARSIA_INK_FLASH_BIAS", "0");
     let ord = std::env::var("INTARSIA_CUDA_DEVICE").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
     match intarsia_backend_cuda::create(ord) {
         Ok(b) => Some(b),
@@ -181,7 +185,7 @@ fn run_with(be: &dyn Backend, l: &Layer, inp: &Inputs, t: usize, pos0: usize, ro
                 a,
             );
             f.pos = pos;
-            let fk = if rows > 16 { "ink_attn_prefill_bf16" } else { "ink_attn_decode_bf16" };
+            let fk = if rows > 16 { "ink_attn_decode_prefill_bf16" } else { "ink_attn_decode_bf16" };
             f.scratch = Some(scratch_for(be, fk, &f));
             be.launch(fk, &f, 0).unwrap();
             be.synchronize(0).unwrap();
@@ -276,7 +280,7 @@ fn rows_exact_real_shapes() {
     eprintln!("{n} rows-exact cases bitwise");
 }
 
-/// Op 75 on prefill chunks (`ink_attn_prefill_bf16`, the rel bias formed in the flash kernel) is bitwise the pair the graph
+/// Op 75 on prefill chunks (`ink_attn_decode_prefill_bf16`, the rel bias formed in the flash kernel) is bitwise the pair the graph
 /// runs there (prologue + `rel_sink_attn_bf16_flash`): output, conv rings and K / V caches (brief 30a).
 #[test]
 fn op75_prefill_bitwise_pair() {
@@ -302,4 +306,16 @@ fn op75_prefill_bitwise_pair() {
         }
     }
     eprintln!("{n} op 75 prefill cases bitwise the pair");
+}
+
+/// INTARSIA_INK_ATTN_PDL (brief 50 gate 1): before griddepcontrol.wait a decode tile block prefetches only cache rows below
+/// the call's first position (rows earlier calls wrote), never the current call's K / V rows or their ring slots. The
+/// prefetch is an L2 hint, so a wrong range could not change a value and the bitwise tests cannot see it: this checks the
+/// range itself, through the kernels' own geometry functions, over a sweep of positions, rows 1..16, windows and tile sizes.
+#[test]
+fn pdl_prefetch_rows_stay_below_pos0() {
+    match intarsia_backend_cuda::inkattn::pdl_selftest() {
+        None => common::skip("inkling2_attn", "built without CUDA"),
+        Some(v) => assert_eq!(v, 0, "ik_ink_attn_pdl_selftest: {v} violations (-1: vacuous sweep)"),
+    }
 }

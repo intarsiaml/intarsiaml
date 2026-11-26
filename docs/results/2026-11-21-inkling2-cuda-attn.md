@@ -238,6 +238,90 @@
     #11517's quiet timing slot was active.)
 34. 2026-11-22 (coordinator, rule): `git push` from endor runs the pre-push hook's two `cargo test`s, so every push is a
     cargo run: push only inside a fleetq slot, e.g. `fleetq run --host endor --load cpu --expect 10 -- git push ...`.
+38. 2026-11-22 (coordinator, check A): run `cargo test --features cuda -p intarsia-models --test inkling2_batch` on spark1
+    via fleetq on main 576ead89b. If it fails, run it on 0c8f2c037 (pre-#498) too, fresh target dir per tree, confirm the
+    binaries differ. Main fails + 0c8f2c037 passes: #498 caused it; find the cause, propose a fix PR (or revert of the
+    offending default), no merge. Both fail: pre-existing; record it and say what the test checks. Report at once.
+39. 2026-11-22 (coordinator, brief 46, resent): go on the ranking. This lane now owns the CUDA mix/conv row kernels and the
+    loop-controller/blend kernels; mixmoe (a4fb180) keeps only expert kernels + repack. Order: (1) levers #1+#2, split the
+    single-block mix/conv row kernels across blocks, decode and prefill, each row keeping its reduction order; (2) lever #3,
+    P12 in_proj GEMV toward its byte floor; (3) lever #7, unembed P12 GEMV (0.5 day) wherever it fits; (4) lever #4, loop
+    controller / blend fusion after 1-3. Hold #5 and #6 (not bitwise); #8 measure-only if a Spark slot is idle. Per lever:
+    gates = CUDA md5 64/256/1.2k equal faf40cecb06b / 029e44fede1d / dc28658094c0, spec on == off, tiny CUDA tests incl.
+    inkling2_batch. Ship bar >= 2 % decode tok/s at g256 spec off, spec on not slower; for #2 >= 2 % prefill at 8k.
+    Opt-out env + tuning row, one PR per lever (#1+#2 may share); ask before merge. Spark slots via fleetq. Worktree
+    .worktrees/ink-cuda-attn/. Stop and report if a lever cannot be bitwise; no third variant. #499 is the chat-reuse
+    lane's, not this lane's.
+40. 2026-11-22 (coordinator): test-fix PR yes. Contents: p12_selection fix (fde495485), the ragged / ConvMix ink_rows cases
+    and the results-doc lines, from main 576ead89b. Rerun p12 + ink_rows on the final tree, unset and GEMV=0, push in a
+    fleetq slot, open the PR. Merge on green CI once #499 is on main (coordinator's word or `gh pr view 499`); test + docs
+    only, so no other approval needed; send the merge commit. Do not touch RmProfilingAdminOnly (a system setting).
+41. 2026-11-22 (coordinator, brief 48): lever #5, prefill flash-attention retile (~0.3 s per 8k, ~9 %). Build it OPT-IN
+    (env var, default off), since it changes output. Gates: KL against the bf16 / golden reference at short, 4k and 8k under
+    the existing quality rule (only KL increases count, against the 5 % limit), plus greedy agreement at 1.2k. Speed: quiet
+    prefill A/B at 4k and 8k, >= 2 % to count. Report the numbers; flipping the default is the user's call. Then lever #6
+    (SWA attention more blocks, ~2 % decode) on the same terms. Same worktree. If the retile cannot beat 2 % within two
+    variants, stop and report.
+42. 2026-11-22 (coordinator): #499 is on main as 08ae803e0. The p12 test-fix PR merges on green CI; merge main in first if
+    GitHub shows it behind or conflicting. Send the merge commit. Brief 48 continues.
+43. 2026-11-22 (coordinator, lever 5): no vLLM 8k golden. Extend the same-weights self-golden to 8k: the default (bitwise)
+    path is the reference; report KL and top-1 / top-k agreement of mma against it over the 8k prompt, in the same slot as
+    the other gates. INTARSIA_INK_FLASH_BIAS=mma stays opt-in; the default flip is the user's call (not bitwise), so the
+    report carries the flip case: gains at 4k / 8k, KL and agreement per length, the revert. Then lever #6. No push / PR /
+    merge without the user's go relayed by the coordinator.
+44. 2026-11-22 (coordinator, rule): never edit a job script while its job runs (bash reads scripts as it goes); copy it to
+    a new name for the next job. The #11767 data stands: all 24 runs finished before the re-read.
+47. 2026-11-23 (coordinator, brief 50; items 43-46 are on branch `ink/cuda-attn`): build lever 1, PDL on the attention decode edges. Branch `ink/cuda-pdlattn` off
+    origin/main a4e281264, worktree `.worktrees/ink-cuda-pdlattn/` only, spark1 only. Edges: in_proj -> tile (the tile prefetches
+    only old K / V rows and weights before `griddepcontrol.wait`) and tile -> comb -> wo. Reuse the `ink_moe.cu` helpers
+    unchanged (ask before changing them; mixmoe may touch them). `INTARSIA_INK_ATTN_PDL=0` reverts; default on (must be
+    bitwise); a docs/tuning.md row. The PDL rule (before the wait, read only data from kernels already known finished), with
+    each edge's reasoning in a code comment. Do not touch flip branches A / B or lever 3. Gates: (1) all CUDA tests plus a test
+    that fails if a pre-wait read touches the current token's K / V row (or why it cannot be tested); (2) bitwise: default and
+    `=0` give main's md5s faf40cecb06b / 029e44fede1d / dc28658094c0 and the default 1.2k ref, spec off and on; (3) quiet
+    decode A/B vs main, short and 5k, spec off and default, alternated, `--quiet gpu,cpu`; ship bar >= +1 % at both lengths
+    spec off; report graphed ms / token and the new idle; (4) under +0.5 %: park with the numbers; no lever 2 (separate
+    brief). Report branch, head, numbers; no push (the coordinator opens the PR). Spark memory: 121 GB budget, MAX_JOBS=4,
+    10 GB free (15 without earlyoom).
+56. 2026-11-23 (coordinator, brief 56): the sampled-MTP-draft risk blocks the CUDA screen flip and Metal spec (#496); fix it
+    first as its own small PR. Branch `ink/screen-full-logits` off origin/main 0b8fab600, worktree
+    `.worktrees/ink-screen-full-logits` only; include the graph-key fix 523586de1 if it applies on its own. Audit every reader
+    of `ws.logits` / per-step logits rows after a screened head (sampled drafts, t>0 sampling, logprobs/top-k, penalties,
+    structured-output masks, verify/acceptance) with file:line; fix each that can see a screened row (full head whenever the
+    full row is read; greedy keeps the screen). Test: t=1.0, fixed seed, spec default, screen on vs off identical tokens
+    (md5 64/256), also on pre-fix code (live vs latent); a tiny test for the sampled-draft path if feasible; greedy md5
+    64/256/1.2k == main, screen on and off. CUDA gates on spark1 in one slot; Metal tests + greedy md5 64/256 on endor in
+    one slot if shared core changed. Push inside a slot or --no-verify after docs_env_vars and recipes_doc pass. Report audit
+    table, pre/post t=1.0, gates, branch + head; coordinator opens the PR; do not merge or push the flip branch.
+57. 2026-11-23 (coordinator, brief 56 rescoped): desk check first. If every full-row reader is unreachable with the screen
+    on, add a cheap guard on `ink/cuda-p12dec` plus a doc note, re-run the build and tiny/batch tests on spark1; no separate PR,
+    no Metal gates. A live path: stop and report it. Say whether the graph-key bug can trigger on main.
+58. 2026-11-23 (coordinator, brief 58): the CUDA default-on is a flip and needs the user's go. Branch `ink/cuda-screen` off
+    origin/main 0b8fab600 (worktree `.worktrees/ink-cuda-screen` only) with ink/cuda-p12dec's commits minus the default-on
+    (CUDA screen opt-in); the flip as one commit on local `ink/cuda-screen-flip`, not pushed. CUDA gates on spark1 in one slot
+    (build, tiny 17/17, batch 8/8, md5 64/256/1.2k == main default and with `INTARSIA_INK_HEAD_SCREEN=1`, spec off and
+    default, plan show identical for the 35B and 8B JSON, kernels test --quick). Metal no-op on endor in one slot (plan show
+    Qwen3-8B / Llama / Inkling-2, kernels test 0 FAIL, Metal tests, greedy md5 64/256 == main, cargo test of the touched
+    crates, separate target dir); endor reserved 09:00-14:25. Push inside a slot or --no-verify after docs_env_vars and
+    recipes_doc pass. Coordinator opens the PR and merges.
+59. 2026-11-23 (coordinator): the user approved the CUDA screen flip ("Yes, flip CUDA screen"). The flip's LOG row reads
+    "go: user 2026-11-23". Two PRs back to back: A `ink/cuda-screen` (opt-in, brief 58 gates), B `ink/cuda-screen-flip` (one
+    commit on A) with its own checks: CUDA md5 64/256/1.2k == main with defaults (spec off and default) and with
+    `INTARSIA_INK_HEAD_SCREEN=0`, plan show 35B / 8B identical, tiny 17/17; Metal plan show Qwen3-8B / Llama / Inkling-2
+    identical, Inkling-2 md5 64/256 == main. One slot per box for both heads where possible. Push both inside a slot or
+    --no-verify after docs_env_vars and recipes_doc pass.
+60. 2026-11-25 (coordinator, after PR B; user decision 2026-11-25 "Flip to default" for `INTARSIA_INK_FLASH_BIAS=mma` on CUDA):
+    PR C flips the CUDA mma relative-bias path to default-on. It is not bitwise: prefill is 4.3-5.6 % faster, KL vs the vLLM /
+    oracle goldens moves -9.8 %..+4.4 %, every golden passes. Branch `ink/cuda-flashbias-on` @ 900230f6a, worktree
+    `.worktrees/ink-cuda-flashbias`; its tuning-row commit says "pending the user decision": change that text to cite the
+    2026-11-25 decision. Base on origin/main after PR B merges (after A if B is pending). Keep `INTARSIA_INK_FLASH_BIAS=` (the
+    old value) as the revert switch and document it. Gates on spark1, each in its own fleetq slot, reusing gate58/59 scripts and
+    recording the tree as gate59 does: tiny inkling2 / batch tests (`op75_prefill_bitwise_pair` is expected to change with mma:
+    update or gate it as the mma section describes, never delete coverage); G2 / G3 KL vs the vLLM short / long / 4k goldens and
+    the oracle, each within its gate; md5 at 64 / 256 / 1.2k may differ from main, record them as the new references; quiet A/B
+    prefill at 3.6k / 8k and short decode (no decode regression beyond noise); endor Metal no-op (md5 and `plan show` equal
+    main). Push the branch and open PR C; do not merge it. Order: PR A, gate59, PR B, PR C. No PR C spark1 job while gate59 is
+    queued or running.
 
 ## Summary
 
@@ -1309,3 +1393,627 @@ Gates on the merged tree:
 - endor #11652: cpu tests pass: models lib 80, inkling2 17, softcap, inkling2_batch 8, ink_attn_decode, core lib 264. docs_env_vars
   passes after c371d8242.
 - At 64 output tokens the spec default decodes 4 % slower (37.8 vs 39.4 tok/s, acceptance 44 %). From 256 tokens up it is faster.
+- Post-#497 merge (51503dd85, main 0c8f2c037), spark1 #11683:
+  - CUDA md5, default: faf40cecb06b / 029e44fede1d / dc28658094c0. `GEMV=0`: ec9a19c14b2d / a0e6f47bc45f / 32ec7a414c3a.
+    Spec on == off in both.
+  - Tiny CUDA 17/17 with PACK12 on and off. `inkling2_verify_softcap` passes in 4 arms.
+  - The push (#11684) waits in the endor queue behind the quiet mlx-serve bench #11677. The coordinator said to keep it there.
+- **#498 merged** on 2026-11-22 as main 576ead89b (head 51503dd85, all CI green). The landing worktree is removed.
+
+## Cleanup and next levers (brief 38, 2026-11-22)
+
+Cleanup:
+- Removed: the landing worktree, the remote `ink/cuda-mtp-land` branch, spark1 `~/intarsiaml-ink-cuda-mtp`, and everything
+  under spark1 `~/intarsiaml-ink-cuda-attn` except the model.
+- Kept: spark1 `~/intarsiaml-ink-cuda-attn/model` (19 GB; the ink-cuda-graph and ink-cuda-p12 gate scripts point at it).
+- Kept: worktrees `.worktrees/ink-cuda-attn`, branch `ink/cuda-attn`. Its results-doc lines after 51503dd85 are not on main.
+- Kept: worktree `.worktrees/ink-cuda-mtp`, branch merged; its untracked `.scratch` holds the gate, bench and profile scripts.
+
+Next CUDA levers, MoE experts excluded. The estimates come from the nsys tables above (decode at 1.2k-7.9k ctx, prefill per
+8k), not from new runs.
+(Correction after brief 46: the #1 and #4 estimates came from profiles taken before `INTARSIA_INK_ROW_HOIST` and the
+controller split-K were on by default. On main the row kernel is 1.25 ms a token and the blend class 1.27 ms, per #11719.)
+
+| rank | lever | saves | bitwise | days |
+|---|---|---|---|---|
+| 1 | Decode: split the `ink_row` mix / conv kernels across blocks. Today 124 single-block launches per token at 17 us. Keep each row's reduction order | ~1.5-2.0 ms / token (~6 %) | yes, if reductions are kept per row | 1-2 |
+| 2 | Prefill: the same row kernels at 2048 rows (460 calls at 180 us per chunk) | ~0.45 s per 8k (~15 %) | yes, as 1 | shared with 1 |
+| 3 | Decode: P12 in_proj GEMV to its byte floor. 141-150 us per visit vs ~110 us for 30 MB | ~1.5 ms / token (~5 %) | yes (P12 twin) | 1-2 |
+| 4 | Decode: fuse the loop controllers / blend (`ink_mma_gemv` on 1-3 blocks, blend_gate, blend_norm; 2x24 each) | ~1.0-1.2 ms / token | yes, if dot order is kept | 1-2 |
+| 5 | Prefill: flash retile (lever 2b). Flash runs at about 5 % of the GEMM rate; attention is ~100 ms per chunk after op 75 vs a floor of ~25 | ~0.3 s per 8k (~10 %) | no | 2-3 |
+| 6 | Decode: occupancy of the SWA attention tile kernel (48 blocks at 113 GB/s, ~1.2 ms / token) | ~0.5 ms / token | no, if the split changes | 1 |
+| 7 | Decode: unembed P12 GEMV, 2.93 ms vs a 2.53 ms floor | ~0.4 ms / token | yes | 0.5 |
+| 8 | Prefill: identify cuBLAS `Kernel2` (192 calls at 420 us, 3 TF/s per chunk) | up to ~80 ms per 8k | depends | 0.5 to measure |
+
+## inkling2_batch on main (brief 38 check A, fleetq #11705)
+
+Main 576ead89b built in its own src and target dir on spark1; test binary md5 c2318879f0ed. Result: no failure on main, so
+no fix or revert.
+- **The literal command** (`--features cuda`) does not start: `intarsia-models` has no `cuda` feature.
+- **Default backend (CPU), CI=1:** 8/8 pass in 12 s.
+- **INTARSIA_INKLING2_BACKEND=cuda:** every test panics at `inkling2_batch.rs:44`, by design. The test refuses CUDA because
+  CUDA has no Inkling-2 row-table kernels and refuses batching. The CUDA arm was removed in 8f5c9a31c, which landed with #498.
+- **The landing-gate panics** (`:80` / `:104`) came from the gate running this test with BACKEND=cuda on the landing tree
+  before 8f5c9a31c. CUDA refused that arm's `enable_batch` / `forward`.
+- **0c8f2c037 was not run;** the brief asked for it only if main failed.
+- **What the test checks:** on the tiny fixture, every row of a batched `forward_batch` step is bitwise the solo step of its
+  sequence (logits, softcapped sampler rows, tokens). Cases: 2, 5 and 16 sequences around the SWA window, the rel extent and
+  the attn-res blocks; membership changes; per-sequence rollback; failed-pass reset; the P12 plan; batched engine == solo.
+- **Lever gates** run it on its own backend.
+
+## Levers 1 + 2 (brief 46): row kernel split and prefetch, stopped
+
+Both approaches are bitwise, but neither reaches the ship bar, so neither ships and there is no third variant. The branch
+keeps only a 20-row ConvMix / SconvRes case in `ink_rows`, which exercises the deferred ring write at the real ring.
+
+**Approach 1, split** (commits 39def9d19, a384f3dc3; removed in a18d25935).
+- How it works: 2-8 blocks per row as a thread-block cluster. Each thread keeps the elements of the one-block layout, and the
+  warp partials are summed in warp order through distributed shared memory.
+- Bitwise: `ink_rows` passes at splits 2-8, decode and prefill, against one-block rows (fleetq #11709 / #11713).
+- Speed (`ink_bench mix`, #11709, us per call): flat to slower in decode, and slower at 2048 rows by +2 % (split 2) to
+  +340 % (split 8).
+- Why: each thread's dependent chain (loads, butterflies, block sums, the second reduction) is unchanged. The one-block
+  kernel is latency-bound per thread, not short of SMs.
+- Registers are not the cause: ptxas shows the production instance (NE 3, one block) at 63 registers with no spills.
+
+**Approach 2, L2 prefetch of all input rows at block start** (a384f3dc3, a18d25935; reverted).
+- Bitwise: `ink_rows` 8/8, with the 20 / 300-row calls (prefetch) against the 1-row calls (none).
+- md5: 64 / 256 / 1.2k = faf40cecb06b / 029e44fede1d / dc28658094c0, spec off and default (#11714).
+- `ink_bench mix` (#11713), prefetch on vs off:
+
+| call | rows | off us | on us |
+|---|---:|---:|---:|
+| conv_mix N7 Q3 norm | 2048 | 997-1196 | 774 |
+| conv_mix N4 Q1 norm | 2048 | 547 | 450-461 |
+| attn_res_mix N4 Q1 | 2048 | 373-519 | 297 |
+| sconv_res | 2048 | 234 | 212 |
+| blend calls (S 1 / 3) | 2048 | flat | flat |
+| conv_mix N4 Q1 norm | 1 / 16 | 10.2 | 12.3 |
+| conv_mix N7 Q3 norm | 1 / 16 | 16.4 | 18.5 |
+
+- Model, 8139-token prompt, spec off, 3 alternating pairs (#11714):
+
+| pair | default (prefetch above 16 rows) ms | `INTARSIA_INK_ROW_PREFETCH=0` ms |
+|---|---:|---:|
+| 1 | 3178 | 3180 |
+| 2 | 3163 | 3180 |
+| 3 | 3159 | 3171 |
+
+- Result: +0.4 % at 8k, under the 2 % bar. The faster mix calls are a small part of the chunk, and the blend calls dominate the
+  row kernel time there and do not move. Decode would lose about 2 us a call.
+
+**Gates on the prefetch tree** (#11714):
+- md5 as above.
+- `inkling2_batch` 8/8 on its own backend.
+- Tiny CUDA `inkling2`: 15 pass and 2 skip by design ("no screened-head kernels on CUDA"). They show as failures only because
+  the gate sets CI=1; the earlier 17/17 counts ran without CI.
+
+What would move the decode row kernel (1.25 ms a token: 124 x 10.1 us in #11719; the 2.1 ms / 17 us of the ranking predate `INTARSIA_INK_ROW_HOIST`) is a shorter per-thread chain, not more blocks:
+- fuse the two reductions of a ConvMix (the mix statistics and the norm) into fewer block barriers;
+- or overlap the row kernel with the next kernel (PDL).
+Both change code structure, not just tuning. A fused reduction order would not be bitwise. PDL is, but it is the mixmoe
+lane's repack + PDL work (#11700).
+
+## Lever 3 (brief 46): P12 in_proj GEMV toward its floor, stopped; lever 7 bounded below the bar
+
+Two bitwise approaches on `ink_in_proj_p12_gemv[_rows]`. Each keeps every row's lane, chunk and add order and its warp sum,
+so P12 stays bitwise its bf16 twin and the model's bits do not move.
+- `INTARSIA_INK_IN_PROJ_RPW=2|4`: 2 or 4 adjacent weight rows per warp. The rows' code loads are in flight together, and
+  rows of one segment share the activation load. Commit e0279e43a.
+- `INTARSIA_INK_IN_PROJ_PERSIST=1`: a grid of the resident blocks only, each warp striding over its row groups. Commit
+  7228a5862.
+- Both were default off; reverted after the measurement (RPW 2 / 4 also make 16-row calls 35-75 % slower). The [41, 23, 25]
+  twin case stays: it exercises the default kernel.
+
+Tests (fleetq #11717, #11718): p12 5/5 with unset, `GEMV=0`, `RPW=2 + PERSIST=1` and `PERSIST=1`. The twin test gained a
+[41, 23, 25] case, which puts segment edges inside a row pair or quad and leaves a ragged tail.
+
+`p12_selection` was stale on main. It still expected `ink_in_proj_p12_mma`, but the GEMV default-on of brief 31 (#498)
+selects `ink_in_proj_p12_gemv`. Fixed to follow `p12::in_proj_gemv("cuda")` in fde495485.
+
+ink_bench at [8664, 2304], us per call; ranges are the two reps and S = 1 / 3 (#11718):
+
+| rows | default | RPW 2 | PERSIST | RPW 2 + PERSIST |
+|---:|---:|---:|---:|---:|
+| 1 | 144-148 | 139-143 | 148-158 | 139-152 |
+| 2 | 148-151 | 140-143 | 140-157 | 140-155 |
+| 4 | 147-148 | 147-149 | 142-158 | 146-154 |
+| 16 | 181-183 | 250-257 | 161-164 | 237-250 |
+
+**Result:**
+- The best choice per row count saves about 6 us at 1 row, nothing at 4 rows (spec verify, k 3), and 18 us at 16 rows.
+- At 48 visits a token that is 0.29 ms, about 1.2 % at g256 spec off (about 25 ms a token), and 0 % with spec on.
+- That is under the 2 % bar, so no PR. The rest of the gap to the floor (146 vs about 120 us at the 252 GB/s streaming peak of
+  `bw.cu`) is not in wave tails or loads in flight.
+- The P12 code layout fixes the loads: an 8-byte plane-A and a 4-byte plane-B word per 8 elements and lane. A wider per-lane
+  chunk would change the lane-to-element map and so the sum order (md5).
+
+**Lever 7 (unembed `p12_gemv`) is bounded below the bar:**
+- It runs at 2.93 ms a token, 236 GB/s (87 % of 273).
+- At the 252 GB/s practical peak it would take 2.75 ms. The most it can give is 0.18 ms, about 0.7 %. Not attempted.
+
+## Lever 4 (brief 46): loop controller / blend, scoped, one bitwise try, no gain
+
+Fresh nsys of graphed decode (fleetq #11719; main 576ead89b kernels; hash-map prompt, 256 tokens, spec off):
+- 38.4 tok/s: 26.05 ms wall a token, 25.68 ms busy, 657 kernels a token.
+- MoE gu + dn 8.86 ms; in_proj (P12 GEMV) 6.67 ms; unembed 2.96 ms; wo 2.35 ms; SWA attention tile 1.31 ms; row kernel 1.25 ms
+  (124 x 10.1 us).
+- Blend / controller class, 1.27 ms a token:
+
+| kernel | streams | us per call | ms / token |
+|---|---|---:|---:|
+| `ink_ctl_kernel` | S = 3 | 14.55 | 0.35 |
+| `ink_ctl_kernel` | S = 1 | 8.34 | 0.20 |
+| `ink_blend_gate_kernel` | S = 3 | 13.77 | 0.33 |
+| `ink_blend_gate_kernel` | S = 1 | 6.13 | 0.15 |
+| `ink_blend_norm_kernel` | S = 1 / 3 | 5.1 | 0.25 |
+
+Byte floors: S = 3 moves 1.77 MB through each of ctl and gate, about 7 us at 252 GB/s. Taking both to their floors and folding
+the norm into the gate's last block would save at most about 0.8 ms (3 %). That bound needs latency fixes I cannot see:
+ncu is admin-only on spark1 (`RmProfilingAdminOnly: 1`).
+
+The try: `#pragma unroll` on the gate's gain / forget load loop and on the controller fold's partial loads. Same order, so
+bitwise; `ink_rows` ok. In-graph times did not move (#11721: ctl 14.63 / 8.33 us, gate 14.13 / 6.26 us), so the compiler was
+already overlapping those loads. Reverted.
+
+The norm fold alone is worth at most 0.25 ms (1 %), under the bar, so it was not built. The SWA attention tile (33 us a call
+at 271 positions, 1.31 ms a token) is a fixed in-block latency chain, not context-bound: its blocks already skip empty tiles.
+More warps for the in-block prologue would be bitwise but worth about 0.6 %.
+
+## Lever 8 (brief 46, measure only): the prefill's cuBLAS `Kernel2` is wo
+
+nsys `-t cuda,cublas` of the 8139-token prefill, one output token (fleetq #11726, spark1 idle).
+- **Calls:** `Kernel2` has grid 128 x 2, block 256, and runs 192 times (48 visits x 4 chunks).
+- **Driver call:** it is launched through `cuLaunchKernel`, as cuBLAS does.
+- **Neighbours:** every instance sits between the attention kernels (`ink_prologue_k`, `ink_ring_write_k`, `ink_flash_k`,
+  `ink_kv_write_k`) and the next sublayer's `ink_row_kernel`. So it is the wo projection: [2048 x 3072] by [3072 x 2304], bf16.
+- **Cost:** 404.9 us a call and 77.7 ms per 8k prefill (2.3 % of 3385 ms). That is 2.9e10 FLOP in 405 us, about 72 TFLOP/s.
+- **Correction:** the earlier class table put this kernel at 3 TF/s; that figure was wrong.
+- **Ceiling:** at the 110 TFLOP/s cuBLAS reaches on in_proj at 2048 rows, wo would take about 264 us. The most it can save
+  is about 27 ms per 8k (0.8 %).
+
+## Test-fix PR (brief 40 / 42)
+
+#502 merged on all-green CI as main dabd0d448. It carries the `p12_selection` fix, the [41, 23, 25] twin case, the 20-row
+ConvMix case and the brief 46 results. Main 08ae803e0 (#499) was merged into the branch first.
+
+spark1 #11728 on the PR tree, built from 576ead89b plus the three files (main has not touched kernels/, the CUDA backend
+or quant since): p12 5/5 and ink_rows 8/8, with `INTARSIA_INK_IN_PROJ_GEMV` unset and `=0`.
+
+## Lever 5 (brief 48): prefill flash retile, opt-in
+
+8k prefill kernel summary (fleetq #11748; 8139 tokens, 1 output token, spec off; kernel total 2866 ms):
+
+| kernel | ms | share |
+|---|---:|---:|
+| MoE (`ink_moe_mma` x 4 forms + `ink_mma_sum`) | 1582 | 55 % |
+| `ink_flash_k<128, RIN, 16>`, 192 x 1830 us | 351 | 12.3 % |
+| `ink_row_kernel` | 302 | 10.5 % |
+| `ink_prologue_k` | 128 | 4.5 % |
+| blend gate + gemv + norm | 208 | 7.3 % |
+| wo (`cutlass Kernel2`) | 80 | 2.8 % |
+| in_proj (nvjet) | 106 | 3.7 % |
+
+Flash does about 7.4e12 FLOP per 8k (40 SWA layers at 1024 keys, 8 full layers at T / 2 on average) in 351 ms. That is
+about 21 TFLOP/s, against the 110 TFLOP/s cuBLAS reaches here.
+
+**Variant 1, `INTARSIA_INK_FLASH_KB=32|64`** (f5bafe1e5; default 16 keeps the bits). Each warp steps 32 or 64 keys instead of
+16, so the running max, the o rescale and the row sum move once per step.
+- ptxas, D 128 RIN: 162 registers and no spills at KB 16; 168 registers and 16 / 88 bytes of spill loads at KB 32 / 64.
+- `inkling2_attn` 2/2 at KB 16, 32 and 64.
+- Admission ADMITTED at every KB. The prefill kernel's rel_l2: `ink_attn_prefill_bf16` 2.010e-3 / 2.023e-3 / 2.041e-3,
+  `rel_sink_attn_bf16_flash` 1.519e-3 / 1.580e-3 / 1.582e-3.
+- Default md5 64 / 256 / 1.2k = faf40cecb06b / 029e44fede1d / dc28658094c0.
+
+Prefill A/B (#11745, alternating, 2 rounds, ms):
+
+| prompt | KB 16 | KB 32 | KB 64 |
+|---|---|---|---|
+| 4116 tokens | 1835, 1839 | 1822, 1828 (-0.6 %) | 1839, 1853 (+0.5 %) |
+| 8139 tokens | 3183, 3179 | 3183, 3175 (-0.1 %) | 3207, 3196 (+0.6 %) |
+
+Variant 1 is flat, so the online-softmax bookkeeping is not what limits flash.
+
+**Rel-bias cost** (diagnostic `INTARSIA_INK_FLASH_DIAG=nobias`, which skips the bias and gives wrong output; #11749, 2 rounds,
+ms):
+
+| prompt | default | no bias | bias cost |
+|---|---|---|---:|
+| 4116 tokens | 1846, 1837 | 1705, 1688 | 145 ms (7.9 %) |
+| 8139 tokens | 3187, 3188 | 2909, 2920 | 273 ms (8.6 %) |
+
+So about 78 % of flash's 351 ms at 8k is the rel bias: a 16-term dot per score on CUDA cores. That is the ceiling for
+variant 2.
+
+**Variant 2, `INTARSIA_INK_FLASH_BIAS=mma`.** Each warp forms the bias of a 16-key step as one tensor-core product,
+r [16 rows][16] . W [16][32 distance columns], in 4 mma. It writes the result, rounded to bf16 as the default rounds it, into
+a per-warp table in the rS region (r moves to registers), and each score reads the table at its distance. The products are
+the same; only the f32 sum order differs.
+
+Variant 2 checks (fleetq #11755):
+- ptxas, D 128 RIN KB 16: BM 164 registers vs the default's 162, no spills.
+- Default (unset): md5 64 / 256 / 1.2k unchanged, `inkling2_attn` 2/2, admission ADMITTED.
+- With `mma`: `op75_prefill_bitwise_pair` fails. That is expected: the test requires op 75's fused prefill to be bitwise
+  the op 70 + op 71 pair, and `mma` changes only the fused (RIN) kernel's sum order.
+- With `mma`, admission is ADMITTED and the numbers equal the default's to four digits. The admission sweep never reaches
+  the RIN kernel, so it says nothing about `mma`; the model gates below carry the quality evidence.
+
+Prefill A/B (#11755, alternating, ms):
+
+| prompt | default | `mma` | change |
+|---|---|---|---:|
+| 4116 tokens | 1842, 1832 | 1760, 1771 | -4.3 % |
+| 8139 tokens | 3201, 3195 | 3019, 3024 | -5.6 % |
+
+The 16-token greedy ids are the same in both arms (4k 08c18059b5ce, 8k 10414a78c812). Variant 2 recovers about 65 % of the
+273 ms bias cost at 8k.
+
+Variant 2 quality against the goldens (fleetq #11766; `intarsia accuracy --mode prefill`, 21-way KL over scored rows,
+default vs `mma`). Only increases count toward the 5 % limit:
+
+| golden | rows | default KL | `mma` KL | change | top-1 default / `mma` |
+|---|---:|---:|---:|---:|---|
+| vLLM short | 569 | 6.630e-3 | 6.923e-3 | +4.4 % | 97.72 / 97.72 % |
+| vLLM long | 1569 | 1.173e-2 | 1.182e-2 | +0.8 % | 97.58 / 97.58 % |
+| vLLM 4k | 13096 | 9.671e-3 | 9.524e-3 | -1.5 % | 95.77 / 95.97 % |
+| oracle short | 569 | 2.376e-3 | 2.142e-3 | -9.8 % | 98.77 / 99.12 % |
+| oracle long | 1569 | 3.124e-3 | 3.222e-3 | +3.1 % | 98.98 / 99.11 % |
+
+All pass their gate. The largest increase is +4.4 % (vLLM short, 569 rows), under the 5 % limit but close to it. The same
+short prompts against the oracle go down 9.8 %, so at this row count the spread is about +-10 %, larger than the change.
+
+Greedy agreement, `mma` vs default, spec off: 1.2k prompt, the first 12 of 256 tokens identical (the 13th flips); 8139-token
+prompt, 128 of 128 identical.
+
+## Lever 6 (brief 48): smaller SWA decode attention tiles, opt-in
+
+Scoping with the existing diagnostic `INTARSIA_INK_SPLIT_KEYS`, which shrinks the smallest tile on every layer, SWA and full
+(fleetq #11767; 256 tokens; tok/s, two alternating rounds):
+
+| prompt, spec | 256 (default) | 128 | 64 |
+|---|---|---|---|
+| hash map (g256), off | 39.01, 39.06 | 39.41, 39.44 (+1.0 %) | 39.70, 39.75 (+1.8 %) |
+| hash map (g256), default | 48.39, 48.30 | 49.13, 49.30 (+1.9 %) | 50.06 (+3.5 %) |
+| 1.2k, off | 37.98 | 37.52 (-1.2 %) | 37.54 (-1.2 %) |
+| 1.2k, default | 57.33 | 55.84 (-2.6 %) | 55.89 (-2.5 %) |
+
+- **Ids:** at 128 the g256 ids stay 029e44fede1d, because its positions never pass one 256 tile on the SWA layers. At 64 they
+  move to a0e6f47bc45f. At 1.2k both 128 and 64 give 3f6e6ba9bdc5.
+- **1.2k slowdown:** the full layers get more tiles and a longer merge too. So `INTARSIA_INK_SWA_TILE=64|128` (45bf7807a)
+  applies the smaller tile to SWA layers only; the full layers keep 256.
+
+Variant 2 against the default path (same-weights self-golden, brief 43; fleetq #11769). The default build's top-64 log-probs
+are recorded and `mma` is compared with them, same binary (`--allow-unstamped`). The 4k set is the 3 prompts of the vLLM 4k
+golden (13096 positions). 8k is one 8160-token prompt: the 4k golden's `chat_reuse_4k` ids followed by `long_docs_4k`. It
+is built for this check, prompts only (`.scratch/g8k/prompts-8k-selfgolden-only.safetensors`; its top-k rows are
+placeholders and are never scored).
+
+| length | positions | mean KL (21-way) | max position KL | top-1 agreement | top-1 flips | top-5 agreement | mean tail diff |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 4k | 13096 | 3.97e-3 | 1.45 | 97.85 % | 281 (2.1 %) | 94.20 % | 8.8e-4 |
+| 8k | 8160 | 3.56e-3 | 0.234 | 97.62 % | 194 (2.4 %) | 94.88 % | 1.0e-3 |
+
+Both fail the self-golden's own budget (mean KL 1e-4, flips 0.5 %); that budget is set for changes meant to be nearly
+bitwise. For scale, the default path is 9.7e-3 from vLLM on the same 4k prompts. A calibration with another correct,
+non-bitwise arm (`INTARSIA_INK_FLASH_KB=32`) against the same self-goldens follows.
+
+SWA-only `INTARSIA_INK_SWA_TILE` (fleetq #11770; 256 tokens; two alternating rounds, tok/s):
+
+| prompt, spec | 256 (default) | 128 | 64 |
+|---|---|---|---|
+| g256, off | 39.03, 39.02 | 39.45, 39.36 (+0.9 %) | 39.49, 39.55 (+1.3 %) |
+| g256, default | 48.54, 48.66 | 49.37, 49.36 (+1.6 %) | 49.76, 49.67 (+2.2 %) |
+| 1.2k, off | 38.03, 38.07 | 37.60, 37.59 (-1.2 %) | 37.57, 37.65 (-1.1 %) |
+| 1.2k, default | 57.50, 57.54 | 49.43, 49.39 (-14 %, a different text) | 57.09, 56.94 (-0.9 %) |
+| 4k, off | 37.28, 37.32 | 36.84, 36.92 (-1.1 %) | 36.92, 37.01 (-0.9 %) |
+| 4k, default | 55.14, 55.02 | 55.36, 55.40 (+0.5 %) | 54.59, 54.57 (-1.0 %) |
+
+**Result: stopped.**
+- Smaller SWA tiles help only while the visible window is short (g256 never fills one 256 tile). Once the window is full
+  (1.2k and up) they cost about 1 %: more partials to merge, and the K / V reads were not short of blocks.
+- That makes two variants (all layers, SWA only) without the 2 % bar, so the code is reverted. The default ids were unchanged
+  throughout (g256 029e44fede1d, 1.2k dc28658094c0).
+- The 1.2k spec-default dip at 128 is a different generated text (ids 7afebf477302) with lower draft acceptance, not a
+  kernel cost.
+
+Calibration of the variant 2 self-golden numbers (fleetq #11772, the same self-goldens, rebuilt binary):
+
+| arm vs default self-golden | 4k mean KL | 4k top-1 flips | 8k mean KL | 8k top-1 flips |
+|---|---:|---:|---:|---:|
+| default (rebuilt binary) | 1.2e-11 | 0 | 9.0e-13 | 0 |
+| `INTARSIA_INK_FLASH_KB=32` (softmax step order only) | 3.88e-3 | 299 (2.3 %) | 3.56e-3 | 205 (2.5 %) |
+| `INTARSIA_INK_FLASH_BIAS=mma` (bias sum order only) | 3.97e-3 | 281 (2.1 %) | 3.56e-3 | 194 (2.4 %) |
+
+- **Default:** the rebuilt default binary reproduces the self-golden to 1e-11, so the default bits held through the lever 6
+  build.
+- **Size of the change:** any f32 reordering in prefill attention, carried through 48 visits, lands at about 3.6-4.0e-3 KL
+  and about 2.3 % top-1 flips against the bitwise default. `mma` is at that level, not above it.
+- **Against the goldens:** every one passes; the largest KL increase is +4.4 % (vLLM short), and vLLM 4k improves 1.5 %.
+
+**Default-flip case (flipped 2026-11-25; not bitwise):**
+- Gain: prefill -4.3 % at 4k and -5.6 % at 8k. Decode is unchanged; the kernel runs only in prefill chunks of more than 16
+  rows.
+- Quality: all 5 goldens pass, the largest KL increase is +4.4 % (vLLM short, under the 5 % limit), and the 8k greedy run
+  matches 128 of 128 tokens. The 1.2k greedy output diverges at token 13 (the prefill logits move by a reorder-sized amount).
+- Same-weights distance: KL 4.0e-3 / 3.6e-3 at 4k / 8k, top-1 97.9 / 97.6 %, equal to the KB 32 reorder.
+- Flipped (brief 60, PR C, user decision 2026-11-25 "Flip to default"): `flash_bias_mma` is on when `INTARSIA_INK_FLASH_BIAS` is
+  unset, empty, `mma` or `1`. The new md5 references and the gates are in the next section.
+- Revert: `INTARSIA_INK_FLASH_BIAS=0` (or `off` / `false`) gives the CUDA-core form, bitwise the prologue + rel_sink_attn pair
+  and main's md5 references. An empty value is on, not a revert.
+
+**Default-on gates (brief 60, PR C, branch `ink/cuda-flashbias-on`, tree `3038abf62` on origin/main `26088ff89`).**
+Test, A/B and KL arms are the same binary (md5 `b6c29176ca3d`), the default against `INTARSIA_INK_FLASH_BIAS=0`.
+- **Tests (fleetq #11865, spark1):**
+  - `inkling2_attn` 3/3, `ink_rows` 9/9, `p12` 5/5, `inkling2_screen` 2/2.
+  - Tiny inkling2 on CUDA 17/17 and `inkling2_batch` 8/8, with the new default.
+  - `op75_prefill_bitwise_pair` passes: `inkling2_attn.rs::device()` sets `INTARSIA_INK_FLASH_BIAS=0` before the first launch (the
+    flag is read once per process), so every test of that binary runs the bitwise CUDA-core form and the pair test keeps
+    its full coverage (18 cases). The mma form has no kernel-level bitwise test, by construction (it is not bitwise); its
+    quality evidence is the model-level KL below.
+- **New md5 references (CUDA greedy, spec off = spec default):** 64 `faf40cecb06b` and 256 `029e44fede1d` unchanged, 1.2k
+  **`b0a5ff60797b`** (was `dc28658094c0`). With `INTARSIA_INK_FLASH_BIAS=0` all three equal main's, spec off and default.
+- **G2 / G3 KL (fleetq #11874), `intarsia accuracy --mode prefill`, KL(21-way), default against `=0`; every golden gate PASS in
+  both arms:**
+
+| golden | positions | default (mma) | `=0` | change |
+|---|---:|---:|---:|---:|
+| vLLM short | 569 | 6.923e-3 | 6.630e-3 | +4.4 % |
+| vLLM long | 1569 | 1.182e-2 | 1.173e-2 | +0.8 % |
+| vLLM 4k | 13096 | 9.524e-3 | 9.671e-3 | -1.5 % |
+| oracle short | 569 | 2.142e-3 | 2.376e-3 | -9.8 % |
+| oracle long | 1569 | 3.222e-3 | 3.124e-3 | +3.1 % |
+
+- **Quiet A/B (fleetq #11880, 3 rounds, order alternated; prefill ms of the 4116- and 8139-token prompts, decode tok/s):**
+
+| measure | default (mma) | `=0` | change |
+|---|---:|---:|---:|
+| prefill 4116 tokens | 1760 (1756-1763) | 1835 (1827-1844) | **-4.1 %** |
+| prefill 8139 tokens | 3037 (3034-3041) | 3204 (3185-3220) | **-5.2 %** |
+| decode short, spec off | 40.07 | 39.99 | +0.2 % |
+| decode short, spec default | 49.43 | 49.14 | +0.6 % |
+| decode 1.2k, spec off | 39.49 | 39.24 | +0.7 % |
+
+  No decode regression (the kernel runs only in prefill chunks of more than 16 rows; the differences are inside the noise).
+  The greedy ids of the 16-token prefill runs and of the short decode are equal in both arms; only the 1.2k text differs.
+- **Metal no-op (endor, fleetq #11876):** docs_env_vars, recipes_doc, core lib 265, tiny inkling2 on Metal 17/17, metal tests,
+  `kernels test` (2930 cases, 0 FAIL), `plan show` json and txt for Qwen3-8B / Llama / Inkling-2 identical to main, Inkling-2
+  greedy md5 64 / 256 equal to main (`fa9f4b4a5701` / `550cd932b33f`).
+- The prompt of the "3.6k" prefill in brief 60 was taken to be the 4116-token prompt of the earlier A/B (#11755), so the numbers
+  compare with it (-4.3 % / -5.6 % then).
+
+## PDL on the attention decode edges (brief 50, branch `ink/cuda-pdlattn` off main a4e281264)
+
+**What it does** (`INTARSIA_INK_ATTN_PDL`, default on; `0` / `off` / `false` gives the old plain launches; `launch` gives PDL
+without the prefetches, a diagnostic). Op 75 decode (1..16 rows), graphed or eager. New header `kernels/cuda/ink_pdl.cuh`:
+the same two griddepcontrol instructions as `ink_moe.cu`'s file-local helpers, which stay unchanged.
+- **in_proj -> tile:** the in_proj GEMV triggers its dependents at block start. The tile, launched as a programmatic
+  dependent, issues `prefetch.global.L2` of its block's old K / V cache rows (positions below the call's first), then
+  `griddepcontrol.wait`.
+- **tile -> combine -> wo:** combine waits at once and triggers wo. wo (`matmul_p12_gemv[_rows]` only; the logits path
+  stays a plain launch) prefetches its own P12 weight row into L2, then waits.
+- **The rule:** before the wait, a kernel reads only data finished before the step's kernels started (the position word,
+  old cache rows, weights). The cache rows and weights are read through L2 prefetch hints, which return no data. Every block
+  waits before it returns, so completion stays transitive along the chain. The reasoning per edge is in the comments at
+  `tile_pdl_prelude`, `ink_tile_comb_k` and `p12_gemv_kernel`.
+
+**Gate 1, tests** (fleetq #11803, #11807; spark1; build db49be53e):
+- `pdl_prefetch_rows_stay_below_pos0` (new, in `inkling2_attn.rs`) passes. It runs `ik_ink_attn_pdl_selftest`, which drives
+  the kernels' own `tile_geo` / `tile_blk` / `tile_pdl_rows` over 3 windows, 4 tile floors, 3 tile caps, rows 1..16 and 400
+  positions up to 40k. A violation is a prefetched row at or past pos0, outside the block's keys, or (ring) sharing a slot
+  with the call's rows.
+- **It can fail:** the same file with the range end moved to pos0 (one sed line) reports 231096 violations; unmodified, 0.
+  It is a range test because a prefetch hint cannot change a value, so no bitwise test could see a wrong range.
+- **All intarsia-backend-cuda tests, `--no-fail-fast`, PDL on:** 44 result lines, 41 ok; 194 passed, 4 failed, 26 ignored.
+  The 4 failures are main's: this diff touches no kernel table or pin, and `git grep` finds no `ik_ink_attn_prefill_bf16` in
+  main's ABI headers (main's suite itself was not run). CI evidently does not run these host-side tests:
+  - `kernels::tests::every_launcher_is_declared_in_the_abi_header`, `op_prefix_matches_launcher_name` and
+    `quick_coverage::every_cuda_kernel_has_a_quick_case`, all three on `ink_attn_prefill_bf16`. That kernel came in with my
+    86060ae6f (brief 30a): it is not in the ABI header, is not named after op 75, and has no quick case.
+  - `rows_registry::exact_rows_calls_pick_the_rows_kernels_only`: the pin table lacks mixmoe's `matmul_mxfp4_gemv_ink_rows`
+    (5..=8 rows at k = 160).
+- **With `INTARSIA_INK_ATTN_PDL=0`:** `inkling2_attn` 3/3, `ink_rows` 9/9, `p12` 5/5, `rows_exact` 12/12, `verify_attn_rows`
+  3/3, `graph_pos` 5/5.
+- **Tiny inkling2 on CUDA, default and `=0`:** 15/15 (the 2 screened-head tests are skipped: no CUDA kernels by design);
+  `inkling2_batch` 8/8.
+
+**Gate 2, bits** (#11803). The md5 of 64 / 256 / 1.2k is faf40cecb06b / 029e44fede1d / dc28658094c0, main's references,
+under the default and `=0`, spec off and spec default. The A/B runs below also give one token md5 per length across all
+arms and reps: short 029e44fede1d, 5k 34e3b3e6cebb.
+
+**Gate 3, quiet decode A/B** (#11806, `--quiet gpu,cpu`; 3 reps; the arm order rotates per cell).
+- M = main's decode code: the B build 900230f6a (main a4e281264 + the prefill-only flash bias) with
+  `INTARSIA_INK_FLASH_BIAS=0`, which gives main's bits.
+- P = this branch, default. Z = this branch with `=0`. L = `launch` (PDL without the prefetches).
+
+Decode tok/s, mean (min-max), change vs M:
+
+| length | spec | M | P | Z | L |
+|---|---|---:|---:|---:|---:|
+| short (15 + 256) | off | 39.87 (39.82-39.89) | **40.17 (+0.75 %)** | 39.82 (-0.12 %) | 40.01 (+0.36 %) |
+| short | default | 49.34 | 49.48 (+0.28 %) | 49.28 (-0.13 %) | 49.49 (+0.29 %) |
+| 5k (5039 + 128) | off | 37.74 (37.67-37.77) | **38.19 (+1.19 %)** | 37.70 (-0.10 %) | 37.75 (+0.04 %) |
+| 5k | default | 50.19 (49.64-50.56) | 50.79 (+1.20 %) | 50.44 (+0.50 %) | 50.16 (-0.06 %) |
+
+Graphed decode, nsys, spec off (wall and idle per token; idle = wall - busy):
+
+| | short P | short Z | 5k P | 5k Z |
+|---|---:|---:|---:|---:|
+| wall ms / token | 25.27 | 25.52 | 26.39 | 26.91 |
+| idle ms / token | 0.36 | 0.39 | 0.37 | 0.38 |
+| kernels / token | 657 | 657 | 657 | 657 |
+
+**Result: in the band the brief left open.** Spec off: +0.75 % short, +1.19 % at 5k. That is above the +0.5 % park line
+and under the +1 % ship bar at short. P's and M's ranges do not overlap, and Z is within 0.12 % of M. The spec-default
+cells are noise-limited (Z vs M +0.50 % at 5k, M's range 1.8 %), so they are not evidence either way.
+
+**What limits it** (fleetq #11808 `cuobjdump -res-usage`, #11809 device properties).
+- The GB10 has 48 SMs, a 64K register file per SM and a 24 MB L2. `ink_tile_staged_k<128, fused>` holds 162 registers x
+  384 threads and `ink_tile_k` 168: one tile block fills an SM's register file.
+- **5k:** most of the 6 SWA tile slots per kv head have keys, and the full-layer tile runs 34 slots. Live tile blocks cover
+  the SMs, so wo and combine cannot be resident beside them. PDL overlaps the tile's uneven tail and the launch gaps, and the
+  old-row prefetch carries most of the gain (L alone is +0.04 %, P +1.19 %).
+- **Short (positions 15-270, tile 256):** only 1-2 of the 6 slots per kv head have keys, so 8-16 of 48 tile blocks are live
+  and the rest return after the wait.
+  - Combine and wo do become resident early and spin at the wait. Their kernel times stretch over the tile: combine 1.0 ->
+    41.5 us, wo 48.8 -> 78.1 us a call.
+  - wo's weight prefetch is issued about 33 us before its wait returns, yet wo still runs about 44 us after it, against
+    48.8 us plain.
+  - The 10.6 MB of wo weights fits the 24 MB L2, so capacity alone does not explain it. **Unexplained.** Candidates:
+    prefetch hints dropped or throttled, wo's 10.6 MB needing about 39 us of DRAM against the tile's 33 us, or L2
+    partition effects.
+  - Capping the tile's registers would therefore not move short context.
+
+**Follow-ups, outside this brief:**
+- (a) Find out why the wo prefetch does not pay at short context: a microbench of wo after a prefetch with an idle gap, and
+  `cp.async.bulk.prefetch.L2` instead of per-line hints.
+- (b) Only for 5k: cap the tile's registers so one wo block fits beside it. Bitwise, but a tile slowdown risk.
+## Main's CUDA host tests (brief 51, branch `ink/cuda-hosttests`)
+
+Main a4e281264 had 4 red intarsia-backend-cuda host tests (CI does not run them). Fixed on the test, registry and ABI side.
+No kernel code changes.
+- `ink_attn_prefill_bf16` (op 75 above 16 rows, 86060ae6f) is renamed `ink_attn_decode_prefill_bf16`, after its op like its
+  siblings, and declared in `ik_cuda_abi_ink.h`. Its launcher `ik_ink_attn_decode_prefill_bf16` is an alias of
+  `ik_ink_attn_decode_bf16`, which takes T > 16 itself.
+- The op 75 quick sweep gains a 40-row prefill chunk at G = 3 (window 64, ring 80), appended so the earlier cases keep
+  their data.
+- Once the first name was declared, the ABI test reached two more missing names, both from this lane's GEMV in_proj:
+  `ink_in_proj_bf16_gemv_rows` and `ink_in_proj_p12_gemv_rows`. Both are now declared in `ik_cuda_abi_inkp12.h` as aliases
+  of their launchers. A scan of every registry name against the headers finds none missing now.
+- `rows_registry` ROWS_PINS: at k = 160, 5..=8 rows now pick mixmoe's `matmul_mxfp4_gemv_ink_rows` (table entry only).
+
+Gate (fleetq #11810, spark1, 8f332fba1):
+- All intarsia-backend-cuda tests, `--no-fail-fast`: 44 of 44 result groups ok; 197 passed, 0 failed, 26 ignored.
+- Op 75 admission: quick, `ink_attn_decode_bf16` 16 cases and `ink_attn_decode_prefill_bf16` 1 case; full, 70 and 12
+  cases. All ADMITTED.
+- md5 64 / 256 / 1.2k: faf40cecb06b / 029e44fede1d / dc28658094c0, spec off and default, main's references.
+
+## The screened greedy head on CUDA (brief 54 part 2, branch `ink/cuda-p12dec` off main 352acba93)
+
+Sizing and choice: brief 54 part 1 (on `ink/cuda-attn`). The unembed P12 GEMV already runs at the streaming peak, so the
+lever moves fewer bytes. An fp8 screen copy of 0.46 GB replaces reading the 0.69 GB P12 head, and only candidate rows get
+rescored.
+
+**Commits.**
+- `73e0c8afb`: the kernels, opt-in.
+- `7bdb0e71f`: a test fix.
+- `24c3ed1a5`: the tuning row.
+- Landing (brief 58): branch `ink/cuda-screen` off main 0b8fab600 carries the kernels, the graph-key fix, the sampled-draft
+  guard and these notes; on CUDA the screen stays opt-in (`INTARSIA_INK_HEAD_SCREEN=1`). The **CUDA default on** is one
+  commit on the branch `ink/cuda-screen-flip` (LOG row; go: user 2026-11-23, brief 59);
+  `INTARSIA_INK_HEAD_SCREEN=0` reverts it.
+
+**What was built.**
+- `kernels/cuda/ink_screen.cu`: `head_screen_f32` and `screen_argmax_f32`, the contract's exact f32 operations, bitwise the
+  cpu reference. One 1024-thread block per row.
+- `logits_gather_p12`: the serving P12 head kernel instance `p12_gemv_kernel<1, float>` in an index mode. The pointer is
+  null in every serving call, and the gather launches on the head's grid, so a gathered logit is the head's.
+- `crates/intarsia-backend-cuda/src/inkscreen.rs`: registration and dispatch.
+- Changes in `model.rs::screened_argmax`:
+  - The CUDA head names are accepted.
+  - On CUDA the screen GEMV must be `matmul_fp8_gemv[_rows]` and runs with `exact_rows`.
+  - The first-use probe is skipped inside a graph capture, because CUDA's decode graph records the first head.
+- `INTARSIA_INK_HEAD_SCREEN_STATS=1` counts fallbacks on the device, graph replays included.
+- `graph_step.rs`: the solo decode recording is keyed by (state, head, full logits). A `LastLogits` step records its head
+  under `ScreenSuspend`, so it never replays the screened head, which leaves only its candidates' logits in `ws.logits`.
+  Without this, default-on failed `inkling2_tiny_graph_decode_is_bitwise_the_eager_decode` (fleetq #11832). Regate
+  #11838 on 53c4bd664: tiny inkling2 17/17, `inkling2_batch` 8/8, and md5 at 64 / 256 / 1.2k equal to main
+  (`faf40cecb06b` / `029e44fede1d` / `dc28658094c0`) with screen on and off, spec off and default.
+- Brief 56 desk check: the screen loads for Inkling-2 only (`model.rs` load gate, `dims.ink`), which has no MTP head, so
+  the sampled-draft readers (`mtp.rs` `draft_logits_row`) are unreachable; they now run under `ScreenSuspend` as a guard.
+  Every other full-row reader (eager `LastLogits`, `LastGumbel`, `LastTopK`, `AllLogits`, verify, DSpark draft rows,
+  batched steps) runs the full head. The one live path was the graphed `LastLogits` replay fixed above.
+
+**Gate 1, the bound under CUDA's arithmetic.** The bound needs the screen values to come from a tree of correctly rounded
+f32 adds and fmas over exact products, of depth at most D + 1, plus one scale multiply. CUDA's CUDA-core fp8 GEMV is exactly
+that, so the bound was not widened:
+- e4m3 decodes exactly (e4m3 to half to f32);
+- in W8A16 the bf16 activations are staged unchanged, so each e4m3 × bf16 product is exact in f32;
+- each lane runs 16-term fmaf chains, `acc += s`, then a 5-level warp tree: depth 16 + K/512 + 5;
+- no fast math.
+
+The tensor-core forms are refused, because their accumulation is not correctly rounded. The argument is written in the
+header of `ink_screen.cu`.
+
+**Gate 2, near ties** (`tests/inkling2_screen.rs`; both tests pass, #11827):
+- 40 near-tied top rows (exact copies and one-ulp variants) against a cap of 8: the count exceeds the cap, the fallback
+  gather writes all 4096 logits bitwise the serving head's, and the token is the full head's argmax.
+- +inf bounds give a non-finite row and the full head's token.
+- 3 near-tied rows within the cap take the candidate path. Every gathered slot is bitwise the head's logit for that row,
+  every maximiser is a candidate, and the token matches.
+- HeadScreen is bitwise `screen_row` in every case.
+
+**Gate 3, fallbacks and cost on real prompts** (#11825, #11827):
+
+| run | screened rows | fallbacks | mean candidates (path) | max |
+|---|---:|---:|---:|---:|
+| 5k prompt, 256 tokens | 256 | 0 | 2.02 | 33 |
+| hash map, 2048 tokens | 2048 | 5 | 1.26 | 1398 |
+| 1.2k prompt, 2048 tokens | 2048 | 0 | 1.18 | 32 |
+| story, 2048 tokens | 2048 | 4 | 1.55 | 881 |
+
+Screen cost per token from nsys (graphed, spec off; the same at short and 5k):
+
+| kernel | µs / token |
+|---|---:|
+| fp8 GEMV (`fp8_gemv_rows_full_kernel`) | 1951 |
+| `head_screen_kernel` (single block) | 166 |
+| gather | 31.5 |
+| ScreenArgmax | ~2 |
+| **total** | **~2150** |
+
+Against 2965 µs for the full head, about 0.8 ms per token is saved. A fallback step costs one full head on top (about 3 ms);
+at 9 in 6144 steps that averages about 4 µs a token. nsys wall per token: 25.23 ms (screen off, #11823) against 24.54 ms
+(screen on) at short.
+
+**Gate 4, token identity.**
+- md5 64 / 256 / 1.2k = faf40cecb06b / 029e44fede1d / dc28658094c0 (main's). That holds with the screen off, on, and on with
+  cap 1 (which forces fallbacks), spec off and default.
+- 3 × 2048-token greedy runs, screen on against off: identical ids (919ca9aaabc7, f0404a7b8833, 9b06e86d3aad).
+
+**Gate 5, full head elsewhere.** The tiny `inkling2_tiny_screened_head_one_row_only` test now runs on CUDA and passes. It
+checks:
+- screen on equals off;
+- forced fallbacks are counted;
+- a 5-row verify does not call the screen;
+- `LastLogits` (sampled) steps do not call the screen (assertion added).
+
+`inkling2_tiny_screen_keeps_batching` also runs on CUDA and passes.
+
+**Gate 6, tests.**
+- All intarsia-backend-cuda tests: 199 passed. The one failure was my test's wrong assumption that the maximum is row 1000
+  (a one-ulp-up row can win), fixed in `7bdb0e71f` and passing.
+- The 3 ops are ADMITTED: head_screen 18 cases, logits_gather 6, screen_argmax 18.
+- Tiny inkling2 on CUDA 17/17, batch 8/8, p12 5/5 (the head kernel's signature changed, its bits did not).
+- Core screen tests 6/6 and `docs_env_vars` 2/2 (local).
+
+**Speed, quiet A/B** (#11827, 3 reps, order alternated; decode tok/s, mean (min-max)):
+
+| length | spec | screen off | screen on | change |
+|---|---|---:|---:|---:|
+| short (15 + 256) | off | 40.12 (40.06-40.16) | 41.42 (41.31-41.50) | **+3.23 %** |
+| 5k (5039 + 128) | off | 38.33 (38.30-38.37) | 39.38 (38.81-39.69) | **+2.74 %** |
+| short | default | 49.44 | 50.11 | +1.36 % |
+| 5k | default | 50.86 | 51.23 | +0.73 % |
+
+The ship bar (+1 % spec off, no regression) is met. Spec default gains less because verify steps keep the full head.
+
+**Next:** HeadScreen in one block costs 166 µs a token. A multi-block form (per-block max and count, then an ordered write)
+would take about 15 µs: about -0.15 ms a token (+0.6 %), bitwise.
+
+## Parked 2026-11-23
+
+Weekly quota at its limit (coordinator); nothing pushed, no PR.
+
+- `ink/cuda-screen` (PR A, CUDA screen opt-in), head `f4a9e873d`, worktree `.worktrees/ink-cuda-screen`: kernels, graph-key fix,
+  sampled-draft `ScreenSuspend` guard, results. Gates: spark1 #11843 (`.worktrees/ink-cuda-screen/.scratch/gate58.log`,
+  remote `~/intarsiaml-ink-cuda-attn/out/g58`), endor Metal no-op #11844 (`.worktrees/ink-cuda-screen/.scratch/gate58m.log`,
+  outputs in `.scratch/g58m`; it also has the flip head as a second arm). Both were still running at park time.
+- `ink/cuda-screen-flip` (PR B, CUDA default on, go: user 2026-11-23), head = this commit's parent `79f33788f` plus this note,
+  worktree `.worktrees/ink-cuda-screen-flip`.
+- `ink/cuda-p12dec`, head `06310990b`: the lane branch these were taken from (superseded by A + B).
+- Not verified: gate58 provenance (which tree each spark1 binary was built from: compare remote `src` screen.rs / model.rs md5
+  with A's, and `bin/intarsia` vs `bin/intarsia-main` md5); gate59 (flip on spark1, `.worktrees/ink-cuda-screen-flip/.scratch/
+  gate59.sh`, own remote dir `~/intarsiaml-ink-cuda-attn/flip`) never ran.
+- Next: read #11843 / #11844 logs and the provenance; run gate59; push A, then B (docs_env_vars and recipes_doc passed locally
+  on A); the coordinator opens PR A then PR B.
+

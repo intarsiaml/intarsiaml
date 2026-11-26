@@ -146,7 +146,7 @@ constant constexpr uint RT_EMAX = 1024;
 inline void rt_route_rank(coherent(device) device const float* row, device const float* bias, device float* wout,
                           device int* iout, uint E, uint K, uint norm_topk, uint sf, float scale, float temp, uint tid,
                           uint nthr, threadgroup float* tv, threadgroup float* ts, threadgroup int* slot,
-                          threadgroup float* sslot) {
+                          threadgroup float* sslot, uint v4) {
     for (uint e = tid; e < E; e += nthr) {
         const float l = row[e] / temp;
         const float sc = sf == 1u ? precise::divide(1.f, 1.f + precise::exp(-l))
@@ -155,10 +155,22 @@ inline void rt_route_rank(coherent(device) device const float* row, device const
         tv[e] = sc + bias[e];
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
+    // v4 (`INTARSIA_INK_ROUTE_RANK4`, default on): the same compares on float4 reads of `tv` (16-byte aligned). A rank is an
+    // integer count of the values that beat expert e, so the order of the compares cannot change it: bitwise the scalar loop.
+    const uint e4 = v4 != 0u ? E / 4u : 0u;
     for (uint e = tid; e < E; e += nthr) {
         const float v = tv[e];
         uint rank = 0;
-        for (uint o = 0; o < E; ++o) {
+        threadgroup const float4* tv4 = (threadgroup const float4*)tv;
+        for (uint o4 = 0; o4 < e4; ++o4) {
+            const float4 w = tv4[o4];
+            const uint o = 4u * o4;
+            rank += (w.x > v || (w.x == v && o < e)) ? 1u : 0u;
+            rank += (w.y > v || (w.y == v && o + 1u < e)) ? 1u : 0u;
+            rank += (w.z > v || (w.z == v && o + 2u < e)) ? 1u : 0u;
+            rank += (w.w > v || (w.w == v && o + 3u < e)) ? 1u : 0u;
+        }
+        for (uint o = 4u * e4; o < E; ++o) {
             const float w = tv[o];
             rank += (w > v || (w == v && o < e)) ? 1u : 0u;
         }
@@ -208,7 +220,8 @@ constant constexpr uint RT_SG = 4;  // logits (simdgroups) per threadgroup, as g
 struct InkRouteP {
     uint t, e, k, d;               // rows, experts, top-k, hidden (the GEMV's K)
     uint norm_topk, sfunc, vec, ngr;  // renorm, score function, 16-byte form, threadgroups per row (ceil(E / RT_SG))
-    uint sx, sw, rank, pad1;       // leading bf16 elements of x / W (scalar form; 0 in the 16-byte form); rank = the rank routing
+    uint sx, sw, rank, rank4;      // leading bf16 elements of x / W (scalar form; 0 in the 16-byte form); rank = the rank routing;
+                                   // rank4 = its compares on float4 reads
     float scale, temp, fpad0, fpad1;
 };
 
@@ -227,7 +240,8 @@ kernel void ink_route(device const ushort* x [[buffer(0)]],
                       uint sg [[simdgroup_index_in_threadgroup]],
                       uint lane [[thread_index_in_simdgroup]]) {
     threadgroup uint flag;
-    threadgroup float tv[RT_EMAX], ts[RT_EMAX], sslot[32];
+    alignas(16) threadgroup float tv[RT_EMAX];  // read as float4 by the rank routing (rank4)
+    threadgroup float ts[RT_EMAX], sslot[32];
     threadgroup int slot[32];
     const uint j = tg2.x, t = tg2.y, E = p.e;
     const uint e = j * RT_SG + sg;
@@ -244,7 +258,7 @@ kernel void ink_route(device const ushort* x [[buffer(0)]],
     if (!rt_last(ctr + t, p.ngr, tid, &flag)) return;
     if (p.sfunc != 0u && p.rank != 0u) {
         rt_route_rank(lrow, bias, wout + (ulong)t * p.k, iout + (ulong)t * p.k, E, p.k, p.norm_topk, p.sfunc, p.scale, p.temp,
-                      tid, RT_SG * 32u, tv, ts, slot, sslot);
+                      tid, RT_SG * 32u, tv, ts, slot, sslot, p.rank4);
         return;
     }
     if (sg != 0) return;

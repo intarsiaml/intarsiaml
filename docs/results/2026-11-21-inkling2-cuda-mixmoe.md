@@ -287,6 +287,75 @@ Branch `ink/cuda-mixmoe` (worktree `.worktrees/ink-cuda-mixmoe`, base `1dacac3a8
 - (coordinator, 41st) Hold granted: the other lanes are told not to merge to main until #491 is merged. The 4-ulp test fix is
   fine, and keeping the workspace `float_roundtrip` off is right. Merge on green and send the merge commit at once (it lifts
   the freeze). If #495 (svfflip, another session) lands first, merge main once more, taking main's side.
+- (coordinator, 42nd) #491 is merged as main `8c7bb7cb1`, and the freeze is lifted. Delete the remote branch. Go ahead with gu+dn
+  in one launch per layer: bitwise only, half-day timebox, kept only at >= 1 % at g256 spec-off in a quiet ABBA. Merge order on
+  main for now: #497, then the CUDA flips PR. **Ask the coordinator before merging anything.**
+- (coordinator, 43rd) Keep `ink/cuda-moe-fuse` as a local record branch. Run the combined gate: PDL at T <= 2 plus the stage A
+  repack, in the default config too, since spec goes default-on on CUDA with the flips PR, so most decode is T=4 verify where
+  PDL is off. Quiet ABBA, both arms, g256 spec off and spec on. Keep it only at >= 2 % spec off with no loss spec on, or
+  >= 1 % spec on. Bitwise as before. If it passes, prepare a PR but do not merge. Merge order: #497, the CUDA flips PR, then
+  chat-reuse; ask first.
+- (coordinator, 44th) Do (b); (a) is out (memory). Teach `ink_moe_mma` and `ink_moe_fp4` the repacked address map, so that
+  chunks above 512 pairs go back to the tensor-core prefill: the same bytes give the same bits. Re-gate on
+  `ink/cuda-moe-combo`: g1.2k ids identical to main (`aaaa65a7ac70`); 3.6k prompt prefill within noise of main (<= 2 % slower,
+  796 ms baseline); g64 / g256 ids identical spec off and on; ink_rows, tiny cuda, admission green; quiet ABBA g256 repeat. Keep
+  it at spec on >= 1 % with spec off not slower. #498 (CUDA defaults) is merging and needs Spark slots: let fleetq order this
+  behind it, and rebase onto main after #498 lands, before the final gate. If it passes, open a PR and ask before merging. If
+  the map change is not bitwise or costs prefill, stop and report; no third variant. Worktree: this one only.
+- (coordinator, 45th) Add the flip commit to #501 (REPACK=1 + PDL=1 default-on, env opt-outs, tuning rows); rerun g64 / g256 /
+  g1.2k + ink_rows + tiny cuda on the flipped default with no env set. Reconcile hashes: the CUDA lane's main references md5
+  64 / 256 / 1.2k are faf40cecb06b / 029e44fede1d / dc28658094c0 vs this lane's 95ed05f4d023 / 029e44fede1d / e0d669c198dd:
+  a different harness? Confirm that #11716's main binary is main: md5 differs from the branch binary, own target dir, no
+  branch-only string (guards against the git-archive stale-binary bug). The merge needs the user's go, relayed by the
+  coordinator; then merge on green CI and send the merge commit.
+- (coordinator, 46th) **User go for #501: "Yes, flip and merge".** Merge on green CI once all of these hold: (1) the flip
+  commit (repack + PDL default-on, env opt-outs, tuning rows) is in; (2) main 08ae803e0 or newer is merged in, and the CUDA gates
+  pass on that final tree with no env set: g64 / g256 / g1.2k ids identical to a fresh main build (separate target dir,
+  binaries differ), spec off and default, plus ink_rows, tiny cuda and admission; (3) the hash question is answered (why this
+  lane's g64 / g1.2k differ from the CUDA lane's faf40cecb06b / dc28658094c0; if it is the harness, say which). If any gate
+  fails, stop and report, do not merge. Send the merge commit.
+- (coordinator, 47th) rank4 (#504, Metal-only code plus one row each in `docs/tuning.md` and `docs/decisions/LOG.md`) may merge
+  first. If GitHub then shows a conflict on #501: merge origin/main, keep both docs rows, re-push for CI. If it merges cleanly,
+  the code is disjoint, so green CI on the merged head is enough (no endor / spark re-gate). Pin the merge to the head CI tested.
+- (coordinator, 48th) Size the CUDA prefill MoE and rows / blend gap, then build the best lever. The attention lane's profile of
+  main a4e281264 (#11797, section "Brief 49" of the cuda-attn doc on ink/cuda-attn 9a3780ce7) puts 8k prefill at 2887 ms busy:
+  MoE 1592 ms against a ~456 ms byte floor (~1.1 s gap), rows + blend 515 against ~64 (~450 ms); attention 492 and cuBLAS 279
+  are the attention lane's (leave them). Step 1 (spark2, ~2 h, no code): kernel trace of 8k prefill on main; MoE split into
+  gate/up, down, routing / permute, scatter / gather, padding waste, each with achieved vs peak BW / TFLOPs, tile shape and
+  occupancy; the same for rows + blend; up to 3 levers with ms saved at 4k / 8k, hours, bitwise yes / no, ranked by gain per
+  hour. Send the table, then start the top lever without waiting if it is bitwise and >= 3 % of 8k prefill; a non-bitwise top
+  lever waits for a go. Step 2: branch `ink/cuda-moepf` off a4e281264, worktree `.worktrees/ink-cuda-moepf/` only; revert
+  switch, default on only if bitwise, tuning row. Gates: CUDA tests; md5 vs main (faf40cecb06b / 029e44fede1d / dc28658094c0 +
+  the 1.2k ref) at default and switch off; quiet prefill A/B at 4k and 8k (alternated, `--quiet gpu,cpu`) plus a decode spot
+  check. Ship bar >= +3 % prefill at 8k. No push: report branch, head and numbers; the coordinator opens the PR. The attention
+  lane reuses the ink_moe.cu PDL helpers for its decode edges: ask before changing their signatures. Lever 2 (PDL on row /
+  blend / ctl / router for decode) is not this lane's; mention it if the trace says it beats the attention lane's +2-3 %
+  guess. Spark memory: 121 GB budget, MAX_JOBS=4, 10 GB free (15 without earlyoom). Carry e8e207b12 (brief 47) with the next
+  push.
+- (coordinator, 49th, resume 2026-11-25) Resume brief 48 from the park: read `bmsweep.log` (#11849), write the lever table
+  (per candidate: ms saved at 8k with reasoning, bitwise yes / no, effort; mma tile / occupancy retune or a deeper / wider-k
+  pipeline for NVFP4 gate/up, per-expert tail padding, row kernel several rows per block, anything else), commit it and stop for
+  a go / no-go. Then the top bitwise lever >= 3 % of 8k behind an env switch, default off. Gates: rows-exact / admission + tiny
+  inkling2 on spark2; greedy md5 at 64 / 256 / 1.2k equal to main, switch on and off; quiet A/B at 8k and 3.6k prefill, 3
+  rotated reps, plus short decode; bar +3 % at 8k and no decode loss. Report numbers and job ids, then stop for the PR call.
+  BM itself is not a lever (`pick_bm_ink` already picks 64 at mu ~128). ncu stays blocked on spark2; do not change that.
+- (coordinator, 50th) Go on the proposed order. (1) Lever 1, WM 4 at BM 64 (NVFP4 gate/up + down) behind an env switch,
+  default off; first count the padding fraction from the tile list (it decides lever 2), then `ink_bench moe 2048` against
+  7.81 ms in a quiet spark2 slot; under 2 % on the bench: report and stop before lever 2. (2) Then levers 2 (BM 128) and 3
+  (skip all-padding warps), each measured on its own behind the switch. (3) Full gate for the best combination: rows-exact /
+  admission, tiny inkling2, md5 64 / 256 / 1.2k equal to main switch on and off, quiet A/B of 8k and 3.6k prefill plus short
+  decode; bar +3 % at 8k prefill, no decode loss. Report, then stop for the PR call. Levers 7b / 8 (row kernel, blend) out of
+  scope; the block-scaled MoE GEMM (brief 37) is not bitwise: a user decision, do not start it.
+- (coordinator, 51st) Go on BM 128 + skip. (1) Simplify: drop the WM 4 path (lever 1 missed its bar) unless risky; keep
+  `INTARSIA_INK_MOE_TILESTAT` only if cheap; fold BM 128 and skip into one rule, **default on** for NVFP4 where the pick is
+  64 (bitwise); one revert switch (`INTARSIA_INK_MOE_BM128=0`) in docs/tuning + LOG rows as #504 rank4 did; keep
+  `ink_experts_mma_shapes_bitwise` covering default vs revert. (2) Merge origin/main (26088ff89) first. (3) Full gate on
+  spark2, every job in a slot: rows-exact / admission, CUDA host tests, tiny inkling2 / batch; md5 64 / 256 / 1.2k equal to
+  main at the default and at `=0`, spec off and default; `plan show` 35B / 8B unchanged; quiet ABBA 3 reps of 8k and 3.6k
+  prefill plus short decode, new default vs `=0`; bar >= +3 % at 8k, no decode loss beyond noise. CUDA-only footprint, so no
+  Metal no-op unless `git diff --name-only origin/main | grep -vE '^(docs/|crates/intarsia-backend-cuda/|kernels/cuda/|scripts/)'`
+  prints anything. (4) If it passes: push, open the PR (body ends with the Claude Code line), do not merge; report URL and
+  numbers.
 - (coordinator, 37th) cuda-attn's prefill profile (ink/cuda-attn `f39988040`, #11514): at 8k MoE gu+dn is 393 ms of a 746 ms
   chunk; `ink_moe_mma` runs at 32 TF/s vs cuBLAS 110 TF/s here; a block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, sm_121)
   is worth an estimated +30-50 % prefill. Order: (1) brief 35 PR; (2) repack stage A (decode `_rows` only, as briefed); (3)
@@ -1007,3 +1076,299 @@ are fixed in `8d3030018`: the DSpark rows were duplicated in `docs/tuning.md` (m
 applied the softcap twice (main now caps verify rows). Endor #11638 passed: workspace check, mtp, dspark, inkling2, plan,
 gumbel, prepush. Spark2 #11637 passed: ink_rows, tiny cuda 17/17, Inkling CUDA md5 unchanged with spec off and on (spec-on
 decode at g256 is now 46.9 tok/s after #493's DSpark defaults).
+
+## gu+dn overlap per layer (brief 42; branch `ink/cuda-moe-fuse` `b8e5cccf2`, gate #11663): +0.90 %, under the 1 % bar, stopped
+
+The form tried is programmatic dependent launch, not one fused kernel. gate_up triggers `griddepcontrol.launch_dependents` at its
+start. down is launched with `cudaLaunchAttributeProgrammaticStreamSerialization`, so its blocks become resident as gate_up's
+blocks exit. In that tail they group the pairs and prefetch their own rows into L2, then wait on `griddepcontrol.wait` before
+reading h. The opt-in switch is `INTARSIA_INK_MOE_PDL=1`, for 16-bit activations only. Both kernels already run as a single
+wave (288 blocks each), so a fused kernel with a ready flag would buy the same overlap: no second launch to remove beyond what
+PDL hides.
+
+Bitwise: `ink_rows` 8/8 with PDL=1, tiny inkling2 cuda 17/17, moe_experts 16 kernels / 121 cases and mxfp8 2 / 45 admitted.
+Greedy ids are identical PDL 0 vs 1 (g64, g256 spec off and on, g1.2k).
+
+| ink_bench, 2 passes | PDL=0 | PDL=1 |
+|---|---|---|
+| nv T=1 | 179.3 / 180.0 us | 173.8 / 171.6 us (-4.0 %) |
+| nv T=2 | 330.4 / 330.3 | 326.5 / 325.3 (-1.3 %) |
+| nv T=4 | 588.3 / 592.6 | 593.0 / 593.1 (+0.4 %) |
+| nv T=16 | 1677.7 / 1677.7 | 1837.8 / 1837.2 (**+9.5 %**) |
+| mx T=1 | 296.6 / 296.3 | 289.2 / 289.6 (-2.4 %) |
+| mx T=16 | 2971.0 / 2970.6 | 3319.0 / 3306.6 (+11.5 %) |
+
+At T=16, down's early-resident blocks hold SM slots, and a 16-row step loses more there than it gains.
+
+g256 spec off, quiet ABBA (0 1 1 0 0 1 1 0), tok/s: PDL=0 36.45 / 36.64 / 36.42 / 36.42 (mean 36.48), PDL=1 36.83 / 36.76 /
+36.79 / 36.86 (mean 36.81): **+0.90 %**, consistent (every PDL=1 run beats every PDL=0 run) but under the 1 % bar. Spec on
+g256: 47.08 both. g1.2k spec off: 35.66 -> 36.23 (single runs). **Verdict: not kept** (brief 42 rule). The commit stays on the
+local branch as the record, and the default is unchanged.
+
+If wanted later: PDL limited to T <= 2 (the gain is there, the loss at T >= 4) together with the repack (+1.13 %, stage A). The
+two are independent, so ~+2 % at g256 spec off is plausible, untested.
+
+## Combined gate: repack + PDL at T <= 2 vs default (brief 43; branch `ink/cuda-moe-combo` `ffb086e64`, gate #11674)
+
+Arm A is the default (REPACK=0, PDL=0). Arm B is `INTARSIA_INK_MOE_REPACK=1` plus `INTARSIA_INK_MOE_PDL=1`, with PDL only at
+T <= 2.
+
+| quiet ABBA g256, tok/s | A | B | delta |
+|---|---|---|---|
+| spec off (0 1 1 0 0 1 1 0) | 36.50 / 36.50 / 36.51 / 36.61, mean 36.53 | 37.36 / 37.35 / 37.25 / 37.07, mean 37.26 | **+1.99 %** |
+| spec on (1 0 0 1 1 0 0 1) | 47.15 / 47.14 / 47.08 / 46.99, mean 47.09 | 47.71 / 47.77 / 47.63 / 47.69, mean 47.70 | **+1.30 %** |
+
+Every B run beats every A run in both arms.
+
+| ink_bench nv, 2 passes | A | B |
+|---|---|---|
+| T=1 | 180.1 / 180.3 us | 164.9 / 163.9 us (-8.8 %) |
+| T=2 | 328.9 / 327.7 | 307.8 / 306.7 (-6.4 %) |
+| T=4 | 588.8 / 587.3 | 575.5 / 570.8 (-2.6 %) |
+| T=16 | 1680.7 / 1677.1 | 1641.3 / 1642.3 (-2.2 %) |
+
+The speed rule passes on its second clause (spec on >= +1 %); the spec-off clause is borderline (+1.99 % against +2 %).
+- **Bitwise in decode:** `ink_rows` 9/9 (repack row test included), tiny cuda 17/17 with B, moe_experts admitted. g64 and g256
+  ids are identical A vs B, spec off and on.
+- **Not bitwise in prefill: fails "bitwise as before".** g1.2k gives `4b44e4ab3ff3` with B vs `aaaa65a7ac70` with A, spec off
+  and on.
+- **Prefill is 3.6x slower with B:** 2847 ms vs 796 ms on the 3.6k prompt.
+
+Both prefill effects have one cause. A repacked call cannot take the tensor-core prefill (`ink_moe_mma` / `ink_moe_fp4` read the
+plain layout), so chunks above 512 pairs run the decode kernels on the pair table: another f32 order, and much slower. Stage A
+had the same limit. **Verdict: not kept, no PR.** The decode gain is real, but the change cannot ship until prefill reads the
+repacked layout. Two ways to get there:
+- **(a)** keep a plain copy for prefill: about +19 GB of NVFP4 experts (44 layers x 128 x 3.4 MB), which spark2's vLLM plus a
+  second model cannot hold.
+- **(b)** teach the two tensor-core prefill kernels the repacked address map. Their tile loads would gather the same bytes from
+  the permuted runs, so the same bits by construction. Estimate: half a day plus a gate. Not started (needs a go).
+
+## Repacked tensor-core prefill (brief 44; `585133870`, pre-gate #11685)
+
+`ink_moe_mma` now reads the repack's address map (`rp_piece`: a 16-byte payload / 2-byte scale chunk j of row q sits at piece
+(j / L) * 32 + q * L + j % L of its R-row block). The tile copies and scale reads fetch the same bytes, so the dequantised tile
+and every product are the plain layout's. Repacked chunks above 512 pairs take the tensor-core prefill again. `ink_moe_fp4` is
+unchanged: repacked calls refuse W4A4, the only mode that reaches it.
+
+- **Bitwise:** `ink_rows` 9/9; the repack test now compares an 80-row (640-pair, tensor-core) call against the plain layout's
+  80-row call. Tiny cuda 17/17 with repack + PDL; moe_experts admitted (16 kernels / 121 cases).
+- **Output ids:** g1.2k `aaaa65a7ac70` with both arms, spec off and on (it was `4b44e4ab3ff3` before this change). g64 and g256
+  ids are identical A vs B, spec off and on.
+- **3.6k prompt prefill, spec off (rotated 0 1 1 0 0 1):** A 786 / 794 / 779 ms (mean 786), B 779 / 780 / 772 ms (mean 777).
+  No loss; B is 1.1 % faster, within noise. It was 2847 ms before this change.
+- **Kernel cost:** ink_bench MoE T=2048, 2 passes: A 7706.7 / 7686.0 us, B 7892.7 / 7877.8 us (+2.5 % in the MoE kernel alone).
+  A row's 64-byte unit now comes from four 16-byte pieces spread over the block's run, instead of one contiguous 64-byte run.
+  End to end it is inside the noise (MoE is a fraction of a prefill chunk).
+- **Single runs, not the gate:** spec off g256 36.57 -> 37.46 tok/s; spec on g256 47.12 -> 47.74.
+
+The final quiet ABBA waits for main with #498, then a rebase.
+
+### Final gate on main 576ead89b (#498: CUDA spec default-on, prefill chunk 2048) — #11700, tree `3ec6be076`: **kept**
+
+A is the default; B is `INTARSIA_INK_MOE_REPACK=1` + `INTARSIA_INK_MOE_PDL=1`. "def" is the default config (spec on, k3, no
+flags).
+
+| quiet ABBA g256, tok/s | A | B | delta |
+|---|---|---|---|
+| spec off (0 1 1 0 0 1 1 0) | 39.61 / 39.60 / 39.69 / 39.69, mean 39.65 | 40.54 / 40.69 / 40.54 / 40.69, mean 40.62 | **+2.44 %** |
+| default, spec on (1 0 0 1 1 0 0 1) | 49.39 / 49.48 / 49.41 / 49.50, mean 49.45 | 50.35 / 50.01 / 50.25 / 50.14, mean 50.19 | **+1.50 %** |
+
+Every B run beats every A run.
+
+**3.6k prompt prefill, spec off (rotated 0 1 1 0 0 1):** A 757 / 757 / 760 ms (mean 758), B 764 / 771 / 763 ms (mean 766):
+**+1.06 %**, under the 2 % bar. The MoE kernel at T=2048 measures A 7812.9 / 7795.1 us, B 7896.9 / 7788.6 us.
+
+| ink_bench nv, 2 passes | A | B |
+|---|---|---|
+| T=1 | 180.5 / 179.9 us | 165.8 / 164.1 us (-8.4 %) |
+| T=2 | 327.5 / 329.9 | 308.2 / 309.0 (-6.0 %) |
+| T=4 | 590.0 / 589.3 | 574.0 / 573.1 (-2.8 %) |
+| T=16 | 1681.0 / 1676.8 | 1644.7 / 1641.3 (-2.1 %) |
+
+**Bitwise:**
+- ids are identical A vs B everywhere: g64 `95ed05f4d023` spec off and default; g256 `029e44fede1d` spec off and default;
+  g1.2k `e0d669c198dd` spec off and default. (These ids are new on main since #498; the PR no-op below compares them with a
+  main binary.)
+- `ink_rows` 9/9, tiny cuda 17/17 with both arms, moe_experts admitted (16 kernels / 121 cases).
+
+The brief 44 rule (spec on >= 1 %, spec off not slower, prefill <= 2 %) holds, so it is kept. A PR follows; both switches
+stay off by default until the coordinator decides the flip (the bits are the same, so the flip changes speed only).
+
+**Memory:** the repack is in place (one transient row-block buffer per tensor at load), not a second copy. The ~25 GB
+estimate in the stage A notes was wrong.
+
+### Flip (brief 45) and final gates on the 08ae803e0 merge (brief 46)
+
+**Flip, `8b7345086`.** `INTARSIA_INK_MOE_REPACK` and `INTARSIA_INK_MOE_PDL` are on by default; `=0` turns either off. With W4A4
+the repack turns itself off: the activation mode is now resolved before the load. `REPACK=1` with W4A4 is refused.
+
+**Final tree `660c02ec4`** (main 08ae803e0 merged), no env set:
+- `ink_rows` 9/9, tiny cuda 17/17, moe_experts admitted (16 kernels / 121 cases) (#11741).
+- W4A4 loads with the repack off; `REPACK=1` + W4A4 is refused.
+- endor: workspace check and tests green (#11742).
+
+**Fresh main build (#11750).** A git archive of 08ae803e0 from the repo top level, every source touched (10 intarsia crates
+recompiled), in its own target dir. The main binary's md5 is `910029772c97`, the branch's `a29bf2b59ff1`. The branch-only env
+strings are absent from main and present in the branch.
+
+| harness | spec | fresh main | branch (no env) |
+|---|---|---|---|
+| CUDA lane (`lgate.sh`): d64 / d256 / d1k | off | faf40cecb06b / 029e44fede1d / dc28658094c0 | same |
+| CUDA lane | default | faf40cecb06b / 029e44fede1d / dc28658094c0 | same |
+| this lane: g64 / g1.2k (g256 = d256) | off | 95ed05f4d023 / e0d669c198dd | same |
+| this lane | default | 95ed05f4d023 / e0d669c198dd | same |
+
+**Hash question (brief 45):** the harnesses differ, not the outputs. The CUDA lane's d64 uses "The capital of France is", 64
+tokens without `--ignore-eos`, max-seq 4096. This lane's g64 uses the hash-map prompt with `--ignore-eos`, max-seq 8192.
+The CUDA lane's "1.2k" is `p1k.txt` at max-seq 4096; this lane's is `p3600.txt` (3.6k characters) at max-seq 8192. g256 is the
+same prompt and flags in both, hence the one match.
+
+**A slip in my own gate scripts, caught:** flipgate / finalgate ran `git archive` from `.scratch` and got an empty tree. The
+"fresh main" step there failed (`main build rc=101`) and fell back to the #11716 main binary. That binary was a genuine
+c1fc029aa (md5 `b5e7bed18d20`, no branch strings), but it was not fresh. #11750 is the valid fresh-main comparison; it runs from
+the repo top level and guards against an empty archive.
+
+After main ca3b4e55b (#503 pf-blend: it touched `ink_rows.rs` and `tuning.md`) merged cleanly as `76d5d791c`:
+- spark2 #11774, no env set: ink_rows 9/9, p12 5/5, tiny cuda 17/17, moe_experts admitted.
+- endor #11773: workspace check and tests green.
+
+## Parked 2026-11-23 (quota stop; branch `ink/cuda-moepf`, worktree `.worktrees/ink-cuda-moepf`, not pushed)
+
+Brief 48 step 1 is partly done. nsys of main a4e281264 (#11801, log `.scratch/prof48.log`) gives 8k prefill as 3441 ms wall /
+2906 ms GPU busy:
+- MoE 1614 ms: `ink_moe_mma` NVFP4 gate/up 940 (5.34 ms a call), down 454, MXFP8 147, `ink_mma_sum` 69, tile grouping 2.5.
+  About 33 TFLOP/s vs ~110 for cuBLAS here, so tensor-core bound, not byte bound.
+- rows + blend 511 ms: `ink_row_kernel` 301 (1840 x 164 us, one block per row), `ink_blend_gate` 115, ctl GEMV 73, blend norm 22.
+- ncu is blocked on spark2 (`ERR_NVGPUCTRPERM`, profiling counters admin-only; not changed).
+The sizing add-on (#11849: mma / row register + smem usage, ink_bench MoE 2048 at BM 16/32/64, 8k prefill ids + ms at BM 32 / 64)
+was still running at the stop. Its log: `.worktrees/ink-cuda-moepf/.scratch/bmsweep.log` (remote script
+`~/intarsiaml-ink-cuda-mixmoe/bm_remote.sh` on spark2).
+Next on resume: read that log, write the lever table (candidates: mma tile / occupancy retune or a wider-k pipeline for gate/up;
+per-expert tail padding; row kernel several rows per block), send it to the coordinator, then start the top bitwise lever if it is
+>= 3 % of 8k prefill. Brief 47 commit e7c3c49b1 is on this branch and goes with its first push.
+
+## Lever table (brief 48 step 1, 2026-11-25; sources `.scratch/prof48.log` #11801 and `.scratch/bmsweep.log` #11849)
+
+**Inputs.**
+- Denominator: 8k prefill on main without nsys is 3204-3218 ms (#11849, BM 64), so **3 % is about 96 ms**. The per-kernel ms
+  below come from the nsys run (#11801, 3441 ms wall / 2906 ms busy), so they run a little high.
+- Shapes: H 2304, I 1152, E 128, top-8. A 2048-token chunk gives P = 16384 pairs, mu = P / E = 128.
+  - NVFP4 gate/up: 174 GFLOP a call, 5.34 ms (32.6 TF/s).
+  - NVFP4 down: 87 GFLOP, 2.58 ms (33.7 TF/s).
+  - cuBLAS reaches about 110 TF/s here.
+- spark2 device limits (`docs/results/2026-11-03-dsv41-attn-2blk.md`): 48 SMs, 102400 B shared memory per SM, 1024 B reserved
+  per block, 101376 B opt-in per block, 1536 threads per SM, 65536 registers per SM.
+- `ink_moe_mma` dynamic shared memory (`launch_one`), registers from cuobjdump:
+
+| config | dynamic smem | threads | regs | blocks / SM | warps / SM |
+|---|---|---|---|---|---|
+| BM 16 = MT1 WM1 (NVFP4) | 64 KB | 128 | 63-72 | 1 (smem) | 4 |
+| BM 32 = MT1 WM2 (NVFP4) | 71 KB | 256 | 61-64 | 1 (smem) | 8 |
+| **BM 64 = MT2 WM2 (NVFP4, the 8k path)** | **85 KB** | 256 | 79-89 | **1 (smem)** | **8** |
+| BM 64 MXFP8 | 101376 B | 256 | 76-80 | 1 | 8 |
+
+  Every config runs one block per SM, so the tensor cores of a scheduler are fed by two warps.
+- The kernel runs every phase in lockstep across the block. Each 64-k step is a barrier, then copy issue, then dequant into the bf16
+  tile, then the scale load, then 32 mma per warp. The `memory` clobbers on the cp.async / ldmatrix asm stop the compiler from
+  overlapping the dequant of step s+1 with the mma of step s.
+- At 32.6 TF/s a 64 x 128 tile step takes about 1.5 us, against about 0.4 us of tensor work at peak. The remaining time is
+  latency and barrier wait with 8 warps per SM, not bytes. The gate/up weights are about 191 MB a call (~36 GB/s), and the A
+  tiles are L2 hits.
+- BM sweep (ink_bench `moe 2048`, NVFP4 gu+dn): BM 16 15.78 ms, BM 32 9.50, BM 64 7.81.
+  - BM 16 -> 32 doubled the warps per SM (4 -> 8) and the rows per tile: -40 %.
+  - BM 32 -> 64 doubled MT only (same 8 warps): -18 %.
+  - Occupancy is the larger effect.
+- Bitwise evidence for M-tiling changes: BM 32 and BM 64 give the same 8k ids `10414a78c812` (2 runs each). Each output
+  element's k16 products and their fp32 add order do not depend on the tiling.
+- Proxy for step 2: `ink_bench moe 2048` at 7.81 ms equals in-model gu + dn per layer (5.34 + 2.58 ms). A/B it first, then
+  the full gate.
+
+| # | lever | 8k ms saved (estimate) | % of 8k | bitwise | effort | notes |
+|---|---|---|---|---|---|---|
+| 1 | **WM 4 at BM 64 (MT1 WM4, 512 threads)** for NVFP4 gu + dn | 70-280 | 2-9 % | yes (M split only; the k16 products and their add order are unchanged) | 4-6 h incl. gates | Same 84992 B smem: the 3-slot A ring and raw schedule are unchanged. Warps per SM go 8 -> 16, regs 512 x ~89 = 46 K (fits). One A row and one raw chunk per thread; the dequant is split 4 ways (16 k a thread: one `uint2` and one scale byte; the RP scale read picks byte `kq & 1` of chunk `2 st + (kq >> 1)`). Cost: MT 1 doubles the B ldmatrix per mma. Smem traffic is then about 125 KB a step against ~1000 clk of tensor time, so it can bind before the tensor core does, which caps the gain. Range: the BM 16 -> 32 step (-40 %, warps doubled together with BM) is the upper bound; 5-20 % of the 1394 ms NVFP4 gu + dn is the honest range. |
+| 2 | **BM 128 (MT2 WM4, 512 threads)** for NVFP4 gu + dn | 140-420 | 4-13 % | yes (same argument) | +4 h on top of 1 (reuses its WM 4 dequant) | Halves the per-tile fixed work per row (dequant, weight L2 reads, barriers) and keeps today's ldmatrix-per-mma ratio. Smem: a 3-slot A ring needs 112.6 KB > 99 KB, so the A ring goes to 2 slots (one step ahead) = 94208 B. **Risk:** that halves the raw prefetch distance (wait for all at the top of each step), although a BM 128 step is about twice as long in time. Tail waste grows: with remainders uniform, BM 64 computes ~25 % padded rows and BM 128 ~50 % (to be measured from the tile list), so it needs lever 3 with it. NVFP4 only (MXFP8 does not fit). Expose it as `INTARSIA_INK_MOE_BM=128`, default off. |
+| 3 | **Skip an all-padding warp M range** in the tail tile (warp-uniform `wm * 16 * MT >= rows`: no ldmatrix A / mma for that warp) | 15-55 alone at BM 64; more with lever 2 | 0.5-1.7 % alone | yes (those rows are never stored) | 1-2 h | Saves tensor issue on tails only; dequant and barriers stay. Below 3 % on its own, so it is an add-on to 1 / 2, measured separately. |
+| 4 | Interleave the dequant of step s+1 into the kk loop of step s (by hand; the asm clobbers block the compiler) | 40-140 | 1-4 % | yes (same tile values) | 3-4 h | Overlaps ALU with the tensor core inside a warp. Worth less once lever 1 doubles the warps per SM; rank it after 1 / 2. |
+| 5 | Deeper / wider-k raw pipeline (NVFP4 has ~15 KB headroom at BM 64) | ~0-30 | < 1 % | yes | 3 h | The kernel is not byte-bound (36 GB/s of weights), and two earlier bitwise latency fixes (prefetch one ahead, persistent grid) moved nothing. Wider k (BK 128) does not fit: the bf16 tile doubles. Low. |
+| 6 | `ink_mma_sum` (69 ms) | ~0 | 0 | — | — | ~85 MB a call in 360 us = 236 GB/s, at the DRAM roof. Fusing it into the down epilogue changes the slot-order sum unless done in slot order. Not a bitwise lever. |
+| 7 | `ink_row_kernel` (301 ms, 1840 x 164 us): several rows per block | ~0 | 0 | yes | 2 h | One 768-thread block x 63 regs (48 K regs) per SM; looping rows in a block keeps one block per SM, so nothing gains. |
+| 7b | `ink_row_kernel`: a second resident block (`__launch_bounds__(768, 2)` for NE 3: regs <= 40, 2 x 768 = 1536 threads) | 0-105 | 0-3.3 % | yes (same thread-to-element map and reduction order; the md5 gate confirms) | 1-2 h | Risk: spills at 40 regs (now 63, stack 0). Whether the row kernel is byte-bound is unknown (rows per call not counted). **Owner question:** brief 37 routed the mix row kernels (lever 3, "spread over D") to cuda-attn. Not proposed for this lane without a go. |
+| 8 | `ink_blend_gate` 115 ms, ctl GEMV 73 ms | not sized | — | — | — | Same files as 7 (`ink_mix.cu`), same owner question. Not sized here (no counters). |
+| — | Block-scaled tensor-core MoE GEMM (mxf4nvf4 / mxf8, brief 37 design note) | brief 37 est. +30-50 % prefill | — | **no** (another k order) | days | Listed only for scale. Needs its own go and the G3 quality plan. |
+
+**Recommendation.** Start lever 1 (WM 4 at BM 64): it is bitwise, keeps the pipeline and smem as they are, and tests the main
+hypothesis (occupancy) alone. Measure it on `ink_bench moe 2048` first. If it gains, add lever 2 (BM 128 on the same WM 4
+dequant) and lever 3, each behind the env switch and each measured separately. Then run the full gate (rows-exact /
+admission, tiny, md5 64 / 256 / 1.2k vs main with the switch on and off, quiet 8k / 3.6k A/B with 3 rotated reps, and a decode
+spot check). Lever 1 alone may land under 3 %. Levers 1 + 2 together are the 3 % candidate.
+
+## Brief 50: WM 4, BM 128 and the padding skip (spark2 #11861 build + tests + tile stats, #11862 quiet bench)
+
+Code (all NVFP4 `ink_moe_mma`, env switches default off, `inkmoe::set_mma_shape` for tests):
+- `INTARSIA_INK_MOE_WM4=1`: lever 1. BM 64 runs as MT 1 WM 4 (512 threads), same 84992 B of smem.
+- `INTARSIA_INK_MOE_BM128=1`: lever 2. Where the pick is 64, BM 128 runs as MT 2 WM 4, with a 2-slot A ring (A(s+1) issued at
+  step s in its own commit group, ahead of the raw group), 94208 B.
+- `INTARSIA_INK_MOE_SKIP=1`: lever 3. A warp skips the ldmatrix / mma of m16 tiles that hold only padding rows.
+- `INTARSIA_INK_MOE_TILESTAT=1`: diagnostic only (one stderr line per call, eager streams only).
+
+**Bitwise:** the new `ink_experts_mma_shapes_bitwise` test passes: wm4, bm128, skip, wm4+skip and bm128+skip each equal the
+default output exactly. It covers 128 experts at the real shape, T 600 / 1100, the plain and repacked layouts, and W4A4.
+`ink_rows` 10/10 (#11861).
+
+**Padding (tile list, 8k prompt, 192 calls, 3.13 M pairs, #11861):**
+
+| | BM 32 | BM 64 | BM 128 | m16 skip | 32-row skip |
+|---|---|---|---|---|---|
+| padded share of computed rows | 11.2 % | 21.2 % | 36.9 % | 5.6 % | 11.2 % |
+| tiles | 109966 | 61983 | 38713 | | |
+
+**ink_bench `moe 2048` (NVFP4 gu + dn, us; rotated forward / reverse / forward, 3 reps an arm, `--quiet gpu,cpu`, #11862):**
+
+| arm | repack on (the in-model layout) | vs def | repack off | vs def |
+|---|---|---|---|---|
+| def | 7886.2 (7881.5 / 7888.5 / 7888.6) | | 7808.6 (7807.8 / 7806.0 / 7811.9) | |
+| wm4 (lever 1) | 7798.7 (7796.4 / 7795.7 / 7804.1) | **-1.1 %** | 7558.7 | -3.2 % |
+| bm128 (lever 2) | 7324.0 (7318.0 / 7318.8 / 7335.2) | -7.1 % | 7025.6 | -10.0 % |
+| skip (lever 3) | 8412.8 | +6.7 % (slower) | 8204.9 | +5.1 % (slower) |
+| wm4+skip | 8022.6 | +1.7 % | 7577.2 | -3.0 % |
+| bm128+skip | 6806.8 (6851.5 / 6713.3 / 6855.6) | **-13.7 %** | 6918.4 | -11.4 % |
+
+**Reading:**
+- Lever 1 gains 1.1 % on the in-model layout, under the 2 % stop line of brief 50. Doubling the warps per SM is not the main
+  lever.
+- BM 128 (fewer tiles: 38713 vs 61983) is.
+- Skip alone is slower at BM 64. A likely cause is that the warp-uniform `continue` inside the unrolled MT loop changes the
+  schedule; unverified without counters. With BM 128 it pays, because a third of the computed rows are padding there.
+- Rough 8k effect of bm128+skip: NVFP4 gu + dn are ~1394 ms of the nsys 8k. At -13.7 % that is ~190 ms, ~6 % of the ~3210 ms
+  wall. This is not measured end to end.
+- Per brief 50's rule the lane stops here (lever 1 < 2 %). The bm128+skip numbers were measured in the same quiet job, since
+  both levers were built together. The full gate (md5 64 / 256 / 1.2k, tiny, admission, 8k / 3.6k A/B, decode) has not been
+  run.
+
+## Brief 51: BM 128 + skip default on, gate (tree `75b503c2b` = main 26088ff89 merged; spark2 #11867, #11882, #11883)
+
+Code: the WM 4 path at BM 64 is dropped. NVFP4 `ink_moe_mma` runs BM 128 (MT 2 WM 4, 2-slot A ring) with the padding-warp skip
+wherever `pick_bm_ink` picks 64. `INTARSIA_INK_MOE_BM128=0` reverts to BM 64. `INTARSIA_INK_MOE_TILESTAT` stays as a
+diagnostic (default off; when on it reads its env once and syncs the stream). Rows added to `docs/tuning.md` and
+`docs/decisions/LOG.md` (defaults table and dated log).
+
+| check | result |
+|---|---|
+| cuda `--lib` / `ink_rows` (incl. `ink_experts_mma_shapes_bitwise`: default vs `=0`) | 35/35, 10/10 (#11867) |
+| tiny inkling2 on CUDA | 17/17 (#11867) |
+| inkling2_batch | 8/8 with gate58's invocation (`CI=1`, cpu backend) (#11883). With `INTARSIA_INKLING2_BACKEND=cuda` it panics by design at `inkling2_batch.rs:44` ("cpu or metal (CUDA registers no row-table kernels for Inkling-2)"), the same 7/8 at the default and at `=0`: my invocation error, not this change. |
+| admission `kernels test --op moe_experts` | 16 kernels / 121 cases, none rejected, at the default and `=0` (#11867) |
+| md5 vs fresh main 26088ff89 (5 prompts: d64 / d256 / d1k / m64 / m36) | identical for main, branch default and branch `=0`, spec off and default: faf40cecb06b / 029e44fede1d / dc28658094c0 / 95ed05f4d023 / e0d669c198dd (#11867) |
+| `plan show` 35B / 8B (json + txt) | byte-identical to main (#11867) |
+| footprint | `git diff --name-only origin/main` only in docs/, crates/intarsia-backend-cuda/, kernels/cuda/: no Metal no-op needed |
+
+**Quiet ABBA (#11882, `--quiet gpu,cpu`, order A B B A A B; A = default, B = `=0`):**
+
+| | A | B | delta |
+|---|---|---|---|
+| 8k prefill, ms | 3062 / 3043 / 3050, mean 3052 | 3200 / 3221 / 3209, mean 3210 | **-4.9 % time (+5.2 % speed)** |
+| 3.6k prefill, ms | 757 / 754 / 748, mean 753 | 759 / 763 / 750, mean 757 | -0.6 % (noise) |
+| g256 decode spec off, tok/s | 40.82 / 40.79 / 40.84 | 40.82 / 40.73 / 40.73 | no change |
+| g256 decode default spec, tok/s | 50.43 / 50.43 / 50.44 | 50.41 / 50.35 / 50.37 | no change |
+
+The 8k bar (>= +3 %) holds; decode is unchanged.

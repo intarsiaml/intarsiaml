@@ -1,0 +1,97 @@
+fleetq: #11875 waiting (#2 in line): in line behind #11873 "intarsiaml inkling spec: L5 t=1.0 feedback fix A/B + 16k rerun" (claude-57ee98d5) on endor
+fleetq:   #11873 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11873 set, or it will wait for #11873 to be released.
+fleetq: #11875 waiting (#1 in line): #11873 "intarsiaml inkling spec: L5 t=1.0 feedback fix A/B + 16k rerun" (claude-57ee98d5) needs gpu quiet on endor, and this job loads it
+fleetq:   #11873 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=11873 set, or it will wait for #11873 to be released.
+fleetq: #11875 running on endor: bash /opt/code/intarsiaml/.worktrees/ink-batch/.scratch/b2048/gB.sh
+fleetq: #11875 went ahead of the line and must end within 13h39m (by Wed 23:00); it is stopped then
+binary md5 main 8900640dea405d9b9b88516ed99e8c9b new 0a9e9ed2fd675b2679c3bc37d79e1dd2
+== (c) greedy md5 09:20:52
+md5 main 64 65cde8f35a1802e3e2fadb44d94d080d
+md5 main 256 61fd59fecb5e0d72ffd08f2c6d07855a
+md5 new 64 65cde8f35a1802e3e2fadb44d94d080d
+md5 new 256 61fd59fecb5e0d72ffd08f2c6d07855a
+md5 64: main == new
+md5 256: main == new
+== (c2) resolved busy chunk at startup 09:21:20
+startup main qwen3-8b busy-chunk=default:
+  continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 256
+server group 72453 stopped, port 8161 closed
+startup main qwen3-8b busy-chunk=256:
+  continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 256
+server group 74145 stopped, port 8161 closed
+startup main llama31-8b busy-chunk=default:
+  continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 256
+server group 74225 stopped, port 8161 closed
+startup main llama31-8b busy-chunk=256:
+  continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 256
+server group 76302 stopped, port 8161 closed
+startup main ink busy-chunk=default:
+  continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 256
+server group 76383 stopped, port 8161 closed
+startup main ink busy-chunk=256:
+  continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 256
+server group 80842 stopped, port 8161 closed
+startup new qwen3-8b busy-chunk=default:
+  continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 256
+server group 81195 stopped, port 8161 closed
+startup new qwen3-8b busy-chunk=256:
+  continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 256
+server group 82904 stopped, port 8161 closed
+startup new llama31-8b busy-chunk=default:
+  continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 256
+server group 83037 stopped, port 8161 closed
+startup new llama31-8b busy-chunk=256:
+  continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 256
+server group 84812 stopped, port 8161 closed
+startup new ink busy-chunk=default:
+  continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+server group 84991 stopped, port 8161 closed
+startup new ink busy-chunk=256:
+  continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 256
+server group 89169 stopped, port 8161 closed
+== (d) output check, new binary 09:30:20
+-- solo reference (short), server --busy-chunk 256 09:30:20
+  continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 256
+solo prompt 0 (1410 tokens) gen 256 md5 9b1f407e len 1087
+solo prompt 1 (1335 tokens) gen 256 md5 767df816 len 1034
+solo prompt 2 (1476 tokens) gen 256 md5 7f625829 len 1031
+solo prompt 3 (1207 tokens) gen 256 md5 3b779ab7 len 1037
+prefill_chunks_total=4 prefill_tokens_total=5428 cached_tokens_total=0 requests_finished_total=4 
+server group 89301 stopped, port 8161 closed
+-- concurrent (short), fresh server, busy chunk default 09:30:53
+  continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+before: prefill_chunks_total=0 prefill_tokens_total=0 cached_tokens_total=0 requests_finished_total=0 
+conc prompt 0 (1410 tokens): EQUALS solo md5 solo 9b1f407e conc 9b1f407e gen 256
+conc prompt 1 (1335 tokens): EQUALS solo md5 solo 767df816 conc 767df816 gen 256
+conc prompt 2 (1476 tokens): EQUALS solo md5 solo 7f625829 conc 7f625829 gen 256
+conc prompt 3 (1207 tokens): EQUALS solo md5 solo 3b779ab7 conc 3b779ab7 gen 256
+after:  prefill_chunks_total=4 prefill_tokens_total=5428 cached_tokens_total=0 requests_finished_total=4 
+server group 90460 stopped, port 8161 closed
+-- solo reference (long), server --busy-chunk 256 09:31:11
+  continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 256
+solo prompt 0 (2747 tokens) gen 256 md5 f3502e79 len 1084
+solo prompt 1 (2859 tokens) gen 256 md5 a65d4afd len 976
+solo prompt 2 (2804 tokens) gen 256 md5 a38b40fc len 985
+solo prompt 3 (2808 tokens) gen 256 md5 c6159a4d len 1070
+prefill_chunks_total=8 prefill_tokens_total=11218 cached_tokens_total=0 requests_finished_total=4 
+server group 90945 stopped, port 8161 closed
+-- concurrent (long), fresh server, busy chunk default 09:31:40
+  continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+before: prefill_chunks_total=0 prefill_tokens_total=0 cached_tokens_total=0 requests_finished_total=0 
+conc prompt 0 (2747 tokens): EQUALS solo md5 solo f3502e79 conc f3502e79 gen 256
+conc prompt 1 (2859 tokens): EQUALS solo md5 solo a65d4afd conc a65d4afd gen 256
+conc prompt 2 (2804 tokens): EQUALS solo md5 solo a38b40fc conc a38b40fc gen 256
+conc prompt 3 (2808 tokens): EQUALS solo md5 solo c6159a4d conc c6159a4d gen 256
+after:  prefill_chunks_total=8 prefill_tokens_total=11218 cached_tokens_total=0 requests_finished_total=4 
+server group 91778 stopped, port 8161 closed
+-- concurrent (long), fresh server, busy chunk 256 09:32:01
+  continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 256
+before: prefill_chunks_total=0 prefill_tokens_total=0 cached_tokens_total=0 requests_finished_total=0 
+conc prompt 0 (2747 tokens): EQUALS solo md5 solo f3502e79 conc f3502e79 gen 256
+conc prompt 1 (2859 tokens): EQUALS solo md5 solo a65d4afd conc a65d4afd gen 256
+conc prompt 2 (2804 tokens): EQUALS solo md5 solo a38b40fc conc a38b40fc gen 256
+conc prompt 3 (2808 tokens): EQUALS solo md5 solo c6159a4d conc c6159a4d gen 256
+after:  prefill_chunks_total=36 prefill_tokens_total=11218 cached_tokens_total=0 requests_finished_total=4 
+server group 92392 stopped, port 8161 closed
+gate B done
+fleetq: #11875 done (exit 0)

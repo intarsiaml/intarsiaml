@@ -21,6 +21,7 @@
 // contraction cannot make the two differ.
 #include "ik_launch.h"
 #include "ik_cuda_abi_ink.h"
+#include "ink_pdl.cuh"
 #include <cuda_bf16.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -46,7 +47,10 @@ constexpr int F_KV_WRITE = 4;   // cache write in the attention kernel (else ink
 constexpr int F_RING_WRITE = 16;  // conv-ring write in the kernel (else ink_ring_write_k after it)
 constexpr int F_AL32 = 64;       // tile kernel: the K / V cache bases are 32-byte aligned (32-byte loads of the cache rows)
 constexpr int F_R_OUT = 128;     // prologue (op 75 prefill): write r [T,H,dr] to relo instead of the rel tail
+constexpr int F_NOBIAS = 256;    // diagnostic (INTARSIA_INK_FLASH_DIAG=nobias): the prefill flash kernel skips the rel bias (wrong output)
 constexpr int F_READONLY = 32;    // diagnostic (INTARSIA_INK_TILE_READONLY=1): the tile kernel only reads its K / V (no output)
+constexpr int F_PDL = 256;       // op 75 decode tile / combine launched as programmatic dependents (INTARSIA_INK_ATTN_PDL)
+constexpr int F_PDL_PF = 512;    // with F_PDL: the tile's pre-wait L2 prefetch of its old K / V rows
 
 struct InkP {
     const bf16 *pq, *pk, *pv, *kt, *vt, *qs, *rs, *rp;
@@ -612,6 +616,76 @@ __host__ __device__ __forceinline__ TileGeo tile_geo(int pos0, int T, int window
     return g;
 }
 
+// The tile (S, tau) and row range [r0, r1) of block y, the keys [jlo, jhi] any of its rows reads in the tile and the first
+// participating row's position (for the bias skip); live = false: the block has no work. Integer only (host: the PDL
+// self-test).
+struct TileBlk {
+    int S, tau, r0, r1, jlo, jhi, pmin;
+    bool live;
+};
+__host__ __device__ __forceinline__ TileBlk tile_blk(const TileGeo& geo, int y, int pos0, int T, int window) {
+    TileBlk b{0, 0, 0, 0, 0x7fffffff, -1, 0x7fffffff, false};
+    if (y < geo.na) {
+        b.S = geo.sa, b.tau = geo.ta + y, b.r0 = 0, b.r1 = geo.rb;
+    } else if (y < geo.na + geo.nb) {
+        b.S = geo.sb, b.tau = geo.tb + y - geo.na, b.r0 = geo.rb, b.r1 = T;
+    } else {
+        return b;
+    }
+    const int tk0 = b.tau * b.S, tk1 = tk0 + b.S - 1;
+    for (int t = b.r0; t < b.r1; ++t) {
+        const int pp = pos0 + t, lo = (int)ink_lo(pp, window);
+        if (lo / b.S <= b.tau && b.tau <= pp / b.S) {
+            b.jlo = b.jlo < (lo > tk0 ? lo : tk0) ? b.jlo : (lo > tk0 ? lo : tk0);
+            b.jhi = b.jhi > (pp < tk1 ? pp : tk1) ? b.jhi : (pp < tk1 ? pp : tk1);
+            b.pmin = b.pmin < pp ? b.pmin : pp;
+        }
+    }
+    b.live = b.jhi >= 0;
+    return b;
+}
+
+// The cache rows a block may prefetch before griddepcontrol.wait: its keys below pos0 only, [jlo, min(jhi, pos0 - 1)]
+// (hi < lo: none). Keys >= pos0 are the call's own rows: in_proj (the primary, possibly still running) produces them and
+// this kernel writes them into the cache after the wait.
+struct PdlRows {
+    int lo, hi;
+};
+__host__ __device__ __forceinline__ PdlRows tile_pdl_rows(const TileBlk& b, int pos0) {
+    return PdlRows{b.jlo, b.jhi < pos0 - 1 ? b.jhi : pos0 - 1};
+}
+
+// Edge in_proj -> tile (op 75 decode, launched with the PDL attribute when INTARSIA_INK_ATTN_PDL is on; in_proj triggers
+// at its start, so the tile's blocks become resident in in_proj's last wave). Before the wait the block reads only:
+// - p.pos (graphed decode / verify positions, one real load): written before the step's first kernel, a plain launch, so
+//   finished before any kernel of the step starts;
+// - with F_PDL_PF, its old K / V cache rows (tile_pdl_rows: positions < pos0), through prefetch.global.L2 only: written by
+//   earlier calls' tile / kv-write kernels, finished before in_proj (a plain launch) started. A hint returns no data, so
+//   even a line still being written could not reach a value. The current call's rows (>= pos0) are not touched: their
+//   slots may still hold rows a rejected draft wrote, and this kernel overwrites them after the wait. With the cache write
+//   in the tile (kv_fused: Cr >= T + window - 1) no prefetched slot is one of the call's own slots either.
+// Everything else (q / k / v / r from in_proj, the cache reads that reach registers, every write) comes after the wait.
+// Every block waits, a block with no work too, before it returns.
+__device__ __forceinline__ void tile_pdl_prelude(const InkP& p, const TileBlk& tb, int kvh, int pos0, int tid, int nthr) {
+    if ((p.flags & F_PDL_PF) && tb.live) {
+        const PdlRows r = tile_pdl_rows(tb, pos0);
+        if (r.hi >= r.lo) {
+            const bool ring = (p.flags & F_RING) != 0;
+            const int D = p.d, Cr = p.cr;
+            const int64_t rb = (int64_t)D * 2;  // bytes per cache row
+            for (int kind = 0; kind < 2; ++kind) {
+                const bf16* base = (kind ? p.vc : p.kc) + (size_t)kvh * Cr * D;
+                // ring: [lo, hi] maps to at most two runs of slots (it wraps at Cr once: hi - lo < window <= Cr)
+                const int s0 = ring ? r.lo % Cr : r.lo, n = r.hi - r.lo + 1;
+                const int n0 = ring ? min(n, Cr - s0) : n;
+                inkpdl::l2_lines(base + (size_t)s0 * D, (int64_t)n0 * rb, tid, nthr);
+                if (n0 < n) inkpdl::l2_lines(base, (int64_t)(n - n0) * rb, tid, nthr);
+            }
+        }
+    }
+    inkpdl::wait();
+}
+
 __device__ __forceinline__ uint32_t smem_u32(const void* p) { return (uint32_t)__cvta_generic_to_shared(p); }
 
 __device__ __forceinline__ void cp_async16(void* dst, const void* src, bool valid) {
@@ -710,28 +784,15 @@ __global__ void __launch_bounds__(384) ink_tile_k(InkP p, int min_s) {
     const int mt = warp >> 2, grp = warp & 3;
     const int kvh = blockIdx.x;
     const bool ring = (p.flags & F_RING) != 0;
+    // PDL (INTARSIA_INK_ATTN_PDL, F_PDL): see tile_pdl_prelude
+    if (p.flags & F_PDL) inkpdl::trigger();
     const int pos0 = ink_pos0(p);
     const TileGeo geo = tile_geo(pos0, T, p.window, min_s, maxt);
-    int S, tau, r0, r1;
-    if ((int)blockIdx.y < geo.na) {
-        S = geo.sa, tau = geo.ta + blockIdx.y, r0 = 0, r1 = geo.rb;
-    } else if ((int)blockIdx.y < geo.na + geo.nb) {
-        S = geo.sb, tau = geo.tb + blockIdx.y - geo.na, r0 = geo.rb, r1 = T;
-    } else {
-        return;
-    }
+    const TileBlk tb = tile_blk(geo, (int)blockIdx.y, pos0, T, p.window);
+    if (p.flags & F_PDL) tile_pdl_prelude(p, tb, kvh, pos0, tid, blockDim.x);
+    if (!tb.live) return;
+    const int S = tb.S, tau = tb.tau, r0 = tb.r0, r1 = tb.r1, jlo = tb.jlo, jhi = tb.jhi, pmin = tb.pmin;
     const int tk0 = tau * S, tk1 = tk0 + S - 1;
-    // the keys any row of the block reads in this tile, and the first participating row's position (for the bias skip)
-    int jlo = 0x7fffffff, jhi = -1, pmin = 0x7fffffff;
-    for (int t = r0; t < r1; ++t) {
-        const int pp = pos0 + t, lo = (int)ink_lo(pp, p.window);
-        if (lo / S <= tau && tau <= pp / S) {
-            jlo = min(jlo, max(lo, tk0));
-            jhi = max(jhi, min(pp, tk1));
-            pmin = min(pmin, pp);
-        }
-    }
-    if (jhi < 0) return;
 
     bf16* KV = (bf16*)sm;
     const size_t kvb = SM::r0(M, FUSED);
@@ -1081,28 +1142,15 @@ __global__ void __launch_bounds__(384) ink_tile_staged_k(InkP p, int min_s, int 
     const int mt = warp >> 2, grp = warp & 3;
     const int kvh = blockIdx.x;
     const bool ring = (p.flags & F_RING) != 0;
+    // PDL (INTARSIA_INK_ATTN_PDL, F_PDL): see tile_pdl_prelude
+    if (p.flags & F_PDL) inkpdl::trigger();
     const int pos0 = ink_pos0(p);
     const TileGeo geo = tile_geo(pos0, T, p.window, min_s, maxt);
-    int S, tau, r0, r1;
-    if ((int)blockIdx.y < geo.na) {
-        S = geo.sa, tau = geo.ta + blockIdx.y, r0 = 0, r1 = geo.rb;
-    } else if ((int)blockIdx.y < geo.na + geo.nb) {
-        S = geo.sb, tau = geo.tb + blockIdx.y - geo.na, r0 = geo.rb, r1 = T;
-    } else {
-        return;
-    }
+    const TileBlk tb = tile_blk(geo, (int)blockIdx.y, pos0, T, p.window);
+    if (p.flags & F_PDL) tile_pdl_prelude(p, tb, kvh, pos0, tid, blockDim.x);
+    if (!tb.live) return;
+    const int S = tb.S, tau = tb.tau, r0 = tb.r0, r1 = tb.r1, jlo = tb.jlo, jhi = tb.jhi, pmin = tb.pmin;
     const int tk0 = tau * S, tk1 = tk0 + S - 1;
-    // the keys any row of the block reads in this tile, and the first participating row's position (for the bias skip)
-    int jlo = 0x7fffffff, jhi = -1, pmin = 0x7fffffff;
-    for (int t = r0; t < r1; ++t) {
-        const int pp = pos0 + t, lo = (int)ink_lo(pp, p.window);
-        if (lo / S <= tau && tau <= pp / S) {
-            jlo = min(jlo, max(lo, tk0));
-            jhi = max(jhi, min(pp, tk1));
-            pmin = min(pmin, pp);
-        }
-    }
-    if (jhi < 0) return;
 
     bf16* KV = (bf16*)sm;
     const size_t kvb = SM::kv(stages);
@@ -1402,8 +1450,17 @@ constexpr int FBR = 64;  // query rows per block
 // RIN (op 75 prefill, InkAttnDecode above 16 rows): p.rel is r [T,H,dr] (rounded), and the bias of (row, head, d) is formed
 // here as ink_rel_g forms it (the same chain from 0, j ascending, then the bf16 round): bitwise the table path. Shared memory
 // after K / V: r of the block's rows [FBR][G][16] f32, then the relproj columns of a sub-chunk's distances [FBR + CH][16] f32.
-template <int D, bool RIN>
+// KB: keys per warp step (16 by default; INTARSIA_INK_FLASH_KB = 32 / 64 opt-in, lever 5): the running max, the o rescale
+// and the row sum move once per KB keys instead of once per 16. A different rounding of P and order of the sums, so not
+// bitwise the KB = 16 kernel; the default keeps its bits.
+// BM (RIN, KB 16; INTARSIA_INK_FLASH_BIAS=mma, lever 5 variant 2): the bias of a 16-key step as one tensor-core product per
+// warp, r [16 rows][dr 16] . W [16][32 distance columns] (4 mma), rounded to bf16 into a per-warp table (the rS region: r goes to
+// registers instead) and read per score at its distance. The same products, summed in the mma's order instead of ink_rel_g's
+// chain, so not bitwise the default.
+template <int D, bool RIN, int KB, bool BM = false>
 __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
+    constexpr int NB = KB / 8, NP = KB / 16;
+    static_assert(!BM || (RIN && KB == 16), "BM: the RIN kernel at KB 16");
     using SM = TileSmem<D>;
     constexpr int LD = SM::LD, NKS = D / 16, NDB = D / 8;
     extern __shared__ __align__(16) unsigned char sm[];
@@ -1469,10 +1526,22 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
     const bf16* relh[2] = {rt[0] < T ? p.rel + ((size_t)rt[0] * H + h) * E : p.rel, rt[1] < T ? p.rel + ((size_t)rt[1] * H + h) * E : p.rel};
     float* rS = (float*)(sm + TileSmem<D>::KV);
     float* wS = rS + FBR * G * 16;
-    if constexpr (RIN) {
+    uint32_t rf[4] = {0u, 0u, 0u, 0u};  // BM: r of this thread's rows as an mma A fragment (k = dr padded to 16)
+    if constexpr (RIN && !BM) {
         for (int x = tid; x < FBR * G * 16; x += blockDim.x) {
             const int r = x / (G * 16), g = x / 16 % G, j = x % 16, t = rb + r;
             rS[x] = (t < T && j < dr) ? b2f(p.rel[((size_t)t * H + kvh * G + g) * dr + j]) : 0.0f;
+        }
+    }
+    if constexpr (BM) {
+#pragma unroll
+        for (int k = 0; k < 2; ++k) {
+            if (rt[k] >= T) continue;
+            const bf16* rr = p.rel + ((size_t)rt[k] * H + h) * dr;
+            const int j0 = 2 * c4, j1 = 8 + 2 * c4;
+            const bf16 z = f2b(0.0f);
+            rf[k] = pack_bf16(j0 < dr ? rr[j0] : z, j0 + 1 < dr ? rr[j0 + 1] : z);
+            rf[2 + k] = pack_bf16(j1 < dr ? rr[j1] : z, j1 + 1 < dr ? rr[j1 + 1] : z);
         }
     }
     const int c0 = jlo / CH, c1 = jhi / CH;
@@ -1512,14 +1581,46 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
         const bf16* Ks = KV + (size_t)(buf * 2) * CH * LD;
         const bf16* Vs = KV + (size_t)(buf * 2 + 1) * CH * LD;
 #pragma unroll 1
-        for (int kb = 0; kb < CH; kb += 16) {
-            if (jb + kb + 15 < wlo || jb + kb > whi) continue;
+        for (int kb = 0; kb < CH; kb += KB) {
+            if (jb + kb + KB - 1 < wlo || jb + kb > whi) continue;
             // the bias loads first: they do not depend on the scores, so their latency overlaps the QK^T mma
-            float bb[2][4];
-            // RIN: the warp's smallest distance in this 16-key step is pos0 + w0 - (jb + kb + 15); at or past E no score is biased
-            if (RIN && pos0 + w0 - (jb + kb + 15) >= E) {
+            float bb[NB][4];
+            // RIN: the warp's smallest distance in this KB-key step is pos0 + w0 - (jb + kb + KB - 1); at or past E no score is biased
+            if (RIN && (pos0 + w0 - (jb + kb + KB - 1) >= E || (p.flags & F_NOBIAS))) {
 #pragma unroll
-                for (int nb = 0; nb < 2; ++nb) bb[nb][0] = bb[nb][1] = bb[nb][2] = bb[nb][3] = 0.0f;
+                for (int nb = 0; nb < NB; ++nb) bb[nb][0] = bb[nb][1] = bb[nb][2] = bb[nb][3] = 0.0f;
+            } else if constexpr (BM) {
+                // columns cb .. cb + 31 of wS hold every distance of this warp's 16 rows x 16 keys
+                bf16* tw = (bf16*)rS + warp * 16 * 32;
+                const int cb = rq * 16 - kb + 48;
+                float bt[4][4];
+#pragma unroll
+                for (int nt = 0; nt < 4; ++nt) {
+                    bt[nt][0] = bt[nt][1] = bt[nt][2] = bt[nt][3] = 0.0f;
+                    const float* wc = wS + (cb + nt * 8 + g8) * 16;
+                    const uint32_t b0 = pack_bf16(f2b(wc[2 * c4]), f2b(wc[2 * c4 + 1]));
+                    const uint32_t b1 = pack_bf16(f2b(wc[8 + 2 * c4]), f2b(wc[9 + 2 * c4]));
+                    mma_bf16(bt[nt], rf, b0, b1);
+                }
+                __syncwarp();
+#pragma unroll
+                for (int nt = 0; nt < 4; ++nt)
+#pragma unroll
+                    for (int e = 0; e < 2; ++e) {
+                        tw[g8 * 32 + nt * 8 + 2 * c4 + e] = f2b(bt[nt][e]);
+                        tw[(g8 + 8) * 32 + nt * 8 + 2 * c4 + e] = f2b(bt[nt][2 + e]);
+                    }
+                __syncwarp();
+#pragma unroll
+                for (int k = 0; k < 2; ++k)
+#pragma unroll
+                    for (int nb = 0; nb < NB; ++nb)
+#pragma unroll
+                        for (int u = 0; u < 2; ++u) {
+                            const int kk = nb * 8 + 2 * c4 + u, j = jb + kb + kk, d = rhi[k] - j, rl = g8 + 8 * k;
+                            bb[nb][2 * k + u] = (j >= rlo[k] && d >= 0 && d < E) ? b2f(tw[rl * 32 + rl - kk + 15]) : 0.0f;
+                        }
+                __syncwarp();
             } else if constexpr (RIN) {
 #pragma unroll
                 for (int k = 0; k < 2; ++k) {
@@ -1531,7 +1632,7 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
                         r[4 * q4] = v4.x, r[4 * q4 + 1] = v4.y, r[4 * q4 + 2] = v4.z, r[4 * q4 + 3] = v4.w;
                     }
 #pragma unroll
-                    for (int nb = 0; nb < 2; ++nb)
+                    for (int nb = 0; nb < NB; ++nb)
 #pragma unroll
                         for (int u = 0; u < 2; ++u) {
                             const int j = jb + kb + nb * 8 + 2 * c4 + u, d = rhi[k] - j;
@@ -1554,26 +1655,29 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
                 }
             } else {
 #pragma unroll
-                for (int nb = 0; nb < 2; ++nb)
+                for (int nb = 0; nb < NB; ++nb)
 #pragma unroll
                     for (int e = 0; e < 4; ++e) {
                         const int k = e >> 1, j = jb + kb + nb * 8 + 2 * c4 + (e & 1), d = rhi[k] - j;
                         bb[nb][e] = (j >= rlo[k] && d >= 0 && d < E) ? __bfloat162float(relh[k][d]) : 0.0f;
                     }
             }
-            float s[2][4];
+            float s[NB][4];
 #pragma unroll
-            for (int i = 0; i < 2; ++i) s[i][0] = s[i][1] = s[i][2] = s[i][3] = 0.0f;
+            for (int i = 0; i < NB; ++i) s[i][0] = s[i][1] = s[i][2] = s[i][3] = 0.0f;
 #pragma unroll
             for (int ks = 0; ks < NKS; ++ks) {
-                uint32_t b0, b1, b2, b3;
-                ldsm_x4(b0, b1, b2, b3, Ks + (size_t)(kb + (lm >> 1) * 8 + lr) * LD + ks * 16 + (lm & 1) * 8);
-                mma_bf16(s[0], qf[ks], b0, b1);
-                mma_bf16(s[1], qf[ks], b2, b3);
+#pragma unroll
+                for (int pp = 0; pp < NP; ++pp) {
+                    uint32_t b0, b1, b2, b3;
+                    ldsm_x4(b0, b1, b2, b3, Ks + (size_t)(kb + 16 * pp + (lm >> 1) * 8 + lr) * LD + ks * 16 + (lm & 1) * 8);
+                    mma_bf16(s[2 * pp], qf[ks], b0, b1);
+                    mma_bf16(s[2 * pp + 1], qf[ks], b2, b3);
+                }
             }
             float mx[2] = {-INFINITY, -INFINITY};
 #pragma unroll
-            for (int nb = 0; nb < 2; ++nb) {
+            for (int nb = 0; nb < NB; ++nb) {
 #pragma unroll
                 for (int e = 0; e < 4; ++e) {
                     const int k = e >> 1, j = jb + kb + nb * 8 + 2 * c4 + (e & 1);
@@ -1583,7 +1687,7 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
                     mx[k] = fmaxf(mx[k], v);
                 }
             }
-            uint32_t pa[2][2];
+            uint32_t pa[NB][2];
 #pragma unroll
             for (int k = 0; k < 2; ++k) {
                 mx[k] = fmaxf(mx[k], __shfl_xor_sync(0xffffffffu, mx[k], 1));
@@ -1592,25 +1696,31 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
                 const float mu = mn == -INFINITY ? 0.0f : mn;
                 const float corr = exp2f(m[k] - mu);
                 m[k] = mn;
-                const bf16 q0 = f2b(exp2f(s[0][2 * k] - mu)), q1 = f2b(exp2f(s[0][2 * k + 1] - mu));
-                const bf16 q2 = f2b(exp2f(s[1][2 * k] - mu)), q3 = f2b(exp2f(s[1][2 * k + 1] - mu));
-                const float ps = __fadd_rn(__fadd_rn(__fadd_rn(b2f(q0), b2f(q1)), b2f(q2)), b2f(q3));
+                float ps = 0.0f;
+#pragma unroll
+                for (int nb = 0; nb < NB; ++nb) {
+                    const bf16 q0 = f2b(exp2f(s[nb][2 * k] - mu)), q1 = f2b(exp2f(s[nb][2 * k + 1] - mu));
+                    // KB = 16: ((q0 + q1) + q2) + q3, the default's order
+                    ps = nb == 0 ? __fadd_rn(b2f(q0), b2f(q1)) : __fadd_rn(__fadd_rn(ps, b2f(q0)), b2f(q1));
+                    pa[nb][k] = pack_bf16(q0, q1);
+                }
                 l[k] = __fmaf_rn(l[k], corr, ps);
-                pa[0][k] = pack_bf16(q0, q1);
-                pa[1][k] = pack_bf16(q2, q3);
 #pragma unroll
                 for (int i = 0; i < NDB; ++i) {
                     o[i][2 * k] = __fmul_rn(o[i][2 * k], corr);
                     o[i][2 * k + 1] = __fmul_rn(o[i][2 * k + 1], corr);
                 }
             }
-            const uint32_t a[4] = {pa[0][0], pa[0][1], pa[1][0], pa[1][1]};
 #pragma unroll
-            for (int dp = 0; dp < NDB / 2; ++dp) {
-                uint32_t b0, b1, b2, b3;
-                ldsm_x4_t(b0, b1, b2, b3, Vs + (size_t)(kb + (lm & 1) * 8 + lr) * LD + (dp * 2 + (lm >> 1)) * 8);
-                mma_bf16(o[dp * 2], a, b0, b1);
-                mma_bf16(o[dp * 2 + 1], a, b2, b3);
+            for (int pp = 0; pp < NP; ++pp) {
+                const uint32_t a[4] = {pa[2 * pp][0], pa[2 * pp][1], pa[2 * pp + 1][0], pa[2 * pp + 1][1]};
+#pragma unroll
+                for (int dp = 0; dp < NDB / 2; ++dp) {
+                    uint32_t b0, b1, b2, b3;
+                    ldsm_x4_t(b0, b1, b2, b3, Vs + (size_t)(kb + 16 * pp + (lm & 1) * 8 + lr) * LD + (dp * 2 + (lm >> 1)) * 8);
+                    mma_bf16(o[dp * 2], a, b0, b1);
+                    mma_bf16(o[dp * 2 + 1], a, b2, b3);
+                }
             }
         }
     }
@@ -1636,6 +1746,14 @@ __global__ void __launch_bounds__(384) ink_flash_k(InkP p) {
 
 // the tile partials of a (row, query head) merged in tile order, then the sink and the gate. Grid (H, T), threads >= D.
 __global__ void ink_tile_comb_k(InkP p, int min_s) {
+    // Edge tile -> combine -> wo (F_PDL): combine is the tile's programmatic dependent and triggers its own dependent (wo,
+    // whose pre-wait reads are its weights only) at once. It reads nothing before the wait: the partials and the m / l
+    // pairs are the tile's, and so is o for rows without a split. Every block waits before it returns, so combine
+    // completes only after the tile did, and wo's wait (on combine) covers the tile's writes too.
+    if (p.flags & F_PDL) {
+        inkpdl::trigger();
+        inkpdl::wait();
+    }
     const int maxt = p.maxt;
     const unsigned tid = threadIdx.x;
     const unsigned h = blockIdx.x, t = blockIdx.y, D = p.d, H = p.h;
@@ -1807,7 +1925,12 @@ int launch_tile_staged_d(const InkP& p, int min_s, unsigned ny, cudaStream_t st)
         if (cudaFuncSetAttribute(ink_tile_staged_k<D, FUSED>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)most) != cudaSuccess) return IK_ERR_LAUNCH;
         attr = true;
     }
-    ink_tile_staged_k<D, FUSED><<<dim3(p.hk, ny), 128 * nmt, smem, st>>>(p, min_s, stages);
+    if (p.flags & F_PDL) {
+        if (inkpdl::launch(ink_tile_staged_k<D, FUSED>, dim3(p.hk, ny), dim3(128 * nmt), smem, st, p, min_s, stages) != cudaSuccess)
+            return IK_ERR_LAUNCH;
+    } else {
+        ink_tile_staged_k<D, FUSED><<<dim3(p.hk, ny), 128 * nmt, smem, st>>>(p, min_s, stages);
+    }
     return IK_OK;
 }
 
@@ -1839,7 +1962,11 @@ int launch_tile_d(const InkP& p, int min_s, unsigned ny, cudaStream_t st) {
     InkP q = p;
     if (tile_readonly()) q.flags |= F_READONLY;
     if (((uintptr_t)p.kc | (uintptr_t)p.vc) % 32 == 0) q.flags |= F_AL32;
-    ink_tile_k<D, FUSED><<<dim3(p.hk, ny), 128 * nmt, smem, st>>>(q, min_s);
+    if (q.flags & F_PDL) {
+        if (inkpdl::launch(ink_tile_k<D, FUSED>, dim3(p.hk, ny), dim3(128 * nmt), smem, st, q, min_s) != cudaSuccess) return IK_ERR_LAUNCH;
+    } else {
+        ink_tile_k<D, FUSED><<<dim3(p.hk, ny), 128 * nmt, smem, st>>>(q, min_s);
+    }
     return IK_OK;
 }
 
@@ -1868,17 +1995,63 @@ bool tile_dims(int d) { return d == 16 || d == 32 || d == 64 || d == 128; }
 // the RIN kernel's shared memory past K / V: r [FBR][G][16] and the distance columns [FBR + CH][16], f32
 constexpr size_t flash_rin_bytes(int g) { return (size_t)(FBR * g + FBR + CH) * 16 * 4; }
 
-template <int D, bool RIN>
-int launch_flash_d(const InkP& p, cudaStream_t st) {
+// INTARSIA_INK_FLASH_KB: keys per warp step of the prefill flash kernel, 16 (default) / 32 / 64 (opt-in, not bitwise 16)
+int flash_kb() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_INK_FLASH_KB");
+        const int k = e && e[0] ? atoi(e) : 16;
+        return k == 32 || k == 64 ? k : 16;
+    }();
+    return v;
+}
+
+bool flash_nobias() {
+    static const bool v = [] {
+        const char* e = getenv("INTARSIA_INK_FLASH_DIAG");
+        return e && strcmp(e, "nobias") == 0;
+    }();
+    return v;
+}
+
+// INTARSIA_INK_FLASH_BIAS: unset (or `mma` / `1`) = the RIN prefill kernel forms the rel bias on tensor cores (KB 16 only;
+// default-on, user decision 2026-11-25; not bitwise the CUDA-core form); `0` / `off` / `false` = the CUDA-core form, which
+// is bitwise the prologue + rel_sink_attn pair (the revert switch)
+bool flash_bias_mma() {
+    static const bool v = [] {
+        const char* e = getenv("INTARSIA_INK_FLASH_BIAS");
+        if (!e || !e[0]) return true;
+        return !(strcmp(e, "0") == 0 || strcmp(e, "off") == 0 || strcmp(e, "false") == 0);
+    }();
+    return v;
+}
+
+template <int D, bool RIN, int KB, bool BM = false>
+int launch_flash_kb(const InkP& p_in, cudaStream_t st) {
+    InkP p = p_in;
+    if (flash_nobias()) p.flags |= F_NOBIAS;
     const int G = p.h / p.hk;
     const size_t smem = TileSmem<D>::KV + (RIN ? flash_rin_bytes(G) : 0);
     static bool attr = false;
     if (!attr) {
         const size_t mx = TileSmem<D>::KV + (RIN ? flash_rin_bytes(3) : 0);
-        if (cudaFuncSetAttribute(ink_flash_k<D, RIN>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)mx) != cudaSuccess) return IK_ERR_LAUNCH;
+        if (cudaFuncSetAttribute(ink_flash_k<D, RIN, KB, BM>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)mx) != cudaSuccess) return IK_ERR_LAUNCH;
         attr = true;
     }
-    ink_flash_k<D, RIN><<<dim3(p.hk, (p.t + FBR - 1) / FBR), 128 * G, smem, st>>>(p);
+    ink_flash_k<D, RIN, KB, BM><<<dim3(p.hk, (p.t + FBR - 1) / FBR), 128 * G, smem, st>>>(p);
+    return IK_OK;
+}
+
+template <int D, bool RIN>
+int launch_flash_d(const InkP& p, cudaStream_t st) {
+    const int kb = flash_kb();
+    int r;
+    if constexpr (RIN) {
+        if (kb == 16 && flash_bias_mma()) r = launch_flash_kb<D, true, 16, true>(p, st);
+        else r = kb == 64 ? launch_flash_kb<D, RIN, 64>(p, st) : kb == 32 ? launch_flash_kb<D, RIN, 32>(p, st) : launch_flash_kb<D, RIN, 16>(p, st);
+    } else {
+        r = kb == 64 ? launch_flash_kb<D, RIN, 64>(p, st) : kb == 32 ? launch_flash_kb<D, RIN, 32>(p, st) : launch_flash_kb<D, RIN, 16>(p, st);
+    }
+    if (r != IK_OK) return r;
     return IK_OK;
 }
 
@@ -2120,6 +2293,15 @@ static int ink_attn_prefill(InkP& p, const ik_ink_attrs* a, ik_tensor* o, ik_ten
     return ik_launch_status();
 }
 
+// ink_attn_decode_prefill_bf16: the registry name of op 75 above 16 rows; ik_ink_attn_decode_bf16 takes T > 16 itself
+extern "C" int ik_ink_attn_decode_prefill_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt,
+                                               const ik_tensor* vt, const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp,
+                                               const ik_tensor* kc_in, const ik_tensor* vc_in, const ik_ink_attrs* a, ik_tensor* o,
+                                               ik_tensor* kc, ik_tensor* vc, ik_tensor* kring, ik_tensor* vring,
+                                               const ik_scratch* scratch, const ik_tensor* pos, void* stream) {
+    return ik_ink_attn_decode_bf16(pq, pk, pv, kt, vt, qs, rs, rp, kc_in, vc_in, a, o, kc, vc, kring, vring, scratch, pos, stream);
+}
+
 extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,
                                        const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp, const ik_tensor* kc_in, const ik_tensor* vc_in,
                                        const ik_ink_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc, ik_tensor* kring, ik_tensor* vring,
@@ -2165,10 +2347,64 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
     bool multi;
     tile_grid(p, pos != nullptr, min_s, &ny, &multi);
     cudaStream_t st = IK_STREAM(stream);
+    // INTARSIA_INK_ATTN_PDL (default on): the tile and combine as programmatic dependents (edges in_proj -> tile and
+    // tile -> combine -> wo; the reasoning at tile_pdl_prelude and ink_tile_comb_k). No value changes.
+    const int pdl = inkpdl::mode();
+    if (pdl != inkpdl::OFF) p.flags |= F_PDL | (pdl == inkpdl::ON ? F_PDL_PF : 0);
     IK_TRY(launch_tile<true>(p, min_s, ny, st));
-    if (multi) ink_tile_comb_k<<<dim3(p.h, p.t), (p.d + 31) / 32 * 32, 0, st>>>(p, min_s);
+    if (multi) {
+        const dim3 cg(p.h, p.t), cb((p.d + 31) / 32 * 32);
+        if (p.flags & F_PDL) {
+            if (inkpdl::launch(ink_tile_comb_k, cg, cb, 0, st, p, min_s) != cudaSuccess) return IK_ERR_LAUNCH;
+        } else {
+            ink_tile_comb_k<<<cg, cb, 0, st>>>(p, min_s);
+        }
+    }
     const size_t n = (size_t)p.t * p.hk * p.d;
     if (!kv_fused) ink_kv_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p, p.stg, p.stg + n);
     if (!ring_fused) ink_ring_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p);
     return ik_launch_status();
+}
+
+// PDL self-test (brief 50 gate 1): the rows a decode tile block prefetches before griddepcontrol.wait, over a sweep of
+// positions, row counts, windows (full, a short window, the real 1024 on a 1040-row ring), tile floors and tile caps,
+// through the kernels' own tile_geo / tile_blk / tile_pdl_rows. A violation: a prefetched row at or past pos0 (the
+// call's own rows), outside the block's keys, below 0, or (ring) more than one wrap or a slot one of the call's rows
+// writes. Returns the number of violations, or -1 if no block had rows to prefetch (a vacuous sweep).
+extern "C" int ik_ink_attn_pdl_selftest(void) {
+    long bad = 0, checked = 0;
+    const int windows[] = {0, 64, 1024};
+    const int mins[] = {CH, 128, TILE_MIN, 512};
+    const int maxts[] = {2, MAXT_DEFAULT, MAXT};
+    for (int window : windows) {
+        for (int min_s : mins) {
+            for (int maxt : maxts) {
+                for (int T = 1; T <= MAXROWS; ++T) {
+                    for (int i = 0; i < 400; ++i) {
+                        // dense near 0 and the window edge, then sparse up to 40k
+                        const int pos0 = i < 200 ? i * 7 % 1100 : 1100 + (i - 200) * 197;
+                        const int Cr = window > 0 ? window + MAXROWS : pos0 + T;  // ring: the model's window + 16; linear: fits
+                        const bool kv_fused = window == 0 || T + window <= Cr + 1;
+                        const TileGeo g = tile_geo(pos0, T, window, min_s, maxt);
+                        for (int y = 0; y < g.na + g.nb + 2; ++y) {  // + 2: device-position grids have spare slots
+                            const TileBlk b = tile_blk(g, y, pos0, T, window);
+                            if (!b.live) continue;
+                            const PdlRows r = tile_pdl_rows(b, pos0);
+                            if (r.hi < r.lo) continue;
+                            ++checked;
+                            if (r.hi >= pos0 || r.lo < 0 || r.lo < b.jlo || r.hi > b.jhi) ++bad;
+                            if (window > 0) {
+                                if (r.hi - r.lo + 1 > Cr) ++bad;
+                                // rows sharing a slot with the call's rows pos0 .. pos0 + T - 1: pos0 + t - k Cr (k >= 1)
+                                if (kv_fused)
+                                    for (int k = 1; k <= 2; ++k)
+                                        if (pos0 - k * Cr <= r.hi && r.lo <= pos0 + T - 1 - k * Cr) ++bad;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return checked == 0 ? -1 : (int)(bad > 0x7fffffff ? 0x7fffffff : bad);
 }
