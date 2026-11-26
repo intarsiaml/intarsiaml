@@ -389,13 +389,15 @@ to the solo chunk, and that is HIP's default.
 
 - The ITL p50 bucket holds the pure decode step of section 5.3: 13.0 / 23.6 / 33.3 / 55.4 ms at B 1 / 4 / 8 / 16.
 - The p99 bucket of 250-500 ms is a decoding row's wait while another stream's 1k prompt prefills in one 2048-row chunk, about
-  0.45 s. At 4 streams it is about 3 waits in roughly 1000 gaps, right at the 99th percentile, so the two splits read it on either
-  side.
+  0.45 s. At 4 streams there are about 6 such waits in about 1020 gaps (0.6 %), close to the 99th percentile, so the two ways of
+  splitting the levels read it on either side (reps 1-2 split by decode rows, because localeval's stdout was block-buffered then;
+  rep 3 by localeval's own timestamped lines).
 - Per-stream decode tok/s is localeval's rate after the first token. At 16 streams it is lower than 1 / 55 ms = 18 tok/s, because
   of those prefill waits.
 - Over the whole of window 8, 97.3 % of the 19 882 gaps between tokens were at most 75 ms, and 136 were over 500 ms. Those 136 were
   the 4k prompts' 2048 chunks in the real-prompt phase.
-- Pure decode, no prefill in the window (section 5.3, `batch_step`, real text, b5; the row-table kernels' code is unchanged since):
+- Pure decode, no prefill in the window (section 5.3, `batch_step`, real text, b5; the row-table kernels' source has not changed
+  since, though they now compile in their own TUs):
   aggregate 77.0 / 169.6 / 240.6 / **289.1** tok/s at B 1 / 4 / 8 / 16 short (3.77x the solo step), and 73.4 / 156.2 / 217.6 /
   **253.0** at 4k (3.45x). Metal's B 16 was 173.7 tok/s, 3.18x (`2026-11-21-inkling2-batch.md` section 4).
 
