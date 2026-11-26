@@ -7,12 +7,17 @@
 //! * `rel_sink_attn_bf16`: a port of CUDA's scalar split-KV path (`ink_attn_s1_k` + `ink_attn_comb_k` + `ink_kv_write_k`) at every
 //!   T, on slices of at most `ATTN_SLICE` rows in order (the scratch bound). Rows-exact for every T, host or device position:
 //!   a row's splits and reduction order are functions of its position and the window only.
-//! * Op 75 (`InkAttnDecode`) is not built: the model runs the pair where it is not admitted.
+//! * `ink_attn_decode_bf16` (op 75, 1..=16 rows): the pair in one dispatch (kernels/hip/ink_attn.hip `ink_attn_dec_k`), bitwise the
+//!   pair at every T <= 16, host or device position; above 16 rows the model runs the pair (not admitted there).
 //! Results: docs/results/2026-11-25-inkling2-hip-attn.md.
 
 use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 
-pub const TABLE: &[(&str, Op)] = &[("ink_kv_prologue_bf16", Op::InkKvPrologue), ("rel_sink_attn_bf16", Op::RelSinkAttn)];
+pub const TABLE: &[(&str, Op)] = &[
+    ("ink_kv_prologue_bf16", Op::InkKvPrologue),
+    ("rel_sink_attn_bf16", Op::RelSinkAttn),
+    ("ink_attn_decode_bf16", Op::InkAttnDecode),
+];
 
 /// The ops this module is the home of (a lane's kernels register only these).
 pub const OPS: &[Op] = &[Op::InkKvPrologue, Op::RelSinkAttn, Op::InkAttnDecode];
@@ -46,6 +51,17 @@ pub fn attn_scratch(s: &ShapeInfo) -> usize {
     s.m.min(ATTN_SLICE) * s.n_heads * MAX_SPLIT * (s.head_dim + 2) * 4
 }
 
+/// Op 75 shapes: the attention's, at most 16 rows (`ATTN_DECODE_MAX_ROWS`), kv heads within the ticket array.
+fn decode_ok(s: &ShapeInfo) -> bool {
+    attn_ok(s) && s.m <= intarsia_core::inkling2::ops::ATTN_DECODE_MAX_ROWS && s.n_kv_heads <= 256
+}
+
+/// Op 75 scratch: the partials of every row (T <= 16) plus the staged K / V rows `[2][T][Hk][D]` bf16. The launcher checks the
+/// same expression.
+pub fn decode_scratch(s: &ShapeInfo) -> usize {
+    s.m * s.n_heads * MAX_SPLIT * (s.head_dim + 2) * 4 + 2 * s.m * s.n_kv_heads * s.head_dim * 2
+}
+
 pub fn all() -> Vec<KernelImpl> {
     let bf = [DType::Bf16];
     TABLE
@@ -56,6 +72,8 @@ pub fn all() -> Vec<KernelImpl> {
             match *name {
                 "ink_kv_prologue_bf16" => k.when(prologue_ok),
                 "rel_sink_attn_bf16" => k.weights(bf).when(attn_ok).scratch(attn_scratch),
+                // bitwise the pair (prologue + rel_sink_attn_bf16)
+                "ink_attn_decode_bf16" => k.weights(bf).when(decode_ok).scratch(decode_scratch),
                 other => unreachable!("inkattn kernel {other} has no registration"),
             }
         })
@@ -107,6 +125,27 @@ pub(crate) mod launch {
     extern "C" {
         fn ik_ink_kv_prologue_bf16(pq: T, pk: T, pv: T, kt: T, vt: T, qs: T, rs: T, rp: T, a: A, q: TM, rel: TM, k: TM, v: TM, kr: TM, vr: TM, pos: T, s: S) -> c_int;
         fn ik_rel_sink_attn_bf16(q: T, k: T, v: T, kc_in: T, vc_in: T, rel: T, pq: T, a: A, o: TM, kc: TM, vc: TM, sc: SC, pos: T, s: S) -> c_int;
+        fn ik_ink_attn_decode_bf16(
+            pq: T,
+            pk: T,
+            pv: T,
+            kt: T,
+            vt: T,
+            qs: T,
+            rs: T,
+            rp: T,
+            kc_in: T,
+            vc_in: T,
+            a: A,
+            o: TM,
+            kc: TM,
+            vc: TM,
+            kr: TM,
+            vr: TM,
+            sc: SC,
+            pos: T,
+            s: S,
+        ) -> c_int;
     }
 
     /// The launcher status of `kernel` when it is one of this module's, `None` otherwise. Called from `HipBackend::launch` with
@@ -116,7 +155,7 @@ pub(crate) mod launch {
     /// # Safety
     /// As the launchers of `ffi`: the tensors are bounds-checked views of live device buffers held by `a.call`.
     pub(crate) unsafe fn launch(kernel: &str, a: &InkArgs) -> Option<c_int> {
-        if !matches!(kernel, "ink_kv_prologue_bf16" | "rel_sink_attn_bf16") {
+        if !matches!(kernel, "ink_kv_prologue_bf16" | "rel_sink_attn_bf16" | "ink_attn_decode_bf16") {
             return None;
         }
         let at = &a.call.attrs;
@@ -155,6 +194,27 @@ pub(crate) mod launch {
                 a.o(3),
                 a.o(4),
                 a.o(5),
+                a.pos,
+                a.s,
+            ),
+            "ink_attn_decode_bf16" => ik_ink_attn_decode_bf16(
+                a.i(0),
+                a.i(1),
+                a.i(2),
+                a.i(3),
+                a.i(4),
+                a.i(5),
+                a.i(6),
+                a.i(7),
+                a.i(8),
+                a.i(9),
+                ap,
+                a.o(0),
+                a.o(1),
+                a.o(2),
+                a.o(3),
+                a.o(4),
+                a.sc,
                 a.pos,
                 a.s,
             ),

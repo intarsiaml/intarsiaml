@@ -11,6 +11,11 @@
 //                      an R-row call is bitwise R one-row calls (rows-exact), host or device position alike. With one split it
 //                      writes the output, else a partial (max, sum, accumulator) into the scratch.
 //   ink_attn_comb_k    stage 2: merges the partials of a (row, query head) in split order, then the sink and the gate.
+//   ink_attn_dec_k<G>  InkAttnDecode (op 75, 1..16 rows): the pair in ONE dispatch. One block per (kv head, split, row), as
+//                      stage 1; each block recomputes its row's q / r, its split's rel bias and the conv'd K / V of the call's
+//                      own rows inside its split with the prologue's device functions (into LDS), runs the same attention
+//                      body, and the last block of a (kv head, row) to finish (a self-resetting device ticket) merges the
+//                      partials in split order with stage 2's code. Bitwise the pair at any T <= 16.
 //   ink_kv_write_k     the cache write after the attention when it could race the reads (ring with T > Cr - window + 1).
 //
 // HIP differences from the CUDA file: wave32 shuffles via __shfl_xor(v, o, 32) (every lane of the wave runs each shuffle);
@@ -38,6 +43,8 @@ constexpr int NSG = 4;          // waves of an attention block
 constexpr int SPLIT_KEYS = 64;  // default keys per split
 constexpr int SLICE = 64;       // most rows of one attention launch (scratch bound; inkattn.rs ATTN_SLICE)
 constexpr int KMAX = 4;         // most conv taps
+constexpr int MAXROWS = 16;     // InkAttnDecode rows
+constexpr int MAXHK_TICK = 256; // most kv heads of an InkAttnDecode call (ticket array: MAXROWS x MAXHK_TICK)
 constexpr float LOG2E = 1.4426950408889634f;
 constexpr float SRC_EPS = 1e-6f;
 
@@ -322,9 +329,11 @@ IK_DEVI InkSplit ink_split(const InkP& p, unsigned pos0, unsigned t, unsigned sp
 
 // The attention of one (kv head, split, row) over keys ks .. ke given the staged q and bias; writes the output (one split) or
 // the partial.
-template <int GP>
-IK_DEVI void ink_attn_body(InkTg<GP>& S, const float* bias, InkSplit g, unsigned kvh, unsigned split, unsigned t, unsigned pos0, const InkP& p,
-                           unsigned tid, unsigned lane, unsigned sg) {
+// KV_TG: the call's own keys (j >= pos0) come from the block's LDS rows `kvt` (K plane, V plane MAXROWS * 128 later; row
+// j - pos0 - kvoff) instead of the k / v inputs. Every thread returns from it (the caller may continue with a block-wide step).
+template <int GP, bool KV_TG>
+IK_DEVI void ink_attn_body(InkTg<GP>& S, const float* bias, const bf16* kvt, unsigned kvoff, InkSplit g, unsigned kvh, unsigned split,
+                           unsigned t, unsigned pos0, const InkP& p, unsigned tid, unsigned lane, unsigned sg) {
     const unsigned D = p.d, H = p.h, Hk = p.hk, Cr = p.cr;
     const bool ring = (p.flags & F_RING) != 0;
     const unsigned lpk = D / 8;     // lanes per key row
@@ -349,9 +358,15 @@ IK_DEVI void ink_attn_body(InkTg<GP>& S, const float* bias, InkSplit g, unsigned
         uint4 kw = make_uint4(0, 0, 0, 0), vw = make_uint4(0, 0, 0, 0);
         if (ok) {
             if (j >= pos0) {
-                const size_t o = ((size_t)(j - pos0) * Hk + kvh) * D + le * 8;
-                kw = *(const uint4*)(p.kn + o);
-                vw = *(const uint4*)(p.vn + o);
+                if (KV_TG) {
+                    const unsigned ro = (j - pos0 - kvoff) * D + le * 8;
+                    kw = *(const uint4*)(kvt + ro);
+                    vw = *(const uint4*)(kvt + MAXROWS * 128 + ro);
+                } else {
+                    const size_t o = ((size_t)(j - pos0) * Hk + kvh) * D + le * 8;
+                    kw = *(const uint4*)(p.kn + o);
+                    vw = *(const uint4*)(p.vn + o);
+                }
             } else {
                 unsigned row = j;
                 if (ring) {
@@ -467,18 +482,12 @@ __global__ void __launch_bounds__(NSG * 32) ink_attn_s1_k(InkP p) {
         tb[h * g.nb + b] = fmul(b2f(p.rel[((size_t)t * H + kvh * GP + h) * E + g.dlo + b]), LOG2E);
     }
     __syncthreads();
-    ink_attn_body<GP>(S, tb, g, kvh, split, t, pos0, p, tid, lane, sg);
+    ink_attn_body<GP, false>(S, tb, nullptr, 0, g, kvh, split, t, pos0, p, tid, lane, sg);
 }
 
-// stage 2. Grid (H, T), threads >= D.
-__global__ void ink_attn_comb_k(InkP p) {
-    const unsigned tid = threadIdx.x;
-    const unsigned h = blockIdx.x, t = blockIdx.y, D = p.d, H = p.h;
-    if (tid >= D) return;
-    const unsigned pp = ink_pos0(p) + t;
-    const unsigned vis = pp - ink_lo(pp, p.window) + 1;
-    const unsigned ns = ink_nsplit(vis, p.sk);
-    if (ns == 1) return;
+// merge of the ns partials of (row t, query head h), element `tid`, in split order; then the sink and the gate
+IK_DEVI void ink_comb_elem(const InkP& p, unsigned t, unsigned h, unsigned tid, unsigned ns) {
+    const unsigned D = p.d, H = p.h;
     const size_t base = ((size_t)t * H + h) * MAXS;
     const float* ml = p.scr + (size_t)p.t * H * MAXS * D;
     float mm = -INFINITY;
@@ -494,6 +503,126 @@ __global__ void ink_attn_comb_k(InkP p) {
     const float sink2 = fmul(b2f(p.pq[pr + 2 * H * D + H * p.dr + h]), LOG2E);
     const float gate = b2f(p.pq[pr + H * D + H * p.dr + h * D + tid]);
     p.out[((size_t)t * H + h) * D + tid] = ink_finish(aa, mm, ll, sink2, gate);
+}
+
+// stage 2. Grid (H, T), threads >= D.
+__global__ void ink_attn_comb_k(InkP p) {
+    const unsigned tid = threadIdx.x;
+    const unsigned h = blockIdx.x, t = blockIdx.y;
+    if (tid >= (unsigned)p.d) return;
+    const unsigned pp = ink_pos0(p) + t;
+    const unsigned vis = pp - ink_lo(pp, p.window) + 1;
+    const unsigned ns = ink_nsplit(vis, p.sk);
+    if (ns == 1) return;
+    ink_comb_elem(p, t, h, tid, ns);
+}
+
+// InkAttnDecode tickets: per (row, kv head) the count of finished splits; the last block resets its entry to 0, so the array is
+// zero before and after every launch (stream order serialises launches; graph replays alike).
+__device__ unsigned ink_dec_tick[MAXROWS * MAXHK_TICK];
+
+// InkAttnDecode. Grid (Hk, max splits, T <= 16), NSG waves. Dynamic LDS: the split's bias [GP][nb] f32.
+template <int GP>
+__global__ void __launch_bounds__(NSG * 32) ink_attn_dec_k(InkP p) {
+    __shared__ InkTg<GP> S;
+    __shared__ float rsh[4][32];
+    __shared__ __align__(16) bf16 kvt[2 * MAXROWS * 128];
+    __shared__ unsigned is_last;
+    extern __shared__ float tb[];
+    const unsigned tid = threadIdx.x, lane = tid & 31, sg = tid >> 5;
+    const unsigned kvh = blockIdx.x, split = blockIdx.y, t = blockIdx.z;
+    const unsigned D = p.d, Hk = p.hk, E = p.e, Cr = p.cr, ckv = Hk * D;
+    const bool ring = (p.flags & F_RING) != 0;
+    const unsigned pos0 = ink_pos0(p);
+    const InkSplit g = ink_split(p, pos0, t, split);
+    if (split >= g.ns) return;
+    const unsigned vis = g.pp - g.lo + 1, chunk = ink_chunk(vis, g.ns);
+    // the block whose split holds key pp (row t itself) writes row t's cache and conv-ring rows
+    const bool writer = (g.pp - g.lo) / chunk == split;
+    // the call's own rows among the split's keys: ua .. ub - 1
+    unsigned ua = 0, ub = 0;
+    if (g.ke > g.ks && g.ke > pos0) {
+        ua = (g.ks > pos0 ? g.ks : pos0) - pos0;
+        ub = g.ke - pos0;
+    }
+    const unsigned nown = ub - ua;
+    // prologue jobs, one wave each: q of the GP heads, r of the GP heads, conv'd k / v of each own row
+    const unsigned njobs = 2 * GP + 2 * nown;
+    for (unsigned job = sg; job < njobs; job += NSG) {
+        float v[4];
+        if (job < (unsigned)GP) {
+            job_qr<4>(p, t, kvh * GP + job, g.pp, false, lane, v);
+#pragma unroll
+            for (int i = 0; i < 4; ++i) {
+                const unsigned c = lane + 32 * i;
+                if (c < D) S.q[job][c] = v[i];  // rounded already: the bits the pair's q store / load gives
+            }
+        } else if (job < 2u * GP) {
+            const unsigned gg = job - GP;
+            job_qr<4>(p, t, kvh * GP + gg, g.pp, true, lane, v);
+            if (lane < (unsigned)p.dr) rsh[gg][lane] = v[0];
+        } else {
+            const unsigned u = ua + (job - 2 * GP) / 2, kv = (job - 2 * GP) & 1;
+            const float ss = job_conv<4>(p, kv ? p.pv : p.pk, kv ? p.vr : p.kr, kv ? p.vt : p.kt, u, pos0, kvh, lane, v);
+#pragma unroll
+            for (int i = 0; i < 4; ++i) {
+                const unsigned c = lane + 32 * i;
+                if (c < D) kvt[kv * MAXROWS * 128 + (u - ua) * D + c] = f2b(kv ? v_out(v[i], ss, p) : k_out(v[i], ss, p));
+            }
+        }
+    }
+    __syncthreads();
+    // the split's bias: the prologue's rel chain at the split's distances, rounded as the rel store, then the attention's scaling
+    for (unsigned b = tid; b < g.nb; b += NSG * 32) {
+        float rv[4];
+        ink_rel_g(rsh, GP, p.rp, p.dr, E, g.dlo + b, rv);
+        for (int h = 0; h < GP; ++h) tb[h * g.nb + b] = fmul(rA(rv[h]), LOG2E);
+    }
+    if (writer) {
+        const bf16* kr = kvt + (t - ua) * D;
+        const bf16* vr = kvt + MAXROWS * 128 + (t - ua) * D;
+        if ((p.flags & F_KV_WRITE) != 0) {
+            if (!ring || t + Cr >= (unsigned)p.t) {
+                const size_t dst = ((size_t)kvh * Cr + (ring ? g.pp % Cr : g.pp)) * D;
+                for (unsigned i = tid; i < D; i += NSG * 32) {
+                    p.kc[dst + i] = kr[i];
+                    p.vc[dst + i] = vr[i];
+                }
+            }
+        } else {
+            // staged for ink_kv_write_k (the pair's k / v layout [T][Hk][D])
+            const size_t src = ((size_t)t * Hk + kvh) * D;
+            for (unsigned i = tid; i < D; i += NSG * 32) {
+                p.ko[src + i] = kr[i];
+                p.vo[src + i] = vr[i];
+            }
+        }
+        if ((p.flags & F_RING_WRITE) != 0 && t + p.rr >= (unsigned)p.t) {
+            for (unsigned c = tid; c < D; c += NSG * 32) {
+                const unsigned ch = kvh * D + c;
+                const size_t ro = (size_t)(g.pp % p.rr) * ckv + ch;
+                p.kr[ro] = p.pk[(size_t)t * p.pw + ch];
+                p.vr[ro] = p.pv[(size_t)t * p.pw + ch];
+            }
+        }
+    }
+    __syncthreads();
+    ink_attn_body<GP, true>(S, tb, kvt, ua, g, kvh, split, t, pos0, p, tid, lane, sg);
+    if (g.ns == 1) return;
+    // the partials of this split are written; the last split of (row, kv head) to arrive merges them all
+    __threadfence();
+    __syncthreads();
+    unsigned* tick = &ink_dec_tick[t * MAXHK_TICK + kvh];
+    if (tid == 0) {
+        const unsigned old = atomicAdd(tick, 1u);
+        is_last = old == g.ns - 1;
+        if (is_last) atomicExch(tick, 0u);
+    }
+    __syncthreads();
+    if (!is_last) return;
+    __threadfence();
+    if (tid < D)
+        for (int hh = 0; hh < GP; ++hh) ink_comb_elem(p, t, kvh * GP + hh, tid, g.ns);
 }
 
 // the cache write as its own pass. One thread per (row, kv head, dim).
@@ -544,10 +673,11 @@ void attn_geometry(const InkP& p, bool dev, unsigned* gy, unsigned* nbias) {
 
 }  // namespace
 
-extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,
-                                       const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp, const ik_ink_attn_attrs* a, ik_tensor* q,
-                                       ik_tensor* rel, ik_tensor* k, ik_tensor* v, ik_tensor* kring, ik_tensor* vring, const ik_tensor* pos,
-                                       void* stream) {
+namespace {
+// common prologue checks; fills the prologue part of `p`
+int prologue_params(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt, const ik_tensor* qs,
+                    const ik_tensor* rs, const ik_tensor* rp, const ik_ink_attn_attrs* a, ik_tensor* kring, ik_tensor* vring, const ik_tensor* pos,
+                    InkP& p) {
     if (!a) return IK_ERR_INVALID_ARG;
     IK_TRY(ik_check_pos(pos));
     IK_TRY(chk(pq, 2));
@@ -560,14 +690,9 @@ extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk,
     IK_TRY(chk(rp, 2));
     IK_TRY(chk(kring, 2));
     IK_TRY(chk(vring, 2));
-    IK_TRY(chk(q, 3));
-    IK_TRY(chk(rel, 3));
-    IK_TRY(chk(k, 3));
-    IK_TRY(chk(v, 3));
     const int64_t h = a->n_heads, hk = a->n_kv_heads, d = a->head_dim, dr = a->d_rel;
     if (hk <= 0 || h % hk != 0 || h / hk > 4 || d <= 0 || d > 256 || dr <= 0 || dr > 32 || kt->shape[0] > KMAX || kt->shape[0] < 1)
         return IK_ERR_SHAPE;
-    InkP p = {};
     p.pq = cb(pq);
     p.pk = cb(pk);
     p.pv = cb(pv);
@@ -598,6 +723,20 @@ extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk,
     if (!fits_u32(a->pos0) || !fits_u32((int64_t)p.t * hk * d) || kring->shape[1] != hk * d || vring->shape[0] != kring->shape[0] ||
         vring->shape[1] != kring->shape[1] || p.rr < 1)
         return IK_ERR_SHAPE;
+    return IK_OK;
+}
+}  // namespace
+
+extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,
+                                       const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp, const ik_ink_attn_attrs* a, ik_tensor* q,
+                                       ik_tensor* rel, ik_tensor* k, ik_tensor* v, ik_tensor* kring, ik_tensor* vring, const ik_tensor* pos,
+                                       void* stream) {
+    InkP p = {};
+    IK_TRY(prologue_params(pq, pk, pv, kt, vt, qs, rs, rp, a, kring, vring, pos, p));
+    IK_TRY(chk(q, 3));
+    IK_TRY(chk(rel, 3));
+    IK_TRY(chk(k, 3));
+    IK_TRY(chk(v, 3));
     if (p.t == 0) return IK_OK;
     p.qo = mb(q);
     p.relo = mb(rel);
@@ -707,6 +846,74 @@ extern "C" int ik_rel_sink_attn_bf16(const ik_tensor* q, const ik_tensor* k, con
             const size_t nn = (size_t)n * p.hk * p.d;
             ink_kv_write_k<<<(unsigned)((nn + 255) / 256), 256, 0, st>>>(ps);
         }
+    }
+    return ik_launch_status();
+}
+
+extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,
+                                       const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp, const ik_tensor* kc_in, const ik_tensor* vc_in,
+                                       const ik_ink_attn_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc, ik_tensor* kring, ik_tensor* vring,
+                                       const ik_scratch* scratch, const ik_tensor* pos, void* stream) {
+    (void)kc_in;
+    (void)vc_in;
+    InkP p = {};
+    IK_TRY(prologue_params(pq, pk, pv, kt, vt, qs, rs, rp, a, kring, vring, pos, p));
+    IK_TRY(chk(o, 2));
+    IK_TRY(chk(kc, 3));
+    IK_TRY(chk(vc, 3));
+    if (p.t == 0) return IK_OK;
+    const int G = p.h / p.hk;
+    if (p.t > MAXROWS || G < 1 || G > 3 || p.d > 128 || !(p.d == 8 || p.d == 16 || p.d == 32 || p.d == 64 || p.d == 128) || p.hk > MAXHK_TICK)
+        return IK_ERR_SHAPE;
+    if (o->shape[0] != p.t || o->shape[1] != (int64_t)p.h * p.d || kc->shape[0] != p.hk || kc->shape[2] != p.d || vc->shape[1] != kc->shape[1])
+        return IK_ERR_SHAPE;
+    p.cr = (int)kc->shape[1];
+    p.window = (int)a->window;
+    p.scale = a->scale;
+    p.sk = split_keys(a);
+    const bool ring = a->kv_ring != 0;
+    if (ring) p.flags |= F_RING;
+    if (ring && (p.window < 1 || p.window > p.cr)) return IK_ERR_SHAPE;
+    if (!ik_aligned16(kc->data) || !ik_aligned16(vc->data) || !fits_u32((int64_t)p.hk * p.cr * p.d) || !fits_u32(a->pos0 + p.t)) return IK_ERR_INVALID_ARG;
+    p.out = mb(o);
+    p.kc = mb(kc);
+    p.vc = mb(vc);
+    p.pos = pos ? (const int*)pos->data : nullptr;
+    p.pos0 = (int)a->pos0;
+    const bool ring_fused = p.t + p.k <= p.rr + 1;
+    if (ring_fused) p.flags |= F_RING_WRITE;
+    const bool kv_fused = !ring || p.t + p.window <= p.cr + 1;
+    if (kv_fused) p.flags |= F_KV_WRITE;
+    unsigned gy, nb;
+    attn_geometry(p, pos != nullptr, &gy, &nb);
+    // scratch: the partials (as rel_sink_attn's), then the staged K / V rows [2][T][Hk][D] bf16 when the cache write runs after
+    const int64_t part = (int64_t)p.t * p.h * MAXS * (p.d + 2) * 4;
+    const int64_t need = (gy > 1 ? part : 0) + (kv_fused ? 0 : (int64_t)2 * p.t * p.hk * p.d * 2);
+    if (need > 0) {
+        if (!scratch || !scratch->data || scratch->bytes < part + (int64_t)2 * p.t * p.hk * p.d * 2) return IK_ERR_INVALID_ARG;
+        p.scr = (float*)scratch->data;
+        bf16* stg = (bf16*)((char*)scratch->data + part);
+        p.ko = stg;
+        p.vo = stg + (size_t)p.t * p.hk * p.d;
+    }
+    hipStream_t st = IK_STREAM(stream);
+    const size_t tbb = (size_t)G * nb * 4;
+    const dim3 grid(p.hk, gy, p.t);
+    switch (G) {
+        case 1: ink_attn_dec_k<1><<<grid, NSG * 32, tbb, st>>>(p); break;
+        case 2: ink_attn_dec_k<2><<<grid, NSG * 32, tbb, st>>>(p); break;
+        default: ink_attn_dec_k<3><<<grid, NSG * 32, tbb, st>>>(p); break;
+    }
+    if (!kv_fused) {
+        InkP pw = p;
+        pw.kn = p.ko;
+        pw.vn = p.vo;
+        const size_t n = (size_t)p.t * p.hk * p.d;
+        ink_kv_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(pw);
+    }
+    if (!ring_fused) {
+        const size_t n = (size_t)p.t * p.hk * p.d;
+        ink_ring_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p);
     }
     return ik_launch_status();
 }

@@ -251,11 +251,11 @@ fn admission_full_sweep() {
     let cpu = CpuBackend::arc();
     let quick = std::env::var("INK_ATTN_QUICK").is_ok_and(|v| v == "1");
     let sweep = SweepConfig { quick, ..SweepConfig::default() };
-    let opts = AdmissionOpts { sweep: Some(sweep), only_ops: Some(vec![Op::InkKvPrologue, Op::RelSinkAttn]), only_kernel: None };
+    let opts = AdmissionOpts { sweep: Some(sweep), only_ops: Some(vec![Op::InkKvPrologue, Op::RelSinkAttn, Op::InkAttnDecode]), only_kernel: None };
     let report = run_admission(&*cpu, &*hip, &opts).unwrap();
     let text = report.render(true);
     println!("{text}");
-    for name in ["ink_kv_prologue_bf16", "rel_sink_attn_bf16"] {
+    for name in ["ink_kv_prologue_bf16", "rel_sink_attn_bf16", "ink_attn_decode_bf16"] {
         let k = report.kernels.iter().find(|k| k.kernel == name).unwrap_or_else(|| panic!("{name} not graded\n{text}"));
         assert!(k.cases > 0 && k.admitted, "{name}: {} cases, admitted {}\n{text}", k.cases, k.admitted);
     }
@@ -287,6 +287,13 @@ fn rows_exact_real_shapes() {
                 } else {
                     let multi_dev = run(be, l, &inp, t, pos0, t, true, false);
                     same(&multi, &multi_dev, &format!("{what} ({t}-row call, device position)"));
+                }
+                // InkAttnDecode (op 75, <= 16 rows): R rows, R x 1 row (host and device position) all bitwise the unfused pair
+                if t <= 16 {
+                    for (rows, dev) in [(t, false), (t, true), (1, false), (1, true)] {
+                        let f = run(be, l, &inp, t, pos0, rows, dev, true);
+                        same(&multi, &f, &format!("{what} (InkAttnDecode, {rows}-row calls, device position {dev})"));
+                    }
                 }
                 // the attention output is not trivially zero
                 assert!(multi.outs[4].iter().any(|&x| x & 0x7fff != 0), "{what}: zero output");
@@ -349,6 +356,14 @@ fn bench_decode() {
             a,
         );
         att.scratch = Some(scratch_for(be, "rel_sink_attn_bf16", &att));
+        let fa = att.attrs.clone(); // attrs() carries the prologue's and the attention's fields
+        let mut dec = OpCall::new(
+            Op::InkAttnDecode,
+            pro.inputs.iter().cloned().chain([tr(&st[2], 0, &[HK, l.cr, DH]), tr(&st[3], 0, &[HK, l.cr, DH])]).collect(),
+            vec![tr(&o, 0, &[1, H * DH]), tr(&st[2], 0, &[HK, l.cr, DH]), tr(&st[3], 0, &[HK, l.cr, DH]), tr(&st[0], 0, &[RR, ckv]), tr(&st[1], 0, &[RR, ckv])],
+            fa,
+        );
+        dec.scratch = Some(scratch_for(be, "ink_attn_decode_bf16", &dec));
         let time = |f: &dyn Fn()| {
             for _ in 0..20 {
                 f();
@@ -364,11 +379,13 @@ fn bench_decode() {
         };
         let tp = time(&|| be.launch("ink_kv_prologue_bf16", &pro, 0).unwrap());
         let ta = time(&|| be.launch("rel_sink_attn_bf16", &att, 0).unwrap());
+        let tf = time(&|| be.launch("ink_attn_decode_bf16", &dec, 0).unwrap());
         let keys = (pos0 + 1).min(if l.window > 0 { l.window } else { usize::MAX });
         let bytes = (2 * HK * keys * DH * 2) as f64;
         let roof = bytes / 627e9 * 1e6;
         println!(
-            "BENCH {name}: prologue {tp:.1} us, attention {ta:.1} us ({:.0} GB/s of KV; roofline {roof:.1} us at 627 GB/s, {:.0}%)",
+            "BENCH {name}: prologue {tp:.1} us, attention {ta:.1} us, pair {:.1} us, fused op 75 {tf:.1} us ({:.0} GB/s of KV; roofline {roof:.1} us at 627 GB/s, {:.0}%)",
+            tp + ta,
             bytes / (ta * 1e-6) / 1e9,
             roof / ta * 100.0
         );
