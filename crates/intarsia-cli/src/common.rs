@@ -378,6 +378,7 @@ impl ModelArgs {
                 dflash_tp: None, // INTARSIA_DFLASH_TP (lane dh)
                 prefill_macro: None, // INTARSIA_PREFILL_MACRO (Model::load)
                 row_invariant_prefill: None, // INTARSIA_ROW_INVARIANT_PREFILL (Model::load)
+                batched: false, // set by the engine loader from --max-batch (intarsia_models::load)
             },
             spec_draft: self.spec_draft.clone(),
             dcoco: self.dcoco,

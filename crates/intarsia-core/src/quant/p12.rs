@@ -29,7 +29,7 @@ use crate::error::{Error, Result};
 pub const P12: super::QuantId = "p12";
 
 /// `INTARSIA_INK_PACK12`: Inkling-2 stores in_proj, wo and the unembed as P12 too, for the few-row kernels (lossless).
-/// Default on on Metal and CUDA, `0` turns it off, `1` turns it on on any backend with the P12 kernels ([`decide`]).
+/// Default on on Metal, CUDA and HIP, `0` turns it off, `1` turns it on on any backend with the P12 kernels ([`decide`]).
 pub const ENV: &str = "INTARSIA_INK_PACK12";
 
 /// Most activation rows a P12 kernel takes (decode and verify; prefill chunks keep the bf16 weights).
@@ -345,11 +345,11 @@ pub fn in_proj_rows_max(backend: &str) -> usize {
 }
 
 /// What `INTARSIA_INK_PACK12` (`env`) decides on the backend named `backend`, which registers the P12 kernels
-/// (`Op::MatmulP12`: Metal and the cpu reference) or not (CUDA, HIP): whether to pack, and a load-log note when a forced
+/// (`Op::MatmulP12`: Metal, CUDA, HIP and the cpu reference) or not: whether to pack, and a load-log note when a forced
 /// `1` is not honoured. `0` / `off` / `false`: never. `1` / `on` / `true`: wherever the kernels exist; a backend without
 /// them keeps the bf16 weights and says so (it never packs and then fails at plan or dispatch). Unset (or anything else):
 /// Metal and CUDA (default-on on CUDA since lane ink-cuda-p12, spark1 #11172: decode +4.4 % short / +4.3 % 1.2k / +4.5 % 5k,
-/// bitwise at model level), where they register the kernels.
+/// bitwise at model level) and HIP (lane ink-hip-p12, `docs/results/2026-11-26-inkling2-hip-p12.md`), where they register the kernels.
 pub fn decide(env: Option<&str>, backend: &str, has_kernels: bool) -> (bool, Option<String>) {
     match env.map(str::trim) {
         Some("0" | "off" | "false") => (false, None),
@@ -357,15 +357,34 @@ pub fn decide(env: Option<&str>, backend: &str, has_kernels: bool) -> (bool, Opt
         Some("1" | "on" | "true") => {
             (false, Some(format!("{ENV}=1: the {backend} backend has no P12 kernels (MatmulP12); keeping the bf16 weights")))
         }
-        _ => ((backend == "metal" || backend == "cuda") && has_kernels, None),
+        _ => (matches!(backend, "metal" | "cuda" | "hip") && has_kernels, None),
     }
 }
 
-/// Whether Inkling-2 packs P12 copies at load on `b` ([`decide`] on the environment and `b`'s kernel list). Prints the
-/// note of a forced `1` that is not honoured, once per process.
-pub fn enabled(b: &dyn Backend) -> bool {
+/// [`decide`] for one load: a model loaded to batch (`batched`, `LoadOptions::batched`: `serve --max-batch` > 1) never packs
+/// (lane ink-hip-p12). Its plan has no P12 kernels and drops the copies (`Model::drop_p12_for_batch`), and the KV budget is
+/// measured at load with whatever is resident, so the copies would only take KV budget (on HIP 1.66 GB x `--kv-fraction`).
+/// A load that would have packed says so in its note; a forced `1` is warned about, as the drop does.
+pub fn decide_load(env: Option<&str>, backend: &str, has_kernels: bool, batched: bool) -> (bool, Option<String>) {
+    let (on, note) = decide(env, backend, has_kernels);
+    if !(on && batched) {
+        return (on, note);
+    }
+    let forced = env.is_some_and(|v| matches!(v.trim(), "1" | "on" | "true"));
+    let mut n = "pack12 off: the model is loaded to batch (--max-batch > 1); the bf16 weights serve every row".to_string();
+    if forced {
+        n.push_str(&format!(
+            "\nwarning: {ENV}=1 is not honoured with batching on (P12 has no batched kernels yet); keeping the bf16 weights"
+        ));
+    }
+    (false, Some(n))
+}
+
+/// Whether Inkling-2 packs P12 copies at load on `b` ([`decide_load`] on the environment, `b`'s kernel list and `batched`).
+/// Prints the load's note (a forced `1` that is not honoured, a batched load), once per process.
+pub fn enabled(b: &dyn Backend, batched: bool) -> bool {
     let has = b.kernels().iter().any(|k| k.op == crate::ops::Op::MatmulP12);
-    let (on, note) = decide(std::env::var(ENV).ok().as_deref(), b.name(), has);
+    let (on, note) = decide_load(std::env::var(ENV).ok().as_deref(), b.name(), has, batched);
     static NOTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     if let Some(n) = note {
         if !NOTED.swap(true, std::sync::atomic::Ordering::Relaxed) {
@@ -388,6 +407,42 @@ mod tests {
         assert_eq!(decide(None, "cuda", false), (false, None));
         assert_eq!(decide(None, "hip", false), (false, None));
         assert_eq!(decide(Some("garbage"), "metal", true), (true, None));
+        // HIP with its kernels (lane ink-hip-p12): on by default, off with the switch, forced on stays on
+        assert_eq!(decide(None, "hip", true), (true, None));
+        assert_eq!(decide(Some("1"), "hip", true), (true, None));
+        for v in ["0", "off", "false"] {
+            assert_eq!(decide(Some(v), "hip", true), (false, None));
+        }
+        // the in-projection packs on HIP (its bf16 form is the GEMV form, which the P12 kernel twins at 1..=DENSE_ROWS_MAX rows)
+        assert!(pack_in_proj("hip"));
+    }
+
+    /// Lane ink-hip-p12 brief 2: a load to batch never packs (its plan drops the copies and its KV budget is measured with them
+    /// resident); a solo load packs exactly as `decide` says, on every backend.
+    #[test]
+    fn decide_load_batched_never_packs_solo_as_decide() {
+        let envs = [None, Some("1"), Some("on"), Some("0"), Some("off"), Some("garbage")];
+        for backend in ["metal", "cuda", "hip", "cpu"] {
+            for has in [true, false] {
+                for env in envs {
+                    assert_eq!(decide_load(env, backend, has, false), decide(env, backend, has), "{backend} {has} {env:?} solo");
+                    let (on, note) = decide_load(env, backend, has, true);
+                    assert!(!on, "{backend} {has} {env:?}: a batched load must not pack");
+                    if decide(env, backend, has).0 {
+                        let n = note.expect("a batched load that would have packed says so");
+                        assert!(n.starts_with("pack12 off: the model is loaded to batch"), "{n}");
+                        assert_eq!(n.contains("not honoured"), env.is_some_and(|v| v == "1" || v == "on"), "{n}");
+                    } else {
+                        assert_eq!(note, decide(env, backend, has).1, "{backend} {has} {env:?}: unchanged note");
+                    }
+                }
+            }
+        }
+        // the defaults the lane ships: solo packs on hip / metal / cuda with the kernels, batched never
+        for backend in ["metal", "cuda", "hip"] {
+            assert!(decide_load(None, backend, true, false).0);
+            assert!(!decide_load(None, backend, true, true).0);
+        }
         // the off switch, everywhere
         for v in ["0", "off", "false", " 0 "] {
             assert_eq!(decide(Some(v), "metal", true), (false, None));

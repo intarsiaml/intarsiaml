@@ -1,0 +1,79 @@
+fleetq: #12128 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12123 "ink-hip-batch: build mixmode PR tests (b10) + negative-control ink_rows (cpu)" (claude-04c0e1cd) loads it
+fleetq:   #12123 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12123 set, or it will wait for #12123 to be released.
+fleetq: #12128 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12124 "ink-sampled: hip build branch + main (cpu only)" (claude-04c0e1cd) loads it
+fleetq:   #12124 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12124 set, or it will wait for #12124 to be released.
+fleetq: #12128 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12131 "ink-hip-verify: build split1 (expert slices) + ink_moe / verify_rows_real tests (cpu)" (claude-04c0e1cd) loads it
+fleetq:   #12131 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12131 set, or it will wait for #12131 to be released.
+fleetq: #12128 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=290 bash ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/window.sh ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w1.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/stage_w1.sh; cap 290s; stopping radiance 2026-11-26 14:36:05
+[window] radiance stopped 2026-11-26 14:36:09 (inactive)
+[stage] microbench 2026-11-26 14:36:09
+BENCH wo | 1 | matmul_bf16_gemv | 28.10 | 503.8 | 1.000
+BENCH wo | 1 | matmul_p12_gemv default | 22.06 | 481.8 | 1.274
+BENCH wo | 1 | matmul_p12_gemv R=1,U=4 | 22.24 | 477.9 | 1.263
+BENCH wo | 1 | matmul_p12_gemv R=1,U=9 | 23.16 | 458.9 | 1.213
+BENCH wo | 1 | matmul_p12_gemv R=1,U=12 | 23.16 | 459.0 | 1.213
+BENCH wo | 1 | matmul_p12_gemv R=1,U=16 | 22.87 | 464.8 | 1.229
+BENCH wo | 1 | matmul_p12_gemv R=2,U=4 | 23.30 | 456.2 | 1.206
+BENCH wo | 1 | matmul_p12_gemv R=2,U=8 | 24.07 | 441.5 | 1.167
+BENCH wo | 4 | matmul_bf16_gemv | 27.77 | 509.8 | 1.000
+BENCH wo | 4 | matmul_p12_gemv default | 25.36 | 419.1 | 1.095
+BENCH wo | 4 | matmul_p12_gemv R=2,U=8 | 54.49 | 195.1 | 0.510
+BENCH wo | 4 | matmul_p12_gemv R=1,U=4 | 23.72 | 448.1 | 1.171
+BENCH wo | 4 | matmul_p12_gemv R=1,U=8 | 26.81 | 396.5 | 1.036
+BENCH wo | 16 | matmul_bf16_gemv_rows | 117.81 | 120.2 | 1.000
+BENCH wo | 16 | matmul_p12_gemv_rows default | 44.26 | 240.1 | 2.662
+BENCH unembed | 1 | logits_bf16_gemv | 1450.06 | 635.7 | 1.000
+BENCH unembed | 1 | matmul_p12_logits_gemv default | 1213.72 | 570.5 | 1.195
+BENCH unembed | 1 | matmul_p12_logits_gemv R=1,U=4 | 1248.34 | 554.6 | 1.162
+BENCH unembed | 1 | matmul_p12_logits_gemv R=1,U=9 | 1107.19 | 625.3 | 1.310
+BENCH unembed | 1 | matmul_p12_logits_gemv R=1,U=12 | 1101.27 | 628.7 | 1.317
+BENCH unembed | 1 | matmul_p12_logits_gemv R=1,U=16 | 1100.22 | 629.3 | 1.318
+BENCH unembed | 1 | matmul_p12_logits_gemv R=2,U=4 | 1306.68 | 529.9 | 1.110
+BENCH unembed | 1 | matmul_p12_logits_gemv R=2,U=8 | 1239.91 | 558.4 | 1.169
+BENCH unembed | 1 | one launch each (dec3=3): bf16 1710.69 / P12 1459.20 | | 1.172
+BENCH unembed | 4 | logits_bf16_gemv | 1746.22 | 527.9 | 1.000
+BENCH unembed | 4 | matmul_p12_logits_gemv default | 1319.04 | 524.9 | 1.324
+BENCH unembed | 4 | matmul_p12_logits_gemv R=2,U=8 | 3452.26 | 200.6 | 0.506
+BENCH unembed | 4 | matmul_p12_logits_gemv R=1,U=4 | 1281.61 | 540.2 | 1.363
+BENCH unembed | 4 | matmul_p12_logits_gemv R=1,U=8 | 1415.72 | 489.1 | 1.233
+BENCH unembed | 16 | logits_bf16_gemv_rows | 1883.71 | 489.4 | 1.000
+BENCH unembed | 16 | matmul_p12_logits_gemv_rows default | 2109.35 | 328.2 | 0.893
+BENCH in_proj | 1 | ink_in_proj_bf16_gemv | 69.38 | 575.4 | 1.000
+BENCH in_proj | 1 | ink_in_proj_p12_gemv u=0 | 57.10 | 525.1 | 1.215
+BENCH in_proj | 1 | ink_in_proj_p12_gemv u=4 | 56.29 | 532.7 | 1.233
+BENCH in_proj | 1 | ink_in_proj_p12_gemv u=8 | 56.78 | 528.1 | 1.222
+BENCH in_proj | 1 | ink_in_proj_p12_gemv u=9 | 53.79 | 557.4 | 1.290
+BENCH in_proj | 4 | ink_in_proj_bf16_gemv | 69.97 | 570.5 | 1.000
+BENCH in_proj | 4 | ink_in_proj_p12_gemv u=0 | 58.71 | 510.7 | 1.192
+BENCH in_proj | 4 | ink_in_proj_p12_gemv u=4 | 60.14 | 498.6 | 1.164
+BENCH in_proj | 4 | ink_in_proj_p12_gemv u=8 | 66.03 | 454.1 | 1.060
+BENCH in_proj | 4 | ink_in_proj_p12_gemv u=9 | 55.00 | 545.1 | 1.272
+BENCH in_proj | 16 | ink_in_proj_bf16_gemv | 125.18 | 318.9 | 1.000
+BENCH in_proj | 16 | ink_in_proj_p12_gemv u=0 | 125.87 | 238.2 | 0.995
+BENCH in_proj | 16 | ink_in_proj_p12_gemv u=4 | 348.22 | 86.1 | 0.359
+BENCH in_proj | 16 | ink_in_proj_p12_gemv u=8 | 1686.80 | 17.8 | 0.074
+BENCH in_proj | 16 | ink_in_proj_p12_gemv u=9 | 1464.12 | 20.5 | 0.085
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 3.42s
+[stage] bitwise tests 2026-11-26 14:36:13
+test p12_bitwise_real_shapes ... unembed: 42371 escapes
+p12_bitwise_real_shapes: 193 cases bitwise
+test p12_bitwise_small_and_adversarial ... p12_bitwise_small_and_adversarial: 324 cases bitwise
+test p12_microbench ... skipping: P12_BENCH unset
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.79s
+[stage] e2e: branch short 128 (max-seq 8192), then main and branch at the default max-seq (load log) 2026-11-26 14:36:15
+GEN branch 128 119f75402979581080de8108dbad6834 | decode 1548 ms (82.05 tok/s) | steps=128 graph replays=127 (captures 1) eager decode steps=0
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.3 s)
+loaded Inkling-2-Mini on AMD Radeon Graphics in 5.3s: 24 layers, hidden 2304, act bf16, kv bf16, weights 14.97 GB, context 8192 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+GEN main-dms 16 5b54edff82333327e5e6233af609b0fd | decode 198 ms (75.62 tok/s) | steps=16 graph replays=15 (captures 1) eager decode steps=0
+loaded Inkling-2-Mini on AMD Radeon Graphics in 4.4s: 24 layers, hidden 2304, act bf16, kv bf16, weights 13.31 GB, context 4096 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+GEN branch-dms 16 5b54edff82333327e5e6233af609b0fd | decode 185 ms (81.08 tok/s) | steps=16 graph replays=15 (captures 1) eager decode steps=0
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.3 s)
+loaded Inkling-2-Mini on AMD Radeon Graphics in 5.2s: 24 layers, hidden 2304, act bf16, kv bf16, weights 14.97 GB, context 4096 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+[stage] done 2026-11-26 14:36:33
+[window] stage done 2026-11-26 14:36:34 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 14:36:34
+[window] radiance answers 2026-11-26 14:36:44 (after 15 s)
+fleetq: #12128 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
