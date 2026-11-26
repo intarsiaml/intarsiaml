@@ -176,6 +176,12 @@ fn op_table(t: &intarsia_core::telemetry::TelemetrySnapshot) {
 }
 
 pub fn run(args: GenerateArgs) -> Result<()> {
+    let r = run_inner(args);
+    crate::common::metal_mode_probe("end");
+    r
+}
+
+fn run_inner(args: GenerateArgs) -> Result<()> {
     let t_load = std::time::Instant::now();
     let loaded = args.model.load()?;
     let engine = loaded.engine;
@@ -198,6 +204,7 @@ pub fn run(args: GenerateArgs) -> Result<()> {
             .map(|s| format!(", chat template {s}"))
             .unwrap_or_default(),
     );
+    crate::common::metal_mode_probe("load");
 
     let text = if args.chat {
         let mut msgs = vec![];

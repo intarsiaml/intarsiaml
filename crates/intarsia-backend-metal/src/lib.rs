@@ -39,6 +39,7 @@ mod gdn;
 pub mod inkattn;
 pub mod gemm_nax;
 mod host;
+pub mod modeprobe;
 pub mod inkmoe;
 pub mod inkprefill;
 pub mod inkmix;

@@ -91,6 +91,12 @@ fn no_copy(be: &MetalBackend, floor: usize, len: usize) -> Result<MtlBuffer> {
 }
 
 pub(crate) fn wrap(be: &MetalBackend, mem: Arc<dyn HostMemory>, offset: usize, len: usize) -> Option<Buffer> {
+    // diagnostic (lane ink-mode): `INTARSIA_METAL_NO_WRAP=1` refuses every import, so the loader copies the weights into
+    // `newBufferWithLength` buffers (alloc + upload) instead of mapping the files
+    static NO_WRAP: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if *NO_WRAP.get_or_init(|| std::env::var("INTARSIA_METAL_NO_WRAP").is_ok_and(|v| v.trim() == "1")) {
+        return None;
+    }
     match try_wrap(be, mem, offset, len) {
         Ok(b) => Some(b),
         Err(e) => {
@@ -117,7 +123,10 @@ pub(crate) fn try_wrap(be: &MetalBackend, mem: Arc<dyn HostMemory>, offset: usiz
         let floor = round_down(start, page);
         let total = round_up(start + slice.len(), page) - floor;
         let whole = if total <= max { Some((no_copy(be, floor, total)?, floor)) } else { None };
-        if let Some((mtl, _)) = &whole {
+        if let Some((mtl, floor)) = &whole {
+            if crate::modeprobe::enabled() {
+                crate::modeprobe::log_file(cache.map.len(), *floor, mtl);
+            }
             let limit = be.device().recommendedMaxWorkingSetSize() / KEEPWARM_SHARE;
             let HostCache { kw, kw_bytes, .. } = &mut *cache;
             if let Some(kw) = kw {
@@ -140,6 +149,14 @@ pub(crate) fn try_wrap(be: &MetalBackend, mem: Arc<dyn HostMemory>, offset: usiz
         }
     };
     Ok(Buffer::new(MetalBuffer { mtl, base, bytes: len, read_only: true, _host: Some(mem) }))
+}
+
+/// The whole-file buffers of the live mappings with their page-aligned host base (`modeprobe`).
+pub(crate) fn whole_buffers(be: &MetalBackend) -> Vec<(MtlBuffer, usize)> {
+    let cache = be.hosts.lock().unwrap();
+    let mut v: Vec<_> = cache.map.values().filter_map(|e| e.whole.as_ref().map(|(m, f)| (m.clone(), *f))).collect();
+    v.sort_by_key(|(m, _)| std::cmp::Reverse(m.length()));
+    v
 }
 
 /// Milliseconds since the first call in this process (a monotonic clock cheap to share through an atomic).

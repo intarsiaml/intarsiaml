@@ -201,6 +201,27 @@ pub fn keepwarm_period_ms(default: Option<bool>, env: Option<&str>) -> u64 {
     }
 }
 
+/// The process's Metal backend, for the diagnostic [`metal_mode_probe`] (lane ink-mode).
+#[cfg(all(feature = "metal", target_os = "macos"))]
+static METAL_PROBE: std::sync::OnceLock<Arc<intarsia_backend_metal::MetalBackend>> = std::sync::OnceLock::new();
+
+/// Diagnostic: with `INTARSIA_METAL_MODE_PROBE` set to a list that names `site` (or `1` / `all`), log the Metal process
+/// state and the microbench times of `intarsia_backend_metal::modeprobe` (docs/results/2026-11-25-inkling2-mode.md).
+pub fn metal_mode_probe(site: &str) {
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    {
+        let Ok(v) = std::env::var("INTARSIA_METAL_MODE_PROBE") else { return };
+        if !(v == "1" || v == "all" || v.split(',').any(|s| s.trim() == site)) {
+            return;
+        }
+        if let Some(be) = METAL_PROBE.get() {
+            be.mode_probe(site);
+        }
+    }
+    #[cfg(not(all(feature = "metal", target_os = "macos")))]
+    let _ = site;
+}
+
 const KEEPWARM_DEFAULT_MS: u64 = 400;
 pub const KEEPWARM_MIN_MS: u64 = 50;
 pub const KEEPWARM_MAX_MS: u64 = 1500;
@@ -249,7 +270,9 @@ pub fn open_backend_with(name: &str, device: usize, keepwarm: Option<bool>) -> R
                     _ => intarsia_backend_metal::KeepMode::Residency,
                 };
                 be.set_keepwarm_mode(keepwarm_period_ms(keepwarm, std::env::var("INTARSIA_METAL_KEEPWARM").ok().as_deref()), mode);
-                Ok(Arc::new(be))
+                let be = Arc::new(be);
+                let _ = METAL_PROBE.set(be.clone());
+                Ok(be)
             }
             #[cfg(not(all(feature = "metal", target_os = "macos")))]
             {
