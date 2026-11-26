@@ -314,13 +314,15 @@ pub fn all() -> Vec<KernelImpl> {
             "rope_bf16" => k.acts(bf).when(|s| s.head_dim % 2 == 0).exact(Exactness::Deterministic).tol(BF16_TOL),
             // native WMMA GEMM: f32 accumulate in a fixed K order, run-to-run identical; any M. (A hipBLASLt route
             // would be Exactness::Fast; the dev image carries no hipblaslt, see docs/backends/hip.md.)
-            "matmul_bf16" => k.acts(bf).weights(bf).exact(Exactness::Deterministic).tol(BF16_TOL).priority(0),
+            // The bf16 Matmul launchers write bf16 only (`check_mm` in matmul.hip): an f32-output Matmul (Inkling-2's router) is
+            // refused at selection, so the model takes `Logits` (the same math), as on CUDA and Metal (lane ink-hip)
+            "matmul_bf16" => k.acts(bf).weights(bf).when(|s| s.out != Some(DType::F32)).exact(Exactness::Deterministic).tol(BF16_TOL).priority(0),
             "logits_bf16" => k.acts(bf).weights(bf).exact(Exactness::Deterministic).tol(F32_TOL).priority(0),
             // native decode GEMV: fixed reduction order, run-to-run identical
             "matmul_bf16_gemv" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| !crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=4).contains(&s.m))
+                .when(|s| !crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=4).contains(&s.m) && s.out != Some(DType::F32))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(10),
@@ -337,7 +339,7 @@ pub fn all() -> Vec<KernelImpl> {
             "matmul_bf16_gemv_rows" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| !crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=ROWS_MAX).contains(&s.m))
+                .when(|s| !crate::quantmoe::wmma_takes(crate::quantmoe::WmmaKind::Bf16, s.m) && (1..=ROWS_MAX).contains(&s.m) && s.out != Some(DType::F32))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(-1)
@@ -901,7 +903,9 @@ mod tests {
                         (Op::MatmulFp8, f8, true),
                         (Op::MatmulMxfp4, u8_, false),
                     ] {
-                        let sh = |n: usize| ShapeInfo { m, n, k, act: bf, out: f32_, weight: w, fp8_static_act: static_act, ..Default::default() };
+                        // (the bf16 `Matmul` launchers write bf16 only, so that row is pinned at a bf16 output; an f32-output Matmul is refused)
+                        let out = if op == Op::Matmul { bf } else { f32_ };
+                        let sh = |n: usize| ShapeInfo { m, n, k, act: bf, out, weight: w, fp8_static_act: static_act, ..Default::default() };
                         let (full, half) = (pick(op, &sh(v)), pick(op, &sh(v / 2)));
                         assert!(full.is_some(), "{op} m={m} k={k} V={v} static={static_act}: no kernel");
                         assert_eq!(full, half, "{op} m={m} k={k} V={v} static={static_act}");

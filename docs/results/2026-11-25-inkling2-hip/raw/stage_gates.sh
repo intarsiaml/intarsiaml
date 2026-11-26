@@ -13,7 +13,7 @@ for s in "$@"; do
   echo "==== $s ($(date '+%T'))"
   case $s in
     admit) bash "$R/stage_admit.sh" attn_res_mix loop_blend sconv_res conv_mix ink_in_proj ink_kv_prologue rel_sink_attn moe_experts moe_experts_mxfp8 moe_route; rc=$? ;;
-    tiny) bash "$R/run.sh" env INTARSIA_INKLING2_BACKEND=hip cargo test --release -p intarsia-models --test inkling2 -- --test-threads 1 2>&1 | grep -E "^test |test result|panicked|error" | tail -40; rc=${PIPESTATUS[0]} ;;
+    tiny) bash "$R/run.sh" env INTARSIA_INKLING2_BACKEND=hip cargo test --release -p intarsia-models --test inkling2 -- --test-threads 1 2>&1 | grep -E "^test |test result|panicked|error" -A2 | grep -v "^--" | tail -70; rc=${PIPESTATUS[0]} ;;
     gen) bash "$R/run.sh" $I generate -m $M --backend hip --prompt "The capital of France is" --max-tokens 32 ${GEN_FLAGS:-} 2>&1 | tail -25; rc=${PIPESTATUS[0]} ;;
     g2short) bash "$R/run.sh" $I accuracy -m $M --backend hip --max-seq 4096 --mode prefill --golden golden/oracle/inkling2-mini-oracle-w4a16-short-top20.safetensors ${ACC_FLAGS:-} 2>&1 | tail -30; rc=${PIPESTATUS[0]} ;;
     g2long) bash "$R/run.sh" $I accuracy -m $M --backend hip --max-seq 4096 --mode prefill --golden golden/oracle/inkling2-mini-oracle-w4a16-long-top20.safetensors ${ACC_FLAGS:-} 2>&1 | tail -30; rc=${PIPESTATUS[0]} ;;

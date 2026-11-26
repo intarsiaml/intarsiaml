@@ -1,1 +1,2 @@
 #11924 first contact: radiance stopped 21:37:45, answers 21:38:02 (tatooine clock; 17 s down). moe_route ADMITTED 19/19 (max_abs 2.0e-7).
+#11940 integration window 1: radiance stopped 21:49:52, answers 21:52:44. Admission of all ops passed; generate / G2 stopped at the router Matmul (f32 output selected matmul_bf16: registration fixed).
