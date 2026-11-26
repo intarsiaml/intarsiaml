@@ -74,8 +74,48 @@ def rows(a, b):
     return r
 
 
+def level_of(rows_seen):
+    m = max(rows_seen)
+    return next(L for L in LEVELS if L >= m) if m <= LEVELS[-1] else LEVELS[-1]
+
+
+def by_rows(rep, t0, t1, aggs):
+    """Fallback when localeval's lines carry no live times (its stdout was block-buffered): walk the poll samples of the rep
+    (Mac times t0 .. t1), give each 0.2 s interval the level of the most rows decoded so far in this rep (the levels only grow:
+    1 (the size rep and 1 stream), then 4, 8, 16, so a level's ramp-down stays in it; its first interval of ramp-up can fall into
+    the level before)."""
+    xs = [x for x in ts if t0 + off <= x <= t1 + off and len(samples[x]) > 10]
+    if len(xs) < 2:
+        return []
+    spans = collections.OrderedDict()
+    cur = 0
+    for a, b in zip(xs, xs[1:]):
+        r = rows(samples[a], samples[b])
+        if r:
+            cur = max(cur, level_of(list(r)))
+        if cur:
+            spans.setdefault(cur, [a, b])[1] = b
+    outl = []
+    for L, (a, b) in spans.items():
+        A, B = samples[a], samples[b]
+        itl, step = delta(A, B, "intarsia_batch_itl_seconds"), delta(A, B, "intarsia_batch_step_seconds")
+        outl.append({"rep": rep, "streams": L, "aggregate_tok_s": aggs.get(L), "span_s": round(b - a, 2), "segmented": "by rows",
+                     "itl_ms_p50": pct(itl, 0.5), "itl_ms_p99": pct(itl, 0.99), "itl_gaps": int(itl[-1][1]) if itl else 0,
+                     "step_ms_p50": pct(step, 0.5), "step_ms_p99": pct(step, 0.99), "decode_rows": rows(A, B)})
+    return outl
+
+
+LEVELS = [1, 4, 8, 16]
 res = []
 for le in sorted(glob.glob(os.path.join(out, f"{visit}-r*-le.out"))):
+    rep0 = re.search(r"-r(\d+)-le\.out$", le).group(1)
+    tl = [float(l.split(" ", 1)[0]) for l in open(le) if re.match(r"^\d+\.\d+ ", l)]
+    if tl and max(tl) - min(tl) < 1.0:
+        aggs = {int(m.group(1)): float(m.group(2)) for m in re.finditer(r"(\d+) streams: aggregate ([0-9.]+) tok/s", open(le).read())}
+        f0, f1 = (os.path.join(out, f"{visit}-r{rep0}.t{i}") for i in (0, 1))
+        if os.path.exists(f0) and os.path.exists(f1):
+            res += by_rows(int(rep0), float(open(f0).read()), float(open(f1).read()), aggs)
+        continue
     rep = re.search(r"-r(\d+)-le\.out$", le).group(1)
     marks = []
     for line in open(le):

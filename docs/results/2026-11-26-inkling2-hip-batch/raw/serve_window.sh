@@ -63,7 +63,7 @@ while IFS=';' read -r name bin sargs largs; do
       date +%s.%N > "$OUT/$name-r$r.t0"
       if (( $(left) < 40 )); then say "$name: SKIP localeval rep $r: $(left) s left"; break; fi
       cap=$(( $(left) - 25 )); (( cap > 230 )) && cap=230
-      ( cd "$LE" && to "$cap" uv run localeval speed --url "http://$T:$PORT/v1" --model ink $largs --label "ink-hip-batch-$name-r$r" \
+      ( cd "$LE" && to "$cap" env PYTHONUNBUFFERED=1 uv run localeval speed --url "http://$T:$PORT/v1" --model ink $largs --label "ink-hip-batch-$name-r$r" \
           --recipe "intarsia serve -m Inkling-2-Mini --backend hip $sargs (tree $bin)" ) < /dev/null 2>&1 \
           | perl -MTime::HiRes=time -ne '$|=1; printf "%.3f %s", time, $_' > "$OUT/$name-r$r-le.out"
       lrc=${PIPESTATUS[0]}
