@@ -155,8 +155,8 @@ main main new). Ratio per (prompt, process) to the main process of the same card
 Ids identical in all 16 processes; the counters are equal arm for arm (the rules change no output). The bar for default-on (brief 1:
 bitwise, no length slower, >= +2 % at >= 1 length with a CI lower bound above 1.0) is met at 1k, 4k and 16k, short is +0.3 % (lower
 bound 1.002). Plain decode (`--spec off`) runs main's launches (1-row calls keep both fused forms): probe decode step 13.37 / 13.39 ms,
-the md5 runs' single-run plain decode 76.40 / 76.84 / 73.35 / 74.02 tok/s against main2's 76.86 / 76.86 / 74.04 / 74.04 (window 4);
-no plain ABBA was run.
+the md5 runs' single-run plain decode at 256 tokens 76.84 (short) / 74.02 (4k) tok/s against main2's 76.86 / 74.04 (lane
+ink-hip-verify window 4); no plain ABBA was run.
 
 ## 5. Windows, jobs, radiance
 
