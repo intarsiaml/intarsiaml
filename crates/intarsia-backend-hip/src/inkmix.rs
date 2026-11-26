@@ -339,3 +339,19 @@ pub fn set_mix_mode(v: i32) {
     #[cfg(not(ik_hip))]
     let _ = v;
 }
+
+/// Tests / benchmarks (lane ink-hip-vrow): the most rows of a blend chunk (LoopBlend, ConvMix with the blend) that take the fused
+/// row-kernel launch (`rows`) and the gate kernel's fused norm (`norm_rows`); `-1` = the env (`INTARSIA_HIP_INK_BLEND_FUSE`) or the
+/// default. Both translation units read the same switch. The same bits for every value (tests/ink_mix.rs).
+pub fn set_blend_fuse(rows: i32, norm_rows: i32) {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_ink_mix_fuse(rows: std::ffi::c_int, norm_rows: std::ffi::c_int);
+        }
+        // SAFETY: sets two plain ints of the kernel library.
+        unsafe { ik_ink_mix_fuse(rows, norm_rows) }
+    }
+    #[cfg(not(ik_hip))]
+    let _ = (rows, norm_rows);
+}
