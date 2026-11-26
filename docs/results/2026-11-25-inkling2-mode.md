@@ -1,6 +1,6 @@
 # Inkling-2-Mini Metal: what puts a process into the "slow mode"? (lane ink-mode, 2026-11-25/26)
 
-Status (2026-11-26 07:00): **cause found, outside the engine.** endor is a MacBook Pro (M5 Max) on a 140 W adapter. A process is fast when
+Status (2026-11-26 07:25): **cause found, outside the engine.** endor is a MacBook Pro (M5 Max) on a 140 W adapter. A process is fast when
 its 16k prefill gets the GPU's short high-power state (1617 MHz, 80-110 W GPU, system power at or above the 140 W adapter rating) and slow when
 that state is already used up (about 1100-1300 MHz, 64-80 % busy, 30-50 W GPU, about 98 W system). Whether it is available depends on the box's
 recent power history (the previous process, idle gaps), not on anything the process itself does. No code change can put every process in the
@@ -110,14 +110,14 @@ is what the GPU did in the previous ~10-60 s.
   the system about 98 W. The battery reported 100 %, "finishing charge", charging at +2.1 A (about 28 W) at idle.
 - Spearman rho of the 16k time against the mean GPU power over the 60 s before the process is +0.60 (4k: +0.68); over the 10 s before, -0.06.
 
-So the GPU's high-power state is a budget: it lasts a few seconds and refills during GPU idle. A process gets it if the budget refilled since the
-last heavy GPU work. The 16k prefill (6 s) outlasts it in every process; what differs is whether it starts with 0 or about 4 s of it. That also
+So the GPU's high-power state is a budget that depends on the energy drawn over roughly the last minute (the 60 s window correlates, the 10 s
+window does not; "A after L" had the lowest power in the 10 s before it and was still the slowest, so it is not a plain "refills during a short idle"). The 16k prefill (6 s) outlasts it in every process; what differs is whether it starts with 0 or about 4 s of it. That also
 explains the other observations: the 2x / 25 % slowdown of ink-moepf2's bench within 0.4-4 s of back-to-back dispatch, with a new process starting
 fast again (the process start-up is 4-5 s of GPU idle); the 10-15 "1600 MHz / 90 W drops to 900-1300 MHz / 20-50 W mid-prefill"; the steady speed within
 a `serve` process with back-to-back requests (the budget never refills); and the arms swapping sign from slot to slot (each arm's share of fast
 processes depends on what ran just before it). The system power at the adapter rating suggests the adapter / battery power budget of the
 MacBook Pro as the limit (a short supplement from the battery, then a clamp), not GPU temperature (slow processes start no hotter and peak cooler,
-no thermal warning); the battery current during the high state was not sampled in slot 1 (see slot 2).
+no thermal warning); slot 2 shows the battery discharging during it.
 
 **Side findings:**
 - `alu_idle2s`: the same ALU buffer takes 4.17 ms after 2 s of GPU idle against 2.35 ms back-to-back (+77 %): the idle-clock start latency of
@@ -127,3 +127,53 @@ no thermal warning); the battery current during the high state was not sampled i
 - Arm N (weights copied) has a 1k prefill of 446 ms against 604-669 ms with the mapped file: the first GPU use of the 19.5 GB no-copy buffer costs
   about 160-220 ms per process (wiring the file for the GPU). 4k / 16k do not differ in the same power state (A after N 1286 / 6219 vs N 1284 / 6043).
 - 16k decode is the same in both modes (64.3 vs 64.1 tok/s): decode draws less power and is not limited.
+
+## Slot 2: fleetq #12022, endor exclusive, 2026-11-26 06:51-07:14 (same binary, no `INTARSIA_*` variables, no probe)
+
+Cold vs hot: each cycle is 45 s of GPU idle, a `generate` process (C), then a second one right after it (H); 1k / 4k / 16k, `--max-tokens 1`,
+`--spec off`; 20 cycles. Battery `InstantAmperage` sampled from `ioreg` about 3 times a second (the value itself updates about once a minute).
+Table: `docs/results/2026-11-25-inkling2-mode/slot2-analysis.txt` (`conf_an.py`).
+
+| arm | n | 4k median | 16k median (range) | 16k < 6150 | seconds above 65 W GPU (median) |
+|---|---|---|---|---|---|
+| C, after 45 s idle | 20 | 1290 | **5386 (5352-5419)** | 20 of 20 | 6.84 |
+| H, right after C | 20 | 1292 | 5559 (5484-5804) | 20 of 20 | 6.52 |
+
+- **Every process was fast in this slot**, including the hot ones, and the cold ones were tight (spread 1.2 %). With 45 s of idle in every
+  ~70 s cycle and no decode or probe, the average GPU power stayed low enough that the budget never ran out; H, which starts right after a full
+  C, gets slightly less of it (6.5 vs 6.8 s) and is 3.2 % slower. In slot 1 (back-to-back processes, 32 decode tokens per prompt, the probe) no
+  process got more than 4.2 s and two thirds were slow. The fastest 16k of the night (5352 ms) is 18 % under slot 1's slow median (6554 ms).
+- **Battery:** during the high-power phase the system draws 152-170 W (median 163 W) from the 140 W adapter, and the battery reported
+  -2.0 to -3.8 A (about -26 to -50 W at 13.1 V) in 704 of 3983 samples, i.e. it discharged to cover the difference; at idle it charged at
+  +1.0 to +2.0 A. The battery stayed at 100 % "finishing charge" throughout. So the high-power state is the MacBook Pro running above its adapter
+  on battery assistance, and the budget is how much of that the power controller allows over about a minute.
+- This slot ran the default code path of the branch (no diag variables), as the check that the `host.rs` / `generate.rs` / `common.rs` hooks do
+  nothing when off; its ids match slot 1's (not compared bitwise here: `--max-tokens 1`).
+
+## Decision
+
+No engine change can make every process fast: the mode is set by the laptop's power delivery and the box's power history in the last minute,
+the same for every code path (mapped or copied weights, any kernel). Nothing was changed in the engine; the two diagnostic variables
+(`INTARSIA_METAL_MODE_PROBE`, `INTARSIA_METAL_NO_WRAP`) stay on this branch for measurement and are not meant for merge (not tuning knobs, so no
+`docs/tuning.md` row). Under sustained serving load the GPU sits in the limited state (about 1270 MHz, 43 W GPU, 98 W system), so the fast mode is
+a burst that a single request after idle gets, not a steady state to optimise for.
+
+Measurement protocol for endor (for #496 and every Metal speed A/B):
+1. Give every measured process the same predecessor: a fixed GPU-idle gap before it (45 s gave 20 of 20 fast, 1.2 % spread at 16k), or the same
+   preceding workload in every arm. Never compare arms whose processes follow different work.
+2. Log `macmon pipe -i 250` for every run and classify each run by its seconds above 65 W GPU, not by a fixed ms cut; compare arms within a class.
+3. Keep runs short or idle-separated; a run of back-to-back long prefills is measuring the power controller.
+4. Report the cold (after-idle) and the sustained number separately when the user-facing claim is about one of them.
+
+User decisions (not taken here): whether to bench Metal on a desktop Mac (no adapter limit) or with the battery state controlled; settings
+such as charging limits or `pmset` were not touched (powermode is already 2, High Power).
+
+Candidates noticed, not chased:
+- The first GPU use of the 19.5 GB no-copy weight buffer costs about 160-220 ms per process (1k prefill 446 ms copied vs 604-669 ms mapped,
+  slot 1), a cold-TTFT item for `generate` and the first `serve` request.
+- A GPU-idle start latency at kernel scale: the same ALU buffer takes 4.17 ms after 2 s idle vs 2.35 ms back-to-back (pfgap2's 30-70 ms stall).
+
+Decode: the 16k decode is the same in both modes (64.3 vs 64.1 tok/s); the 4k decode is about 2 % lower in slow processes (70.6 vs 72.0
+tok/s, rho -0.77), decode draws less power and is barely limited.
+
+fleetq: builds #11921 (failed compile, fixed), #11931, #11958 (cpu); slot 1 #11922; slot 2 #12022 (both exclusive, endor).
