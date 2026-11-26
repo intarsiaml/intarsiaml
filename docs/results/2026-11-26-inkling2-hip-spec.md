@@ -125,3 +125,49 @@ Why nothing on Metal or cpu can move: `ink_rows_exact` is `matches!(backend, "me
 verify-graph default adds "hip" beside "cuda"; the loader admits one more backend name; `verify_check` (a diagnostic, not the decode
 path) now softcaps the verify rows, which is a no-op on models without a softcap and fixes the Inkling-2 / Gemma-2 comparison on every
 backend.
+
+## 5. Speed: spec on vs off, 4 + 4 paired processes (windows A and B)
+
+Windows: A = fleetq #12053 (12:25:42-12:29:41 EST, radiance down 3 min 59 s, reps 1-2); B = #12058 (12:35:18-12:39:17, 3 min 59 s, reps
+3-4). Card 0 only, one process at a time, binary `spec2` (branch = main `40b85a391` code; the default rule not yet flipped, so each arm
+names its rule). One process per arm and rep over `speed.json`: a warm-up prompt (excluded), the 12 greedy golden prompts (the short
+class, 23-101 ids), then 1021, 4108 and 16455 ids. 128 tokens, greedy, EOS honoured (same lengths in every arm, as the ids are equal).
+Arms: `off` = `--spec off`; `gate` = `--spec dflash --spec-k 3` (gate 0.8, CUDA's default rule); `cut` = the same with
+`INTARSIA_DSPARK_TAU=0 INTARSIA_DSPARK_CUT=0.5` (Metal's default rule). Order: odd reps off, gate, cut; even reps cut, gate, off.
+Ratio = arm / off decode tok/s per (prompt, rep), geometric mean per class. CI: t-interval over the 4 reps' geometric means (the
+processes are the units), and a bootstrap over reps x prompts (it also resamples the prompt mix, so it is wider for the short class).
+
+| decode, arm / off | short (12 prompts) | 1k | 4k | 16k |
+|---|---:|---:|---:|---:|
+| **cut 0.5 k3** | **1.337** [1.336-1.339; boot 1.272-1.408] | **1.191** [1.190-1.192] | **1.547** [1.546-1.549] | **1.314** [1.313-1.315] |
+| gate 0.8 k3 | 1.323 [1.322-1.323; boot 1.255-1.398] | 1.158 [1.157-1.159] | 1.457 [1.456-1.459] | 1.287 [1.285-1.288] |
+
+| decode tok/s, median of 4 [range] | short | 1k | 4k | 16k |
+|---|---:|---:|---:|---:|
+| off | 77.38 [77.29-77.40] | 75.45 [75.36-75.47] | 74.11 [74.06-74.12] | 69.71 [69.70-69.78] |
+| gate | 102.32 [102.28-102.35] | 87.36 [87.31-87.38] | 107.97 [107.93-108.00] | 89.70 [89.69-89.72] |
+| cut | 103.45 [103.45-103.48] | 89.85 [89.82-89.85] | 114.66 [114.61-114.70] | 91.62 [91.57-91.63] |
+
+| prefill tok/s, median of 4 | 1k | 4k | 16k |
+|---|---:|---:|---:|
+| off | 2380 | 3010 | 2857 |
+| gate | 2369 (-0.5 %) | 2992 (-0.6 %) | 2842 (-0.5 %) |
+| cut | 2369 (-0.5 %) | 2988 (-0.7 %) | 2842 (-0.5 %) |
+
+- Ids identical across all 12 processes (every arm and rep). Acceptance over a whole process (16 prompts): gate 73.9 % (2452 passes,
+  2.63 tokens a pass), cut 61.0 % (3008 passes, 2.46 a pass). The cut drafts more and accepts less per draft, but its passes are
+  shorter, and it wins at every length: cut / gate = 1.011 / 1.029 / 1.062 / 1.021.
+- The spread between processes is tiny (decode within 0.1 % across 4 processes of an arm), so the t-intervals are narrow. The short
+  class's bootstrap is wider because prompts differ (chat prompts accept less than the count / story / code ones).
+- The prefill cost with the draft loaded is 0.5-0.7 %: the draft ingests the prompt's tap rows (`dspark_ingest`, 0.2 ms a call).
+- Why 1k gains least: on that prompt the draft's acceptance is lowest. At 4k a verify pass of 3-4 rows costs 1.43-1.56x a decode step
+  (section 3), and 2.5 tokens a pass pay for it.
+
+**Default decision (the brief's bar).** The bar: on >= off at every length, and >= +2 % with a CI lower bound > 1.0 at more than one
+length. Both rules pass at all four lengths. Cut is faster at every length, so HIP takes cut 0.5 k3, Metal's rule:
+`[tuning.hip] mtp_default_k = 3` in `recipes/inkling2.toml`, and `cut_rule_default` in `model/dspark.rs` (`"metal" | "hip"`). The
+`docs/decisions/LOG.md` row and the `docs/tuning.md` rows (`INTARSIA_DSPARK_TAU` / `_CUT`, `INTARSIA_INK_ROWS_EXACT`,
+`INTARSIA_VERIFY_GRAPH`, `INTARSIA_INKLING2_BACKEND`, `INTARSIA_SPEC_DEFAULT`) are updated. The flip's host checks passed (fleetq
+#12059: `rule_tests` 2 / 2 with the new `cut_rule_backends`, `dspark_default_only_where_the_recipe_sets_it` with hip at k3, core 267,
+models 80, hip type-check, docs_env_vars). Revert: `--spec off`, `INTARSIA_SPEC_DEFAULT=0`, or delete the recipe line;
+`INTARSIA_DSPARK_TAU=0.8` restores the gate.

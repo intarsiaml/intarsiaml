@@ -1,0 +1,18 @@
+fleetq: #12058 waiting (#2 in line): in line behind #12057 "ink-hip-batch: window 2 batch_step on the real model (batched == solo B 1/4/8/16, 2k keys, 4k speed) + plan show (radiance down <=5 min)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12057 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12057 set, or it will wait for #12057 to be released.
+fleetq: #12058 waiting (#1 in line): radiance-rank0 is also taken down by #12057 "ink-hip-batch: window 2 batch_step on the real model (batched == solo B 1/4/8/16, 2k keys, 4k speed) + plan show (radiance down <=5 min)" (claude-04c0e1cd)
+fleetq:   #12057 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12057 set, or it will wait for #12057 to be released.
+fleetq: #12058 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=290 REPS="3 4" BR=spec2 bash ~/intarsiaml-ink-hip-spec/.scratch/window.sh ~/intarsiaml-ink-hip-spec/.scratch/stage_speed.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-spec/.scratch/stage_speed.sh; cap 290s; stopping radiance 2026-11-26 12:35:18
+[window] radiance stopped 2026-11-26 12:35:22 (inactive)
+[stage] off r3 rc 0 2026-11-26 12:36:02 | decode overall: 2013 tokens after the first, 26326 ms (76.46 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[stage] gate r3 rc 0 2026-11-26 12:36:38 | decode overall: 2013 tokens after the first, 19908 ms (101.12 tok/s) | spec: verify passes=613 proposed=1356 accepted=1002 (acceptance 73.9%, 2.63 tokens per pass)
+[stage] cut r3 rc 0 2026-11-26 12:37:14 | decode overall: 2013 tokens after the first, 19572 ms (102.85 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[stage] cut r4 rc 0 2026-11-26 12:37:49 | decode overall: 2013 tokens after the first, 19576 ms (102.83 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[stage] gate r4 rc 0 2026-11-26 12:38:26 | decode overall: 2013 tokens after the first, 19904 ms (101.13 tok/s) | spec: verify passes=613 proposed=1356 accepted=1002 (acceptance 73.9%, 2.63 tokens per pass)
+[stage] off r4 rc 0 2026-11-26 12:39:06 | decode overall: 2013 tokens after the first, 26322 ms (76.48 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[stage] done 2026-11-26 12:39:06
+[window] stage done 2026-11-26 12:39:07 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 12:39:07
+[window] radiance answers 2026-11-26 12:39:17 (after 15 s)
+fleetq: #12058 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

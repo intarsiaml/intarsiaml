@@ -1,0 +1,16 @@
+fleetq: #12053 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12051 "ink-hip-batch: build b3 (merged main 40b85a391) + tests + batch_step, and main2 = origin/main (cpu)" (claude-04c0e1cd) loads it
+fleetq:   #12051 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12051 set, or it will wait for #12051 to be released.
+fleetq: #12053 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=290 REPS="1 2" BR=spec2 bash ~/intarsiaml-ink-hip-spec/.scratch/window.sh ~/intarsiaml-ink-hip-spec/.scratch/stage_speed.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-spec/.scratch/stage_speed.sh; cap 290s; stopping radiance 2026-11-26 12:25:42
+[window] radiance stopped 2026-11-26 12:25:45 (inactive)
+[stage] off r1 rc 0 2026-11-26 12:26:25 | decode overall: 2013 tokens after the first, 26345 ms (76.41 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[stage] gate r1 rc 0 2026-11-26 12:27:02 | decode overall: 2013 tokens after the first, 19927 ms (101.02 tok/s) | spec: verify passes=613 proposed=1356 accepted=1002 (acceptance 73.9%, 2.63 tokens per pass)
+[stage] cut r1 rc 0 2026-11-26 12:27:38 | decode overall: 2013 tokens after the first, 19575 ms (102.83 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[stage] cut r2 rc 0 2026-11-26 12:28:14 | decode overall: 2013 tokens after the first, 19577 ms (102.82 tok/s) | spec: verify passes=752 proposed=1795 accepted=1095 (acceptance 61.0%, 2.46 tokens per pass)
+[stage] gate r2 rc 0 2026-11-26 12:28:50 | decode overall: 2013 tokens after the first, 19907 ms (101.12 tok/s) | spec: verify passes=613 proposed=1356 accepted=1002 (acceptance 73.9%, 2.63 tokens per pass)
+[stage] off r2 rc 0 2026-11-26 12:29:30 | decode overall: 2013 tokens after the first, 26326 ms (76.46 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[stage] done 2026-11-26 12:29:30
+[window] stage done 2026-11-26 12:29:31 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 12:29:31
+[window] radiance answers 2026-11-26 12:29:41 (after 15 s)
+fleetq: #12053 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
