@@ -89,6 +89,67 @@ which 24 remainders of 1-8 rows, 18 of 9-16, 31 of 17-32, 47 above 32.
 same process). The only undisturbed stretch (first 2 s of the first process): uniform 7889, `16` 7418, `32` 7458 µs per
 call. Probe 2 interleaves the forms round by round.
 
+### Probe 2 (fleetq #11934, exclusive, bench at 35af9af69, md5 84b29f4f...): interleaved rounds
+
+`inkmoe_bench` with `INKMOE_ROUNDS`: every form gets 12 calls per round, the order rotates each round, 24 rounds (control:
+16). Raw log with every series: `2026-11-25-inkling2-moepf2/raw/probe2-11934.log` (probe 1: `raw/probe1-11920.log`).
+`pmset -g therm` reported no thermal or performance warning before or after; powermode 2.
+
+**The drift is in the uniform form too (control: the uniform form four times, real routing).** µs per call per round:
+
+| slot | series (16 rounds) |
+|---|---|
+| 1 | 7235 9677 9330 9162 9104 9056 9027 9069 9085 8987 9000 8789 8878 9104 9138 9124 |
+| 2 | 7251 7580 9229 9134 9090 9077 9028 9091 9063 9034 8932 8848 8910 9000 9107 9154 |
+| 3 | 7275 9324 9555 9139 9081 9056 9059 9089 9072 8979 8976 8854 8952 9065 9158 9144 |
+| 4 | 7244 9716 9413 9199 9093 9075 9016 9030 9009 8993 8980 9045 8964 9128 9138 9154 |
+
+Every process starts at about 7.2 ms per call and settles 25 % slower (about 9.1 ms) after 0.4 to 2 s of GPU work; a new
+process starts fast again. Slot-to-slot ratio per round: median 1.000 to 1.002. So the step belongs to the process or
+the box, not to a form, and per-round ratios are the usable number. (Passed to lane ink-mode by the coordinator.)
+
+**NVFP4, 2048 rows, real routing (8k dump), two processes:**
+
+| form | best round µs | median µs (rep 1 / rep 2) | per-round ratio to uniform, median (rep 1 / rep 2) | ratio min .. max (rep 1) |
+|---|---:|---:|---:|---|
+| uniform (`0`) | 7238 / 7263 | 8859 / 8749 | 1 | |
+| `16` | 7131 / 7115 | 8659 / 8653 | 0.981 / 0.981 | 0.955 .. 0.998 |
+| `32` | 7157 / 7164 | 8693 / 8680 | 0.984 / 0.985 | 0.963 .. 1.026 |
+| `16+32` | 7138 / 7130 | 8586 / 8634 | 0.974 / 0.975 | 0.960 .. 1.009 |
+| **`32k64`** | **7010 / 7010** | 8501 / 8540 | **0.960 / 0.961** | 0.947 .. 1.001 |
+| `16+32k64` | 7023 / 7053 | 8503 / 8526 | 0.959 / 0.963 | 0.953 .. 0.980 |
+
+Series, rep 1 (µs per call, rounds 1-24):
+
+| form | series |
+|---|---|
+| uniform | 7238 7264 7264 7283 7801 8088 8518 8884 8938 8896 8844 8773 8745 8819 8849 8978 9021 8993 8972 8892 8895 8920 8929 8859 |
+| `16` | 7143 7131 7138 7267 7695 7988 8389 8488 8768 8711 8656 8578 8574 8536 8659 8826 8847 8859 8780 8692 8722 8730 8722 8734 |
+| `32` | 7165 7157 7169 7473 7810 8148 8472 8550 8784 8733 8676 8620 8604 8623 8693 8842 8863 8827 8827 8723 8756 8755 8756 8754 |
+| `16+32` | 7171 7137 7150 7157 7781 8159 8422 8526 8697 8731 8568 8499 8518 8509 8586 8715 8917 8729 8728 8650 8637 8694 8621 8688 |
+| `32k64` | 7015 7010 7012 7023 7387 8097 8337 8446 8558 8571 8501 8408 8398 8384 8437 8560 8678 8593 8573 8525 8539 8556 8588 8556 |
+| `16+32k64` | 7046 7037 7023 7027 7463 7717 8344 8530 8558 8546 8497 8418 8380 8415 8432 8606 8620 8669 8567 8512 8503 8543 8543 8503 |
+
+**Other routings and MXFP8 (ratio to uniform per round, median; best round µs uniform -> form):**
+
+| case | `16` | `32` | `16+32` |
+|---|---|---|---|
+| NVFP4 balanced 128 x 128 rows (no remainders: only the empty small dispatches) | 1.003 (6273 -> 6299) | 1.003 (6273 -> 6343) | 1.001 (6273 -> 6431) |
+| NVFP4 random routing (noisy process: uniform 7.5 -> 12.5 -> 9.2 ms) | 0.958 | 0.980 | 0.964 |
+| MXFP8 real routing (noisy: 7.7 -> 11-12 ms) | 0.977 | 0.980 | 0.978 |
+
+Reading:
+- The K step 64 small tiles beat the K step 128 ones (0.960 vs 0.984 for `32`), and one 32-row class does as well as
+  two classes. **Pick: `32k64`** (one extra dispatch per stage).
+- **Gain: 4.0 % of an NVFP4 experts call in the steady state, 3.1 % by best rounds (7238 -> 7010 µs).** With the experts
+  at 54-57 % of a chunk that is **about 2.2 % of a prefill chunk** (1.7 % by best rounds): at the brief's stop line of
+  ~2 %, not clearly over it.
+- The empty threadgroups of the small dispatches cost 0.1-0.3 % on a call with no remainders: inside the noise.
+- It recovers 0.23 of the 0.97 ms between real routing (7238) and balanced (6273). A 32-row tile is only about 3 µs
+  cheaper than a 64-row tile (0.23 ms over ~74 tiles): the per-tile cost is the K loop and the weight stream, which do
+  not shrink with M. The 47 remainders above 32 rows keep their 64-row tile. Smaller M tiles cannot give more than this.
+- `k64` forms were not timed on MXFP8, balanced or random routing.
+
 ## Tests
 
 None run: no code changed.

@@ -1,0 +1,91 @@
+fleetq: #11920 running on endor: /opt/code/intarsiaml/.worktrees/ink-moepf2/.scratch/probe1.sh
+fleetq: #11920 went ahead of the line and must end within 75m (by Wed 23:00); it is stopped then
+31b081298
+5989238c1d5598889fd99f8711343184
+== bitwise test
+
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/ink_moe_mix.rs (.scratch/target-mix/release/deps/ink_moe_mix-55a8f418863e9349)
+
+running 1 test
+nv random   T=2048 mix 16        differing elements 0 of 4718592 ran true
+nv random   T=2048 mix 32        differing elements 0 of 4718592 ran true
+nv random   T=2048 mix 16+32     differing elements 0 of 4718592 ran true
+nv random   T=2048 mix 16k64     differing elements 0 of 4718592 ran true
+nv random   T=2048 mix 32k64     differing elements 0 of 4718592 ran true
+nv random   T=2048 mix 16+32k64  differing elements 0 of 4718592 ran true
+nv classes  T=2048 mix 16        differing elements 0 of 4718592 ran true
+nv classes  T=2048 mix 32        differing elements 0 of 4718592 ran true
+nv classes  T=2048 mix 16+32     differing elements 0 of 4718592 ran true
+nv classes  T=2048 mix 16k64     differing elements 0 of 4718592 ran true
+nv classes  T=2048 mix 32k64     differing elements 0 of 4718592 ran true
+nv classes  T=2048 mix 16+32k64  differing elements 0 of 4718592 ran true
+nv random   T= 600 mix 16        differing elements 0 of 1382400 ran true
+nv random   T= 600 mix 32        differing elements 0 of 1382400 ran true
+nv random   T= 600 mix 16+32     differing elements 0 of 1382400 ran true
+nv random   T= 600 mix 16k64     differing elements 0 of 1382400 ran true
+nv random   T= 600 mix 32k64     differing elements 0 of 1382400 ran true
+nv random   T= 600 mix 16+32k64  differing elements 0 of 1382400 ran true
+mx random   T=2048 mix 16        differing elements 0 of 4718592 ran true
+mx random   T=2048 mix 32        differing elements 0 of 4718592 ran true
+mx random   T=2048 mix 16+32     differing elements 0 of 4718592 ran true
+mx random   T=2048 mix 16k64     differing elements 0 of 4718592 ran true
+mx random   T=2048 mix 32k64     differing elements 0 of 4718592 ran true
+mx random   T=2048 mix 16+32k64  differing elements 0 of 4718592 ran true
+mx classes  T=2048 mix 16        differing elements 0 of 4718592 ran true
+mx classes  T=2048 mix 32        differing elements 0 of 4718592 ran true
+mx classes  T=2048 mix 16+32     differing elements 0 of 4718592 ran true
+mx classes  T=2048 mix 16k64     differing elements 0 of 4718592 ran true
+mx classes  T=2048 mix 32k64     differing elements 0 of 4718592 ran true
+mx classes  T=2048 mix 16+32k64  differing elements 0 of 4718592 ran true
+mx random   T= 600 mix 16        differing elements 0 of 1382400 ran true
+mx random   T= 600 mix 32        differing elements 0 of 1382400 ran true
+mx random   T= 600 mix 16+32     differing elements 0 of 1382400 ran true
+mx random   T= 600 mix 16k64     differing elements 0 of 1382400 ran true
+mx random   T= 600 mix 32k64     differing elements 0 of 1382400 ran true
+mx random   T= 600 mix 16+32k64  differing elements 0 of 1382400 ran true
+test mixed_tiles_are_bitwise_the_64_row_tiles ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.95s
+
+== real routing (8k dump) rep 1
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T= 2048 form 0              mix 0        skip 0    7889.2 us/call (min   7771.6)   33.1 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 16       skip 0    7418.0 us/call (min   7404.5)   35.2 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 32       skip 0    7458.4 us/call (min   7453.9)   35.0 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 16+32    skip 0    7924.4 us/call (min   7824.0)   32.9 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 16k64    skip 0    8188.0 us/call (min   7865.3)   31.9 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 32k64    skip 0    9240.6 us/call (min   8575.9)   28.2 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 16+32k64 skip 0   11932.8 us/call (min  11175.3)   21.9 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 0        skip 0   16814.3 us/call (min  15359.2)   15.5 TFLOP/s of the full call  out 9c1f44854868b10f
+== real routing (8k dump) rep 2
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T= 2048 form 0              mix 0        skip 0    8080.1 us/call (min   7616.8)   32.3 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 16       skip 0   10637.0 us/call (min  10089.9)   24.5 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 32       skip 0   12706.7 us/call (min  11499.0)   20.5 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 16+32    skip 0   15391.7 us/call (min  14405.7)   17.0 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 16k64    skip 0   16209.6 us/call (min  16070.2)   16.1 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 32k64    skip 0   14901.3 us/call (min  14785.6)   17.5 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 16+32k64 skip 0   14127.5 us/call (min  13993.8)   18.5 TFLOP/s of the full call  out 9c1f44854868b10f
+nv T= 2048 form 0              mix 0        skip 0   15509.1 us/call (min  14511.1)   16.8 TFLOP/s of the full call  out 9c1f44854868b10f
+== balanced 128 (no remainders: pure overhead of the empty small dispatches)
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T= 2048 form 0              mix 0        skip 0    6858.2 us/call (min   6512.0)   38.0 TFLOP/s of the full call  out a9673aadc3736158
+nv T= 2048 form 0              mix 16+32    skip 0    8985.9 us/call (min   7975.2)   29.0 TFLOP/s of the full call  out a9673aadc3736158
+nv T= 2048 form 0              mix 32       skip 0   10668.0 us/call (min   9762.8)   24.5 TFLOP/s of the full call  out a9673aadc3736158
+nv T= 2048 form 0              mix 0        skip 0   14315.1 us/call (min  13383.5)   18.2 TFLOP/s of the full call  out a9673aadc3736158
+== random routing
+== NVFP4 experts, 5 layer copies of 573 MB
+nv T= 2048 form 0              mix 0        skip 0    8118.3 us/call (min   7631.9)   32.1 TFLOP/s of the full call  out 08f65fb86cc2427e
+nv T= 2048 form 0              mix 16+32    skip 0   10283.0 us/call (min   9700.1)   25.4 TFLOP/s of the full call  out 08f65fb86cc2427e
+nv T= 2048 form 0              mix 32       skip 0   12568.6 us/call (min  11546.0)   20.8 TFLOP/s of the full call  out 08f65fb86cc2427e
+nv T= 2048 form 0              mix 0        skip 0   16866.6 us/call (min  14890.7)   15.5 TFLOP/s of the full call  out 08f65fb86cc2427e
+== mx real
+== MXFP8 experts, 3 layer copies of 1051 MB
+mx T= 2048 form 0              mix 0        skip 0    8526.6 us/call (min   7929.7)   30.6 TFLOP/s of the full call  out e32c034af5d70330
+mx T= 2048 form 0              mix 16+32    skip 0   12867.1 us/call (min  11210.4)   20.3 TFLOP/s of the full call  out e32c034af5d70330
+mx T= 2048 form 0              mix 32       skip 0   18346.2 us/call (min  14821.9)   14.2 TFLOP/s of the full call  out e32c034af5d70330
+mx T= 2048 form 0              mix 16+32k64 skip 0   17421.7 us/call (min  16678.0)   15.0 TFLOP/s of the full call  out e32c034af5d70330
+mx T= 2048 form 0              mix 0        skip 0   17756.3 us/call (min  17433.4)   14.7 TFLOP/s of the full call  out e32c034af5d70330
+done
+fleetq: #11920 done (exit 0)
