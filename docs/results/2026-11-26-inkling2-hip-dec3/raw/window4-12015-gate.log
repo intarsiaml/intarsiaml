@@ -1,0 +1,44 @@
+fleetq: #12015 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 bash ~/intarsiaml-ink-hip-dec3/.scratch/window.sh ~/intarsiaml-ink-hip-dec3/.scratch/stage_gate.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-dec3/.scratch/stage_gate.sh; cap 285s; stopping radiance 2026-11-26 04:23:52
+[window] radiance stopped 2026-11-26 04:23:56 (inactive)
+[stage] ink_attn rows_exact_real_shapes (op 75 templated on DPP: default vs the unfused pair, and at INTARSIA_HIP_INK_DEC3=0) 2026-11-26 04:23:56
+test rows_exact_real_shapes ... 63 rows-exact cases bitwise
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 7.64s
+[stage] md5 short 64 2026-11-26 04:24:04
+MD5 main short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 852 ms (73.94 tok/s) | steps=64 graph replays=63 (captures 1) eager decode steps=0
+MD5 branch short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 824 ms (76.48 tok/s) | steps=64 graph replays=63 (captures 1) eager decode steps=0
+MD5 branch0 short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 854 ms (73.74 tok/s) | steps=64 graph replays=63 (captures 1) eager decode steps=0
+[stage] md5 4k 64 2026-11-26 04:24:21
+MD5 main 4k 64 a7c6a2acedecfac21c77486444810c38 | decode 885 ms (71.18 tok/s) | steps=80 graph replays=63 (captures 1) eager decode steps=0
+MD5 branch 4k 64 a7c6a2acedecfac21c77486444810c38 | decode 858 ms (73.44 tok/s) | steps=80 graph replays=63 (captures 1) eager decode steps=0
+MD5 branch0 4k 64 a7c6a2acedecfac21c77486444810c38 | decode 888 ms (70.91 tok/s) | steps=80 graph replays=63 (captures 1) eager decode steps=0
+[stage] G2 short branch 2026-11-26 04:24:59
+prefill floor [4bit]: top-1 (all rows) 98.95% (not gated for this class) ok | 21-way KL (scored rows, n=569) 2.566e-3 (need <= 3.0e-2) ok [all rows, n=569: 2.566e-3, reported only] | tail mass (all rows) ours 0.0671 vs ref 0.0679, excess -0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+[stage] G2 long branch 2026-11-26 04:25:05
+prefill floor [4bit]: top-1 (all rows) 99.30% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 3.251e-3 (need <= 3.0e-2) ok [all rows, n=1569: 3.251e-3, reported only] | tail mass (all rows) ours 0.0409 vs ref 0.0407, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+[stage] kernels test moe_route 2026-11-26 04:25:15
+moe_route      moe_route                      19      0    2.048e-7    9.806e-8  ADMITTED
+[stage] kernels test conv_mix 2026-11-26 04:25:16
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+[stage] kernels test attn_res_mix 2026-11-26 04:25:22
+attn_res_mix   attn_res_mix_bf16              93      0    2.016e-3    4.909e-5  ADMITTED
+[stage] kernels test loop_blend 2026-11-26 04:25:23
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.637e-4  ADMITTED
+[stage] kernels test sconv_res 2026-11-26 04:25:25
+sconv_res      sconv_res_bf16                 64      0    1.880e-3    1.234e-5  ADMITTED
+[stage] kernels test ink_attn_decode 2026-11-26 04:25:26
+ink_attn_decode ink_attn_decode_bf16           70      0    1.033e-3    7.283e-5  ADMITTED
+[stage] kernels test argmax 2026-11-26 04:25:32
+argmax         argmax_f32                      8      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_bf16                     8      0     0.000e0     0.000e0  ADMITTED
+[stage] kernels test logits 2026-11-26 04:25:32
+logits         logits_bf16                     4      0    6.237e-7    2.244e-7  ADMITTED
+logits         logits_bf16_gemv                4      0    1.247e-7    7.376e-8  ADMITTED
+logits         logits_bf16_gemv_rows           4      0    1.247e-7    7.376e-8  ADMITTED
+[stage] done 2026-11-26 04:25:39
+[window] stage done 2026-11-26 04:25:40 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 04:25:40
+[window] radiance answers 2026-11-26 04:25:50 (after 15 s)
+fleetq: #12015 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

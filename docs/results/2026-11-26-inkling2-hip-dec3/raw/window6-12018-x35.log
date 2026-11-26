@@ -1,0 +1,36 @@
+fleetq: #12018 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=280 bash ~/intarsiaml-ink-hip-dec3/.scratch/window.sh ~/intarsiaml-ink-hip-dec3/.scratch/stage_x35.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-dec3/.scratch/stage_x35.sh; cap 280s; stopping radiance 2026-11-26 04:39:50
+[window] radiance stopped 2026-11-26 04:39:54 (inactive)
+[stage] 35B md5 short 256 2026-11-26 04:39:54
+MD5 main short 256 df397a9b4285a03b77538ba05567f854 | prompt=29 decode 1533 ms (166.30 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0 
+MD5 branch short 256 df397a9b4285a03b77538ba05567f854 | prompt=29 decode 1519 ms (167.88 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0 
+MD5 branch0 short 256 df397a9b4285a03b77538ba05567f854 | prompt=29 decode 1525 ms (167.18 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0 
+[stage] 35B md5 4k 256 2026-11-26 04:40:12
+MD5 main 4k 256 a368b17d386c2b3aa12d5659d90333ec | prompt=3858 decode 1583 ms (161.06 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0 
+MD5 branch 4k 256 a368b17d386c2b3aa12d5659d90333ec | prompt=3858 decode 1577 ms (161.67 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0 
+MD5 branch0 4k 256 a368b17d386c2b3aa12d5659d90333ec | prompt=3858 decode 1584 ms (160.94 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0 
+[stage] kernels test matmul 2026-11-26 04:40:26
+matmul         matmul_bf16                    21      0    1.645e-3    3.157e-5  ADMITTED
+matmul         matmul_bf16_gemv               14      0     0.000e0     0.000e0  ADMITTED
+matmul         matmul_bf16_gemv_rows          14      0     0.000e0     0.000e0  ADMITTED
+matmul         matmul_bf16_wmma                0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul         matmul_bf16_wmma_rows           0      0     0.000e0     0.000e0  NO CASES (untested)
+[stage] kernels test logits 2026-11-26 04:40:32
+logits         logits_bf16                     4      0    6.237e-7    2.244e-7  ADMITTED
+logits         logits_bf16_gemv                4      0    1.247e-7    7.376e-8  ADMITTED
+logits         logits_bf16_gemv_rows           4      0    1.247e-7    7.376e-8  ADMITTED
+[stage] kernels test argmax 2026-11-26 04:40:39
+argmax         argmax_f32                      8      0     0.000e0     0.000e0  ADMITTED
+argmax         argmax_bf16                     8      0     0.000e0     0.000e0  ADMITTED
+[stage] rocprof 35B short, branch 2026-11-26 04:40:39
+finish=length prompt=29 (cached 0) completion=12 | prefill 81 ms (357.6 tok/s) | decode 71 ms (155.87 tok/s)
+steps=13 graph replays=12 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+  moe_block_kernel<4, 8>                           gap     3.00 us  dur    47.36 us  grid 212992
+  rmsnorm_kernel<true, true, false>                gap     3.24 us  dur     2.24 us  grid 256
+  nvfp4_gemv_v2_kernel<1, float, false>            gap     3.08 us  dur   458.73 us  grid 7946240
+  argmax_kernel<float, true, true>                 gap     3.12 us  dur    17.96 us  grid 1024
+[stage] done 2026-11-26 04:40:42
+[window] stage done 2026-11-26 04:40:43 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 04:40:43
+[window] radiance answers 2026-11-26 04:41:03 (after 25 s)
+fleetq: #12018 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

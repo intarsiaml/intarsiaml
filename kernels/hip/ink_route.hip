@@ -22,7 +22,28 @@ IK_DEVI Pick better(Pick a, Pick b) {
 }
 
 // fast (INTARSIA_HIP_INK_DEC_FAST bit 4, lane ink-hip-dec2): lane k keeps pick k in a register and writes output k (the weight
-// sum still added in pick order, on every lane from the same values): the same bits as lane 0's loop
+// sum still added in pick order, on every lane from the same values): the same bits as lane 0's loop.
+// DPP (INTARSIA_HIP_INK_DEC3 bit 1, lane ink-hip-dec3): the butterflies (softmax max / sum and the K selection rounds) take the
+// partner from DPP / v_permlanex16 (ik_xor_*) instead of ds_bpermute: the same partners in the same order, so the same bits.
+template <bool DPP>
+IK_DEVI Pick xor_pick(Pick b, int o) {
+    Pick x;
+    if constexpr (DPP) {
+        switch (o) {
+            case 16: x.v = ik_xor_f<16>(b.v); x.i = ik_xor_i<16>(b.i); break;
+            case 8: x.v = ik_xor_f<8>(b.v); x.i = ik_xor_i<8>(b.i); break;
+            case 4: x.v = ik_xor_f<4>(b.v); x.i = ik_xor_i<4>(b.i); break;
+            case 2: x.v = ik_xor_f<2>(b.v); x.i = ik_xor_i<2>(b.i); break;
+            default: x.v = ik_xor_f<1>(b.v); x.i = ik_xor_i<1>(b.i); break;
+        }
+    } else {
+        x.v = __shfl_xor(b.v, o, IK_WARP);
+        x.i = __shfl_xor(b.i, o, IK_WARP);
+    }
+    return x;
+}
+
+template <bool DPP>
 __global__ void __launch_bounds__(IK_WARP) moe_route_kernel(const float* __restrict__ lg, const float* __restrict__ bias, int64_t E, int K,
                                                             float scale, int norm, float temp, int sf, float* __restrict__ w,
                                                             int* __restrict__ ids, int fast) {
@@ -48,14 +69,14 @@ __global__ void __launch_bounds__(IK_WARP) moe_route_kernel(const float* __restr
         sc[e] = s;
     }
     if (sf == 0) {
-        mx = ik_warp_max(mx);
+        mx = DPP ? ik_warp_max_dpp(mx) : ik_warp_max(mx);
         float sum = 0.f;
         for (int64_t e = lane; e < E; e += IK_WARP) {
             const float x = expf(sc[e] - mx);
             sc[e] = x;
             sum += x;
         }
-        sum = ik_warp_sum(sum);
+        sum = DPP ? ik_warp_sum_dpp(sum) : ik_warp_sum(sum);
         for (int64_t e = lane; e < E; e += IK_WARP) sc[e] = sc[e] / sum;
     }
     for (int64_t e = lane; e < E; e += IK_WARP) bi[e] = sc[e] + bias[e];
@@ -72,12 +93,7 @@ __global__ void __launch_bounds__(IK_WARP) moe_route_kernel(const float* __restr
             if (before(pv, pi, v, (int)e)) b = better(b, Pick{v, (int)e});
         }
 #pragma unroll
-        for (int o = IK_WARP / 2; o > 0; o >>= 1) {
-            Pick x;
-            x.v = __shfl_xor(b.v, o, IK_WARP);
-            x.i = __shfl_xor(b.i, o, IK_WARP);
-            b = better(b, x);
-        }
+        for (int o = IK_WARP / 2; o > 0; o >>= 1) b = better(b, xor_pick<DPP>(b, o));
         if (fast) {
             if (lane == k) mine = b.i;
         } else if (lane == 0) {
@@ -137,8 +153,13 @@ extern "C" int ik_moe_route(const ik_tensor* logits, const ik_tensor* bias, int6
         weights->shape[1] != top_k || ids->shape[0] != T || ids->shape[1] != top_k || score_func < 0 || score_func > 2)
         return IK_ERR_SHAPE;
     if (T == 0) return IK_OK;
-    moe_route_kernel<<<(unsigned)T, IK_WARP, (size_t)E * 8, IK_STREAM(stream)>>>((const float*)logits->data, (const float*)bias->data, E,
-                                                                               (int)top_k, scale, norm_topk, temperature, score_func,
-                                                                               (float*)weights->data, (int*)ids->data, route_fast() ? 1 : 0);
+    if (ik_hip_dec3_mask() & 1)
+        moe_route_kernel<true><<<(unsigned)T, IK_WARP, (size_t)E * 8, IK_STREAM(stream)>>>(
+            (const float*)logits->data, (const float*)bias->data, E, (int)top_k, scale, norm_topk, temperature, score_func,
+            (float*)weights->data, (int*)ids->data, route_fast() ? 1 : 0);
+    else
+        moe_route_kernel<false><<<(unsigned)T, IK_WARP, (size_t)E * 8, IK_STREAM(stream)>>>(
+            (const float*)logits->data, (const float*)bias->data, E, (int)top_k, scale, norm_topk, temperature, score_func,
+            (float*)weights->data, (int*)ids->data, route_fast() ? 1 : 0);
     return ik_launch_status();
 }

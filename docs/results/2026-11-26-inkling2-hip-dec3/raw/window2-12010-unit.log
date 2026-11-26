@@ -1,0 +1,40 @@
+fleetq: #12010 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=270 bash ~/intarsiaml-ink-hip-dec3/.scratch/window.sh ~/intarsiaml-ink-hip-dec3/.scratch/stage_unit.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-dec3/.scratch/stage_unit.sh; cap 270s; stopping radiance 2026-11-26 04:06:05
+[window] radiance stopped 2026-11-26 04:06:09 (inactive)
+[stage] short f=0 rep 1 2026-11-26 04:06:09 decode 1722 ms (73.77 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=3 rep 1 2026-11-26 04:06:16 decode 1686 ms (75.35 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=1 rep 1 2026-11-26 04:06:22 decode 1685 ms (75.39 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=2 rep 1 2026-11-26 04:06:29 decode 1720 ms (73.83 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k f=0 rep 1 2026-11-26 04:06:35 decode 1784 ms (71.19 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k f=3 rep 1 2026-11-26 04:06:49 decode 1752 ms (72.50 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=0 rep 2 2026-11-26 04:07:02 decode 1720 ms (73.84 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=3 rep 2 2026-11-26 04:07:09 decode 1686 ms (75.31 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=1 rep 2 2026-11-26 04:07:15 decode 1686 ms (75.33 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] short f=2 rep 2 2026-11-26 04:07:22 decode 1720 ms (73.82 tok/s) steps=128 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k f=0 rep 2 2026-11-26 04:07:28 decode 1784 ms (71.17 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] 4k f=3 rep 2 2026-11-26 04:07:42 decode 1754 ms (72.42 tok/s) steps=144 graph replays=127 (captures 1) eager decode steps=0 
+[stage] ink_mix tests 2026-11-26 04:07:56
+test argmax_dec3_bitwise ... argmax_dec3_bitwise: 130 cases bitwise
+test ink_attn_res_mix_and_blend_rows_exact ... ok
+test ink_conv_mix_rows_exact ... ok
+test ink_in_proj_rows_exact ... ok
+test ink_mix_ops_match_the_reference ... candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+ink_in_proj    ink_in_proj_bf16_gemv          24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_gemv_rows     24      0    3.846e-3    7.295e-5  ADMITTED
+ink_in_proj    ink_in_proj_bf16_matmul         5      0    3.125e-3    4.706e-5  ADMITTED
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+attn_res_mix   attn_res_mix_bf16              93      0    2.016e-3    4.909e-5  ADMITTED
+sconv_res      sconv_res_bf16                 64      0    1.880e-3    1.234e-5  ADMITTED
+loop_blend     loop_blend_bf16                27      0    3.226e-3    2.637e-4  ADMITTED
+ink_route      ink_route_bf16                 40      0    2.037e-7    1.450e-7  ADMITTED
+test ink_route_bitwise_pair ... ok
+test moe_route_fast_tail_bitwise ... moe_route_fast_tail_bitwise: 256 cases bitwise
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 56.56s
+[stage] ink_attn rows_exact_real_shapes 2026-11-26 04:08:52
+test rows_exact_real_shapes ... 63 rows-exact cases bitwise
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 7.75s
+[stage] done 2026-11-26 04:09:01
+[window] stage done 2026-11-26 04:09:02 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 04:09:02
+[window] radiance answers 2026-11-26 04:09:12 (after 15 s)
+fleetq: #12010 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

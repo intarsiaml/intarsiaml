@@ -1,0 +1,27 @@
+fleetq: #12016 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12016 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=290 bash ~/intarsiaml-ink-hip-dec3/.scratch/window.sh ~/intarsiaml-ink-hip-dec3/.scratch/stage_speed.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-dec3/.scratch/stage_speed.sh; cap 290s; stopping radiance 2026-11-26 04:26:04
+[window] radiance stopped 2026-11-26 04:26:08 (inactive)
+SPD main short 256 r1 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3437 ms (74.18 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r1 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3316 ms (76.90 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r1 c96e82b75275142ccb4409517610706f | decode 3558 ms (71.67 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r1 c96e82b75275142ccb4409517610706f | decode 3446 ms (74.00 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r2 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3317 ms (76.88 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main short 256 r2 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3436 ms (74.21 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r2 c96e82b75275142ccb4409517610706f | decode 3443 ms (74.05 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r2 c96e82b75275142ccb4409517610706f | decode 3556 ms (71.71 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD main short 256 r3 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3436 ms (74.22 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r3 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3317 ms (76.89 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r3 c96e82b75275142ccb4409517610706f | decode 3557 ms (71.69 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r3 c96e82b75275142ccb4409517610706f | decode 3445 ms (74.02 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD branch short 256 r4 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3317 ms (76.88 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD main short 256 r4 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3436 ms (74.22 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch 4k 256 r4 c96e82b75275142ccb4409517610706f | decode 3446 ms (74.01 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD main 4k 256 r4 c96e82b75275142ccb4409517610706f | decode 3558 ms (71.67 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+SPD branch0 short 256 r1 b4a4f4928e878281cdd4ae1b435a04f3 | decode 3446 ms (73.99 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0
+SPD branch0 4k 256 r1 c96e82b75275142ccb4409517610706f | decode 3567 ms (71.48 tok/s) | steps=272 graph replays=255 (captures 1) eager decode steps=0
+[stage] done 2026-11-26 04:29:39
+[window] stage done 2026-11-26 04:29:40 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 04:29:40
+[window] radiance answers 2026-11-26 04:29:50 (after 15 s)
+fleetq: #12016 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

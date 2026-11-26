@@ -57,6 +57,9 @@ constexpr int F_R_OUT = 32;      // prologue (op 75's split path): write r [T,H,
 constexpr int F_R_IN = 64;       // stage 1 (op 75's split path): p.rel is r [T,H,dr]; the block forms its split's bias from it
 constexpr int F_DIAG_NOPRO = 256;    // diagnostic (INTARSIA_INK_DEC_DIAG bit 0): op 75 skips the prologue jobs (wrong output)
 constexpr int F_DIAG_NOMERGE = 512;  // diagnostic (INTARSIA_INK_DEC_DIAG bit 1): op 75 skips the ticket merge (wrong output)
+constexpr int F_DPP = 1024;          // INTARSIA_HIP_INK_DEC3 bit 1 (lane ink-hip-dec3): op 75's launcher takes the <.., DPP = true>
+                                     // kernels, whose butterflies take the partner from DPP / v_permlanex16 (ik_xor_f) instead of
+                                     // ds_bpermute: the same partners in the same order, same bits (the kernels do not read the flag)
 
 struct InkP {
     const bf16 *pq, *pk, *pv, *kt, *vt, *qs, *rs, *rp;
@@ -97,7 +100,14 @@ __host__ __device__ inline unsigned ink_chunk(unsigned vis, unsigned ns) {
 }
 
 // butterfly sum over the wave: every lane gets the same bits
-IK_DEVI float warp_sum(float v) {
+IK_DEVI float warp_sum(float v, bool dpp) {
+    if (dpp) {
+        v = fadd(v, ik_xor_f<16>(v));
+        v = fadd(v, ik_xor_f<8>(v));
+        v = fadd(v, ik_xor_f<4>(v));
+        v = fadd(v, ik_xor_f<2>(v));
+        return fadd(v, ik_xor_f<1>(v));
+    }
 #pragma unroll
     for (int o = 16; o > 0; o >>= 1) v = fadd(v, shx(v, o));
     return v;
@@ -179,7 +189,7 @@ IK_DEVI void ink_rel_g(const float (*r)[32], int G, const bf16* rp, int dr, int 
 // One wave computes one vector of the prologue (lane-strided elements, a butterfly sum of squares).
 constexpr int JMAX = 8;  // most elements per lane (head_dim <= 256)
 
-template <int J>
+template <int J, bool DPP = false>
 IK_DEVI float job_conv(const InkP& p, const bf16* x, const bf16* ring, const bf16* taps, unsigned t, unsigned pos0, unsigned kvh, unsigned lane,
                        float* v) {
     float ss = 0.0f;
@@ -192,11 +202,11 @@ IK_DEVI float job_conv(const InkP& p, const bf16* x, const bf16* ring, const bf1
             ss = ffma(v[i], v[i], ss);
         }
     }
-    return warp_sum(ss);
+    return warp_sum(ss, DPP);
 }
 
 // q (r = false: D elements) or r (r = true: dr elements) of query head h at call row t, after scale, clip and tau (rounded)
-template <int J>
+template <int J, bool DPP = false>
 IK_DEVI void job_qr(const InkP& p, unsigned t, unsigned h, unsigned pp, bool r, unsigned lane, float* v) {
     const unsigned n = r ? p.dr : p.d;
     const size_t off = (size_t)t * p.nq + (r ? (size_t)p.h * p.d + h * p.dr : (size_t)h * p.d);
@@ -211,7 +221,7 @@ IK_DEVI void job_qr(const InkP& p, unsigned t, unsigned h, unsigned pp, bool r, 
             ss = ffma(v[i], v[i], ss);
         }
     }
-    ss = warp_sum(ss);
+    ss = warp_sum(ss, DPP);
     const float tau = ink_tau(p, pp);
     const bool use_tau = p.tau_floor > 0;
 #pragma unroll
@@ -223,7 +233,7 @@ IK_DEVI float v_out(float v, float ss, const InkP& p) { return rA(fmul(v, ink_in
 
 // InkKvPrologue. Grid (Hk, T, rel slices), 256 threads (8 waves): waves take the jobs k, v, q_0 .., r_0 .. in turn, then all
 // threads the rel tail.
-template <int J>
+template <int J, bool DPP = false>
 __global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
     __shared__ float rsh[4][32];
     const unsigned tid = threadIdx.x, lane = tid & 31, warp = tid >> 5, nw = blockDim.x >> 5;
@@ -238,7 +248,7 @@ __global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
     for (unsigned job = lead ? warp : 2 + G + warp; job < njobs; job += nw) {
         float v[J];
         if (job < 2) {
-            const float ss = job_conv<J>(p, job ? p.pv : p.pk, job ? p.vr : p.kr, job ? p.vt : p.kt, t, pos0, kvh, lane, v);
+            const float ss = job_conv<J, DPP>(p, job ? p.pv : p.pk, job ? p.vr : p.kr, job ? p.vt : p.kt, t, pos0, kvh, lane, v);
             bf16* dst = (job ? p.vo : p.ko) + ((size_t)t * p.hk + kvh) * D;
 #pragma unroll
             for (int i = 0; i < J; ++i) {
@@ -247,7 +257,7 @@ __global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
             }
         } else if (job < 2 + G) {
             const unsigned h = kvh * G + (job - 2);
-            job_qr<J>(p, t, h, pp, false, lane, v);
+            job_qr<J, DPP>(p, t, h, pp, false, lane, v);
 #pragma unroll
             for (int i = 0; i < J; ++i) {
                 const unsigned c = lane + 32 * i;
@@ -255,7 +265,7 @@ __global__ void __launch_bounds__(256) ink_prologue_k(InkP p) {
             }
         } else {
             const unsigned g = job - 2 - G;
-            job_qr<J>(p, t, kvh * G + g, pp, true, lane, v);
+            job_qr<J, DPP>(p, t, kvh * G + g, pp, true, lane, v);
             if (lane < dr) rsh[g][lane] = v[0];
         }
     }
@@ -340,13 +350,14 @@ IK_DEVI InkSplit ink_split(const InkP& p, unsigned pos0, unsigned t, unsigned sp
 // the partial.
 // KV_TG: the call's own keys (j >= pos0) come from the block's LDS rows `kvt` (K plane, V plane MAXROWS * 128 later; row
 // j - pos0 - kvoff) instead of the k / v inputs. Every thread returns from it (the caller may continue with a block-wide step).
-template <int GP, bool KV_TG>
+template <int GP, bool KV_TG, bool DPP = false>
 IK_DEVI void ink_attn_body(InkTg<GP>& S, const float* bias, const bf16* kvt, unsigned kvoff, InkSplit g, unsigned kvh, unsigned split,
                            unsigned t, unsigned pos0, const InkP& p, unsigned tid, unsigned lane, unsigned sg) {
     const unsigned D = p.d, H = p.h, Hk = p.hk, Cr = p.cr;
     const bool ring = (p.flags & F_RING) != 0;
     const unsigned lpk = D / 8;     // lanes per key row
     const unsigned kps = 32 / lpk;  // keys per wave step
+    const bool dpp16 = DPP && lpk == 16;  // D = 128: the slot sum is xor 1, 2, 4, 8 and the merge xor 16
     const unsigned slot = lane / lpk, le = lane % lpk;
     const float qsc = fmul(p.scale, LOG2E);
     float qv[GP][8];
@@ -397,7 +408,14 @@ IK_DEVI void ink_attn_body(InkTg<GP>& S, const float* bias, const bf16* kvt, uns
             float s = 0.0f;
             for (int i = 0; i < 8; ++i) s = ffma(qv[h][i], kf[i], s);
             // every lane of the wave runs the shuffles (the slot's lanes are adjacent: xor below lpk stays in the slot)
-            for (unsigned o = 1; o < lpk; o <<= 1) s = fadd(s, shx(s, o));
+            if (dpp16) {
+                s = fadd(s, ik_xor_f<1>(s));
+                s = fadd(s, ik_xor_f<2>(s));
+                s = fadd(s, ik_xor_f<4>(s));
+                s = fadd(s, ik_xor_f<8>(s));
+            } else {
+                for (unsigned o = 1; o < lpk; o <<= 1) s = fadd(s, shx(s, o));
+            }
             if (!ok) continue;
             if (bi < g.nb) s = fadd(s, bias[h * g.nb + bi]);
             const float mn = fmaxf(m[h], s);
@@ -411,10 +429,16 @@ IK_DEVI void ink_attn_body(InkTg<GP>& S, const float* bias, const bf16* kvt, uns
     // merge the slots of the wave (xor tree over the slot bits; symmetric, so both partners compute the same value)
     for (unsigned o = lpk; o < 32; o <<= 1) {
         for (int h = 0; h < GP; ++h) {
-            const float m2 = shx(m[h], o);
-            const float l2 = shx(l[h], o);
-            float a2[8];
-            for (int i = 0; i < 8; ++i) a2[i] = shx(acc[h][i], o);
+            float m2, l2, a2[8];
+            if (dpp16) {  // o = 16 only
+                m2 = ik_xor_f<16>(m[h]);
+                l2 = ik_xor_f<16>(l[h]);
+                for (int i = 0; i < 8; ++i) a2[i] = ik_xor_f<16>(acc[h][i]);
+            } else {
+                m2 = shx(m[h], o);
+                l2 = shx(l[h], o);
+                for (int i = 0; i < 8; ++i) a2[i] = shx(acc[h][i], o);
+            }
             const float mn = fmaxf(m[h], m2);
             if (mn == -INFINITY) continue;
             const float c1 = exp2f(m[h] - mn), c2 = exp2f(m2 - mn);
@@ -465,7 +489,7 @@ IK_DEVI void ink_attn_body(InkTg<GP>& S, const float* bias, const bf16* kvt, uns
 
 // RelSinkAttn stage 1. Grid (Hk, max splits, T), NSG waves. q, k, v and the caches 16-byte aligned (launcher checks), D in
 // {8..128}. Dynamic LDS: the split's bias, [GP][nb] f32 (at most 3 x E x 4 bytes).
-template <int GP>
+template <int GP, bool DPP = false>
 __global__ void __launch_bounds__(NSG * 32) ink_attn_s1_k(InkP p) {
     __shared__ InkTg<GP> S;
     extern __shared__ float tb[];
@@ -505,7 +529,7 @@ __global__ void __launch_bounds__(NSG * 32) ink_attn_s1_k(InkP p) {
         }
     }
     __syncthreads();
-    ink_attn_body<GP, false>(S, tb, nullptr, 0, g, kvh, split, t, pos0, p, tid, lane, sg);
+    ink_attn_body<GP, false, DPP>(S, tb, nullptr, 0, g, kvh, split, t, pos0, p, tid, lane, sg);
 }
 
 // merge of the ns partials of (row t, query head h), element `tid`, in split order; then the sink and the gate
@@ -550,7 +574,7 @@ __device__ unsigned ink_dec_tick[MAXROWS * MAXHK_TICK];
 // jobs of a decode row), the bias and the merge; waves 0 .. NSG-1 run the attention body (the pair's key map). Dynamic LDS: the
 // split's bias [GP][nb] f32. Diagnostic p.flags F_DIAG_*: timing only, wrong output.
 constexpr int DEC_WAVES = 8;
-template <int GP>
+template <int GP, bool DPP = false>
 __global__ void __launch_bounds__(DEC_WAVES * 32) ink_attn_dec_k(InkP p) {
     __shared__ InkTg<GP> S;
     __shared__ float rsh[4][32];
@@ -579,7 +603,7 @@ __global__ void __launch_bounds__(DEC_WAVES * 32) ink_attn_dec_k(InkP p) {
     for (unsigned job = sg; job < njobs; job += DEC_WAVES) {
         float v[4];
         if (job < (unsigned)GP) {
-            job_qr<4>(p, t, kvh * GP + job, g.pp, false, lane, v);
+            job_qr<4, DPP>(p, t, kvh * GP + job, g.pp, false, lane, v);
 #pragma unroll
             for (int i = 0; i < 4; ++i) {
                 const unsigned c = lane + 32 * i;
@@ -587,11 +611,11 @@ __global__ void __launch_bounds__(DEC_WAVES * 32) ink_attn_dec_k(InkP p) {
             }
         } else if (job < 2u * GP) {
             const unsigned gg = job - GP;
-            job_qr<4>(p, t, kvh * GP + gg, g.pp, true, lane, v);
+            job_qr<4, DPP>(p, t, kvh * GP + gg, g.pp, true, lane, v);
             if (lane < (unsigned)p.dr) rsh[gg][lane] = v[0];
         } else {
             const unsigned u = ua + (job - 2 * GP) / 2, kv = (job - 2 * GP) & 1;
-            const float ss = job_conv<4>(p, kv ? p.pv : p.pk, kv ? p.vr : p.kr, kv ? p.vt : p.kt, u, pos0, kvh, lane, v);
+            const float ss = job_conv<4, DPP>(p, kv ? p.pv : p.pk, kv ? p.vr : p.kr, kv ? p.vt : p.kt, u, pos0, kvh, lane, v);
 #pragma unroll
             for (int i = 0; i < 4; ++i) {
                 const unsigned c = lane + 32 * i;
@@ -635,7 +659,7 @@ __global__ void __launch_bounds__(DEC_WAVES * 32) ink_attn_dec_k(InkP p) {
         }
     }
     __syncthreads();
-    ink_attn_body<GP, true>(S, tb, kvt, ua, g, kvh, split, t, pos0, p, tid, lane, sg);
+    ink_attn_body<GP, true, DPP>(S, tb, kvt, ua, g, kvh, split, t, pos0, p, tid, lane, sg);
     if (g.ns == 1 || (p.flags & F_DIAG_NOMERGE)) return;
     // the partials of this split are written; the last split of (row, kv head) to arrive merges them all
     __threadfence();
@@ -1138,6 +1162,7 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
     if (kv_fused) p.flags |= F_KV_WRITE;
     if (a->diag & 1) p.flags |= F_DIAG_NOPRO;
     if (a->diag & 2) p.flags |= F_DIAG_NOMERGE;
+    if (ik_hip_dec3_mask() & 1) p.flags |= F_DPP;
     unsigned gy, nb;
     attn_geometry(p, pos != nullptr, &gy, &nb);
     // scratch: the partials (as rel_sink_attn's), the staged K / V rows [2][T][Hk][D] bf16, then the split path's q [T,H,D] and
@@ -1157,17 +1182,18 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
     const int64_t keys = p.window > 0 ? (p.window < p.cr ? p.window : p.cr) : (pos ? (int64_t)p.cr : (int64_t)p.pos0 + p.t);
     if (keys > dec_fused_keys()) {
         InkP q = p;
-        q.flags = (q.flags & (F_DYN | F_RING_WRITE)) | F_R_OUT;
+        q.flags = (q.flags & (F_DYN | F_RING_WRITE | F_DPP)) | F_R_OUT;
         q.qo = (bf16*)((char*)scratch->data + part + stage);
         q.relo = (bf16*)((char*)scratch->data + part + stage + qb);
         q.e = p.dr;  // unused under F_R_OUT
-        ink_prologue_k<4><<<dim3(p.hk, p.t, 1), 256, 0, st>>>(q);
+        if (q.flags & F_DPP) ink_prologue_k<4, true><<<dim3(p.hk, p.t, 1), 256, 0, st>>>(q);
+        else ink_prologue_k<4><<<dim3(p.hk, p.t, 1), 256, 0, st>>>(q);
         if (!ring_fused) {
             const size_t n = (size_t)p.t * p.hk * p.d;
             ink_ring_write_k<<<(unsigned)((n + 255) / 256), 256, 0, st>>>(p);
         }
         InkP a1 = p;
-        a1.flags = (p.flags & (F_RING | F_KV_WRITE)) | F_R_IN;
+        a1.flags = (p.flags & (F_RING | F_KV_WRITE | F_DPP)) | F_R_IN;
         a1.q = q.qo;
         a1.kn = p.ko;
         a1.vn = p.vo;
@@ -1175,9 +1201,9 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
         const size_t tbb = (size_t)G * nb * 4;
         const dim3 grid(p.hk, gy, p.t);
         switch (G) {
-            case 1: ink_attn_s1_k<1><<<grid, NSG * 32, tbb, st>>>(a1); break;
-            case 2: ink_attn_s1_k<2><<<grid, NSG * 32, tbb, st>>>(a1); break;
-            default: ink_attn_s1_k<3><<<grid, NSG * 32, tbb, st>>>(a1); break;
+            case 1: if (a1.flags & F_DPP) ink_attn_s1_k<1, true><<<grid, NSG * 32, tbb, st>>>(a1); else ink_attn_s1_k<1><<<grid, NSG * 32, tbb, st>>>(a1); break;
+            case 2: if (a1.flags & F_DPP) ink_attn_s1_k<2, true><<<grid, NSG * 32, tbb, st>>>(a1); else ink_attn_s1_k<2><<<grid, NSG * 32, tbb, st>>>(a1); break;
+            default: if (a1.flags & F_DPP) ink_attn_s1_k<3, true><<<grid, NSG * 32, tbb, st>>>(a1); else ink_attn_s1_k<3><<<grid, NSG * 32, tbb, st>>>(a1); break;
         }
         if (gy > 1) ink_attn_comb_k<<<dim3(p.h, p.t), (p.d + 31) / 32 * 32, 0, st>>>(a1);
         if (!kv_fused) {
@@ -1189,9 +1215,9 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
     const size_t tbb = (size_t)G * nb * 4;
     const dim3 grid(p.hk, gy, p.t);
     switch (G) {
-        case 1: ink_attn_dec_k<1><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
-        case 2: ink_attn_dec_k<2><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
-        default: ink_attn_dec_k<3><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
+        case 1: if (p.flags & F_DPP) ink_attn_dec_k<1, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); else ink_attn_dec_k<1><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
+        case 2: if (p.flags & F_DPP) ink_attn_dec_k<2, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); else ink_attn_dec_k<2><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
+        default: if (p.flags & F_DPP) ink_attn_dec_k<3, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); else ink_attn_dec_k<3><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
     }
     if (!kv_fused) {
         InkP pw = p;
