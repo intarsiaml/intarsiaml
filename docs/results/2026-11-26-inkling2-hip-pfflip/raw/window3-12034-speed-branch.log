@@ -1,0 +1,22 @@
+fleetq: #12034 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12033 "ink-hip-pf2: build main 87c9745c0" (claude-04c0e1cd) loads it
+fleetq:   #12033 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12033 set, or it will wait for #12033 to be released.
+fleetq: #12034 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'ONLY=branch CAP=170 bash ~/intarsiaml-ink-hip-pfflip/.scratch/window.sh ~/intarsiaml-ink-hip-pfflip/.scratch/stage_speed.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-pfflip/.scratch/stage_speed.sh; cap 170s; stopping radiance 2026-11-26 11:43:30
+[window] radiance stopped 2026-11-26 11:43:33 (inactive)
+[stage] speed start 11:43:33
+---- card 0 (4k, short)
+SPD branch 4k r1 2252566a5c54cf52cb564bd214c9af2b | prompt=4228 | prefill 1553 ms (2722.6 tok/s) | decode 866 ms (72.74 tok/s) [11:43:42]
+SPD branch 4k r2 2252566a5c54cf52cb564bd214c9af2b | prompt=4228 | prefill 1548 ms (2731.1 tok/s) | decode 858 ms (73.44 tok/s) [11:43:50]
+SPD branch 4k r3 2252566a5c54cf52cb564bd214c9af2b | prompt=4228 | prefill 1546 ms (2734.4 tok/s) | decode 859 ms (73.37 tok/s) [11:43:57]
+SPD branch short r1 9a27c21b6fdc4ea7700439c818e698d8 | prompt=31 | prefill 96 ms (324.0 tok/s) | decode 3315 ms (76.92 tok/s) [11:44:06]
+SPD branch short r2 9a27c21b6fdc4ea7700439c818e698d8 | prompt=31 | prefill 96 ms (322.9 tok/s) | decode 3317 ms (76.88 tok/s) [11:44:15]
+SPD branch short r3 9a27c21b6fdc4ea7700439c818e698d8 | prompt=31 | prefill 96 ms (324.0 tok/s) | decode 3316 ms (76.90 tok/s) [11:44:24]
+---- card 1 (16k)
+SPD branch 16k r1 b9852772939c0de19ee928cebdfa7f3a | prompt=16915 | prefill 5942 ms (2846.9 tok/s) | decode 104 ms (67.57 tok/s) [11:43:45]
+SPD branch 16k r2 b9852772939c0de19ee928cebdfa7f3a | prompt=16915 | prefill 5958 ms (2838.9 tok/s) | decode 103 ms (67.72 tok/s) [11:43:56]
+SPD branch 16k r3 b9852772939c0de19ee928cebdfa7f3a | prompt=16915 | prefill 5949 ms (2843.5 tok/s) | decode 103 ms (67.66 tok/s) [11:44:07]
+[stage] speed done 11:44:24
+[window] stage done 2026-11-26 11:44:25 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 11:44:25
+[window] radiance answers 2026-11-26 11:44:35 (after 15 s)
+fleetq: #12034 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

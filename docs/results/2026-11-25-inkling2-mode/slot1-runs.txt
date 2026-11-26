@@ -1,0 +1,82 @@
+fleetq: #11922 reserved for Thu 06:25; waiting until then
+fleetq: #11922 running on endor: .scratch/mode/mode.sh slot1
+binary /opt/code/intarsiaml/.worktrees/ink-mode/.scratch/mode/bin/intarsia-probe md5 82497434119880675dafce00b3962370 out /opt/code/intarsiaml/.worktrees/ink-mode/.scratch/mode/run-slot1 start 06:25:00
+warm A rc 0 | p0 1382 p1 1282 p2 5350 | 71.19 tok/s | foreign {"750 Herdr": 6.0, "59400 com.apple.WebKit": 4.4, "1896 Google Chrome He": 4.0, "59311 BambuStudio": 2.0, "439 loginwind
+warmN N rc 0 | p0 441 p1 1283 p2 5451 | 71.43 tok/s | foreign {"750 Herdr": 12.1, "1896 Google Chrome He": 2.6, "59311 BambuStudio": 2.4, "59400 com.apple.WebKit": 2.0}
+001 A rc 0 | p0 662 p1 1289 p2 5620 | 69.87 tok/s | foreign {"750 Herdr": 4.4, "59400 com.apple.WebKit": 1.2}
+002 N rc 0 | p0 450 p1 1335 p2 6043 | 70.46 tok/s | foreign {"439 loginwindow": 11.7, "750 Herdr": 11.6, "59400 com.apple.WebKit": 2.7, "1896 Google Chrome He": 2.0, "59311 BambuSt
+003 A rc 0 | p0 677 p1 1396 p2 6267 | 70.20 tok/s | foreign {"750 Herdr": 6.1, "1896 Google Chrome He": 4.5, "59311 BambuStudio": 1.7, "59400 com.apple.WebKit": 1.6, "439 loginwind
+004 L rc 0 | p0 625 p1 1370 p2 6211 | 70.60 tok/s | foreign {"750 Herdr": 10.7, "59400 com.apple.WebKit": 6.0, "59311 BambuStudio": 3.1, "1896 Google Chrome He": 3.0}
+005 A rc 0 | p0 641 p1 1369 p2 6133 | 70.78 tok/s | foreign {"750 Herdr": 6.2, "59400 com.apple.WebKit": 2.9, "59311 BambuStudio": 2.8}
+006 N rc 0 | p0 452 p1 1367 p2 6067 | 70.43 tok/s | foreign {"750 Herdr": 7.9, "1896 Google Chrome He": 4.6, "439 loginwindow": 3.9, "59400 com.apple.WebKit": 2.3, "59311 BambuStud
+007 A rc 0 | p0 691 p1 1350 p2 5949 | 70.43 tok/s | foreign {"750 Herdr": 5.2, "1896 Google Chrome He": 2.5, "59400 com.apple.WebKit": 2.0, "59311 BambuStudio": 1.6}
+008 L rc 0 | p0 603 p1 1297 p2 6558 | 69.19 tok/s | foreign {"750 Herdr": 15.5, "1896 Google Chrome He": 15.2, "59311 BambuStudio": 5.4, "59400 com.apple.WebKit": 4.2}
+009 A rc 0 | p0 631 p1 1287 p2 6193 | 68.38 tok/s | foreign {"750 Herdr": 7.4, "1896 Google Chrome He": 5.9, "439 loginwindow": 4.4, "59311 BambuStudio": 3.4, "59400 com.apple.WebK
+010 N rc 0 | p0 444 p1 1285 p2 6406 | 69.51 tok/s | foreign {"59311 BambuStudio": 7.3, "750 Herdr": 6.9, "1896 Google Chrome He": 2.6, "59400 com.apple.WebKit": 2.2}
+011 A rc 0 | p0 672 p1 1285 p2 6650 | 68.39 tok/s | foreign {"750 Herdr": 8.3, "59400 com.apple.WebKit": 2.9, "59311 BambuStudio": 1.6}
+012 L rc 0 | p0 588 p1 1700 p2 7014 | 67.57 tok/s | foreign {"750 Herdr": 18.9, "59311 BambuStudio": 7.2, "59400 com.apple.WebKit": 5.5, "439 loginwindow": 4.7, "1896 Google Chrome
+013 A rc 0 | p0 627 p1 1286 p2 6188 | 69.54 tok/s | foreign {"750 Herdr": 10.9, "1896 Google Chrome He": 3.0, "59400 com.apple.WebKit": 2.2, "59311 BambuStudio": 0.4}
+014 N rc 0 | p0 445 p1 1283 p2 6290 | 69.45 tok/s | foreign {"59400 com.apple.WebKit": 2.2, "750 Herdr": 2.2, "59311 BambuStudio": 2.0}
+015 A rc 0 | p0 668 p1 1286 p2 6532 | 68.71 tok/s | foreign {"750 Herdr": 9.6, "59311 BambuStudio": 3.4, "59400 com.apple.WebKit": 2.1}
+016 L rc 0 | p0 611 p1 1828 p2 6956 | 67.81 tok/s | foreign {"750 Herdr": 18.0, "1896 Google Chrome He": 11.5, "59400 com.apple.WebKit": 6.3, "439 loginwindow": 5.4, "59311 BambuSt
+017 A rc 0 | p0 630 p1 1286 p2 6094 | 69.23 tok/s | foreign {"750 Herdr": 6.0, "1896 Google Chrome He": 3.7, "59400 com.apple.WebKit": 1.8, "59311 BambuStudio": 1.0}
+018 N rc 0 | p0 446 p1 1285 p2 6321 | 69.72 tok/s | foreign {"750 Herdr": 9.8, "1896 Google Chrome He": 6.2, "59311 BambuStudio": 2.2, "59400 com.apple.WebKit": 2.1}
+019 A rc 0 | p0 669 p1 1286 p2 6554 | 67.92 tok/s | foreign {"750 Herdr": 10.6, "59400 com.apple.WebKit": 5.0, "439 loginwindow": 3.3, "59311 BambuStudio": 0.9}
+020 L rc 0 | p0 609 p1 1814 p2 6867 | 67.55 tok/s | foreign {"750 Herdr": 16.4, "1896 Google Chrome He": 11.0, "59311 BambuStudio": 4.1, "59400 com.apple.WebKit": 3.0}
+021 A rc 0 | p0 624 p1 1285 p2 5968 | 69.16 tok/s | foreign {"750 Herdr": 16.1, "1896 Google Chrome He": 2.2, "59400 com.apple.WebKit": 1.8, "59311 BambuStudio": 1.7}
+022 N rc 0 | p0 446 p1 1283 p2 6238 | 70.01 tok/s | foreign {"750 Herdr": 13.7, "439 loginwindow": 3.2, "59311 BambuStudio": 3.1, "59400 com.apple.WebKit": 2.3}
+023 A rc 0 | p0 677 p1 1286 p2 6524 | 69.09 tok/s | foreign {"750 Herdr": 9.1, "1896 Google Chrome He": 7.2, "59400 com.apple.WebKit": 1.7}
+024 L rc 0 | p0 597 p1 1676 p2 6935 | 67.09 tok/s | foreign {"750 Herdr": 13.4, "59400 com.apple.WebKit": 4.0, "59311 BambuStudio": 2.7}
+025 A rc 0 | p0 619 p1 1286 p2 5939 | 69.26 tok/s | foreign {"750 Herdr": 5.3, "439 loginwindow": 4.7, "59311 BambuStudio": 2.4, "59400 com.apple.WebKit": 1.6}
+026 N rc 0 | p0 448 p1 1284 p2 6265 | 69.98 tok/s | foreign {"750 Herdr": 9.2, "1896 Google Chrome He": 8.1, "59400 com.apple.WebKit": 3.8}
+027 A rc 0 | p0 668 p1 1286 p2 6449 | 68.96 tok/s | foreign {"750 Herdr": 7.6, "59400 com.apple.WebKit": 2.4, "59311 BambuStudio": 1.3}
+028 L rc 0 | p0 599 p1 1632 p2 6958 | 67.06 tok/s | foreign {"750 Herdr": 17.8, "1896 Google Chrome He": 14.0, "439 loginwindow": 7.5, "59311 BambuStudio": 4.6, "59400 com.apple.We
+029 A rc 0 | p0 625 p1 1287 p2 5949 | 69.29 tok/s | foreign {"750 Herdr": 6.7, "1896 Google Chrome He": 3.8, "59400 com.apple.WebKit": 2.4, "59311 BambuStudio": 1.2}
+030 N rc 0 | p0 449 p1 1284 p2 6143 | 69.69 tok/s | foreign {"750 Herdr": 4.4, "1896 Google Chrome He": 2.2, "59311 BambuStudio": 2.1, "59400 com.apple.WebKit": 2.0}
+031 A rc 0 | p0 671 p1 1288 p2 6467 | 69.74 tok/s | foreign {"1896 Google Chrome He": 9.4, "750 Herdr": 7.9, "59400 com.apple.WebKit": 2.0, "59311 BambuStudio": 1.6}
+032 L rc 0 | p0 590 p1 1695 p2 6975 | 66.79 tok/s | foreign {"750 Herdr": 17.9, "59311 BambuStudio": 7.0, "1896 Google Chrome He": 5.6, "59400 com.apple.WebKit": 5.4, "439 loginwin
+033 A rc 0 | p0 624 p1 1839 p2 6798 | 67.56 tok/s | foreign {"750 Herdr": 12.0, "1896 Google Chrome He": 9.3, "59400 com.apple.WebKit": 2.3, "59311 BambuStudio": 2.0}
+034 N rc 0 | p0 448 p1 1283 p2 6010 | 69.88 tok/s | foreign {"59311 BambuStudio": 8.0, "750 Herdr": 5.7, "1896 Google Chrome He": 4.5, "59400 com.apple.WebKit": 2.5}
+035 A rc 0 | p0 665 p1 1287 p2 6307 | 69.50 tok/s | foreign {"750 Herdr": 11.6, "439 loginwindow": 3.2, "59311 BambuStudio": 3.0, "59400 com.apple.WebKit": 2.0}
+036 L rc 0 | p0 594 p1 1623 p2 7022 | 67.39 tok/s | foreign {"750 Herdr": 16.3, "1896 Google Chrome He": 13.1, "59311 BambuStudio": 7.3, "59400 com.apple.WebKit": 6.1, "439 loginwi
+037 A rc 0 | p0 627 p1 1730 p2 6754 | 66.94 tok/s | foreign {"750 Herdr": 4.2, "59311 BambuStudio": 2.2, "59400 com.apple.WebKit": 1.8}
+038 N rc 0 | p0 444 p1 1282 p2 5972 | 69.91 tok/s | foreign {"750 Herdr": 7.6, "59400 com.apple.WebKit": 1.8, "439 loginwindow": 1.2}
+039 A rc 0 | p0 663 p1 1287 p2 6219 | 69.67 tok/s | foreign {"750 Herdr": 7.8, "1896 Google Chrome He": 5.2, "59311 BambuStudio": 3.2, "59400 com.apple.WebKit": 1.5, "439 loginwind
+040 L rc 0 | p0 605 p1 1606 p2 6740 | 67.42 tok/s | foreign {"1896 Google Chrome He": 17.3, "750 Herdr": 14.4, "59311 BambuStudio": 10.3, "59400 com.apple.WebKit": 7.2}
+041 A rc 0 | p0 623 p1 1676 p2 6803 | 68.31 tok/s | foreign {"750 Herdr": 9.5, "1896 Google Chrome He": 2.2, "59311 BambuStudio": 2.0, "59400 com.apple.WebKit": 2.0}
+042 N rc 0 | p0 448 p1 1282 p2 5918 | 69.49 tok/s | foreign {"439 loginwindow": 4.0, "750 Herdr": 4.0, "1896 Google Chrome He": 4.0, "59400 com.apple.WebKit": 3.4, "59311 BambuStud
+043 A rc 0 | p0 662 p1 1286 p2 6214 | 69.21 tok/s | foreign {"750 Herdr": 6.5, "1896 Google Chrome He": 2.3, "59311 BambuStudio": 1.3, "59400 com.apple.WebKit": 1.2}
+044 L rc 0 | p0 607 p1 1621 p2 6678 | 68.47 tok/s | foreign {"750 Herdr": 16.9, "1896 Google Chrome He": 9.2, "59311 BambuStudio": 8.2, "59400 com.apple.WebKit": 5.3}
+045 A rc 0 | p0 627 p1 1684 p2 6790 | 68.74 tok/s | foreign {"750 Herdr": 15.5, "439 loginwindow": 4.1, "1896 Google Chrome He": 3.9, "59311 BambuStudio": 3.4, "59400 com.apple.Web
+046 N rc 0 | p0 448 p1 1283 p2 5856 | 69.13 tok/s | foreign {"750 Herdr": 5.6, "1896 Google Chrome He": 2.7, "59400 com.apple.WebKit": 2.2, "59311 BambuStudio": 1.0}
+047 A rc 0 | p0 664 p1 1285 p2 6190 | 69.54 tok/s | foreign {"1896 Google Chrome He": 8.5, "750 Herdr": 7.0, "59400 com.apple.WebKit": 2.0, "59311 BambuStudio": 0.5}
+048 L rc 0 | p0 604 p1 1622 p2 6701 | 67.89 tok/s | foreign {"750 Herdr": 11.9, "59311 BambuStudio": 8.1, "1896 Google Chrome He": 8.0, "439 loginwindow": 5.3, "59400 com.apple.Web
+049 A rc 0 | p0 631 p1 1706 p2 6753 | 68.01 tok/s | foreign {"750 Herdr": 19.1, "59400 com.apple.WebKit": 3.7, "1896 Google Chrome He": 3.0, "59311 BambuStudio": 2.2}
+050 N rc 0 | p0 445 p1 1283 p2 5809 | 69.49 tok/s | foreign {"1896 Google Chrome He": 5.8, "750 Herdr": 4.6, "59311 BambuStudio": 3.4, "59400 com.apple.WebKit": 2.1}
+051 A rc 0 | p0 669 p1 1285 p2 6165 | 69.44 tok/s | foreign {"750 Herdr": 19.3, "1896 Google Chrome He": 4.4, "59311 BambuStudio": 3.2, "59400 com.apple.WebKit": 2.7}
+052 L rc 0 | p0 600 p1 1666 p2 6663 | 68.70 tok/s | foreign {"750 Herdr": 16.0, "1896 Google Chrome He": 11.6, "59400 com.apple.WebKit": 4.7, "439 loginwindow": 4.3, "59311 BambuSt
+053 A rc 0 | p0 624 p1 1693 p2 6645 | 67.41 tok/s | foreign {"750 Herdr": 8.3, "59311 BambuStudio": 1.8, "59400 com.apple.WebKit": 1.7}
+054 N rc 0 | p0 445 p1 1283 p2 5818 | 70.14 tok/s | foreign {"750 Herdr": 8.5, "59311 BambuStudio": 1.7, "59400 com.apple.WebKit": 1.6}
+055 A rc 0 | p0 666 p1 1286 p2 6115 | 69.95 tok/s | foreign {"750 Herdr": 21.6, "439 loginwindow": 3.5, "59400 com.apple.WebKit": 1.5, "59311 BambuStudio": 1.4}
+056 L rc 0 | p0 612 p1 1649 p2 6725 | 68.39 tok/s | foreign {"750 Herdr": 13.4, "1896 Google Chrome He": 9.6, "59400 com.apple.WebKit": 7.0, "59311 BambuStudio": 6.9}
+057 A rc 0 | p0 628 p1 1691 p2 6581 | 67.66 tok/s | foreign {"750 Herdr": 4.8, "1896 Google Chrome He": 4.5, "59400 com.apple.WebKit": 2.6, "59311 BambuStudio": 1.4}
+058 N rc 0 | p0 445 p1 1283 p2 5708 | 68.69 tok/s | foreign {"750 Herdr": 8.7, "59311 BambuStudio": 3.4, "439 loginwindow": 2.9, "59400 com.apple.WebKit": 1.9}
+059 A rc 0 | p0 667 p1 1286 p2 6221 | 69.59 tok/s | foreign {"1896 Google Chrome He": 6.5, "750 Herdr": 5.5, "59311 BambuStudio": 2.2, "59400 com.apple.WebKit": 1.5}
+060 L rc 0 | p0 616 p1 1591 p2 6699 | 68.72 tok/s | foreign {"750 Herdr": 20.3, "1896 Google Chrome He": 8.5, "59400 com.apple.WebKit": 5.7, "59311 BambuStudio": 4.8}
+061 A rc 0 | p0 636 p1 1690 p2 6530 | 67.33 tok/s | foreign {"750 Herdr": 8.1, "439 loginwindow": 3.9, "1896 Google Chrome He": 2.5, "59400 com.apple.WebKit": 1.6, "59311 BambuStud
+062 N rc 0 | p0 445 p1 1284 p2 5679 | 70.42 tok/s | foreign {"750 Herdr": 7.8, "1896 Google Chrome He": 3.6, "59311 BambuStudio": 2.6, "59400 com.apple.WebKit": 1.7}
+063 A rc 0 | p0 678 p1 1287 p2 6073 | 69.12 tok/s | foreign {"750 Herdr": 10.3, "1896 Google Chrome He": 2.6, "59400 com.apple.WebKit": 1.5, "59311 BambuStudio": 1.4}
+064 L rc 0 | p0 599 p1 1586 p2 6648 | 68.80 tok/s | foreign {"750 Herdr": 15.5, "1896 Google Chrome He": 12.0, "59400 com.apple.WebKit": 4.7, "439 loginwindow": 3.6, "59311 BambuSt
+065 A rc 0 | p0 626 p1 1698 p2 6549 | 68.63 tok/s | foreign {"750 Herdr": 4.8, "1896 Google Chrome He": 4.1, "59311 BambuStudio": 3.8, "59400 com.apple.WebKit": 2.0, "439 loginwind
+066 N rc 0 | p0 447 p1 1285 p2 5667 | 70.06 tok/s | foreign {"1896 Google Chrome He": 7.2, "750 Herdr": 6.3, "59400 com.apple.WebKit": 2.7, "59311 BambuStudio": 2.5}
+067 A rc 0 | p0 669 p1 1286 p2 5989 | 69.58 tok/s | foreign {"1896 Google Chrome He": 6.6, "750 Herdr": 5.5, "59400 com.apple.WebKit": 1.5, "59311 BambuStudio": 1.3}
+068 L rc 0 | p0 605 p1 1287 p2 6286 | 69.59 tok/s | foreign {"750 Herdr": 14.7, "1896 Google Chrome He": 14.4, "59400 com.apple.WebKit": 7.1, "59311 BambuStudio": 6.1, "439 loginwi
+069 A rc 0 | p0 628 p1 1666 p2 6656 | 68.38 tok/s | foreign {"750 Herdr": 16.7, "1896 Google Chrome He": 4.2, "59400 com.apple.WebKit": 2.3, "59311 BambuStudio": 0.8}
+070 N rc 0 | p0 445 p1 1638 p2 6527 | 68.56 tok/s | foreign {"59311 BambuStudio": 6.9, "750 Herdr": 4.0, "59400 com.apple.WebKit": 3.5}
+071 A rc 0 | p0 670 p1 1285 p2 5904 | 69.84 tok/s | foreign {"750 Herdr": 8.9, "59400 com.apple.WebKit": 0.9, "59311 BambuStudio": 0.3}
+072 L rc 0 | p0 602 p1 1289 p2 6321 | 69.42 tok/s | foreign {"59311 BambuStudio": 20.0, "750 Herdr": 18.2, "1896 Google Chrome He": 6.2, "59400 com.apple.WebKit": 5.4, "439 loginwi
+073 A rc 0 | p0 624 p1 1582 p2 6613 | 69.11 tok/s | foreign {"750 Herdr": 9.3, "59400 com.apple.WebKit": 2.6, "894 com.apple.WebKit": 2.3, "59311 BambuStudio": 0.9}
+074 N rc 0 | p0 446 p1 1598 p2 6506 | 68.59 tok/s | foreign {"750 Herdr": 4.2, "59311 BambuStudio": 2.2, "59400 com.apple.WebKit": 2.0}
+075 A rc 0 | p0 672 p1 1288 p2 5945 | 69.16 tok/s | foreign {"750 Herdr": 8.4, "1896 Google Chrome He": 4.6, "439 loginwindow": 4.2, "59400 com.apple.WebKit": 2.4, "59311 BambuStud
+== done 06:48:10, 75 processes
+fleetq: #11922 done (exit 0)

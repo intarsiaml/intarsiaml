@@ -7,8 +7,8 @@
 //! * `rel_sink_attn_bf16`: a port of CUDA's scalar split-KV path (`ink_attn_s1_k` + `ink_attn_comb_k` + `ink_kv_write_k`) at every
 //!   T, on slices of at most `ATTN_SLICE` rows in order (the scratch bound). Rows-exact for every T, host or device position:
 //!   a row's splits and reduction order are functions of its position and the window only.
-//!   With `INTARSIA_HIP_INK_ATTN_FLASH` on ([`INK_ATTN_FLASH_DEFAULT`]: off), calls of more than 16 rows (prefill chunks) run a
-//!   WMMA flash kernel instead (a fork of attention_flash.hip's kernel with the rel bias, the SWA window, the sink and the gate),
+//!   With `INTARSIA_HIP_INK_ATTN_FLASH` on (the default since the user's decision 2026-11-26, [`INK_ATTN_FLASH_DEFAULT`]; `=0` is
+//!   the revert), calls of more than 16 rows (prefill chunks) run a WMMA flash kernel instead (a fork of attention_flash.hip's kernel with the rel bias, the SWA window, the sink and the gate),
 //!   then the cache-write pass: not bitwise the split-KV form; decode / verify rows (<= 16) never take it.
 //! * `ink_attn_decode_bf16` (op 75, 1..=16 rows): bitwise the pair at every T <= 16, host or device position, on one of two paths
 //!   the launcher picks (`INTARSIA_INK_DEC_FUSED_KEYS`, default 2048): visits that read at most that many keys (window layers;
@@ -61,18 +61,43 @@ pub fn attn_scratch(s: &ShapeInfo) -> usize {
 }
 
 /// Whether `rel_sink_attn_bf16` runs prefill chunks (more than 16 rows) on the WMMA flash kernel when `INTARSIA_HIP_INK_ATTN_FLASH`
-/// is unset. Off: the flash form is not bitwise the split-KV form (G2 PASS, -12.4 % 4k prefill; results
-/// docs/results/2026-11-25-inkling2-hip-attn.md); the default-on flip waits for the user and is this one constant.
-pub const INK_ATTN_FLASH_DEFAULT: bool = false;
+/// is unset. On since the user's decision 2026-11-26 ("Yes, flip it"): the flash form is not bitwise the split-KV form (G2 PASS,
+/// 4k prefill 652 -> 780 tok/s alone, 1614 -> 2687 with the tensor-core experts; results docs/results/2026-11-25-inkling2-hip-attn.md,
+/// docs/results/2026-11-26-inkling2-hip-pfflip.md); `INTARSIA_HIP_INK_ATTN_FLASH=0` reverts. The default is this one constant.
+pub const INK_ATTN_FLASH_DEFAULT: bool = true;
 
-/// `INTARSIA_HIP_INK_ATTN_FLASH`: `1` = flash prefill, `0` = split-KV, unset = [`INK_ATTN_FLASH_DEFAULT`]. Read at every launch of
-/// more than 16 rows (the benches and tests switch it in one process).
-pub fn ink_attn_flash() -> bool {
-    match std::env::var("INTARSIA_HIP_INK_ATTN_FLASH").ok().as_deref().map(str::trim) {
+thread_local! {
+    /// Tests: this thread's override of the setting (`set_flash`); `None` = the env / the default.
+    static FLASH_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Tests / benchmarks: pin the flash prefill for the launches of the calling thread (`0` split-KV, `1` flash, `-1` back to the env /
+/// the default). Per thread, so the tests of one process that need the split-KV form (rows-exact) and those that grade the default
+/// do not race.
+pub fn set_flash(v: i32) {
+    FLASH_OVERRIDE.with(|c| c.set(match v {
+        0 => Some(false),
+        1 => Some(true),
+        _ => None,
+    }));
+}
+
+/// The setting of `INTARSIA_HIP_INK_ATTN_FLASH` (`env`, untrimmed): `1` = flash, `0` = split-KV, anything else = [`INK_ATTN_FLASH_DEFAULT`].
+pub fn resolve_flash(env: Option<&str>) -> bool {
+    match env.map(str::trim) {
         Some("1") => true,
         Some("0") => false,
         _ => INK_ATTN_FLASH_DEFAULT,
     }
+}
+
+/// `INTARSIA_HIP_INK_ATTN_FLASH`: `1` = flash prefill, `0` = split-KV, unset = [`INK_ATTN_FLASH_DEFAULT`] (on). Read at every launch of
+/// more than 16 rows (the benches and tests switch it in one process).
+pub fn ink_attn_flash() -> bool {
+    if let Some(v) = FLASH_OVERRIDE.with(|c| c.get()) {
+        return v;
+    }
+    resolve_flash(std::env::var("INTARSIA_HIP_INK_ATTN_FLASH").ok().as_deref())
 }
 
 /// Op 75 shapes: the attention's, at most 16 rows (`ATTN_DECODE_MAX_ROWS`), kv heads within the ticket array.
@@ -322,5 +347,39 @@ pub(crate) mod launch {
             }
             _ => ik_rel_sink_attn_bf16(a.i(0), a.i(1), a.i(2), a.i(3), a.i(4), a.i(5), a.i(6), ap, a.o(0), a.o(1), a.o(2), a.sc, a.pos, a.s),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The flash prefill is the default (user decision 2026-11-26): unset, empty or unknown = on, `0` = off (the revert), `1` = on.
+    #[test]
+    fn flash_prefill_is_on_by_default_and_zero_reverts() {
+        assert!(INK_ATTN_FLASH_DEFAULT);
+        assert!(resolve_flash(None), "knob unset: on");
+        assert!(resolve_flash(Some("")), "empty: the default");
+        assert!(resolve_flash(Some("yes")), "unknown: the default");
+        assert!(resolve_flash(Some("1")));
+        assert!(resolve_flash(Some(" 1 ")));
+        assert!(!resolve_flash(Some("0")), "=0: split-KV");
+        assert!(!resolve_flash(Some(" 0\n")));
+    }
+
+    /// `set_flash` pins the calling thread only, `-1` goes back to the env / the default.
+    #[test]
+    fn set_flash_pins_this_thread_only() {
+        set_flash(0);
+        assert!(!ink_attn_flash());
+        let other = std::thread::spawn(|| {
+            // another thread keeps resolving the env / the default (this test never sets the env var)
+            std::env::var_os("INTARSIA_HIP_INK_ATTN_FLASH").is_some() || ink_attn_flash()
+        });
+        assert!(other.join().unwrap());
+        set_flash(1);
+        assert!(ink_attn_flash());
+        set_flash(-1);
+        assert_eq!(ink_attn_flash(), resolve_flash(std::env::var("INTARSIA_HIP_INK_ATTN_FLASH").ok().as_deref()));
     }
 }

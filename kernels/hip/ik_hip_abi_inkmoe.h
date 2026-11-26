@@ -43,8 +43,11 @@ void ik_ink_moe_set_sz(int v);
 /* pairs per accumulator batch below the pair table (4 | 8; anything else = the default rule); bitwise the same output */
 void ik_ink_moe_set_nb(int v);
 /* the tensor-core prefill of the ordinary names: 0 off, 1 the rule (64-pair tiles from 16 pairs per expert), 32 | 64 every
- * pair-table call with that tile, -1 = INTARSIA_HIP_INK_MOE_WMMA / the default (off) */
+ * pair-table call with that tile, -1 = INTARSIA_HIP_INK_MOE_WMMA / the default (the rule: on, user decision 2026-11-26; =0 is the revert) */
 void ik_ink_moe_set_wmma(int v);
+/* tests: the pair tile (0 = the decode kernels, else 64 or the forced 32) the ordinary names take for a call of P (token, expert)
+ * pairs over E experts, as the setting above resolves it */
+int ik_ink_moe_wmma_pairs(long long P, int E);
 /* the one-wave grouping of size class 0 (at most 16 pairs; lane ink-hip-dec2): 1 on, 0 the shared-memory grouping, -1 =
  * INTARSIA_HIP_INK_DEC_FAST bit 1 / the default (on); bitwise the same output */
 void ik_ink_moe_set_dec(int v);
