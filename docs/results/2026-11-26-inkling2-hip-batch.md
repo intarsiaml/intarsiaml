@@ -9,7 +9,7 @@ Raw: `docs/results/2026-11-26-inkling2-hip-batch/raw/`.
 
 | tok/s, one R9700 | main `3226af2b9` | branch b8 | change |
 |---|---|---|---|
-| Prefill 4k (defaults since #528: chunk 2048, MoE WMMA, flash, PF2 forms) | 3094 / 3080 | 3084 / 3072 | -0.3 % (single runs, noise; ABBA on b7: 1.0014 ± 0.0030) |
+| Prefill 4k (defaults since #528: chunk 2048, MoE WMMA, flash, PF2 forms; the 256- / 64-token runs) | 3094 / 3080 | 3084 / 3072 | -0.3 % (single runs, noise; ABBA on b7: 1.0014 ± 0.0030) |
 | Prefill 16k | not run (COMMON-1126 baseline 2793 predates #528) | not run; solo device code identical to main (section 12) | 0 expected |
 | Decode short (`--spec off`, 256 tok) | 76.90 | 76.83 | -0.1 % (single run; ABBA on b7 vs main3: 1.0003 ± 0.0003) |
 | Decode 4k (`--spec off`, 256 tok) | 74.09 | 74.03 | -0.1 % (single run; ABBA on b7 vs main3: 1.0001 ± 0.0006) |
