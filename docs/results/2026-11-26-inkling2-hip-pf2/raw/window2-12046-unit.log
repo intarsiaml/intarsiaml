@@ -1,0 +1,26 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-pf2/.scratch/stage_unit.sh; cap 275s; stopping radiance 2026-11-26 12:11:43
+[window] radiance stopped 2026-11-26 12:11:47 (inactive)
+[stage] bench 12:11:47
+test bench_pf2_prefill ... PF2BENCH swa at 2048: prologue 2096 -> 920 us (bit 1), flash 2162 -> 1500 us (bit 2); wall per call back to back, so a stall after a >= 1 ms launch is in the number
+PF2BENCH full at 2048: prologue 2205 -> 1026 us (bit 1), flash 3108 -> 3093 us (bit 2); wall per call back to back, so a stall after a >= 1 ms launch is in the number
+PF2BENCH full at 14336: prologue 2229 -> 1021 us (bit 1), flash 11791 -> 11615 us (bit 2); wall per call back to back, so a stall after a >= 1 ms launch is in the number
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 2.31s
+GEN4k pf2=0 | prefill 1544 ms (2738.2 tok/s)  [12:11:56]
+GEN4k pf2=1 | prefill 1462 ms (2891.0 tok/s)  [12:12:02]
+GEN4k pf2=3 | prefill 1446 ms (2923.1 tok/s)  [12:12:08]
+GEN4k pf2=7 | prefill 1491 ms (2835.3 tok/s)  [12:12:15]
+GEN4k pf2=15 | prefill 1600 ms (2642.0 tok/s)  [12:12:21]
+[stage] rocprof 4k default mask 12:12:21
+prefill 1504 ms (2811.9 tok/s) 
+[stage] attn bitwise test 12:12:27
+test pf2_bitwise_prefill ... 140 INTARSIA_HIP_INK_PF2 attention cases bitwise =0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 5.29s
+attn test exit 0 (124 = cap) [12:12:33]
+[stage] moe pieces test 12:12:33
+test ink_moe_pf2_pieces ... 30 INTARSIA_HIP_INK_PF2 expert cases bitwise one launch
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 2.66s
+moe test exit 0 (124 = cap) [12:12:36]
+[stage] done 12:12:36
+[window] stage done 2026-11-26 12:12:37 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 12:12:37
+[window] radiance answers 2026-11-26 12:12:47 (after 15 s)

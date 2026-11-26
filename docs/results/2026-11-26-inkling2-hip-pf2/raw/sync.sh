@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# From the Mac: copy the worktree to tatooine's lane directory (keeps logs/ and .scratch/bin/ there).
+set -uo pipefail
+cd /opt/code/intarsiaml/.worktrees/ink-hip-pf2
+rsync -a --delete --exclude /target --exclude /.git --exclude /.worktrees --exclude /logs --exclude /.scratch/bin --exclude /.scratch/main-src ./ tatooine:intarsiaml-ink-hip-pf2/ < /dev/null
+bash /opt/code/intarsiaml/.worktrees/ink-hip-pf2/.scratch/touch_diff.sh

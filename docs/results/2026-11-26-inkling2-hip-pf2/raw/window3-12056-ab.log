@@ -1,0 +1,33 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-pf2/.scratch/stage_ab.sh; cap 280s; stopping radiance 2026-11-26 12:29:41
+[window] radiance stopped 2026-11-26 12:29:45 (inactive)
+[stage] moe pieces / OCC bitwise test 12:29:45
+test ink_moe_pf2_pieces ... 72 INTARSIA_HIP_INK_PF2 expert cases bitwise one launch
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 3.31s
+GEN 4k INTARSIA_HIP_INK_PF2=0 | prefill 1559 ms (2711.5 tok/s)  [12:29:55]
+GEN 16k INTARSIA_HIP_INK_PF2=0 | prefill 6028 ms (2805.9 tok/s)  [12:30:06]
+GEN 4k INTARSIA_HIP_INK_PF2=3 | prefill 1458 ms (2900.0 tok/s)  [12:30:12]
+GEN 16k INTARSIA_HIP_INK_PF2=3 | prefill 5609 ms (3015.6 tok/s)  [12:30:22]
+GEN 4k INTARSIA_HIP_INK_PF2=7 | prefill 1446 ms (2923.8 tok/s)  [12:30:29]
+GEN 16k INTARSIA_HIP_INK_PF2=7 | prefill 5562 ms (3041.1 tok/s)  [12:30:39]
+GEN 4k INTARSIA_HIP_INK_PF2=15 | prefill 1456 ms (2904.1 tok/s)  [12:30:45]
+GEN 16k INTARSIA_HIP_INK_PF2=15 | prefill 5620 ms (3010.0 tok/s)  [12:30:56]
+GEN 4k INTARSIA_HIP_INK_PF2=19 | prefill 1618 ms (2613.1 tok/s)  [12:31:02]
+GEN 16k INTARSIA_HIP_INK_PF2=19 | prefill 6309 ms (2681.1 tok/s)  [12:31:13]
+GEN 4k INTARSIA_HIP_INK_PF2=51 | prefill 1692 ms (2498.8 tok/s)  [12:31:20]
+GEN 16k INTARSIA_HIP_INK_PF2=51 | prefill 6626 ms (2552.9 tok/s)  [12:31:31]
+GEN 4k INTARSIA_HIP_INK_PF2=67 | prefill 1471 ms (2874.9 tok/s)  [12:31:38]
+GEN 16k INTARSIA_HIP_INK_PF2=67 | prefill 5638 ms (3000.1 tok/s)  [12:31:48]
+GEN 4k INTARSIA_HIP_INK_PF2=3 INTARSIA_HIP_INK_PF2_ZP=16 | prefill 1424 ms (2969.7 tok/s)  [12:31:54]
+GEN 16k INTARSIA_HIP_INK_PF2=3 INTARSIA_HIP_INK_PF2_ZP=16 | prefill 5443 ms (3107.4 tok/s)  [12:32:04]
+GEN 4k INTARSIA_HIP_INK_PF2=3 INTARSIA_HIP_INK_MOE_WMMA=32 | prefill 1602 ms (2638.6 tok/s)  [12:32:11]
+GEN 16k INTARSIA_HIP_INK_PF2=3 INTARSIA_HIP_INK_MOE_WMMA=32 | prefill 6013 ms (2813.1 tok/s)  [12:32:21]
+GEN 4k INTARSIA_HIP_INK_PF2=3 | prefill 1467 ms (2882.3 tok/s)  [12:32:28]
+GEN 16k INTARSIA_HIP_INK_PF2=3 | prefill 5625 ms (3007.3 tok/s)  [12:32:38]
+GEN 4k INTARSIA_HIP_INK_PF2=0 | prefill 1571 ms (2691.9 tok/s)  [12:32:44]
+GEN 16k INTARSIA_HIP_INK_PF2=0 | prefill 6060 ms (2791.5 tok/s)  [12:32:55]
+[stage] rocprof 4k mask 3 12:32:55
+prefill 1478 ms (2860.1 tok/s) 
+[stage] done 12:33:02
+[window] stage done 2026-11-26 12:33:03 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 12:33:03
+[window] radiance answers 2026-11-26 12:33:13 (after 15 s)
