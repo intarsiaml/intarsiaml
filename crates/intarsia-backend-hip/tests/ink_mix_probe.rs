@@ -109,6 +109,6 @@ fn ink_row_kernel_phases() {
         }
         println!("PROBE mask {mask} {label}:{line} total {total:.0} ns");
         }
-        intarsia_backend_hip::inkmix::set_mix_mode(2);
+        intarsia_backend_hip::inkmix::set_mix_mode(3);
     }
 }

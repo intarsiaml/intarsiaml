@@ -35,7 +35,7 @@ int ik_loop_blend_bf16(const ik_tensor* dest, const ik_tensor* msg, const ik_ten
  * bitwise ik_logits_bf16_gemv's, the routing bitwise ik_moe_route's. Same attributes as MoeRoute. */
 int ik_ink_route_bf16(const ik_tensor* x, const ik_tensor* w, const ik_tensor* bias, int64_t top_k, float scale, int32_t norm_topk, float temperature,
                       int32_t score_func, ik_tensor* weights, ik_tensor* ids, ik_tensor* logits, const ik_scratch* scratch, void* stream);
-/* tests / benchmarks: bit mask of the fast forms of the mix kernels (1 row kernel loads, 2 fused blend launches, 4 gate kernel loads; 0 = the first forms; default 2; same bits) */
+/* tests / benchmarks: bit mask of the fast forms of the mix kernels (1 row kernel loads for <= 16 rows, 2 fused blend launches for <= 2 rows, 4 gate kernel loads, 8 fast row kernel at any row count; 0 = the first forms; default 3; same bits) */
 void ik_ink_mix_mode(int v);
 /* the phase timestamps of the last row-kernel launch (a build with INK_PROBE defined; IK_ERR_UNSUPPORTED otherwise), tests/ink_mix_probe.rs */
 int ik_ink_probe(unsigned long long* out, int n);

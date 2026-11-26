@@ -102,7 +102,7 @@ pub fn all() -> Vec<KernelImpl> {
                 // routes), rows-exact at any T <= 16 by construction; the math of the pair, so the f32 tolerance of `moe_route`
                 "ink_route_bf16" => k
                     .weights(bf)
-                    .when(|s| (1..=16).contains(&s.m) && s.k % 8 == 0 && s.experts <= 256 && (1..=32).contains(&s.top_k) && s.top_k <= s.experts)
+                    .when(|s| (1..=4).contains(&s.m) && s.k % 8 == 0 && s.experts <= 256 && (1..=32).contains(&s.top_k) && s.top_k <= s.experts)
                     .tol(F32_TOL)
                     .scratch(route_scratch),
                 other => unreachable!("inkmix kernel {other} has no registration"),
@@ -228,8 +228,8 @@ pub(crate) mod launch {
     }
 }
 
-/// Tests / benchmarks: 0 runs the first forms of the row kernel, the blend launches and the gate kernel (a process-wide switch of the
-/// kernel library); 1 (default) the fast forms. The bits are the same either way (tests/ink_mix.rs). `INTARSIA_INK_MIX_FAST=0` does the same
+/// Tests / benchmarks: bit mask of the fast forms of the row kernel / blend launches / gate kernel (a process-wide switch of the kernel
+/// library; 0 = the first forms of all, 3 = default, see ink_mix.hip `mix_mask`). The bits are the same either way (tests/ink_mix.rs). `INTARSIA_INK_MIX_FAST=0` does the same
 /// at start-up.
 pub fn set_mix_mode(v: i32) {
     #[cfg(ik_hip)]

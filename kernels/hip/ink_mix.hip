@@ -48,6 +48,7 @@ constexpr int kNvMax = kNsMax + kQMax * kNsMax;  // values of the widest reducti
 constexpr int kBlendRows = 256;                  // rows per blend chunk
 constexpr int kGateCh = 128;                     // channels per gate block (one thread each)
 constexpr int kGateRows = 16;                    // rows per gate block
+constexpr int kFastRowsMax = 16;                 // launches of at most this many rows take the fast row kernel (mask bit 1)
 constexpr int kFuseRowsMax = 2;                  // blend chunks of at most this many rows take the fused launches
 constexpr int kFuseD = 2304;                     // widest row of the fused blend (the pair lives in shared memory)
 
@@ -742,16 +743,17 @@ int row_threads(int D, int* ne) {
     return (th + 31) / 32 * 32;
 }
 
-// Bit mask of the fast forms: 1 = ink_row_kernel<NE, true> (every load of the row up front), 2 = the fused blend launches (pair + controller rows in
-// the row kernel's launch, the norm in the gate kernel's last block) for chunks of at most kFuseRowsMax rows, 4 = the gate kernel's early loads.
-// 0 = the first forms of all. The bits are the same for every mask (tests/ink_mix.rs). Default 2. INTARSIA_INK_MIX_FAST=<mask> or
-// ik_ink_mix_mode(mask) overrides.
+// Bit mask of the fast forms: 1 = ink_row_kernel<NE, true> (every load of the row up front, unconditional) for launches of at most kFastRowsMax rows
+// (decode / verify: -2..-3.6 us of 13..15; above that its 160+ VGPRs cut occupancy and it loses up to 60%), 2 = the fused blend launches (pair +
+// controller rows in the row kernel's launch, the norm in the gate kernel's last block) for chunks of at most kFuseRowsMax rows (-7 us at 1..2 rows),
+// 4 = the gate kernel's early loads (no gain measured, off), 8 = the fast row kernel at any row count (tests). 0 = the first forms of all. The bits
+// are the same for every mask (tests/ink_mix.rs). Default 3. INTARSIA_INK_MIX_FAST=<mask> or ik_ink_mix_mode(mask) overrides.
 int g_mix_mask = -1;
 
 int mix_mask() {
     if (g_mix_mask < 0) {
         const char* e = getenv("INTARSIA_INK_MIX_FAST");
-        g_mix_mask = e && e[0] >= '0' && e[0] <= '7' ? e[0] - '0' : 2;
+        g_mix_mask = e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : 3;
     }
     return g_mix_mask;
 }
@@ -761,7 +763,8 @@ int launch_rows(const RowArgs& a, int blocks, hipStream_t st) {
     if (blocks <= 0) return IK_OK;
     int ne = 0;
     const int th = row_threads(a.D, &ne);
-    const bool fast = (mix_mask() & 1) != 0;
+    const int rows = a.fuse ? blocks / a.np : blocks;
+    const bool fast = ((mix_mask() & 1) != 0 && rows <= kFastRowsMax) || (mix_mask() & 8) != 0;
 #define IK_ROW_CASE(N)                                                      \
     case N:                                                                 \
         if (fast) ink_row_kernel<N, true><<<blocks, th, 0, st>>>(a);        \

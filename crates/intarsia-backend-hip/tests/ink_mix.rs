@@ -73,21 +73,21 @@ impl Rig {
         self.run_r(kernel, op, &inputs.iter().collect::<Vec<_>>(), outs, attrs)
     }
 
-    /// The call in the default forms, and for the mix kernels also with every fast form on (mask 7) and in the first forms (mask 0): all three must
+    /// The call in the default forms, and for the mix kernels also with every fast form on (mask 15) and in the first forms (mask 0): all three must
     /// agree to the bit, so every rows-exact check below also gates "fast == first form".
     fn run_r(&self, kernel: &str, op: Op, inputs: &[&HostTensor], outs: &[Out], attrs: &OpAttrs) -> Vec<HostTensor> {
         let _g = MIX_MODE.lock().unwrap_or_else(|e| e.into_inner());
         let fast = self.run_once(kernel, op, inputs, outs, attrs);
         if matches!(kernel, "sconv_res_bf16" | "attn_res_mix_bf16" | "conv_mix_bf16" | "loop_blend_bf16") {
-            // every fast form (mask 7) and the default (2) against the first forms (mask 0)
-            intarsia_backend_hip::inkmix::set_mix_mode(7);
+            // every fast form (mask 15, the fast row kernel at every row count too) and the default (3) against the first forms (mask 0)
+            intarsia_backend_hip::inkmix::set_mix_mode(15);
             let all = self.run_once(kernel, op, inputs, outs, attrs);
             intarsia_backend_hip::inkmix::set_mix_mode(0);
             let first = self.run_once(kernel, op, inputs, outs, attrs);
-            intarsia_backend_hip::inkmix::set_mix_mode(2);
+            intarsia_backend_hip::inkmix::set_mix_mode(3);
             for (j, ((a, b), c)) in fast.iter().zip(&first).zip(&all).enumerate() {
                 assert_eq!(a.data, b.data, "{kernel}: output {j} of the default forms differs from the first forms");
-                assert_eq!(c.data, b.data, "{kernel}: output {j} of the fast forms (mask 7) differs from the first forms");
+                assert_eq!(c.data, b.data, "{kernel}: output {j} of the fast forms (mask 15) differs from the first forms");
             }
         }
         fast
@@ -483,15 +483,15 @@ fn ink_mix_bench() {
         ];
         let iters = if t >= 256 { 100 } else { 300 };
         for (label, kname, op, ins, outs) in cases {
-            let masks = [0i32, 1, 2, 4, 7];
+            let masks = [0i32, 1, 2, 3, 8];
             let mut us = [0f64; 5];
             for (k, &mode) in masks.iter().enumerate() {
                 intarsia_backend_hip::inkmix::set_mix_mode(mode);
                 us[k] = bench(&rig, kname, op, ins, outs, &a, iters);
             }
-            intarsia_backend_hip::inkmix::set_mix_mode(2);
+            intarsia_backend_hip::inkmix::set_mix_mode(3);
             println!(
-                "BENCH {label} T={t}: first {:.1} us | row loads {:.1} | fused blend {:.1} | gate loads {:.1} | all {:.1}",
+                "BENCH {label} T={t}: first {:.1} us | row loads (<=16 rows) {:.1} | fused blend {:.1} | default (3) {:.1} | row loads any T {:.1}",
                 us[0], us[1], us[2], us[3], us[4]
             );
         }
