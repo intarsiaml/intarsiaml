@@ -303,3 +303,37 @@ vars set. Summary by `raw/gate_ratio.py`.
 | 4k prefill (ms) | 1553 / 1562 / 1568 / 1573 | 1555 / 1560 / 1567 / 1573 | 1.0002 ± 0.0017 (speed) |
 
 - The gap of b3 / b5 (0.9957) is gone: the solo decode of b6 equals main's within noise, at both contexts.
+
+## 9. Window 7: b7 rebased onto main `3c6ff64f0` (#527), unit gate and solo gate (fleetq #12094; radiance down 13:40:19 - 13:44:02, 3:43)
+
+Log: `raw/window7-12094-unit-gate-b7.log`. Main = `3c6ff64f0` (`main3`, md5 `69758c1f…`). Branch b7 = `e61050d5a` (`d7ac419c…`), the
+merge of origin/main into b6. #527 did not touch `ink_mix.hip`, `ink_attn.hip` or `ik_hip.h`, so the solo modules are still main's,
+kernel for kernel (section 7). No env vars set. The gate runs `generate --spec off`: since #527, HIP's default solo decode is DSpark,
+and these are the plain-decode bits that the RT = false instantiations must pin.
+
+| Check | Result |
+|---|---|
+| `tests/ink_rows.rs` | conv_mix_bf16_rows **645**, ink_attn_decode_bf16_rows **40** row-table calls bitwise the solo calls: PASS |
+| `tests/ink_attn.rs` `rows_exact_real_shapes` | PASS |
+| `kernels test --op conv_mix` / `--op ink_attn_decode` | 532 / 70 cases, 0 fail, ADMITTED |
+| `tests/inkling2_batch.rs` on HIP, tiny fixture, `CI=1` | 8 / 8 PASS |
+| greedy md5, 64 and 256 tokens, short and 4k | **equal to main** on every rep (`04cdb28a…`, `9a27c21b…`, `2252566a…`, `9675bbb9…`) |
+
+| decode tok/s (256 tok, ABBA 4 + 4) | main `3c6ff64f0` | branch b7 | ratio (95 % CI) |
+|---|---|---|---|
+| short | 76.87 / 76.91 / 76.87 / 76.86 | 76.89 / 76.95 / 76.88 / 76.89 | **1.0003 ± 0.0003** |
+| 4k | 74.04 / 74.09 / 74.06 / 74.04 | 74.09 / 74.08 / 74.05 / 74.04 | **1.0001 ± 0.0006** |
+| 4k prefill (ms) | 1554 / 1564 / 1568 / 1574 | 1553 / 1558 / 1569 / 1571 | 1.0014 ± 0.0030 (speed) |
+
+### 9.1 Which path a batching server takes since #527 (coordinator ask 2)
+
+`crates/intarsia-models/src/load.rs`, as merged:
+- **No `--spec`** (the default): `dspark_default` returns `None` when `--max-batch` > 1 (its unit test `dspark_default_tests`
+  asserts `None` at 2 / 4 / 16 for cuda, metal and hip). The draft is not loaded, and the batching engine takes plain batched
+  steps: `forward_batch` with the row-table kernels above.
+- **`--spec dflash --max-batch N > 1`**: refused before the weights are read, with "--spec dflash with the batching engine (use
+  --max-batch 1)". This is the same on every backend.
+- **`--spec mtp` / `auto` with `--max-batch N > 1`**: refused unless batched MTP is on (`[tuning.<backend>] batched_mtp` or
+  `INTARSIA_BATCHED_MTP`). The Inkling-2 recipe sets neither.
+- So no batched path ever runs per-row spec on HIP. The servers of windows 8 and 9 run without `--spec`, and their logs show the
+  path (section 10).
