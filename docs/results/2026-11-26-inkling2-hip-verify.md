@@ -290,4 +290,4 @@ tree in CPU job #12168), the same command as the branch's in window 4: **14 pass
 
 Radiance answered after every window (15 s after the restart; checked with `/v1/models`). CPU jobs (tatooine `--load cpu`): #12110
 (seed volume, main `3226af2b9`), #12117 (probe dry run), #12131 (split1), #12147 (`--recipe` flag check), #12153 (main2), #12161
-(verify1 + test targets + cpu tests), #12168 (main's tiny test). Pushes (endor): #12162 and the final push of the PR head.
+(verify1 + test targets + cpu tests), #12168 (main's tiny test). Pushes (endor): #12162, #12174.
