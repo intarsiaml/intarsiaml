@@ -22,7 +22,7 @@ restore() {
     sleep 2
     kill -KILL -- "-$STAGE_PID" 2>/dev/null
   fi
-  docker rm -f ink-hip-p12-run >/dev/null 2>&1
+  docker rm -f ink-hip-p12-run ink-hip-p12-c0 ink-hip-p12-c1 >/dev/null 2>&1
   echo "[window] starting radiance $(now)" | tee -a "$LOG"
   systemctl --user start radiance
   local i
