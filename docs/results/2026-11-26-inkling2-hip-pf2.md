@@ -132,3 +132,31 @@ One process per configuration, so single samples (the two mask-0 and mask-3 repe
   average pairs per expert over the tile, 1 to 64: 16 at a 2048-row chunk; main's rule gives 4). Default mask 23.
 - Profile at mask 3 (4k, chunk 1): 633.8 ms per chunk (679.3 in window 1): prologue 30.7 + rel table 15.7 ms (80.3), flash
   82.5 ms in 88 launches, idle 37.7 ms of which 104 stalls (gate_up 48, down 48, full-attention flash 8).
+
+## 6. Merge of main with the new defaults, and window 4 (main2 vs pf2d; fleetq #12071)
+
+- Lane ink-hip-pfflip's PR #526 landed (main `40b85a391`: `kWmDefault = 1`, `INK_ATTN_FLASH_DEFAULT = true`, recipe
+  `[tuning.hip] prefill_chunk = 2048`). Merged into the branch (`323e079f3`; conflicts only in `tests/ink_moe.rs`, both sides'
+  new tests kept, and in `docs/tuning.md`, both sides' rows kept). From here, main is `40b85a391` at its defaults (no env, no
+  `--prefill-chunk`); its binary `main2` (CPU job #12061, md5 `492211cf…`). The branch's tests pin flash with `set_flash`, as
+  main's tests do, instead of the env.
+- A stale build caught by md5: the first pf2d (#12065) had main2's md5. `rsync -a` kept the branch files' mtimes, older than the
+  main2 build, so cargo saw nothing to rebuild. `raw/touch_diff.sh` now touches every file that differs between main and the
+  branch after each sync; pf2d rebuilt in #12069 (md5 `96cfcc3f…`).
+
+Radiance down 12:52:26 - 12:56:00 (3:34). Log `raw/window4-12071-ab.log`, stage `raw/stage_ab4.sh`. One process each:
+
+| Binary, setting | 4k tok/s | 16k tok/s |
+|---|---|---|
+| main2 (two runs, first and last) | 2726.2 / 2690.5 | 2819.7 / 2790.0 |
+| pf2d `INTARSIA_HIP_INK_PF2=0` | 2721.2 | 2815.1 |
+| pf2d 3 (rel pass, flash pieces) | 2908.1 | 3027.7 |
+| pf2d 7 (+ down pieces) | 2932.4 | 3050.3 |
+| pf2d 19 (3 + the wider pair-tile grid) | 2987.1 | 3119.8 |
+| pf2d 23 (the pf2d default; two runs) | 3021.6 / 3015.9 | 3155.8 / 3152.9 |
+| pf2d 23, ZP 8 / 32 / 64 | 2998.4 / 3015.0 / 3010.9 | 3137.0 / 3157.2 / 3151.5 |
+| pf2d 151 (23 + the prologue's OCC form) | 3048.5 | 3180.3 |
+
+- `=0` matches main2 (the revert). The default 23 is +11.5 % / +12.5 % over main2's mean; bit 128 adds +0.9 % / +0.8 % (one
+  sample each, above the 0.2 - 0.7 % spread of the repeats) and is bitwise, so the final default is 151 (pf2e). The pair-tile
+  count is flat from 16 to 64; 8 is 0.6 % lower.
