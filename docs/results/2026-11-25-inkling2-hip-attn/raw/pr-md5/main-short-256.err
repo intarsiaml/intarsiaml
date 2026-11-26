@@ -1,0 +1,6 @@
+prefill chunk 256 (default)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.1 s
+loaded Inkling-2-Mini on AMD Radeon Graphics in 4.4s: 24 layers, hidden 2304, act bf16, kv bf16, weights 13.31 GB, context 8192 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+prompt: 31 tokens
+finish=length prompt=31 (cached 0) completion=256 | prefill 81 ms (381.7 tok/s) | decode 4083 ms (62.46 tok/s)
+steps=256 graph replays=255 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)

@@ -1,0 +1,44 @@
+fleetq: #11990 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=265 bash ~/intarsiaml-ink-hip-moe/.scratch/window.sh ~/intarsiaml-ink-hip-moe/.scratch/stage-eval.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-moe/.scratch/stage-eval.sh; cap 265s; stopping radiance 2026-11-25 22:57:14
+[window] radiance stopped 2026-11-25 22:57:18 (inactive)
+[stage] eval start 22:57:18
+---- card 0
+GEN 4k-default off md5 a7c6a2acedecfac21c77486444810c38 | finish=length prompt=4228 (cached 0) completion=64 | prefill 6889 ms (613.7 tok/s) | decode 901 ms (69.89 tok/s) [22:57:30]
+GEN 4k-default wmma md5 aa0a0ce6d3fb4ee7401554e0c1304d88 | finish=length prompt=4228 (cached 0) completion=64 | prefill 5396 ms (783.6 tok/s) | decode 900 ms (70.01 tok/s) [22:57:42]
+GEN 4k-default flash md5 a7c6a2acedecfac21c77486444810c38 | finish=length prompt=4228 (cached 0) completion=64 | prefill 5848 ms (722.9 tok/s) | decode 904 ms (69.71 tok/s) [22:57:53]
+GEN 4k-default both md5 2252566a5c54cf52cb564bd214c9af2b | finish=length prompt=4228 (cached 0) completion=64 | prefill 4418 ms (956.9 tok/s) | decode 894 ms (70.50 tok/s) [22:58:04]
+GEN 4k-c2048 off md5 5cdbc1b336cbf72945bb020af7f52ea2 | finish=length prompt=4228 (cached 0) completion=8 | prefill 6485 ms (651.9 tok/s) | decode 103 ms (68.12 tok/s) [22:58:15]
+GEN 4k-c2048 wmma md5 653267f22f0a4f49268256925eb94335 | finish=length prompt=4228 (cached 0) completion=8 | prefill 2619 ms (1614.3 tok/s) | decode 103 ms (68.24 tok/s) [22:58:23]
+GEN 4k-c2048 flash md5 5cdbc1b336cbf72945bb020af7f52ea2 | finish=length prompt=4228 (cached 0) completion=8 | prefill 5421 ms (779.9 tok/s) | decode 103 ms (68.13 tok/s) [22:58:33]
+GEN 4k-c2048 both md5 653267f22f0a4f49268256925eb94335 | finish=length prompt=4228 (cached 0) completion=8 | prefill 1573 ms (2687.4 tok/s) | decode 103 ms (68.08 tok/s) [22:58:40]
+ADMIT moe_experts wmma=1 start [22:58:40]
+ADMIT moe_experts: moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_bf16_v2            12      0    4.149e-3    3.160e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_bf16_v3            12      0    4.149e-3    3.160e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_bf16_rows           4      0    4.149e-3    3.160e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_situ_bf16          10      0    3.472e-3    2.084e-4  ADMITTED
+ADMIT moe_experts: moe_experts    moe_experts_situ_bf16_rows      7      0    1.748e-3    1.266e-4  ADMITTED
+ADMIT moe_experts_mxfp8 wmma=1 start [22:59:42]
+ADMIT moe_experts_mxfp8: moe_experts_mxfp8 moe_experts_mxfp8_bf16         19      0    3.378e-3    2.428e-4  ADMITTED
+ADMIT moe_experts_mxfp8: moe_experts_mxfp8 moe_experts_mxfp8_bf16_rows     14      0    2.058e-3    1.634e-4  ADMITTED
+BIG start [23:00:01]
+BIG: moe_experts_situ_bf16        T=2048 E=128 K=8 H=2304 I=1152 bf16 situ             max_abs 2.941e-3 rel_l2 2.084e-4 ok
+BIG: moe_experts_mxfp8_bf16       T=2048 E=128 K=8 H=2304 I=1152 situ bf16 (real)      max_abs 3.378e-3 rel_l2 2.428e-4 ok
+BIG: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 25.74s
+BIG exit 0 (124 = its cap) [23:00:27]
+---- card 1
+G2 short wmma | prefill floor [4bit]: top-1 (all rows) 98.95% (not gated for this class) ok | 21-way KL (scored rows, n=569) 2.566e-3 (need <= 3.0e-2) ok [all rows, n=569: 2.566e-3, reported only] | tail mass (all rows) ours 0.0671 vs ref 0.0679, excess -0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested  [22:57:25]
+G2 long wmma | prefill floor [4bit]: top-1 (all rows) 99.11% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 3.286e-3 (need <= 3.0e-2) ok [all rows, n=1569: 3.286e-3, reported only] | tail mass (all rows) ours 0.0410 vs ref 0.0407, excess +0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested  [22:57:34]
+G2 short flash | prefill floor [4bit]: top-1 (all rows) 99.47% (not gated for this class) ok | 21-way KL (scored rows, n=569) 4.491e-3 (need <= 3.0e-2) ok [all rows, n=569: 4.491e-3, reported only] | tail mass (all rows) ours 0.0665 vs ref 0.0679, excess -0.0014 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested  [22:57:41]
+G2 long flash | prefill floor [4bit]: top-1 (all rows) 99.04% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 4.521e-3 (need <= 3.0e-2) ok [all rows, n=1569: 4.521e-3, reported only] | tail mass (all rows) ours 0.0409 vs ref 0.0407, excess +0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested  [22:57:51]
+G2 short both | prefill floor [4bit]: top-1 (all rows) 99.47% (not gated for this class) ok | 21-way KL (scored rows, n=569) 4.491e-3 (need <= 3.0e-2) ok [all rows, n=569: 4.491e-3, reported only] | tail mass (all rows) ours 0.0665 vs ref 0.0679, excess -0.0014 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested  [22:57:58]
+G2 long both | prefill floor [4bit]: top-1 (all rows) 99.04% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 4.157e-3 (need <= 3.0e-2) ok [all rows, n=1569: 4.157e-3, reported only] | tail mass (all rows) ours 0.0404 vs ref 0.0407, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested  [22:58:08]
+GEN 16k-c2048 off md5 b9852772939c0de19ee928cebdfa7f3a | finish=length prompt=16915 (cached 0) completion=8 | prefill 29229 ms (578.7 tok/s) | decode 109 ms (64.09 tok/s) [22:58:42]
+GEN 16k-c2048 wmma md5 b9852772939c0de19ee928cebdfa7f3a | finish=length prompt=16915 (cached 0) completion=8 | prefill 14010 ms (1207.3 tok/s) | decode 110 ms (63.43 tok/s) [22:59:01]
+GEN 16k-c2048 flash md5 b9852772939c0de19ee928cebdfa7f3a | finish=length prompt=16915 (cached 0) completion=8 | prefill 21496 ms (786.9 tok/s) | decode 109 ms (64.17 tok/s) [22:59:27]
+GEN 16k-c2048 both md5 b9852772939c0de19ee928cebdfa7f3a | finish=length prompt=16915 (cached 0) completion=8 | prefill 6056 ms (2793.0 tok/s) | decode 109 ms (64.26 tok/s) [22:59:40]
+[stage] eval done 23:00:27
+[window] stage done 2026-11-25 23:00:28 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-25 23:00:28
+[window] radiance answers 2026-11-25 23:00:38 (after 15 s)
+fleetq: #11990 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

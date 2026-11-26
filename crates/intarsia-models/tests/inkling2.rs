@@ -44,7 +44,7 @@ fn load_act(dir: &Path, chunk: usize, backend: Arc<dyn intarsia_core::Backend>, 
     Model::load(backend, &recipe, &dims, &src, &LoadOptions { max_seq: 128, prefill_chunk: chunk, graphs: false, act_dtype: act, kv_dtype: act, ..Default::default() }, Arc::new(Telemetry::new()))
 }
 
-/// The backend of the bf16 tests: cpu, or Metal / CUDA with `INTARSIA_INKLING2_BACKEND=metal` / `cuda`.
+/// The backend of the bf16 tests: cpu, or Metal / CUDA / HIP with `INTARSIA_INKLING2_BACKEND=metal` / `cuda` / `hip`.
 fn backend() -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
         #[cfg(target_os = "macos")]
@@ -52,8 +52,10 @@ fn backend() -> Arc<dyn intarsia_core::Backend> {
         #[cfg(not(target_os = "macos"))]
         Ok("metal") => panic!("INTARSIA_INKLING2_BACKEND=metal: the Metal backend is macOS only"),
         Ok("cuda") => intarsia_backend_cuda::create(0).unwrap(),
+        // lane ink-hip: one R9700 (HIP_VISIBLE_DEVICES picks the card)
+        Ok("hip") => intarsia_backend_hip::create(0).unwrap(),
         Ok("cpu") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
-        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal or cuda"),
+        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal, cuda or hip"),
     }
 }
 
@@ -810,7 +812,9 @@ fn inkling2_tiny_no_kernel_refusal_names_the_op() {
             assert!(lanes, "cuda {op}: no lane table lists it");
             assert!(intarsia_backend_cuda::kernels::all().iter().any(|k| k.op == op), "cuda {op}");
         }
-        assert!(intarsia_backend_hip::kernels::UNIMPLEMENTED.contains(&op), "hip {op}");
+        // HIP (lane ink-hip): an op is either ported by a lane table (inkattn / inkmix / inkmoe) or still listed as not ported
+        let on_hip = intarsia_backend_hip::kernels::all().iter().any(|k| k.op == op);
+        assert_eq!(intarsia_backend_hip::kernels::unimplemented(op), !on_hip, "hip {op}");
         // Metal: every op has a kernel (lanes ink-m-attn, ink-m-moe, ink-m-mix); the table alone, no device
         // (a macOS-only dev-dependency, so the check is too)
         #[cfg(target_os = "macos")]
