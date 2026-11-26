@@ -214,7 +214,9 @@ cb trace: 4 chunks in 2948 ms (737 ms / chunk), GPU busy 92%, idle 57 ms / chunk
 1. MoE experts (54% of the chunk): the gen1 kernel is staging / decode bound, not MMA bound (no-matmul probe 6.3 of 7.3 ms).
    Try decoding each weight block into threadgroup memory once per BN x BK step shared by two M tiles of the same expert
    (2 x 64 rows, 256 threads), and an fp8/fp4 -> bf16 decode with fewer ALU ops; the 128-thread m128 form is not the way.
-2. Host gap: 57 ms per chunk (8%) is the next-largest single item; prefill command-buffer batching.
+2. ~~Host gap: 57 ms per chunk (8%) is the next-largest single item; prefill command-buffer batching.~~ Gone on main
+   `072dd0863` (2026-11-25): 0.27-0.43 ms per chunk boundary under `serve`, so batching can recover at most ~0.3 ms per
+   chunk. See `2026-11-25-inkling2-pfgap2.md`.
 3. Router as a NAX GEMM (logits_bf16 runs at 3.9 TFLOP/s: 14 ms -> ~1 ms per chunk).
 4. rel_mode: stage the bias per (tile, distance band) in threadgroup memory instead of 16 FMAs per score; then re-measure
    (branch ink/prefill-rel).
