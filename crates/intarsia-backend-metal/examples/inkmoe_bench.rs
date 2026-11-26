@@ -13,7 +13,8 @@
 //! `INKMOE_COUNTS=<file>` (lane ink-moepf2, prefill rows): rows per expert of real prefill calls, lines
 //! `<nv|mx> T=<rows> <count of expert 0> .. <count of expert 127>`, cycled over the calls; `INKMOE_ACTIVE=<n>`: n experts,
 //! balanced. `INKMOE_MIX=<form>,<form>,...`: the mixed-tile forms to time (`inkmoe::Mix`; default `0`), each with an
-//! FNV hash of the first call's output.
+//! FNV hash of the first call's output. `INKMOE_ROUNDS=<n>`: those forms interleaved instead, n rounds of 12 calls per form
+//! in rotating order, with the per-round series and each form's per-round ratio to the first form.
 //! `INKMOE_POOL=<u>`: draw every token's experts from one random pool of u per call (smaller unions, more pairs per expert).
 //!
 //! Run it inside a fleetq slot (`fleetq run --host endor --quiet gpu,cpu --mem 8 ...`).
@@ -248,6 +249,11 @@ fn main() {
                             s[rounds / 4],
                             s[rounds * 3 / 4]
                         );
+                    }
+                    // the per-round series (us/call, in round order), so a drift over the run is visible
+                    for (i, m) in ml.iter().enumerate() {
+                        let series: Vec<String> = v[i].iter().map(|x| format!("{x:.0}")).collect();
+                        println!("{fmt} T={tr:5} series mix {m:9} {}", series.join(" "));
                     }
                     // per round: each form's time over the first form's in the same round
                     for (i, m) in ml.iter().enumerate().skip(1) {

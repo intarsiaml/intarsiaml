@@ -18,6 +18,11 @@ brief were already built and measured on the unmerged branch `ink/prefill`, and 
      table, the bitwise result, tests, branch head, fleetq ids. The coordinator moves the `ink/prefill` doc to main;
      this lane does not touch it.
 
+3. 2026-11-25 ~21:47 EST (coordinator): lane ink-mode (`.worktrees/ink-mode`, `ink/mode`) hunts a per-process fast / slow
+   mode on endor (~14 % at 16k) and was told of this lane's 7.5 -> 15 ms in-process drift as a possible shared cause. The
+   interleaved `INKMOE_ROUNDS` plan is right; the doc must also give each form's best round and the per-round series, not
+   only medians. Bitwise on 36 cases is good; no merge before a clean speed win.
+
 ## Blocker: the two levers are already measured (overlap check, step 0 of the brief)
 
 The brief took its levers from "Next ideas" item 1 of `docs/results/2026-11-21-inkling2-prefill.md` as it stands on main.
