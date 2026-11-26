@@ -657,6 +657,30 @@ mod tests {
         best.map(|k| k.name.clone())
     }
 
+    /// Lane ink-hip: with `INTARSIA_HIP_SELECTION_DUMP=<file>`, writes the kernel `Matmul` / `Logits` select over a grid of rows, widths,
+    /// outputs and output dtypes (ordinary and `exact_rows` selection), one line per shape: the before / after evidence of a
+    /// registration change (docs/results/2026-11-25-inkling2-hip.md, "Selection check"). Without the variable it does nothing.
+    #[test]
+    fn selection_dump() {
+        let Ok(path) = std::env::var("INTARSIA_HIP_SELECTION_DUMP") else { return };
+        let ks = all();
+        let mut out = String::new();
+        for op in [Op::Matmul, Op::Logits] {
+            for o in [None, Some(DType::Bf16), Some(DType::F32)] {
+                for m in (1..=17usize).chain([32, 64, 256, 2048]) {
+                    for k in [64usize, 1000, 2048, 2304, 3072, 4096, 5120] {
+                        for n in [128usize, 2048, 151_936] {
+                            let s = ShapeInfo { m, n, k, act: Some(DType::Bf16), out: o, weight: Some(DType::Bf16), ..Default::default() };
+                            let rows = ks.iter().filter(|x| x.op == op && x.accepts(&s) && x.rows_exact).max_by_key(|x| x.priority).map(|x| x.name.clone());
+                            out += &format!("{op} out={o:?} m={m} k={k} n={n}: {:?} rows={rows:?}\n", pick(op, &s));
+                        }
+                    }
+                }
+            }
+        }
+        std::fs::write(path, out).unwrap();
+    }
+
     /// Round 4 selection (docs/results/2026-10-19-hip-round4.md): the fused attention prologue for the 35B's and the 8B's
     /// heads at every row count, and the stall-free delta rule for dk = 128 (other key widths keep the rows kernel).
     #[test]
