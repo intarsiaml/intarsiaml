@@ -237,8 +237,9 @@ fn inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo() {
         return skip("INTARSIA_INK_PACK12 set: this test checks the default");
     }
     let solo_m = load(&dir, 1);
-    if on_metal() {
-        assert!(solo_m.has_p12(), "solo Metal model: P12 is default-on, so the fixture must hold P12 copies (else this test is vacuous)");
+    if on_gpu() {
+        // default-on on Metal and (lane ink-hip-p12) on HIP
+        assert!(solo_m.has_p12(), "solo GPU model: P12 is default-on, so the fixture must hold P12 copies (else this test is vacuous)");
     }
     let bat_m = load_on(&dir, Arc::new(Failing { inner: backend(), fail: Arc::new(AtomicBool::new(false)) }), 16)
         .expect("enable_batch(16) + configure_plan with the default env");

@@ -59,3 +59,16 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 test verify_logits_rows_are_the_softcapped_decode_logits ... ok
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
 [stage] done 14:59:17
+SPD main off-short 256 r1 9a27c21b6fdc4ea7700439c818e698d8 | decode 3316 ms (76.91 tok/s) | prefill 99 ms (313.9 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [14:59:25]
+SPD branch off-short 256 r1 9a27c21b6fdc4ea7700439c818e698d8 | decode 3057 ms (83.41 tok/s) | prefill 102 ms (305.1 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [14:59:34]
+SPD branch off-short 256 r2 9a27c21b6fdc4ea7700439c818e698d8 | decode 3054 ms (83.50 tok/s) | prefill 102 ms (303.6 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [14:59:43]
+SPD main off-short 256 r2 9a27c21b6fdc4ea7700439c818e698d8 | decode 3315 ms (76.93 tok/s) | prefill 98 ms (316.1 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [14:59:51]
+SPD main off-short 256 r3 9a27c21b6fdc4ea7700439c818e698d8 | decode 3316 ms (76.90 tok/s) | prefill 99 ms (313.2 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [14:59:59]
+SPD branch off-short 256 r3 9a27c21b6fdc4ea7700439c818e698d8 | decode 3056 ms (83.45 tok/s) | prefill 102 ms (303.7 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [15:00:08]
+SPD branch off-short 256 r4 9a27c21b6fdc4ea7700439c818e698d8 | decode 3054 ms (83.48 tok/s) | prefill 102 ms (303.5 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [15:00:17]
+SPD main off-short 256 r4 9a27c21b6fdc4ea7700439c818e698d8 | decode 3315 ms (76.92 tok/s) | prefill 99 ms (313.3 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [15:00:25]
+[stage] done 15:00:25
+[window] stage done 2026-11-26 15:00:26 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 15:00:26
+[window] radiance answers 2026-11-26 15:00:36 (after 15 s)
+fleetq: #12145 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

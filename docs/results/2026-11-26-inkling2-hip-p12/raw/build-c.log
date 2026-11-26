@@ -1,0 +1,4 @@
+fleetq: #12160 waiting (#3 in line): in line behind #12156 "ink-sampled: W3 inkling2 tiny 1-thread + greedy md5 main/branch + real-model law (radiance down <= 5:00)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12156 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12156 set, or it will wait for #12156 to be released.
+fleetq: #12160 waiting (#3 in line): in line behind #12156 "ink-sampled: W3 inkling2 tiny 1-thread + greedy md5 main/branch + real-model law (radiance down <= 5:00)" (claude-04c0e1cd) on tatooine-r9700; #12156 has no estimated start, so nothing can go first by ending before it
+fleetq:   #12156 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12156 set, or it will wait for #12156 to be released.
