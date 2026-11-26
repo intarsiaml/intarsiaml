@@ -90,4 +90,4 @@ rule is **1** (decode fused, verify split). Together with the blend at 16:16 (no
 attention 1.15 / 1.65 / 2.11 / 2.53 / 3.07 / 3.44 / 4.19 ms at 1 / 2 / 3 / 4 / 5 / 6 / 8 rows, +0.46 ms a row against +0.40 at 1k: the
 per-row cost hardly grows with the context (4x the keys), so it is the per-row work (prologue jobs per split block, the bias, the
 merge, the grid), not the K / V bytes. A multi-row op 75 form that shares the K / V reads would not remove it; the split path removes
-the per-split prologue repeats, which is what the rows rule takes. No new op 75 form was written (the advisor's stop rule).
+the per-split prologue repeats, which is what the rows rule takes. No new op 75 form was written: it would need per-row split boundaries with each row's own reduction order, beyond this budget.
