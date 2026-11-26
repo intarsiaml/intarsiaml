@@ -197,3 +197,16 @@ Decisions by the pre-registered rules:
   its default would go off, but that leaves BIAS_PRE without CONV_PRE, a combination no arm timed. #11981 times exactly
   that (A all off / E BIAS_PRE alone / C both, same within-process method): CONV_PRE stays on only if C / E's CI lies above
   1 at 143 and its median is >= 1.0 at 1k and 4k; otherwise its default goes off and E is the shipped state.
+
+## Lever 3 (measure first): the fused decode attention above its 4096-key rule
+
+The 4k profile shows the 8 full visits leaving `ink_attn_decode` at ~4.1k context: `ink_attn_fused_rule` takes the fused
+kernel for one row up to 4096 keys only (lane ink-m-attn measured fused faster at 512 / 1024 / 4096 keys and the pair faster
+at 32768; 8k / 16k were never measured). Above it each full visit runs `ink_kv_prologue` (21.6 us) + `rel_sink_attn` (66.7 us),
+88 us per-dispatch, against ~62 us for the fused kernel at 4096 keys (dfuse L / K), so up to ~0.2 ms per token at 4-8k. The
+fused kernel is bitwise the pair (tests/inkling2_attn.rs), so a new threshold changes no bits.
+
+#11983 (`raw/jobA3.sh`, `raw/diag3.patch`): within one process, arm C (today's defaults) vs F (C with the fused kernel forced
+on every visit through a diag override of `INTARSIA_INK_ATTN_FUSED`), prompts 4108 / 8216 / 16432 tokens (the 4k prompt
+repeated), 5 cycles CF / FC, 2 processes; ids per length must be one list across arms. Rule: raise the 1-row threshold to the
+largest measured length whose F / C CI lies above 1 (and every shorter one's median >= 1); none above 1 -> no change.
