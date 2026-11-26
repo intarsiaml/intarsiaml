@@ -241,3 +241,13 @@ flip moved hip's tiny DSpark tests to the cut rule, both after window 1. So the 
   (`unused import: Mutex`, line 13) is on main already; this branch does not touch that line.
 - `verify_check`'s softcap: every verify head writes pre-softcap logits to `ws.logits` (`Model::softcap_step` doc, model.rs), Gemma-2
   included, so the diagnostic does not cap twice anywhere.
+
+## 9. Shared files touched
+
+- `docs/tuning.md`: no row added; text added inside six existing rows (`INTARSIA_VERIFY_GRAPH`, `INTARSIA_DSPARK_TAU`,
+  `INTARSIA_DSPARK_CUT`, `INTARSIA_INK_ROWS_EXACT`, `INTARSIA_INKLING2_BACKEND`, `INTARSIA_SPEC_DEFAULT`) so they name HIP. Rows of
+  other lanes are untouched. ink-hip-batch needs the same `ink_rows_exact` line and may touch the `INTARSIA_INK_ROWS_EXACT` row.
+- `docs/decisions/LOG.md`: one row appended. `recipes/inkling2.toml`: lines appended under `[tuning.hip]` (pfflip's section).
+- `crates/intarsia-backend-hip/src/kernels.rs` and `device.rs`: one chain entry each for the new `inkspec` module, nothing reordered.
+- Core: `inkling2.rs` (`ink_rows_exact`), `spec_graph.rs` (verify-graph default), `dspark.rs` (`cut_rule_default`), `mtp.rs`
+  (`verify_check`), `load.rs` (admit + test).
