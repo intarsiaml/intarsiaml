@@ -20,10 +20,12 @@ pub const TABLE: &[(&str, Op)] = &[
     ("attn_res_mix_bf16", Op::AttnResMix),
     ("sconv_res_bf16", Op::SconvRes),
     ("loop_blend_bf16", Op::LoopBlend),
+    // the router GEMV and the top-k in one launch (kernels/hip/ink_route_fused.hip)
+    ("ink_route_bf16", Op::InkRoute),
 ];
 
 /// The ops this module is the home of (a lane's kernels register only these).
-pub const OPS: &[Op] = &[Op::InkInProj, Op::ConvMix, Op::AttnResMix, Op::SconvRes, Op::LoopBlend];
+pub const OPS: &[Op] = &[Op::InkInProj, Op::ConvMix, Op::AttnResMix, Op::SconvRes, Op::LoopBlend, Op::InkRoute];
 
 const BF16_TOL: Tol = Tol::new(1.5e-2, 6e-3);
 const F32_TOL: Tol = Tol::new(1e-3, 2e-4);
@@ -46,6 +48,11 @@ pub fn blend_bytes(s: usize, r: usize, d: usize, g: usize) -> usize {
     let rc = r.min(BLEND_ROWS);
     let nsl = d.div_ceil(GATE_CH);
     rnd(s * rc * 2 * d * 2) + rnd(s * rc * d * 4) + rnd(s * rc * g * 2) + rnd(s * rc * d * 4) + rnd(s * rc * nsl * 4)
+}
+
+/// InkRoute: the logits `[T, E]` f32 when the call does not take them as an output.
+fn route_scratch(s: &ShapeInfo) -> usize {
+    s.m * s.experts * 4
 }
 
 /// ConvMix: the blend's scratch at its bounds (S and G are not in `ShapeInfo`): 3 streams, rank 128.
@@ -91,6 +98,13 @@ pub fn all() -> Vec<KernelImpl> {
                     .when(|s| s.k > 0 && s.k <= MIX_D_MAX && (1..=BLEND_STREAMS_MAX).contains(&s.n))
                     .tol(BF16_TOL)
                     .scratch(loop_blend_scratch),
+                // router GEMV + top-k: bitwise `Logits` + `MoeRoute` (one wave per logit in the lane order of `logits_bf16_gemv`, the last block
+                // routes), rows-exact at any T <= 16 by construction; the math of the pair, so the f32 tolerance of `moe_route`
+                "ink_route_bf16" => k
+                    .weights(bf)
+                    .when(|s| (1..=16).contains(&s.m) && s.k % 8 == 0 && s.experts <= 256 && (1..=32).contains(&s.top_k) && s.top_k <= s.experts)
+                    .tol(F32_TOL)
+                    .scratch(route_scratch),
                 other => unreachable!("inkmix kernel {other} has no registration"),
             }
         })
@@ -138,6 +152,22 @@ pub(crate) mod launch {
             s: S,
         ) -> c_int;
         fn ik_loop_blend_bf16(dest: T, msg: T, down: T, gain: T, forget: T, norm: T, eps: f32, out: TM, sc: SC, s: S) -> c_int;
+        #[allow(clippy::too_many_arguments)]
+        fn ik_ink_route_bf16(
+            x: T,
+            w: T,
+            bias: T,
+            top_k: i64,
+            scale: f32,
+            norm: i32,
+            temp: f32,
+            sf: i32,
+            weights: TM,
+            ids: TM,
+            logits: TM,
+            sc: SC,
+            s: S,
+        ) -> c_int;
     }
 
     /// The launcher status of `kernel` when it is one of this module's, `None` otherwise. Called from `HipBackend::launch` with
@@ -178,7 +208,38 @@ pub(crate) mod launch {
                 a.s,
             ),
             "loop_blend_bf16" => ik_loop_blend_bf16(a.i(0), a.i(1), a.i(2), a.i(3), a.i(4), a.i(5), at.eps, a.o(0), a.sc, a.s),
+            "ink_route_bf16" => ik_ink_route_bf16(
+                a.i(0),
+                a.i(1),
+                a.i(2),
+                at.top_k as i64,
+                at.scale,
+                at.norm_topk as i32,
+                at.temperature,
+                at.dsv.score_func as i32,
+                a.o(0),
+                a.o(1),
+                a.o(2),
+                a.sc,
+                a.s,
+            ),
             _ => return None,
         })
     }
+}
+
+/// Tests / benchmarks: 0 runs the first forms of the row kernel, the blend launches and the gate kernel (a process-wide switch of the
+/// kernel library); 1 (default) the fast forms. The bits are the same either way (tests/ink_mix.rs). `INTARSIA_INK_MIX_FAST=0` does the same
+/// at start-up.
+pub fn set_mix_mode(v: i32) {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_ink_mix_mode(v: std::ffi::c_int);
+        }
+        // SAFETY: sets a plain int of the kernel library.
+        unsafe { ik_ink_mix_mode(v) }
+    }
+    #[cfg(not(ik_hip))]
+    let _ = v;
 }

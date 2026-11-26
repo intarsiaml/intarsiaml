@@ -30,6 +30,15 @@ int ik_conv_mix_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor*
                      ik_tensor* mix, const ik_scratch* scratch, void* stream);
 int ik_loop_blend_bf16(const ik_tensor* dest, const ik_tensor* msg, const ik_tensor* down, const ik_tensor* gain, const ik_tensor* forget,
                        const ik_tensor* norm, float eps, ik_tensor* out, const ik_scratch* scratch, void* stream);
+/* kernels/hip/ink_route_fused.hip: InkRoute (76). x bf16 [T,D], w bf16 [E,D], bias f32 [E] -> weights f32 [T,K], ids i32 [T,K], logits f32 [T,E] or an
+ * empty tensor (then the scratch holds them: T * E * 4 bytes). T <= 16, E <= 256, K <= 32, D % 8 == 0, 16-byte aligned x / w. The logits are
+ * bitwise ik_logits_bf16_gemv's, the routing bitwise ik_moe_route's. Same attributes as MoeRoute. */
+int ik_ink_route_bf16(const ik_tensor* x, const ik_tensor* w, const ik_tensor* bias, int64_t top_k, float scale, int32_t norm_topk, float temperature,
+                      int32_t score_func, ik_tensor* weights, ik_tensor* ids, ik_tensor* logits, const ik_scratch* scratch, void* stream);
+/* tests / benchmarks: bit mask of the fast forms of the mix kernels (1 row kernel loads, 2 fused blend launches, 4 gate kernel loads; 0 = the first forms; default 2; same bits) */
+void ik_ink_mix_mode(int v);
+/* the phase timestamps of the last row-kernel launch (a build with INK_PROBE defined; IK_ERR_UNSUPPORTED otherwise), tests/ink_mix_probe.rs */
+int ik_ink_probe(unsigned long long* out, int n);
 /* scratch bytes of the blend for s streams, r rows, width d, controller rank g (mirrored by blend_bytes in src/inkmix.rs) */
 int64_t ik_ink_blend_scratch_bytes(int64_t s, int64_t r, int64_t d, int64_t g);
 
