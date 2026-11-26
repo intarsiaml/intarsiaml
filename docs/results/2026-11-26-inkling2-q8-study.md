@@ -2,7 +2,11 @@
 
 Status: accuracy study on the cpu reference only (no GPU, no kernel, no default change). Branch `ink/q8-study`.
 
-@@STATUS@@
+Status: done. **Arm C (int8, one f32 scale per output row, MSE-optimal clip) passes G2 and G3 on every set** (G2 short 1.68e-3 /
+long 3.81e-3, G3 short 6.57e-3 / long 1.243e-2 / 4k 1.035e-2, 0 / 1 / 1 confident misses) and halves the bytes like fp8 (3.506 ->
+1.756 GB per token for in_proj + wo + unembed). A (today's fp8) and B (e4m3 per row) fail G2 short (4.39e-3, 4.12e-3) and pass the
+rest. A per-row e4m3 scale does not help; keeping the small projections bf16 (D) does not help. The numerics floor of these gates is
+large (see the noise controls); the ranking rests on the error size, not on one-row differences. Default unchanged, no GPU kernel.
 
 ## Briefs received
 
@@ -75,15 +79,15 @@ KL21 mean (G3 against the vLLM golden: bounds 1.05e-2 short / 1.65e-2 long / 1.4
 6e-3 long); `misses` are confident-row top-1 misses over the confident rows (G3 allowance 1 / 2 / 9, G2 1 / 2); `own` is KL21
 against our own bf16 self-golden (the quantisation effect alone). Top-1 is reported, not gated.
 
-| Arm | G3 short | G3 long | G3 4k | G2 short | G2 long | own bf16 short / long |
+| Arm | G3 short | G3 long | G3 4k | G2 short | G2 long | own bf16 short / long / 4k |
 |---|---|---|---|---|---|---|
-| bf16 (default) | 9.062e-3, 0 / 367, 97.89 % | 1.410e-2, 0 / 1211, 97.51 % | @@bf16-4k@@ | 2.994e-3, 0 / 363, 99.30 % | 3.879e-3, 1 / 1206, 99.04 % | - |
-| A fp8 per pack | 8.956e-3, 0 / 367, 97.72 % | 1.282e-2, 0 / 1211, 97.51 % | @@A-4k@@ | **4.387e-3**, 0 / 363, 99.12 % | 5.300e-3, 1 / 1206, 98.92 % | 4.859e-3 / 5.622e-3 |
-| B e4m3 per row | 7.511e-3, 0 / 367, 96.84 % | 1.216e-2, 1 / 1211, 97.32 % | @@B-4k@@ | **4.117e-3**, 0 / 363, 97.72 % | 5.073e-3, 1 / 1206, 98.34 % | 5.196e-3 / 5.678e-3 |
-| C int8 per row, MSE clip | 6.574e-3, 0 / 367, 98.07 % | 1.243e-2, 0 / 1211, 97.64 % | @@C-4k@@ | 1.680e-3, 0 / 363, 99.12 % | 3.808e-3, 1 / 1206, 98.92 % | 4.068e-3 / 4.644e-3 |
-| D1 = B + `wr`,`sink`,`sconv` bf16 | 8.876e-3, 0 / 367, 97.54 % | - | - | **4.401e-3**, 0 / 363, 98.24 % | - | 5.556e-3 / - |
-| D2 = C + `wr`,`sink`,`sconv` bf16 | 6.564e-3, 0 / 367, 97.89 % | - | - | 2.593e-3, 0 / 363, 98.95 % | - | 4.227e-3 / - |
-| control: int8, plain `amax / 127` scale | 6.373e-3, 0 / 367, 98.07 % | - | - | 1.754e-3, 0 / 363, 99.47 % | - | 3.813e-3 / - |
+| bf16 (default) | 9.062e-3, 0 / 367, 97.89 % | 1.410e-2, 0 / 1211, 97.51 % | 9.810e-3, 2 / 8229, 95.73 % | 2.994e-3, 0 / 363, 99.30 % | 3.879e-3, 1 / 1206, 99.04 % | - |
+| A fp8 per pack | 8.956e-3, 0 / 367, 97.72 % | 1.282e-2, 0 / 1211, 97.51 % | 1.183e-2, 2 / 8229, 95.54 % | **4.387e-3**, 0 / 363, 99.12 % | 5.300e-3, 1 / 1206, 98.92 % | 4.859e-3 / 5.622e-3 / 7.584e-3 |
+| B e4m3 per row | 7.511e-3, 0 / 367, 96.84 % | 1.216e-2, 1 / 1211, 97.32 % | 1.145e-2, 1 / 8229, 95.34 % | **4.117e-3**, 0 / 363, 97.72 % | 5.073e-3, 1 / 1206, 98.34 % | 5.196e-3 / 5.678e-3 / 7.410e-3 |
+| C int8 per row, MSE clip | 6.574e-3, 0 / 367, 98.07 % | 1.243e-2, 0 / 1211, 97.64 % | 1.035e-2, 1 / 8229, 95.69 % | 1.680e-3, 0 / 363, 99.12 % | 3.808e-3, 1 / 1206, 98.92 % | 4.068e-3 / 4.644e-3 / 5.313e-3 |
+| D1 = B + `wr`,`sink`,`sconv` bf16 | 8.876e-3, 0 / 367, 97.54 % | - | - | **4.401e-3**, 0 / 363, 98.24 % | - | 5.556e-3 / - / - |
+| D2 = C + `wr`,`sink`,`sconv` bf16 | 6.564e-3, 0 / 367, 97.89 % | - | - | 2.593e-3, 0 / 363, 98.95 % | - | 4.227e-3 / - / - |
+| control: int8, plain `amax / 127` scale | 6.373e-3, 0 / 367, 98.07 % | - | - | 1.754e-3, 0 / 363, 99.47 % | - | 3.813e-3 / - / - |
 
 (Bold: over the G2 short bound.) Decode-mode KL: the fp8 lane measured it on Metal only (`accuracy --backend metal --mode both`,
 fleetq #10870; fp8 / fp8 decode-mode KL21 1.396e-2 short / 1.569e-2 long against 1.057e-2 / 1.219e-2 for bf16). B and C have no
@@ -134,9 +138,75 @@ Reading:
 
 ## Verdict
 
-@@VERDICT@@
+**Pick int8 with one f32 scale per output row (arm C) as the 8-bit dense + unembed format.**
+
+| Gate | bound | A fp8 per pack | B e4m3 per row | C int8 per row |
+|---|---|---|---|---|
+| G2 short (KL21, misses) | 4e-3, 1 | **4.387e-3** fail, 0 | **4.117e-3** fail, 0 | 1.680e-3 pass, 0 |
+| G2 long | 6e-3, 2 | 5.300e-3 pass, 1 | 5.073e-3 pass, 1 | 3.808e-3 pass, 1 |
+| G3 short | 1.05e-2, 1 | 8.956e-3 pass, 0 | 7.511e-3 pass, 0 | 6.574e-3 pass, 0 |
+| G3 long | 1.65e-2, 2 | 1.282e-2 pass, 0 | 1.216e-2 pass, 1 | 1.243e-2 pass, 0 |
+| G3 4k | 1.4e-2, 9 | 1.183e-2 pass, 2 | 1.145e-2 pass, 1 | 1.035e-2 pass, 1 |
+| KL vs own bf16 short / long / 4k | - | 4.9e-3 / 5.6e-3 / 7.6e-3 | 5.2e-3 / 5.7e-3 / 7.4e-3 | 4.1e-3 / 4.6e-3 / 5.3e-3 |
+| bytes per token, in_proj + wo + unembed | bf16 3.506 GB | 1.753 GB | 1.756 GB | 1.756 GB |
+
+- **C is the only arm that passes G2 short**, and the only one that does so with margin (1.68e-3 against 4e-3; D2 = C with the
+  three small projections bf16: 2.59e-3). Against the noise controls this is a real, repeatable difference, not luck: all twelve
+  runs whose weight error is at most int8's (int8 variants, random noise up to rms 0.9 %) pass G2 short with 1.4-3.8e-3; all six
+  runs at e4m3's error (A, B, D1, random noise rms 2.5 %) land at 4.06-5.64e-3 and none passes. The 4k set tells the same story:
+  KL against our own bf16 is 5.3e-3 for C against 7.4-7.6e-3 for the e4m3 arms.
+- **Both e4m3 arms fail G2 short and pass everything else**, as the fp8 lane found for A. B's one f32 scale per row buys nothing
+  (4.12e-3 against A's 4.39e-3, own-bf16 KL 5.2e-3 against 4.9e-3): e4m3 has a constant *relative* error of 2.64 % whatever the scale
+  (a scale only moves the range), so only a format with more mantissa bits can help. int8's step is uniform inside the row, which suits
+  weights (rms 0.9 % for the big tensors).
+- **D (keep `wr_du`, the sink projection and the sconv weight projections bf16) is not needed**: D1 4.40e-3 against B 4.12e-3 (fail
+  either way), D2 2.59e-3 against C 1.68e-3, own-bf16 KL 5.6e-3 / 4.2e-3 against 5.2e-3 / 4.1e-3: inside the seed spread. It costs
+  0.046 GB per token (2.6 % of the saving). The three tensors carry larger int8 weight error (1-2.4 %, sconv projections 4.5 %) and
+  it makes no measurable difference.
+- **The MSE clip search is not what makes int8 pass**: int8 with the plain `amax / 127` scale (`int8a_row`, short set only) gives G2 1.75e-3, G3 6.37e-3, own
+  3.81e-3, the same as C. The clip search only costs load time (the C runs took as long as the e4m3 runs). If a kernel lane wants the
+  simplest host quantiser, `amax / 127` is enough on this evidence; long and 4k were not run for it.
+- **Bytes**: 3.506 -> 1.756 GB per token for in_proj + wo + unembed (-1.750 GB, -49.9 %), 5.49 -> 3.74 GB for the whole model; scales cost 2.9 MB.
+  The same as fp8; per-row scales are free in bandwidth. The modelled +25 % (R9700) / +10-16 % (Metal) plain decode is the
+  consultants' number for 8-bit dense + unembed and applies to both formats; this study does not measure speed.
+- Not measured: decode-mode KL (the fp8 lane's was Metal only), speed (no kernel), any model but Inkling-2-Mini, sampled
+  (non-greedy) quality. The cpu confident-row misses that quantisation adds are one per set at most.
+
+**What a GPU kernel for C needs.** Both targets are the existing W8A16 GEMV structure with the per-pack scalar replaced by a per-row
+scale in the epilogue, and the int8 element makes the decode cheaper than e4m3's. HIP (R9700, gfx1201): the e4m3 GEMV's load structure (16-byte
+global loads per lane, 1..16 rows, rows-exact tree) with the e4m3 decode replaced by a sign-extend and an int-to-float convert (the
+activations stay bf16: packed i8 dot products would need quantised activations, a W8A8 mode this study did not measure), the row scale multiplied once after the f32 sum and before the bf16 rounding, which is exactly the cpu emulation's
+`rA(scale_row * sum(x * q))` order. Metal: `ink_in_proj_f8_gemv`'s 8-byte chunks read as `char8` (Apple GPUs convert i8 to half /
+float natively, no LUT or bit trick), same lane mapping and reduction tree; the prefill chunks (more than 16 rows) need a
+dequantising GEMM (NAX path or an int8 variant of the simdgroup matmul) or the three-pack fallback must also hold int8. Contract
+changes shared by both: `InkInProj`'s third input becomes `scales [Nq+Nk+Nv]` f32 (a length other than 3 selects the per-row
+form, keeping the `[3]` e4m3 form and the validator one match over the w dtype: {bf16, e4m3 + scales, p12 + aux, i8 + row scales}),
+a per-row-scale `MatmulI8` for `wo` and the unembed (`MatmulFp8` takes `scales [2]`), new admission cases at the real shapes
+(`[6552,1056,1056] x 2304`, `wo` `[2304, 3072]`, unembed `[200058, 2304]`) at rows 1 / 4 / 16 / 2048, bitwise rows-exact, an f64 cpu
+reference that is the existing emulation plus the scale after the dot, and a rework of the exact unembed screen (`HeadScreen`
+bound: its row bound assumes e4m3's relative error; for int8 it is `scale_row / 2` per element, tighter, but it is a new derivation
+and a new gather kernel set). The loader keeps one host quantiser (`head::quantize_host`) and stores i8 + a f32 scale buffer
+instead of the dequantised f32 used here; the P12 arm of ink-hip-p12 sits in the same w-dtype match, so whoever lands second
+merges onto the other. Decode-mode KL should be measured on the first kernel that runs.
 
 ## fleetq jobs
 
-@@JOBS@@
+All on endor, `--load cpu`, `--mem 30` (4k runs 30 as well after #12149's update from 40).
+
+| fleetq | what |
+|---|---|
+| #12107 | build `intarsia-cli` + head unit tests |
+| #12109 | short: bf16, A, B, C |
+| #12115 | long: bf16, A, B, C |
+| #12116, #12126 | rebuilds (controls, noise control); head unit tests 8 / 8 |
+| #12119 | short: id_row, int8a_row, C with stats, D1, D2 |
+| #12127 | short noise: seed 1, seed 2 (rms 0.056 %), eps 2^-7 |
+| #12143 | short noise ensembles: 3 levels x 3 seeds |
+| #12150 | long noise controls (4 runs) |
+| #12149 | 4k: bf16, C, A, B (3658 / 2310 / 3183 / 2391 s) |
+| #12151 | `docs_env_vars` 2 / 2, `recipes_doc` 3 / 3, `intarsia-core` inkling2 lib tests 4 / 4 |
+| #12202 | push `ink/q8-study` |
+
+Raw self-goldens, logs and the scripts (`.scratch/acc.sh`, `.scratch/py/{confident,sgcmp,perprompt,summary}.py`, `.scratch/table.sh`) are
+in `.worktrees/ink-q8/.scratch` (git-ignored).
 
