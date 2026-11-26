@@ -221,3 +221,19 @@ Largest B at 4k on 32 GB:
 - at the default 0.5 it is **B 15**: (6 865 + 348) / 480.
 
 Peak VRAM per B is measured in section 7.
+
+## 6. Window 5: solo gate of the final form b5 (fleetq #12080; radiance down 13:07:35 - 13:10:29, 2:54)
+
+Log: `raw/window5-12080-gate-b5.log`. Main = `40b85a391` (`77088458…`). Branch b5 = `68d1321af` (`8ebceca5…`). The method is the
+same as section 4.
+
+- **Greedy md5 equal to main** at 64 and 256 tokens, short and 4k, on every rep (the same four md5 as section 4).
+
+| decode tok/s (256 tok, ABBA 4 + 4) | main | branch b5 | ratio (95 % CI) |
+|---|---|---|---|
+| short | 76.94 / 76.88 / 76.85 / 76.86 | 76.59 / 76.56 / 76.54 / 76.51 | **0.9957 ± 0.0004** |
+| 4k | 74.06 / 74.06 / 74.02 / 74.05 | 73.73 / 73.75 / 73.70 / 73.67 | **0.9955 ± 0.0007** |
+| 4k prefill (ms) | 1563 / 1570 / 1575 / 1576 | 1565 / 1569 / 1577 / 1575 | 0.9997 ± 0.0018 (speed) |
+
+- Moving the row-table data out of the solo kernels' arguments did not remove the gap: b3 was 0.9964 and b5 is 0.9957.
+- The gap is in graph-replayed decode only. Prefill, which runs the same row kernel eagerly, is equal.
