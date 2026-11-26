@@ -80,28 +80,35 @@ fn ink_row_kernel_phases() {
         call.check().unwrap();
         let k = be.kernels().into_iter().find(|k| k.name == kname && k.op == op).unwrap();
         assert!(k.accepts(&ShapeInfo::from_call(&call)));
-        let mut all: Vec<[u64; 8]> = Vec::new();
+        for mask in [0i32, 1] {
+        intarsia_backend_hip::inkmix::set_mix_mode(mask);
+        let mut all: Vec<[u64; 10]> = Vec::new();
         for _ in 0..60 {
             be.launch(kname, &call, 0).unwrap();
             be.synchronize(0).unwrap();
-            let mut p = [0u64; 8];
+            let mut p = [0u64; 10];
             // SAFETY: reads 8 u64 of the kernel library's probe array (INK_PROBE builds; else the symbol is missing and this does not link)
-            assert_eq!(unsafe { ik_ink_probe(p.as_mut_ptr(), 8) }, 0);
+            assert_eq!(unsafe { ik_ink_probe(p.as_mut_ptr(), 10) }, 0);
             all.push(p);
         }
-        // median of each interval (ticks of 10 ns), marks: 0 entry, 1 conv done, 2 before fin, 3 after fin, 4 mix done, 5 before norm fin, 6 after, 7 stores done
-        let names = ["entry->conv", "conv->xs+sums", "fin1", "mix math", "norm sums", "fin2", "stores"];
+        // median of each interval (ticks of 10 ns). Marks: 0 entry, 1 conv done, 8 sources built, 9 square sums done, 2 before fin, 3 after fin, 4 mix done,
+        // 5 before norm fin, 6 after, 7 stores done (every mark waits for all outstanding memory operations first)
+        let order = [0usize, 1, 8, 9, 2, 3, 4, 5, 6, 7];
+        let names = ["entry->conv", "conv->xs", "xs->sums", "sums->q dots", "fin1", "mix math", "norm sums", "fin2", "stores"];
         let mut line = String::new();
         let mut total = 0.0;
         for (i, name) in names.iter().enumerate() {
-            let mut v: Vec<f64> = all.iter().skip(10).filter(|p| p[i + 1] >= p[i] && p[i + 1] > 0 && p[i] > 0).map(|p| (p[i + 1] - p[i]) as f64 * 10.0).collect();
-            v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            let (a, b) = (order[i], order[i + 1]);
+            let mut v: Vec<f64> = all.iter().skip(10).filter(|p| p[b] >= p[a] && p[b] > 0 && p[a] > 0).map(|p| (p[b] - p[a]) as f64 * 10.0).collect();
+            v.sort_by(|x, y| x.partial_cmp(y).unwrap());
             let m = v.get(v.len() / 2).copied().unwrap_or(f64::NAN);
             line += &format!(" {name} {m:.0} ns;");
             if m.is_finite() {
                 total += m;
             }
         }
-        println!("PROBE {label}:{line} total {total:.0} ns");
+        println!("PROBE mask {mask} {label}:{line} total {total:.0} ns");
+        }
+        intarsia_backend_hip::inkmix::set_mix_mode(2);
     }
 }

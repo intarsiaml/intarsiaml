@@ -27,7 +27,7 @@
 #ifdef INK_PROBE
 __device__ unsigned long long g_probe[32];
 #define INK_MARK(i) \
-    do { if (blockIdx.x == 0 && threadIdx.x == 0) g_probe[i] = wall_clock64(); } while (0)
+    do { __builtin_amdgcn_s_waitcnt(0); if (blockIdx.x == 0 && threadIdx.x == 0) g_probe[i] = wall_clock64(); } while (0)
 #else
 #define INK_MARK(i) \
     do { } while (0)
@@ -165,41 +165,56 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
     const int64_t pos0 = a.pos ? (int64_t)*a.pos : a.pos0;
     const int64_t p = pos0 + t;
     const bool fastconv = FAST && a.x && a.K <= 8;
+    bool vr[8];
     if constexpr (FAST) {
+        // Every load below is issued unconditionally (clamped, always valid addresses) and its value selected afterwards: a load under a
+        // lane condition makes the compiler wait for it before the merge, so conditional loads cost one memory latency (~170 ns) each.
         if (fastconv) {
 #pragma unroll
             for (int l = 0; l < 8; ++l) {
-                if (l < a.K) {
-                    const int64_t qp = p - l;
-                    const ik_bf16* row = qp >= pos0 ? a.x + (qp - pos0) * D : qp >= 0 ? a.ring + (int64_t)((int)qp % a.Rr) * D : nullptr;
-                    const ik_bf16* tap = a.taps + (int64_t)l * D;
+                const int lc = l < a.K ? l : a.K - 1;
+                const int64_t qp = p - lc;
+                const bool inx = qp >= pos0, inr = !inx && qp >= 0;
+                const ik_bf16* row = inx ? a.x + (qp - pos0) * D : (inr ? a.ring + (int64_t)((int)qp % a.Rr) * D : a.taps);
+                const ik_bf16* tap = a.taps + (int64_t)lc * D;
+                vr[l] = inx || inr;
 #pragma unroll
-                    for (int j = 0; j < NE; ++j) {
-                        tv[l][j] = ik_b2f(tap[ix[j]]);
-                        xr[l][j] = row ? ik_b2f(row[ix[j]]) : 0.f;
-                    }
+                for (int j = 0; j < NE; ++j) {
+                    tv[l][j] = ik_b2f(tap[ix[j]]);
+                    xr[l][j] = ik_b2f(row[ix[j]]);
                 }
             }
         }
         if (a.x) {
+            const ik_bf16* rs = a.res ? a.res : a.x;
+            const ik_bf16* as = a.add ? a.add : a.x;
 #pragma unroll
             for (int j = 0; j < NE; ++j) {
                 const int64_t o = (int64_t)t * D + ix[j];
-                rv[j] = (ok[j] && a.res) ? ik_b2f(a.res[o]) : 0.f;
-                adv[j] = (ok[j] && a.add) ? ik_b2f(a.add[o]) : 0.f;
+                const float r0 = ik_b2f(rs[o]), a0 = ik_b2f(as[o]);
+                rv[j] = (ok[j] && a.res) ? r0 : 0.f;
+                adv[j] = (ok[j] && a.add) ? a0 : 0.f;
             }
         }
         if (do_mix) {
+            const ik_bf16* sfb = a.x ? a.x : a.last;
 #pragma unroll
             for (int n = 0; n < kNsMax; ++n) {
+                const ik_bf16* sp = a.N > 0 ? a.src + ((int64_t)(n < a.N ? n : 0) * T + t) * D : sfb + (int64_t)t * D;
 #pragma unroll
-                for (int j = 0; j < NE; ++j) xs[n][j] = (n < a.N && ok[j]) ? ik_b2f(a.src[((int64_t)n * T + t) * D + ix[j]]) : 0.f;
+                for (int j = 0; j < NE; ++j) {
+                    const float v = ik_b2f(sp[ix[j]]);
+                    xs[n][j] = (n < a.N && ok[j]) ? v : 0.f;
+                }
             }
 #pragma unroll
             for (int qi = 0; qi < kQMax; ++qi) {
                 if (qi < Q) {
 #pragma unroll
-                    for (int j = 0; j < NE; ++j) qv[qi][j] = ok[j] ? a.q[(int64_t)qi * D + ix[j]] : 0.f;
+                    for (int j = 0; j < NE; ++j) {
+                        const float v = a.q[(int64_t)qi * D + ix[j]];
+                        qv[qi][j] = ok[j] ? v : 0.f;
+                    }
                 }
             }
             if (!a.msg && a.norm) {
@@ -207,7 +222,10 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
                 for (int qi = 0; qi < kQMax; ++qi) {
                     if (qi < Q) {
 #pragma unroll
-                        for (int j = 0; j < NE; ++j) nwv[qi][j] = ok[j] ? ik_b2f(a.norm[(int64_t)qi * D + ix[j]]) : 0.f;
+                        for (int j = 0; j < NE; ++j) {
+                            const float v = ik_b2f(a.norm[(int64_t)qi * D + ix[j]]);
+                            nwv[qi][j] = ok[j] ? v : 0.f;
+                        }
                     }
                 }
             }
@@ -225,7 +243,7 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
             for (int l = 0; l < 8; ++l) {
                 if (l < a.K) {
 #pragma unroll
-                    for (int j = 0; j < NE; ++j) acc[j] = fmaf(tv[l][j], xr[l][j], acc[j]);
+                    for (int j = 0; j < NE; ++j) acc[j] = fmaf(tv[l][j], vr[l] ? xr[l][j] : 0.f, acc[j]);
                 }
             }
 #pragma unroll
@@ -300,6 +318,7 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
                 xs[n][j] = v;
             }
         }
+        INK_MARK(8);
 #pragma unroll
         for (int n = 0; n < kNsMax; ++n) {
             if (n >= NS) break;
@@ -308,6 +327,7 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(RowArgs a) {
             for (int j = 0; j < NE; ++j) s = fmaf(xs[n][j], xs[n][j], s);
             warp_put(red, n, s);
         }
+        INK_MARK(9);
 #pragma unroll
         for (int qi = 0; qi < kQMax; ++qi) {
             if (qi >= Q) break;

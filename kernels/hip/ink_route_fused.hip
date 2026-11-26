@@ -10,7 +10,7 @@
 
 namespace {
 
-constexpr int kWaves = 16;      // logits per block; also the most rows routed by the last block (one wave per row)
+constexpr int kWaves = 4;       // logits per block (E / 4 blocks: 32 for the real router, so the GEMV spreads over the CUs); the last block routes the rows, wave w rows w, w + 4, ..
 constexpr int kRowsMax = 16;
 constexpr int kEMax = 256;      // experts: the routing keeps 2 * E floats per wave in shared memory
 
@@ -149,11 +149,9 @@ ink_route_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ wt, 
     __syncthreads();
     if (!last_blk) return;
     __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "agent");
-    if (wave < T) {
-        float* sc = smem + wave * 2 * kEMax;
-        route_row(lg + (int64_t)wave * E, bias, E, K, scale, norm, temp, sf, sc, sc + kEMax, picks[wave], ow + (int64_t)wave * K,
-                  oid + (int64_t)wave * K);
-    }
+    float* sc = smem + wave * 2 * kEMax;
+    for (int r = wave; r < T; r += kWaves)
+        route_row(lg + (int64_t)r * E, bias, E, K, scale, norm, temp, sf, sc, sc + kEMax, picks[wave], ow + (int64_t)r * K, oid + (int64_t)r * K);
 }
 
 }  // namespace
