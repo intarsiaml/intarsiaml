@@ -1,0 +1,78 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-dec2/.scratch/stage_prof.sh; cap 255s; stopping radiance 2026-11-26 02:53:35
+[window] radiance stopped 2026-11-26 02:53:39 (inactive)
+[stage] rocprof short 2026-11-26 02:53:39
+finish=length prompt=31 (cached 0) completion=24 | prefill 102 ms (303.7 tok/s) | decode 341 ms (67.51 tok/s)
+steps=24 graph replays=23 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+kernel trace short: /home/josef/intarsiaml-ink-hip-dec2/logs/w1/rp-short/run_kernel_trace.csv
+steady decode: 8 steps, 536 dispatches / step, wall 14732 us / step (67.9 tok/s), kernel time 12776 us / step (87 %), gaps 1956 us
+kernel                                                                  n/step   us/step  us/call  %wall
+in_proj_gemv_kernel<1>                                                    48.0    3063.2     63.8   20.8
+ink_moe_gu_kernel<0, 2, 6, 4, true, 0>                                    44.0    2249.2     51.1   15.3
+gemv_kernel<1, 1, 8, float>                                               49.0    1565.5     31.9   10.6
+ink_moe_dn_kernel<0, 2, ik_bf16, 9, 4, true, 0>                           44.0    1351.5     30.7    9.2
+gemv_kernel<1, 1, 8, ik_bf16>                                             48.0    1140.0     23.7    7.7
+ink_row_kernel<3, true>                                                  124.0    1034.3      8.3    7.0
+ink_attn_dec_k<3>                                                         40.0     759.5     19.0    5.2
+ink_blend_gate_kernel<false>                                              48.0     498.3     10.4    3.4
+moe_route_kernel                                                          48.0     381.5      7.9    2.6
+ink_moe_gu_kernel<1, 2, 1, 4, true, 0>                                     4.0     298.5     74.6    2.0
+ink_moe_dn_kernel<1, 2, ik_bf16, 9, 4, true, 0>                            4.0     186.6     46.6    1.3
+ink_attn_s1_k<3>                                                           8.0     115.8     14.5    0.8
+ink_prologue_k<4>                                                          8.0      54.7      6.8    0.4
+argmax_kernel<float>                                                       1.0      51.0     51.0    0.3
+__amd_rocclr_copyBuffer                                                    7.0      11.2      1.6    0.1
+ink_attn_comb_k                                                            8.0       7.8      1.0    0.1
+rmsnorm_kernel<false, true, false>                                         2.0       5.5      2.8    0.0
+embedding_kernel<true>                                                     1.0       2.1      2.1    0.0
+[stage] rocprof 4k 2026-11-26 02:53:44
+finish=length prompt=4228 (cached 0) completion=24 | prefill 6887 ms (613.9 tok/s) | decode 354 ms (64.97 tok/s)
+steps=40 graph replays=23 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+kernel trace 4k: /home/josef/intarsiaml-ink-hip-dec2/logs/w1/rp-4k/run_kernel_trace.csv
+steady decode: 8 steps, 536 dispatches / step, wall 15241 us / step (65.6 tok/s), kernel time 13285 us / step (87 %), gaps 1956 us
+kernel                                                                  n/step   us/step  us/call  %wall
+in_proj_gemv_kernel<1>                                                    48.0    3095.8     64.5   20.3
+ink_moe_gu_kernel<0, 2, 6, 4, true, 0>                                    44.0    2286.7     52.0   15.0
+gemv_kernel<1, 1, 8, float>                                               49.0    1570.9     32.1   10.3
+ink_moe_dn_kernel<0, 2, ik_bf16, 9, 4, true, 0>                           44.0    1377.7     31.3    9.0
+gemv_kernel<1, 1, 8, ik_bf16>                                             48.0    1167.4     24.3    7.7
+ink_row_kernel<3, true>                                                  124.0    1047.2      8.4    6.9
+ink_attn_dec_k<3>                                                         40.0     883.3     22.1    5.8
+ink_blend_gate_kernel<false>                                              48.0     526.4     11.0    3.5
+moe_route_kernel                                                          48.0     387.6      8.1    2.5
+ink_attn_s1_k<3>                                                           8.0     304.7     38.1    2.0
+ink_moe_gu_kernel<1, 2, 1, 4, true, 0>                                     4.0     298.8     74.7    2.0
+ink_moe_dn_kernel<1, 2, ik_bf16, 9, 4, true, 0>                            4.0     187.5     46.9    1.2
+ink_prologue_k<4>                                                          8.0      56.1      7.0    0.4
+argmax_kernel<float>                                                       1.0      51.6     51.6    0.3
+ink_attn_comb_k                                                            8.0      23.8      3.0    0.2
+__amd_rocclr_copyBuffer                                                    7.0      11.9      1.7    0.1
+rmsnorm_kernel<false, true, false>                                         2.0       5.6      2.8    0.0
+embedding_kernel<true>                                                     1.0       2.1      2.1    0.0
+[stage] route_fused=unset short rep 1 2026-11-26 02:53:57
+finish=length prompt=31 (cached 0) completion=128 | prefill 95 ms (325.8 tok/s) | decode 1748 ms (72.65 tok/s)
+steps=128 graph replays=127 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+[stage] route_fused=unset 4k rep 1 2026-11-26 02:54:03
+finish=length prompt=4228 (cached 0) completion=128 | prefill 6907 ms (612.1 tok/s) | decode 1813 ms (70.03 tok/s)
+steps=144 graph replays=127 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+[stage] route_fused=1 short rep 1 2026-11-26 02:54:17
+finish=length prompt=31 (cached 0) completion=128 | prefill 96 ms (322.4 tok/s) | decode 1751 ms (72.53 tok/s)
+steps=128 graph replays=127 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+[stage] route_fused=1 4k rep 1 2026-11-26 02:54:23
+finish=length prompt=4228 (cached 0) completion=128 | prefill 6934 ms (609.7 tok/s) | decode 1816 ms (69.93 tok/s)
+steps=144 graph replays=127 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+[stage] route_fused=unset short rep 2 2026-11-26 02:54:37
+finish=length prompt=31 (cached 0) completion=128 | prefill 96 ms (323.9 tok/s) | decode 1747 ms (72.68 tok/s)
+steps=128 graph replays=127 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+[stage] route_fused=unset 4k rep 2 2026-11-26 02:54:43
+finish=length prompt=4228 (cached 0) completion=128 | prefill 6973 ms (606.4 tok/s) | decode 1814 ms (70.00 tok/s)
+steps=144 graph replays=127 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+[stage] route_fused=1 short rep 2 2026-11-26 02:54:57
+finish=length prompt=31 (cached 0) completion=128 | prefill 96 ms (321.9 tok/s) | decode 1751 ms (72.52 tok/s)
+steps=128 graph replays=127 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+[stage] route_fused=1 4k rep 2 2026-11-26 02:55:04
+| OpenAI `/v1/chat/completions`, `/v1/completions`, `/v1/models` | **implemented** | [`crates/intarsia-server/src/routes.rs`](../crates/intarsia-server/src/routes.rs) |finish=length prompt=4228 (cached 0) completion=128 | prefill 6976 ms (606.1 tok/s) | decode 1817 ms (69.90 tok/s)
+steps=144 graph replays=127 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)
+[stage] done 2026-11-26 02:55:17
+[window] stage done 2026-11-26 02:55:18 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 02:55:18
+[window] radiance answers 2026-11-26 02:55:28 (after 15 s)

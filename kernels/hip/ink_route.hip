@@ -21,9 +21,11 @@ IK_DEVI Pick better(Pick a, Pick b) {
     return before(a.v, a.i, b.v, b.i) ? a : b;
 }
 
+// fast (INTARSIA_HIP_INK_DEC_FAST bit 4, lane ink-hip-dec2): lane k keeps pick k in a register and writes output k (the weight
+// sum still added in pick order, on every lane from the same values): the same bits as lane 0's loop
 __global__ void __launch_bounds__(IK_WARP) moe_route_kernel(const float* __restrict__ lg, const float* __restrict__ bias, int64_t E, int K,
                                                             float scale, int norm, float temp, int sf, float* __restrict__ w,
-                                                            int* __restrict__ ids) {
+                                                            int* __restrict__ ids, int fast) {
     extern __shared__ float sm[];
     float* sc = sm;
     float* bi = sm + E;
@@ -61,6 +63,7 @@ __global__ void __launch_bounds__(IK_WARP) moe_route_kernel(const float* __restr
     // K rounds, each the best element strictly after the previous pick in the total order (ties cannot repeat a pick)
     float pv = INFINITY;
     int pi = -1;
+    int mine = -1;  // fast: pick `lane`
     for (int k = 0; k < K; ++k) {
         Pick b{0.f, -1};
         for (int64_t e = lane; e < E; e += IK_WARP) {
@@ -75,9 +78,24 @@ __global__ void __launch_bounds__(IK_WARP) moe_route_kernel(const float* __restr
             x.i = __shfl_xor(b.i, o, IK_WARP);
             b = better(b, x);
         }
-        if (lane == 0) pick[k] = b.i;
+        if (fast) {
+            if (lane == k) mine = b.i;
+        } else if (lane == 0) {
+            pick[k] = b.i;
+        }
         pv = b.v;
         pi = b.i;
+    }
+    if (fast) {
+        const float v = lane < K && mine >= 0 ? sc[mine] : 0.f;
+        float sum = 0.f;
+        for (int k = 0; k < K; ++k) sum += __int_as_float(__builtin_amdgcn_readlane(__float_as_int(v), k));
+        const float den = (norm && K > 1) ? sum + 1e-20f : 1.f;
+        if (lane < K) {
+            w[row * K + lane] = (norm && K > 1 ? v / den : v) * scale;
+            ids[row * K + lane] = mine;
+        }
+        return;
     }
     __syncthreads();
     if (lane == 0) {
@@ -93,7 +111,20 @@ __global__ void __launch_bounds__(IK_WARP) moe_route_kernel(const float* __restr
     }
 }
 
+int g_route_dec = -1;  // tests: 0 | 1 the fast tail; < 0: INTARSIA_HIP_INK_DEC_FAST bit 4 / the default (on)
+bool route_fast() {
+    if (g_route_dec >= 0) return g_route_dec != 0;
+    static int v = -1;
+    if (v < 0) {
+        const char* e = getenv("INTARSIA_HIP_INK_DEC_FAST");
+        v = e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : 7;
+    }
+    return (v & 4) != 0;
+}
+
 }  // namespace
+
+extern "C" void ik_moe_route_set_dec(int v) { g_route_dec = v; }
 
 extern "C" int ik_moe_route(const ik_tensor* logits, const ik_tensor* bias, int64_t top_k, float scale, int32_t norm_topk,
                             float temperature, int32_t score_func, ik_tensor* weights, ik_tensor* ids, void* stream) {
@@ -108,6 +139,6 @@ extern "C" int ik_moe_route(const ik_tensor* logits, const ik_tensor* bias, int6
     if (T == 0) return IK_OK;
     moe_route_kernel<<<(unsigned)T, IK_WARP, (size_t)E * 8, IK_STREAM(stream)>>>((const float*)logits->data, (const float*)bias->data, E,
                                                                                (int)top_k, scale, norm_topk, temperature, score_func,
-                                                                               (float*)weights->data, (int*)ids->data);
+                                                                               (float*)weights->data, (int*)ids->data, route_fast() ? 1 : 0);
     return ik_launch_status();
 }

@@ -228,6 +228,21 @@ pub(crate) mod launch {
     }
 }
 
+/// Tests: the blend gate kernel's fast fused-norm tail (lane ink-hip-dec2): 1 = on, 0 = the first tail, `-1` = the env
+/// (`INTARSIA_HIP_INK_DEC_FAST` bit 2) or the default (on). The bits are the same either way (tests/ink_mix.rs).
+pub fn set_mix_dec(v: i32) {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_ink_mix_dec(v: std::ffi::c_int);
+        }
+        // SAFETY: sets a plain int of the kernel library.
+        unsafe { ik_ink_mix_dec(v) }
+    }
+    #[cfg(not(ik_hip))]
+    let _ = v;
+}
+
 /// Tests / benchmarks: bit mask of the fast forms of the row kernel / blend launches / gate kernel (a process-wide switch of the kernel
 /// library; 0 = the first forms of all, 3 = default, see ink_mix.hip `mix_mask`). The bits are the same either way (tests/ink_mix.rs). `INTARSIA_INK_MIX_FAST=0` does the same
 /// at start-up.

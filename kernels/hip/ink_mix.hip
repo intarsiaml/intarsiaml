@@ -536,7 +536,9 @@ struct GateNorm {
     ik_bf16* out;
     float eps;
     int on;
+    int tail;  // INTARSIA_HIP_INK_DEC_FAST bit 2 (lane ink-hip-dec2): the slice partials staged by all threads at once, the norm loop's loads issued 4 at a time
 };
+constexpr int kTailPs = 256;  // slice partials of a group the fast tail stages (rows x slices; kFuseRowsMax x 18 at D 2304)
 
 // gate: y = (1 - tanh(fg)) d + tanh(gn) m for one stream, 128 channels x 16 rows of a chunk; writes y and the block's slice
 // partial of sum(y^2) per row. FAST unrolls the loads of the controller rows (the same fmaf chain per output).
@@ -550,6 +552,7 @@ __global__ void __launch_bounds__(kGateCh) ink_blend_gate_kernel(const ik_bf16* 
     __shared__ float red[kGateRows][kGateCh / 32];
     __shared__ int last_blk;
     __shared__ float rsh[kGateRows];
+    __shared__ float psh[kTailPs];
     const int s = blockIdx.y;
     const int r0 = blockIdx.z * kGateRows;
     const int rows = min(kGateRows, Tc - r0);
@@ -631,6 +634,38 @@ __global__ void __launch_bounds__(kGateCh) ink_blend_gate_kernel(const ik_bf16* 
     if (!last_blk) return;
     __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "agent");
     const int nsl = gridDim.x;
+    if (gn_.tail && rows * nsl <= kTailPs) {
+        // the same sums and products as below, in the same order; only the loads are issued together
+        const float* pg = part + ((int64_t)s * Tc + r0) * nsl;  // the group's rows x slices, contiguous
+        for (int i = threadIdx.x; i < rows * nsl; i += blockDim.x) psh[i] = pg[i];
+        __syncthreads();
+        if ((int)threadIdx.x < rows) {
+            float q = 0.f;
+            for (int i = 0; i < nsl; ++i) q += psh[threadIdx.x * nsl + i];
+            rsh[threadIdx.x] = 1.f / sqrtf(q / (float)D + gn_.eps);
+        }
+        __syncthreads();
+        const int bd = blockDim.x;
+        const ik_bf16* nr = gn_.norm + (int64_t)s * D;
+        for (int r = 0; r < rows; ++r) {
+            const float* yr = ybuf + ((int64_t)s * Tc + r0 + r) * D;
+            ik_bf16* orow = gn_.out + ((int64_t)s * T + t0 + r0 + r) * D;
+            const float rr = rsh[r];
+            int cj = threadIdx.x;
+            for (; cj + 3 * bd < D; cj += 4 * bd) {
+                float yv[4], nv[4];
+#pragma unroll
+                for (int u = 0; u < 4; ++u) {
+                    yv[u] = yr[cj + u * bd];
+                    nv[u] = ik_b2f(nr[cj + u * bd]);
+                }
+#pragma unroll
+                for (int u = 0; u < 4; ++u) orow[cj + u * bd] = ik_f2b(yv[u] * rr * nv[u]);
+            }
+            for (; cj < D; cj += bd) orow[cj] = ik_f2b(yr[cj] * rr * ik_b2f(nr[cj]));
+        }
+        return;
+    }
     if ((int)threadIdx.x < rows) {
         float q = 0.f;
         for (int i = 0; i < nsl; ++i) q += part[((int64_t)s * Tc + r0 + threadIdx.x) * nsl + i];
@@ -749,6 +784,16 @@ int row_threads(int D, int* ne) {
 // 4 = the gate kernel's early loads (no gain measured, off), 8 = the fast row kernel at any row count (tests). 0 = the first forms of all. The bits
 // are the same for every mask (tests/ink_mix.rs). Default 3. INTARSIA_INK_MIX_FAST=<mask> or ik_ink_mix_mode(mask) overrides.
 int g_mix_mask = -1;
+int g_mix_dec = -1;  // tests: 0 | 1 the gate kernel's fast norm tail; < 0: INTARSIA_HIP_INK_DEC_FAST bit 2 / the default (on)
+bool mix_dec_tail() {
+    if (g_mix_dec >= 0) return g_mix_dec != 0;
+    static int v = -1;
+    if (v < 0) {
+        const char* e = getenv("INTARSIA_HIP_INK_DEC_FAST");
+        v = e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : 7;
+    }
+    return (v & 2) != 0;
+}
 
 int mix_mask() {
     if (g_mix_mask < 0) {
@@ -819,7 +864,7 @@ int run_blend(RowArgs a, const ik_tensor* down, const ik_tensor* gain, const ik_
             IK_TRY(ik_launch_status());
         }
         const bool fnorm = (mix_mask() & 2) != 0 && rc <= kFuseRowsMax;
-        const GateNorm gnorm{(const ik_bf16*)norm->data, (ik_bf16*)out->data, a.eps, fnorm ? 1 : 0};
+        const GateNorm gnorm{(const ik_bf16*)norm->data, (ik_bf16*)out->data, a.eps, fnorm ? 1 : 0, mix_dec_tail() ? 1 : 0};
         const dim3 gg((unsigned)nsl, (unsigned)S, (unsigned)((rc + kGateRows - 1) / kGateRows));
         if (mix_mask() & 4)
             ink_blend_gate_kernel<true><<<gg, kGateCh, 0, st>>>(b.h, (const ik_bf16*)gain->data, (const ik_bf16*)forget->data, b.dbuf, a.msg,
@@ -909,6 +954,7 @@ int ik_ink_probe(unsigned long long* out, int n) {
 
 /* tests / benchmarks: bit mask of the fast forms (1 row kernel loads, 2 fused blend launches, 4 gate kernel loads; 0 = the first forms of all; same bits) */
 void ik_ink_mix_mode(int v) { g_mix_mask = v; }
+void ik_ink_mix_dec(int v) { g_mix_dec = v; }
 
 int64_t ik_ink_blend_scratch_bytes(int64_t s, int64_t r, int64_t d, int64_t g) { return blend_bytes(s, r, d, g); }
 

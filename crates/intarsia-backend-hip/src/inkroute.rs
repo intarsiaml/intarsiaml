@@ -25,6 +25,21 @@ pub fn all() -> Vec<KernelImpl> {
         .collect()
 }
 
+/// Tests: `moe_route`'s fast tail (lane ink-hip-dec2): 1 = on, 0 = lane 0's loop, `-1` = the env (`INTARSIA_HIP_INK_DEC_FAST` bit 4)
+/// or the default (on). Bitwise the same output (tests/ink_mix.rs `moe_route_fast_tail_bitwise`).
+pub fn set_route_dec(v: i32) {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_moe_route_set_dec(v: std::ffi::c_int);
+        }
+        // SAFETY: sets a plain int of the kernel library.
+        unsafe { ik_moe_route_set_dec(v) }
+    }
+    #[cfg(not(ik_hip))]
+    let _ = v;
+}
+
 #[cfg(ik_hip)]
 pub(crate) mod launch {
     use crate::device::InkArgs;

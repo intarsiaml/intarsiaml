@@ -37,6 +37,8 @@ int ik_ink_route_bf16(const ik_tensor* x, const ik_tensor* w, const ik_tensor* b
                       int32_t score_func, ik_tensor* weights, ik_tensor* ids, ik_tensor* logits, const ik_scratch* scratch, void* stream);
 /* tests / benchmarks: bit mask of the fast forms of the mix kernels (1 row kernel loads for <= 16 rows, 2 fused blend launches for <= 2 rows, 4 gate kernel loads, 8 fast row kernel at any row count; 0 = the first forms; default 3; same bits) */
 void ik_ink_mix_mode(int v);
+/* tests: the gate kernel's fast fused-norm tail (lane ink-hip-dec2): 1 on, 0 the first tail, -1 = INTARSIA_HIP_INK_DEC_FAST bit 2 / the default (on); same bits */
+void ik_ink_mix_dec(int v);
 /* the phase timestamps of the last row-kernel launch (a build with INK_PROBE defined; IK_ERR_UNSUPPORTED otherwise), tests/ink_mix_probe.rs */
 int ik_ink_probe(unsigned long long* out, int n);
 /* scratch bytes of the blend for s streams, r rows, width d, controller rank g (mirrored by blend_bytes in src/inkmix.rs) */
