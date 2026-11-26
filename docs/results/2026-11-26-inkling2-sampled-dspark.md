@@ -1,6 +1,6 @@
 # Inkling-2: exact speculative decoding for sampled requests with the DSpark draft (lane ink-sampled)
 
-Branch `ink/sampled-dspark` from `origin/main` `3226af2b9`; the PR head also merges main up to `80719483a` (#529, HIP batching kernels).
+Branch `ink/sampled-dspark` (draft PR #535) from `origin/main` `3226af2b9`; the PR head also merges main up to `80719483a` (#529, HIP batching kernels).
 
 **Result: sampled requests can now draft with DSpark, exactly, opt-in (`INTARSIA_SPEC_SAMPLED_DFLASH=1`); no default changed.** The rule is
 `SampledSpec::Match` in its seed-exact keyed form (section 1): a seeded request emits the same ids with drafting on or off, so the output
