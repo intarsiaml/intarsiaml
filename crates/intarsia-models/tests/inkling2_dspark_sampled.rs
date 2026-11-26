@@ -51,16 +51,32 @@ fn sampled_dspark_is_opt_in_and_leaves_greedy_alone() {
 }
 
 /// Gate 1: the emitted tokens' law with sampled DSpark speculation equals plain sampling's (chi-square of homogeneity per position,
-/// disjoint seed sets). About 2 x 2 x 1800 short requests; opt-in:
+/// disjoint seed sets), one test per configuration so they run in parallel. About 2 x 1500 short requests each; opt-in:
 /// `cargo test --release -p intarsia-models --test inkling2_dspark_sampled -- --ignored law --nocapture`.
-#[test]
-#[ignore]
-fn sampled_dspark_matches_plain_sampling_in_law() {
+fn law(i: usize) {
     if dirs().is_none() {
         eprintln!("skipped: no tiny fixtures");
         return;
     }
     gate_off();
     let n = std::env::var("INTARSIA_LAW_N").ok().and_then(|v| v.parse().ok()).unwrap_or(1500);
-    law_test("fixture", n, &[CFGS[0], CFGS[1], CFGS[2]]);
+    law_test("fixture", n, &[CFGS[i]]);
+}
+
+#[test]
+#[ignore]
+fn law_t10_recipe_top_p() {
+    law(0);
+}
+
+#[test]
+#[ignore]
+fn law_t06_recipe_top_p() {
+    law(1);
+}
+
+#[test]
+#[ignore]
+fn law_t07_top_k20_top_p09() {
+    law(2);
 }

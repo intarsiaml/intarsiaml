@@ -5,8 +5,9 @@
 //!   `INTARSIA_INKLING2_BACKEND=metal|hip|cuda|cpu`;
 //! * `INTARSIA_SPEC_SAMPLED_DFLASH=0|1` (the arm), `INTARSIA_SS_TEMPS` (temperatures, comma-separated, default `1.0,0.6`; top-k 0,
 //!   top-p 1.0: what `serve` gives a request without sampling fields for this checkpoint);
-//! * `INTARSIA_SS_SEEDS=<a>..<b>[,<c>..<d>...]` (seed ranges, default `0..20`), `INTARSIA_SS_TOKENS` (default 6), `INTARSIA_SS_OUT`
-//!   (appends one line per request: `T seed ids...`).
+//! * `INTARSIA_SS_SEEDS=<a>..<b>[,<c>..<d>...]` (seed ranges, default `0..20`; one request per seed and temperature, seeds outer),
+//!   `INTARSIA_SS_TOKENS` (default 6), `INTARSIA_SS_OUT` (appends one line per request: `T seed ids...`), `INTARSIA_SS_BUDGET_S`
+//!   (stop starting requests after this many seconds of generation; unset: no limit).
 //!
 //! Every request is the same short prompt, `--spec dflash --spec-k 3`, `ignore_eos`. Token 1 comes from prefill; tokens 2.. are the
 //! speculative positions. `docs/results/2026-11-26-inkling2-sampled-dspark/raw/law.py` compares the arms (seed equality on shared seeds,
@@ -53,6 +54,7 @@ fn inkling2_sampled_dspark_real_model_runs() {
         .collect();
     let tokens: usize = var("INTARSIA_SS_TOKENS").map_or(6, |v| v.parse().unwrap());
     let out = var("INTARSIA_SS_OUT").map(PathBuf::from);
+    let budget = var("INTARSIA_SS_BUDGET_S").map(|v| std::time::Duration::from_secs_f64(v.parse().unwrap()));
     let opts = intarsia_models::EngineOptions {
         spec: SpecConfig { mode: SpecMode::Dflash, k: 3, k_min: None },
         spec_draft: Some(dir.clone()),
@@ -68,9 +70,13 @@ fn inkling2_sampled_dspark_real_model_runs() {
     let mut f = out.map(|p| std::fs::OpenOptions::new().create(true).append(true).open(p).unwrap());
     let t0 = std::time::Instant::now();
     let mut n = 0usize;
-    for &t in &temps {
-        for &(a, b) in &seeds {
-            for seed in a..b {
+    'all: for &(a, b) in &seeds {
+        for seed in a..b {
+            for &t in &temps {
+                if budget.is_some_and(|b| t0.elapsed() >= b) {
+                    eprintln!("budget reached at seed {seed}");
+                    break 'all;
+                }
                 let req = GenRequest {
                     prompt: prompt.clone(),
                     max_tokens: tokens,

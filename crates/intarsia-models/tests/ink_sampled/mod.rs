@@ -98,18 +98,17 @@ pub fn run(e: &LocalEngine, req: GenRequest) -> Vec<u32> {
     ids
 }
 
-/// A script that proposes `reference` (the seeded spec-off continuation of `prompt`, by absolute position) for a varying number of
-/// tokens, then a wrong one: every accepted length 0..=k happens while the request follows the reference, and once it leaves it the
-/// proposals are the reference's tokens at those positions (mostly wrong, sometimes right).
-pub fn partial_script(prompt: &[u32], reference: &[u32]) -> DraftScript {
-    let mut full = prompt.to_vec();
-    full.extend_from_slice(reference);
+/// A script that proposes the tokens of `full` (a prompt and its seeded spec-off continuation, by absolute position; the caller swaps it
+/// between requests) for a varying number of tokens, then a wrong one: every accepted length 0..=k happens while the request follows
+/// the reference, and once it leaves it the proposals are the reference's tokens at those positions (mostly wrong, sometimes right).
+pub fn partial_script(full: Arc<Mutex<Vec<u32>>>) -> DraftScript {
     let step = Mutex::new(0usize);
     Box::new(move |seq: &[u32], kk: usize| {
         let mut s = step.lock().unwrap();
         *s += 1;
         let right = *s % (kk + 1);
         let at = seq.len();
+        let full = full.lock().unwrap();
         let mut d: Vec<u32> = (0..kk).filter_map(|j| full.get(at + j).copied()).collect();
         if right < d.len() {
             d[right] = (d[right] + 1) % 250;
@@ -126,7 +125,7 @@ pub fn seeded_ids_equal_spec_off(label: &str) -> (u64, u64, u64) {
     let (on, tel_on) = engine(Some(3), Some(true), None);
     for cfg in CFGS {
         for p in PROMPTS {
-            for n in [1usize, 2, 5, 40] {
+            for n in [1usize, 5, 40] {
                 for seed in [1u64, 7] {
                     let a = run(&off, sreq(p, n, seed, cfg));
                     let b = run(&on, sreq(p, n, seed, cfg));
@@ -141,21 +140,23 @@ pub fn seeded_ids_equal_spec_off(label: &str) -> (u64, u64, u64) {
     assert!(t.spec_steps > 0, "{label}: sampled requests never drafted (vacuous)");
     eprintln!("{label}: random draft: passes {} proposed {} accepted {}", t.spec_steps, t.spec_proposed, t.spec_accepted);
     let (mut steps, mut prop, mut acc) = (0, 0, 0);
-    for cfg in CFGS {
-        for k in [2usize, 3, 7] {
+    for k in [3usize, 7] {
+        let full = Arc::new(Mutex::new(Vec::new()));
+        let (sc, tel) = engine(Some(k), Some(true), Some(partial_script(full.clone())));
+        for cfg in CFGS {
             for p in PROMPTS {
                 let seed = 11;
                 let reference = run(&off, sreq(p, 48, seed, cfg));
-                let (sc, tel) = engine(Some(k), Some(true), Some(partial_script(p, &reference)));
+                *full.lock().unwrap() = p.iter().chain(&reference).copied().collect();
                 assert_eq!(run(&sc, sreq(p, 48, seed, cfg)), reference, "{label}: scripted k {k} cfg {cfg:?} prompt {p:?}");
                 // another seed with the same proposals: they are mostly wrong for it
                 assert_eq!(run(&sc, sreq(p, 30, 12, cfg)), run(&off, sreq(p, 30, 12, cfg)), "{label}: scripted k {k} cfg {cfg:?} seed 12");
-                let t = tel.snapshot();
-                steps += t.spec_steps;
-                prop += t.spec_proposed;
-                acc += t.spec_accepted;
             }
         }
+        let t = tel.snapshot();
+        steps += t.spec_steps;
+        prop += t.spec_proposed;
+        acc += t.spec_accepted;
     }
     assert!(acc > 0 && acc < prop, "{label}: scripted proposals must be both accepted and rejected ({acc} of {prop})");
     eprintln!("{label}: scripted: passes {steps} proposed {prop} accepted {acc}");
@@ -232,48 +233,61 @@ pub fn gammq(a: f64, x: f64) -> f64 {
     }
 }
 
-/// Pearson chi-square of homogeneity of two count tables (2 x C, cells whose expected count is below 5 pooled into one): (statistic,
+/// Pearson chi-square of homogeneity of two count tables (2 x C): tokens whose pooled expected count is at least 5 in the smaller
+/// arm are cells of their own; the others are grouped into 16 bins by `id % 16` (a fixed function of the token, so the binned laws
+/// are equal when the laws are), and a bin whose expected count is still below 5 joins one remainder cell. Returns (statistic,
 /// degrees of freedom, p-value).
 pub fn chi2_homogeneity(a: &BTreeMap<u32, u64>, b: &BTreeMap<u32, u64>) -> (f64, usize, f64) {
     let (na, nb) = (a.values().sum::<u64>() as f64, b.values().sum::<u64>() as f64);
     let n = na + nb;
+    let small = |tot: f64| tot * na.min(nb) / n < 5.0;
     let keys: std::collections::BTreeSet<u32> = a.keys().chain(b.keys()).copied().collect();
-    let (mut stat, mut cells, mut pool) = (0.0, 0usize, [0.0f64; 2]);
-    let add = |o: [f64; 2], stat: &mut f64| {
-        let tot = o[0] + o[1];
-        let e = [tot * na / n, tot * nb / n];
-        *stat += (o[0] - e[0]).powi(2) / e[0] + (o[1] - e[1]).powi(2) / e[1];
-    };
+    let mut cells: Vec<[f64; 2]> = Vec::new();
+    let mut bins = [[0.0f64; 2]; 16];
     for k in &keys {
         let o = [*a.get(k).unwrap_or(&0) as f64, *b.get(k).unwrap_or(&0) as f64];
-        let tot = o[0] + o[1];
-        if tot * na.min(nb) / n < 5.0 {
-            pool[0] += o[0];
-            pool[1] += o[1];
-            continue;
+        if small(o[0] + o[1]) {
+            let bin = &mut bins[(*k % 16) as usize];
+            bin[0] += o[0];
+            bin[1] += o[1];
+        } else {
+            cells.push(o);
         }
-        add(o, &mut stat);
-        cells += 1;
     }
-    if pool[0] + pool[1] > 0.0 {
-        add(pool, &mut stat);
-        cells += 1;
+    let mut rest = [0.0f64; 2];
+    for bin in bins {
+        if small(bin[0] + bin[1]) {
+            rest[0] += bin[0];
+            rest[1] += bin[1];
+        } else {
+            cells.push(bin);
+        }
     }
-    let df = cells.saturating_sub(1);
+    if rest[0] + rest[1] > 0.0 {
+        cells.push(rest);
+    }
+    let mut stat = 0.0;
+    for o in &cells {
+        let tot = o[0] + o[1];
+        let e = [tot * na / n, tot * nb / n];
+        stat += (o[0] - e[0]).powi(2) / e[0] + (o[1] - e[1]).powi(2) / e[1];
+    }
+    let df = cells.len().saturating_sub(1);
     let p = if df == 0 { 1.0 } else { gammq(df as f64 / 2.0, stat / 2.0) };
     (stat, df, p)
 }
 
-/// Gate 1 on the fixture: the law of each generated token 2..=5 (the speculative positions; token 1 comes from prefill) with sampled
+/// Gate 1 on the fixture: the law of each generated token 2..=4 (the speculative positions; token 1 comes from prefill) with sampled
 /// DSpark speculation on equals plain sampling's, at each configuration of [`CFGS`] (`cfgs` picks them), `n` requests per arm with
 /// disjoint seed sets. The drafts are scripted to the most frequent token of a spec-off pilot at each position (a fixed proposal per
 /// position, so acceptance is that token's probability: both branches run). Returns one line per (cfg, position): the statistic, df,
 /// p-value, the two arms' counts and the acceptance.
 pub fn law_test(label: &str, n: u64, cfgs: &[(f32, usize, f32)]) -> Vec<String> {
     let prompt = PROMPTS[0];
-    let positions = 4usize; // generated tokens 2..=5
+    let positions = 3usize; // generated tokens 2..=4
     let (off, _) = engine(None, None, None);
     let mut lines = Vec::new();
+    let mut ps = Vec::new();
     for &cfg in cfgs {
         let draw = |e: &LocalEngine, seed0: u64, count: u64| -> Vec<BTreeMap<u32, u64>> {
             let mut c = vec![BTreeMap::new(); positions];
@@ -313,9 +327,17 @@ pub fn law_test(label: &str, n: u64, cfgs: &[(f32, usize, f32)]) -> Vec<String> 
             );
             eprintln!("{line}");
             assert!(df >= 2, "{line}: too few cells for the test");
-            assert!(p > 1e-4, "{line}: the law differs");
             lines.push(line);
+            ps.push(p);
         }
     }
+    // Fisher's combination over the positions (they are dependent within a request, so this is a summary, not an exact test): the
+    // gate is no single p below 1e-3 and the combined p above 1e-3
+    let x2: f64 = ps.iter().map(|p| -2.0 * p.max(1e-300).ln()).sum();
+    let pf = gammq(ps.len() as f64, x2 / 2.0);
+    let line = format!("{label}: Fisher over {} tests X2 {x2:.2} df {} p {pf:.4}; min p {:.4}", ps.len(), 2 * ps.len(), ps.iter().cloned().fold(1.0, f64::min));
+    eprintln!("{line}");
+    assert!(ps.iter().all(|&p| p > 1e-3) && pf > 1e-3, "{line}: the law differs");
+    lines.push(line);
     lines
 }

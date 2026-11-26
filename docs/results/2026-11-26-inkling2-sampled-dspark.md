@@ -95,3 +95,46 @@ Shared files touched (add-only): `crates/intarsia-core/src/engine.rs` (`Seq::new
 (draft call, row read, lazy cap), `model.rs` (two `VerifyRead` forms, `forward_verify_logits_uncapped`, `forward_verify_gumbel`,
 `softcap_row`, `verify_gumbel_ok`, a field), `model/mtp.rs` and `model/batch.rs` (the setter and the field), `crates/intarsia-models/src/load.rs`
 (startup line). No kernel changed.
+
+## 2. Correctness gates
+
+### 2.1 Tiny fixtures (gate 3, and gate 2 on the fixture)
+
+`tests/inkling2_dspark_sampled.rs` (lane): `sampled_dspark_seeded_ids_equal_spec_off`: for configurations T 1.0 / top-p 1 (the recipe),
+T 0.6 / top-p 1, T 0.7 / top-k 20 / top-p 0.9, three prompts, `max_tokens` 1 / 5 / 40 and seeds 1 / 7, the ids with sampled DSpark
+speculation on equal `--spec off`'s, with the random tiny draft and with scripted proposals (the spec-off continuation with one token
+spoiled at a moving offset, so every accepted length 0..=k happens; k 3 and 7; and the same proposals under another seed, where they
+are mostly wrong). The cpu (#12122) and hip (W1a) runs had the first version of this test (k 2 / 3 / 7, `max_tokens` 1 / 2 / 5 / 40,
+one engine per prompt); Metal and the final branch have the trimmed one (k 3 / 7, `max_tokens` 1 / 5 / 40), cut for the 5-minute HIP
+windows. `sampled_dspark_is_opt_in_and_leaves_greedy_alone`: with the knob unset or `0` a sampled request never drafts and a
+greedy one does; with it on, greedy ids equal `--spec off`'s. `tests/inkling2_dspark_sampled_gumbel.rs`: the seeded test with the
+device sampler on the cpu backend (`INTARSIA_GUMBEL_SAMPLING=1`, reference `GumbelArgmax`; asserts `verify_gumbel_ok`). On Metal the
+recipe's device sampler is on, so `inkling2_dspark_sampled` there covers `forward_verify_gumbel` for the plain-temperature configurations
+and the host path for the top-k one.
+
+| suite | cpu (endor `--load cpu`, #12122) | Metal (endor `--exclusive`, #12134) | hip (tatooine, card 0) |
+|---|---|---|---|
+| `inkling2` | 17 / 17 | 17 / 17 | see below |
+| `inkling2_dspark` | 4 / 4 | 4 / 4 | 4 / 4 (W1a) |
+| `inkling2_dspark_cut` | 1 / 1 | 1 / 1 | 1 / 1 (W1a) |
+| `inkling2_verify_softcap` | 1 / 1 | 1 / 1 | 1 / 1 (W1a) |
+| `inkling2_dspark_sampled` (lane) | 2 / 2 | 2 / 2 | 2 / 2 (W1a) |
+| `inkling2_dspark_sampled_gumbel` (lane) | 1 / 1 | 1 / 1 | not run (no device sampler on hip) |
+
+HIP `inkling2`: with the default parallel test threads both trees fail a varying set of loads, the same way: branch 6 / 17 and main
+12 / 17 in W1a, branch 12 / 17 and main 6 / 17 in W2 (card 0 alone). Every failing load is `NoKernel` for `head_screen` /
+`logits_gather` / `screen_argmax`: the screened-head tests set `INTARSIA_INK_HEAD_SCREEN=1` process-wide (`load_screen`,
+tests/inkling2.rs:90) and other threads' loads race into it (HIP has no screen kernels; ink-hip-spec recorded the screened pair as
+failing by design and got 15 / 17). A harness race, the same on main; W3 runs both trees with `--test-threads=1`.
+
+## Fleet log (fleetq ids, radiance downtime, endor slots)
+
+| fleetq | host / kind | what | result |
+|---|---|---|---|
+| #12112 | endor `--load cpu` | `cargo check` core + models tests | ok |
+| #12120 | endor `--load cpu` | first build + run of the lane's tiny tests | seeded test failed on its own length assertion (a held-back text tail is one more `Token` event repeating the last id, on and off alike); fixed |
+| #12122 | endor `--load cpu` | cpu tiny gates (6 suites) + fixture law test | see section 2 |
+| #12124, #12132, #12142 | tatooine `--load cpu` | HIP builds (branch `br1`, main, branch tests `br2`) | ok |
+| #12129, #12141 | endor `--load cpu` | Metal CLI branch + main, Metal test binaries | ok |
+| #12136 | tatooine, radiance down | W1a (tiny suites hip + real-model law, arm on) | **aborted by me**: I released the job (meant to requeue it) seconds after it had started; fleetq stopped the local ssh, the remote window kept running without a slot; stopped in #12139 (`--load none`). Radiance down 14:43:37 to 14:45:58 (then held down by #12138, ink-hip-p12's own window): **2:21** on this lane's account |
+| #12139 | tatooine `--load none` | stop the orphaned W1a window | done; no ink-sampled process or container left |

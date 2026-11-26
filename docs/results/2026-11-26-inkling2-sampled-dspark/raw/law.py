@@ -48,28 +48,34 @@ def gammq(a, x):
 
 
 def chi2(a, b):
+    """2 x C homogeneity: tokens with pooled expected >= 5 in the smaller arm are cells; the rest go to 16 bins by id % 16 (a fixed
+    function of the token); bins still below 5 join one remainder cell. Same rule as tests/ink_sampled/mod.rs."""
     na, nb = sum(a.values()), sum(b.values())
     n = na + nb
-    stat, cells, pool = 0.0, 0, [0, 0]
-
-    def add(o):
-        nonlocal stat
+    small = lambda tot: tot * min(na, nb) / n < 5
+    cells, bins = [], [[0, 0] for _ in range(16)]
+    for k in set(a) | set(b):
+        o = (a.get(k, 0), b.get(k, 0))
+        if small(o[0] + o[1]):
+            bins[k % 16][0] += o[0]
+            bins[k % 16][1] += o[1]
+        else:
+            cells.append(o)
+    rest = [0, 0]
+    for bn in bins:
+        if small(bn[0] + bn[1]):
+            rest[0] += bn[0]
+            rest[1] += bn[1]
+        else:
+            cells.append(tuple(bn))
+    if rest[0] + rest[1]:
+        cells.append(tuple(rest))
+    stat = 0.0
+    for o in cells:
         tot = o[0] + o[1]
         e = (tot * na / n, tot * nb / n)
         stat += (o[0] - e[0]) ** 2 / e[0] + (o[1] - e[1]) ** 2 / e[1]
-
-    for k in set(a) | set(b):
-        o = (a.get(k, 0), b.get(k, 0))
-        if (o[0] + o[1]) * min(na, nb) / n < 5:
-            pool[0] += o[0]
-            pool[1] += o[1]
-            continue
-        add(o)
-        cells += 1
-    if pool[0] + pool[1] > 0:
-        add(pool)
-        cells += 1
-    df = max(cells - 1, 0)
+    df = max(len(cells) - 1, 0)
     return stat, df, (gammq(df / 2, stat / 2) if df else 1.0)
 
 

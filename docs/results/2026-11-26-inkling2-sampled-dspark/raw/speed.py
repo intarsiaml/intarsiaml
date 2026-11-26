@@ -25,7 +25,7 @@ def read(f):
     for line in f.read_text(errors="replace").splitlines():
         m = dec.match(line)
         if m:
-            rec["dec"][m.group(1)] = (int(m.group(2)) - 1, int(m.group(3)))
+            rec["dec"][m.group(1)] = (int(m.group(2)), int(m.group(3)))
         m = idl.match(line)
         if m:
             rec["ids"][m.group(1)] = m.group(2).strip()
@@ -98,6 +98,20 @@ for t, tl in [("1", "1.0"), ("07", "0.7")]:
         accs = f"{100 * acc / q:.1f} %" if q else "-"
         tpp = f"{(p + acc) / p:.2f}" if p else "-"
         print(f"| {tl} | {cls} | {sum(offs) / n:.2f} | {sum(ons) / n:.2f} | {math.exp(m):.3f} | {ci} | {n} | {accs} | {tpp} |")
+
+print("\nper prompt: on / off (geo mean over reps), acceptance, tokens per pass")
+for t, tl in [("1", "1.0"), ("07", "0.7")]:
+    for nm in [n for v in CLASSES.values() for n in v]:
+        lr = []
+        for r in reps:
+            a, b = data.get((f"off{t}", r)), data.get((f"on{t}", r))
+            if a and b and nm in a["dec"] and nm in b["dec"]:
+                lr.append(math.log(rate(b, [nm]) / rate(a, [nm])))
+        b = next((data[(f"on{t}", r)] for r in reps if (f"on{t}", r) in data), None)
+        sp = b["spec"].get(nm) if b else None
+        acc = f"{100 * sp[2] / sp[1]:.1f} %, {(sp[0] + sp[2]) / sp[0]:.2f}" if sp else "-"
+        if lr:
+            print(f"  T {tl} {nm:8s} {math.exp(sum(lr) / len(lr)):.3f} ({len(lr)} pairs) | {acc}")
 
 if mm:
     print("\nper process: GPU s above 65 W, mean GPU W (macmon, 250 ms samples), short / 1k / 4k tok/s")
