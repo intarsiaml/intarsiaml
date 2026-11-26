@@ -4,17 +4,24 @@ Branch `ink/hip`, base origin/main `072dd0863`. Goal: `intarsia generate --backe
 pass, then first decode / prefill tok/s. W4A16, one rank, plain decode. Not built tonight and refused by guards: batch, TP, MTP /
 DSpark, prefix store, W4A4.
 
-## Status
+## Status (2026-11-25 22:15 EST)
+
+**Inkling-2-Mini runs on one R9700 and passes G1 and G2.** Decode 62.5 tok/s short / 60.5 tok/s at 4k (55 % of the byte
+floor), prefill 4k 524-552 tok/s, all first numbers of the correctness forms, no speed work yet. Results in section 4, next
+steps in section 5.
 
 | Step | State |
 |---|---|
-| Port map + lane skeleton | done (this commit) |
-| Checkpoint on tatooine (`/data/models/intarsia/Inkling-2-Mini`, 20 GB; `/data` has 1.5 TB free) | copy running (fleetq, `--load net,disk`) |
-| Kernel packages A / B / C / R | open |
-| `kernels test`, G1, G2 | open |
-| Speed, rocprofv3 profile | open |
+| Port map + lane skeleton | done (`6c5ee5d67`) |
+| Checkpoint on tatooine (`/data/models/intarsia/Inkling-2-Mini`, 20 GB) | done (fleetq #11918) |
+| Kernel packages: mix `444ead518`, experts `29b71ac67`, attention `adc5b83a0`, router (lead) | merged |
+| `kernels test` for every admitted op | PASS (#11940) |
+| G1(a), G1(b) on the tiny fixture | PASS (#11943) |
+| G2 short / long, real model | PASS (#11943) |
+| Speed, rocprofv3 profile of a decode token | done (#11945, #11947) |
+| Refused / not built | batch, TP, MTP / DSpark, prefix store, W4A4, ops 75 / 76, P12, screened head, `ink_rows_exact` on hip |
 
-## 0. Coordinator brief, 2026-11-25 about 21:50 EST (supersedes section 2's staffing; kept here against context loss)
+## 0. Coordinator brief, 2026-11-25 about 21:30 EST (supersedes section 2's staffing; kept here against context loss)
 
 - Three kernel lanes run in parallel, each from origin/main `d8c3c7148` (includes #496); `ink/hip` is rebased onto it:
   - **ink-hip-attn** (`.worktrees/ink-hip-attn`, `ink/hip-attn`): 70, 71, 75.
@@ -140,13 +147,115 @@ S4 in-projection WMMA GEMM for T > 16; S5 unembed split under the 1 ms stall, P1
 ## 3. Decode byte floor on this card
 
 Port spec section g: 5.49 GB of weights per token (attention projections 2.58, experts 1.84, controllers + router 0.15,
-unembed 0.92), plus KV reads (+0.30 GB at 4k). The R9700's measured stream rate is to be re-measured in the first GPU window
-(the Neon review quotes 627 GB/s; not verified here). At 627 GB/s: 8.8 ms = 114 tok/s short, 9.2 ms = 108 tok/s at 4k.
+unembed 0.92), plus KV reads (+0.30 GB at 4k). At the R9700's 627 GB/s (the rate the HIP lanes use; the bf16 GEMVs measured
+below reach 92-96 % of it, so it is consistent with this card): **8.76 ms = 114 tok/s short, 9.23 ms = 108 tok/s at 4k.**
 
 ## 4. Results
 
-(open)
+Tree: `ink/hip` with the three lane branches merged. Tatooine, card 0 (`HIP_VISIBLE_DEVICES=0`), dev image ROCm 7.2.4,
+`deploy/tatooine/dev.sh`; scripts and logs in `2026-11-25-inkling2-hip/raw/` (`window.sh`, `run.sh`, `stage_*.sh`,
+`window*-<fleetq id>.log`, `downtime.log`).
+
+### 4.1 Gates
+
+| Gate | Result | Budget | Verdict |
+|---|---|---|---|
+| Admission, `intarsia kernels test --backend hip --op <op>` for attn_res_mix, loop_blend, sconv_res, conv_mix, ink_in_proj, ink_kv_prologue, rel_sink_attn, moe_experts, moe_experts_mxfp8, moe_route (#11940) | every kernel ADMITTED, 0 failing cases | the CUDA twins' tolerances | PASS |
+| G1(a) tiny f32 vs f64, G1(b) tiny bf16 teacher-forced (`cargo test -p intarsia-models --test inkling2`, `INTARSIA_INKLING2_BACKEND=hip`, #11943) | both pass | as on the other backends | PASS |
+| G2 short (`accuracy --backend hip --max-seq 4096 --mode prefill`, oracle W4A16 short, chunk 256, #11943) | KL21 2.566e-3, confident misses 0 / 363, top-1 98.95 % | KL21 <= 4e-3, misses <= 1 | PASS |
+| G2 long (oracle W4A16 long, 2 of 10 prompts span chunks) | KL21 3.251e-3, confident misses 0 / 1206, top-1 99.30 % | KL21 <= 6e-3, misses <= 2 | PASS |
+
+For comparison, CUDA's G2 at its first pass: short 2.376e-3, long 3.560e-3 (`2026-11-21-inkling2-cuda-mixmoe.md`).
+G3 (vLLM goldens) and the teacher-forced decode gate were not run.
+
+Tiny-fixture tests on HIP: 12 of 17 pass. The 5 that fail are features this port does not build, not kernel errors:
+
+| Test | Why it fails on HIP |
+|---|---|
+| `inkling2_tiny_screen_keeps_batching`, `inkling2_tiny_screened_head_one_row_only` | force the screened head (`HeadScreen` has no HIP kernel; the load refuses with `NoKernel`, as designed) |
+| `inkling2_tiny_chunked_and_decode_match_prefill_bitwise` | chunk 13 vs one 40-row pass: passes of 2..=16 rows are not marked `exact_rows` on hip (`ink_rows_exact` is metal / cuda), and the in-projection, wo and head take the WMMA GEMM above 16 / 4 rows, which is not bitwise the GEMV |
+| `inkling2_tiny_rollback_by_length`, `inkling2_tiny_verify_graph_replays_equal_decode_bitwise` | speculative verify / rollback (MTP, DSpark): not built on HIP |
+
+Turning `ink_rows_exact` on for hip is a core line that only hip sees; it belongs with the spec / batch work (section 5).
+
+### 4.2 Speed (first numbers, correctness forms)
+
+`intarsia generate`, greedy, `--spec off`, graphs on (the default; graph decode worked unchanged: 255 replays of 1 capture),
+256 tokens, two runs each, equal to 0.1 % (#11945).
+
+| | tok/s | ms / token | % of floor |
+|---|---|---|---|
+| decode, short (31-token prompt) | 62.5 | 16.0 | 55 % of 114 |
+| decode, 4k (4228-token prompt) | 60.5 | 16.5 | 56 % of 108 |
+
+| prefill, 4228 tokens | chunk 256 | 512 | 1024 | 2048 |
+|---|---|---|---|---|
+| tok/s | 524 | 546 | 552 | 547-553 |
+
+Prefill does not move with the chunk, so the recipe gets no `[tuning.hip]` yet (builtin 256).
+
+### 4.3 Where a decode token goes (rocprofv3 `--kernel-trace`, graph replay, last 8 steady steps, #11947)
+
+Under the profiler a step is 17.4 ms (57.6 tok/s) with 712 dispatches: 14.8 ms of kernel time and 2.6 ms idle between
+dispatches (3.6 us each). `raw/ktrace.py` makes the table from the trace csv.
+
+| Part | Kernels | Calls / token | ms / token | Byte floor ms | Note |
+|---|---|---|---|---|---|
+| Experts NVFP4 | `ink_moe_gu_kernel<0,..>` 2.82 + `ink_moe_dn_kernel<0,..>` 1.71 | 44 + 44 | 4.53 | 2.51 | 55 % of bandwidth: the largest gap (2.0 ms) |
+| In-projection | `in_proj_gemv_kernel<1>` | 48 | 3.32 | 3.05 | at the floor |
+| Idle between dispatches | | 712 | 2.56 | 0 | fusion: ops 75, 76, blend |
+| Unembed + router | `gemv_kernel<..float>` | 49 | 1.58 | 1.51 | at the floor |
+| ConvMix / AttnResMix | `ink_row_kernel<3>` | 124 | 1.39 | about 0 | 11.2 us per call for one 2304-wide row: latency |
+| wo | `gemv_kernel<..ik_bf16>` | 48 | 1.20 | 1.08 | at the floor |
+| Attention | `ink_prologue_k` 0.49 + `ink_attn_s1_k` 0.51 + `ink_attn_comb_k` 0.05 | 144 | 1.05 | about 0 (short) | three dispatches per visit |
+| Blend | `ink_ctl_gemv_kernel` 0.31 + gate 0.22 + norm 0.18 | 144 | 0.71 | 0.18 | |
+| Experts MXFP8 | gu 0.36 + dn 0.22 | 4 + 4 | 0.58 | 0.42 | |
+| Router top-k | `moe_route_kernel` | 48 | 0.38 | about 0 | |
+
+The dense GEMVs (in-projection, wo, unembed: 6.1 ms) are already at 92-96 % of bandwidth. What is left above the floor:
+experts 2.2 ms, dispatch gaps 2.6 ms, and 3.5 ms of latency-bound small kernels (row kernel, attention, blend, route).
+
+The in-engine trace (`INTARSIA_HIP_TRACE=1`, eager) ranks the same: experts 34 % + 4 %, in-projection 16 %, ConvMix 14 %,
+logits 9 %, wo 7 %; its >= 1 ms launches (the unembed) show the 261 us dispatch stall at p90.
+
+### 4.4 Where prefill goes (eager op table, 4228 tokens, chunk 256, 8.17 s)
+
+NVFP4 experts 70.5 %, `RelSinkAttn` 12.9 %, MXFP8 experts 7.3 %, ConvMix 2.7 %, prologue 2.3 %, in-projection 2.1 %, wo 0.9 %.
+The experts run the SIMT pair-table form (no tensor cores yet): 78 % of prefill.
+
+### 4.5 Shared-code changes and what shows they are safe
+
+- **No change in `intarsia-core`, CUDA or Metal.** Outside `crates/intarsia-backend-hip/`, `kernels/hip/` and `docs/`, the
+  branch touches one file: `crates/intarsia-models/tests/inkling2.rs` (the `hip` arm of the test backend selector, and the
+  HIP op-coverage assertion now reads `kernels::unimplemented(op)`).
+- **HIP, shared with the Qwen models:** the bf16 `Matmul` kernels (`matmul_bf16`, `matmul_bf16_gemv`, `_gemv_rows`) now refuse
+  an f32 output at selection. Their launchers write bf16 only (`check_mm`, `kernels/hip/matmul.hip`) and returned
+  `IK_ERR_DTYPE` for such a call; Inkling's router asks for it and now falls back to `Logits`, as on CUDA and Metal.
+  Selection check (host): `INTARSIA_HIP_SELECTION_DUMP=<file> cargo test -p intarsia-backend-hip --lib selection_dump`
+  before and after, 2646 shapes (rows 1..2048, 7 widths, 3 output counts, out none / bf16 / f32, ordinary and `exact_rows`):
+  441 lines differ, every one a `Matmul` with f32 output (kernel -> none); none for out none / bf16, none for `Logits`
+  (`raw/selection-matmul-f32.diff`). The pinned selection test's `Matmul` row moved to a bf16 output for the same reason.
+- `device.rs`: one new fall-through arm in `launch` (the lane modules), reached only by kernel names no other table lists.
+- Host checks: `cargo test -p intarsia-backend-hip` (32 + integration tests pass), `cargo test -p intarsia-models --test
+  inkling2` (17 pass on cpu), `docs_env_vars`, `recipes_doc`, `INTARSIA_HIP_CHECK_ONLY=1 cargo check`.
+
+### 4.6 Radiance downtime
+
+Five lead windows, 21:37-22:00 EST, 17 s to 3 min each, about 6 min in total; radiance answered `/v1/models` after every one
+(`raw/downtime.log`). The lanes' own unit windows are in their docs.
 
 ## 5. Next steps
 
-(open)
+Speed round (lanes, started 22:10 EST), ordered by the split above:
+1. **Experts** (ink-hip-moe): NVFP4 decode gu / dn toward bandwidth (up to -2.0 ms: 62 -> about 71 tok/s); then WMMA prefill
+   experts from `moe_wmma_r7.h` with the SiTU epilogue (prefill is 78 % experts).
+2. **Attention** (ink-hip-attn): fused `InkAttnDecode` (op 75): one dispatch per visit instead of three; then a flash prefill
+   kernel with the rel bias (13 % of prefill now, the next bound once the experts are on tensor cores).
+3. **Mix** (ink-hip-mix): fused `InkRoute` (op 76); blend in fewer launches; row-kernel latency.
+4. **Lead**: when op 75 / 76 are admitted, the backend-name rules in `model/inkling2.rs` (`ink_attn_fused` rule,
+   `ink_route_fused_env` default) get `hip`; that is a core change only hip sees, to be shown with the cpu / Metal tests
+   unchanged. Then re-run G2, the decode profile and the chunk sweep, and set `[tuning.hip] prefill_chunk` from it.
+5. Unembed: 1.4 ms in one launch crosses the R9700's 1 ms dispatch stall (261 us at p90 in the trace); split it in two
+   pieces, or port P12 / the screened head.
+6. Not started: `ink_rows_exact` on hip (needed for chunk-invariant bits, spec verify, batch), row-table kernels (batch),
+   DSpark / MTP, G3 against the vLLM goldens, the teacher-forced decode gate, localeval comparison against other engines.
