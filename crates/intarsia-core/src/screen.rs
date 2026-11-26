@@ -151,7 +151,10 @@ pub const ENV: &str = "INTARSIA_INK_HEAD_SCREEN";
 pub const VERIFY_ENV: &str = "INTARSIA_INK_VERIFY_SCREEN";
 
 /// What an unset [`VERIFY_ENV`] means.
-pub const VERIFY_DEFAULT_ON: bool = true;
+///
+/// Off: bitwise, but not faster than noise on Metal (docs/results/2026-11-25-inkling2-verify.md, gate 3). The default `INTARSIA_INK_VERIFY_SCREEN`
+/// unset therefore runs verify groups on the full head as before this lane.
+pub const VERIFY_DEFAULT_ON: bool = false;
 
 /// Run-time override of [`VERIFY_ENV`] for A/B runs inside one process: 0 = the variable, 1 = off, 2 = on.
 static VERIFY_OVERRIDE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);

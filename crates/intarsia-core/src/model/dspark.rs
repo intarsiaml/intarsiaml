@@ -153,7 +153,8 @@ pub(super) fn set_attn_rows_override(v: Option<bool>) {
     );
 }
 
-/// What an unset `INTARSIA_DSPARK_ATTN_ROWS` means.
+/// What an unset `INTARSIA_DSPARK_ATTN_ROWS` means. Off: bitwise, but not faster than noise on Metal
+/// (docs/results/2026-11-25-inkling2-verify.md, gate 3).
 const ATTN_ROWS_DEFAULT_ON: bool = false;
 
 /// Where a DSpark ingest reads its taps: one pass's staging buffer (tap-major, `Model::ink_pass`) or a sequence's stash of

@@ -886,6 +886,15 @@ fn inkling2_tiny_screened_verify_head_equals_full_head() {
     let mut m = load_screen(&dir, chunk(), "1");
     m.enable_verify(16).unwrap();
     assert!(m.head_screen_stats().is_some(), "INTARSIA_INK_HEAD_SCREEN=1 loads the screen on the tiny model");
+    // the verify screen is opt-in (`INTARSIA_INK_VERIFY_SCREEN`, off unless set): ask for it for this test
+    intarsia_core::screen::set_verify_override(Some(true));
+    struct Restore;
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            intarsia_core::screen::set_verify_override(None);
+        }
+    }
+    let _restore = Restore;
     let ids = prompt(&dir);
     let run = |m: &Model, p: usize, r: usize| -> Vec<u32> {
         let mut st = m.new_state().unwrap();
