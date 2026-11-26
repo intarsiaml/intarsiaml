@@ -75,6 +75,11 @@ while IFS=';' read -r name bin sargs largs; do
   ai=$((ai + 1))
   largs=$act
   case "$largs" in
+    wait:*)  # wait:<file on tatooine>:<max s>: wait (at most max s) until the background stage writes the file (e.g. a binary's
+             # admission primed on card 1, so the next visit's server finds it cached)
+      wf=${largs#wait:}; wmax=${wf##*:}; wf=${wf%:*}; largs=none
+      ssh -o BatchMode=yes "$T" "for i in \$(seq 1 $wmax); do [ -e $wf ] && exit 0; sleep 1; done; exit 1" < /dev/null
+      say "$name: wait $wf exit $? ($(left) s left)" ;;
     real:*)  # real:<N,N,..>:<reps>: N of the 16 real prompts at once (serve_bitwise.py conc:N:OFF), rep by rep while time lasts;
              # rep 1 plain (its replies compare with the solo server's), later reps with a nonce in front; levels file for itl_seg.py
       spec=${largs#real:}; lv=${spec%%:*}; rest=${spec#*:}; nr=${rest%%:*}; rtag=""; [[ "$rest" == *:* ]] && rtag=${rest#*:}; largs=none

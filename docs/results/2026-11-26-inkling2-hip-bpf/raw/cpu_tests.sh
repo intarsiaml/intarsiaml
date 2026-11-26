@@ -15,6 +15,7 @@ for g in $groups; do
     hiplib) cmd="cargo test --release -j8 -p intarsia-backend-hip --lib -- inkling2 segment" ;;
     cpulib) cmd="cargo test --release -j8 -p intarsia-backend-cpu" ;;
     models) cmd="cargo test --release -j8 -p intarsia-models --test inkling2_packed --test inkling2_batch --test inkling2" ;;
+    sched) cmd="cargo test --release -j8 -p intarsia-core --test scheduler" ;;
     packed) cmd="cargo test --release -j8 -p intarsia-models --test inkling2_packed -- --nocapture" ;;
     *) cmd="cargo test --release -j8 -p intarsia-models --test $g" ;;
   esac

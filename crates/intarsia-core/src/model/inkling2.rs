@@ -134,10 +134,14 @@ pub(crate) fn ink_pack_on() -> bool {
     })
 }
 
-/// `INTARSIA_INK_PACK_ROWS` (lane ink-hip-bpf): rows of the Inkling-2 workspace of a model loaded for packed prefill, when above
-/// the prefill chunk (more VRAM: ~0.28 MB per row on Inkling-2-Mini); unset or 0: the chunk's. Read at load.
+/// The packed-prefill workspace rows when `INTARSIA_INK_PACK_ROWS` is unset (lane ink-hip-bpf); 0: the prefill chunk's.
+pub(crate) const INK_PACK_ROWS_DEFAULT: usize = 0;
+
+/// `INTARSIA_INK_PACK_ROWS` (lane ink-hip-bpf): rows of the Inkling-2 workspace of a model loaded to batch with packed prefill on,
+/// when above the prefill chunk (more VRAM: ~0.28 MB per row on Inkling-2-Mini); `0`: the chunk's; unset:
+/// [`INK_PACK_ROWS_DEFAULT`]. Read at load.
 pub(crate) fn ink_pack_rows_env() -> usize {
-    std::env::var("INTARSIA_INK_PACK_ROWS").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(0)
+    std::env::var("INTARSIA_INK_PACK_ROWS").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(INK_PACK_ROWS_DEFAULT)
 }
 
 /// Whether an Inkling-2 pass of `t` rows runs under `exact_rows` (the row-exact kernels): on Metal, CUDA and HIP for 2..=16 rows (the

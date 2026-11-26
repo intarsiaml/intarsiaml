@@ -87,6 +87,21 @@ Radiance: 8 windows, **25:42** down in total (the longest 4:38), restored within
   kv-fraction (say whether it fits); otherwise opt-in. Either way update the PR body (table, gates, decision and why), push, report;
   do not merge. Lane ink-hip-verify may also queue a short window; fleetq orders them. Prefill overlap is out of scope (follow-up).
 
+- 2026-11-26 ~18:30 EST (coordinator, brief 3; in substance): the user said "build the prefill overlap too". Start only after brief 2
+  (b11 window, default decision, #538 update and report). Goal: cut ITL p99 at 8 / 16 streams (0.59-0.65 s today) with every stream
+  bitwise its solo run (R3d). Branch `ink/hip-overlap` from the `ink/hip-bpf` head in `.worktrees/ink-hip-overlap`, rebased onto main
+  once #538 merges; the only writer in scheduler.rs, engine/batch.rs, model/inkling2.rs. Step 0: a design note picking one mechanism:
+  (a) concurrent HIP streams (preferred: batched decode on a second stream while a prefill chunk runs; per-stream scratch and
+  workspaces incl. static/global scratch in kernel TUs, an event sync at the prefill-to-decode handoff, no shared mutable host state);
+  (b) chunk-length-invariant prefill (per-op dumps 2048 vs 512 / 256 first; costs prefill throughput; only if (a) is blocked or cheap);
+  (c) a literal mixed pass, only if (a) and (b) are blocked, every row-count-chosen form proven by dumps. Scope guard: gate it to
+  Inkling-2 on HIP; the 35B HIP serve path byte-for-byte unchanged; add `crates/intarsia-core/tests/scheduler.rs` to the gates.
+  Gates: (1) 16 real prompts 16/16 at 4 / 8 / 16 with overlap on, plus a NaN-poisoned-scratch run; (2) solo md5 and solo server =
+  main, G2 unchanged; (3) hip tiny `inkling2_batch`, `inkling2_packed`, `intarsia-core` incl. tests/scheduler.rs, admission of
+  touched ops; (4) speed paired vs main's batching server with the packing config: ITL p99 at 8 and 16 >= 30 % lower beyond the
+  spread, aggregate and TTFT p50 no more than 1 % worse at 1 / 4 / 8 / 16; report ITL p50 / p99, TTFT p50 / p95, aggregate, filler and
+  real; (5) default-on with `--max-batch` if 1-4 pass, else opt-in. Radiance cap 30 min total, each window < 5 min. Own PR, no merge.
+
 ## 0. Prior work (step 0)
 
 `git log --all -i --grep` over pack / packed prefill / pack_min_rows / pack_rows, the `ink/*` and `lane-*` branches, and the results docs:

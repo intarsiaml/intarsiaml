@@ -1842,8 +1842,13 @@ impl Model {
         // pass of `macro_rows` (+ the merged tail)
         let mt = chunk.max(macro_rows) + tail_merge;
         // Inkling-2 packed prefill (lane ink-hip-bpf, `INTARSIA_INK_PACK_ROWS`): a larger workspace for packed passes only; the
-        // prefill chunk stays the recipe's (`base_chunk` below)
-        let ink_grow = if dims.ink.is_some() && inkling2::ink_pack_on() { inkling2::ink_pack_rows_env().min(opts.max_seq) } else { 0 };
+        // prefill chunk stays the recipe's (`base_chunk` below). Only a model loaded to batch, on a backend with the segment-table
+        // ConvMix (HIP, cpu; `Model::ink_pack_capable`): a solo load, or Metal / CUDA, keeps its workspace whatever the knobs say
+        let ink_grow = if dims.ink.is_some() && opts.batched && matches!(b.name(), "hip" | "cpu") && inkling2::ink_pack_on() {
+            inkling2::ink_pack_rows_env().min(opts.max_seq)
+        } else {
+            0
+        };
         let mt_plain = mt;
         let mt = mt.max(ink_grow);
         let esz = act.size_bytes();

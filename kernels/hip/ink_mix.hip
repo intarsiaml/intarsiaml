@@ -830,7 +830,7 @@ int row_threads(int D, int* ne) {
 }  // namespace
 // The two switches are shared by this TU and ink_mix_rows.hip's (lane ink-hip-batch): one definition here, so ik_ink_mix_mode /
 // ik_ink_mix_dec set them for the solo and the row-table launches alike (each TU had its own copy before, and the setters reached only this one).
-// ink_mix_segs.hip's TU (lane ink-hip-bpf, packed prefill) reads the same two.
+// ink_mix_segs.hip's TU (lane ink-hip-bpf, packed prefill) reads the same switches.
 namespace ik_inkmix {
 #if defined(IK_INK_MIX_ROWS_TU) || defined(IK_INK_MIX_SEGS_TU)
 extern int g_mix_mask;
