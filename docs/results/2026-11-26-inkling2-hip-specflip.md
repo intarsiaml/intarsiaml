@@ -693,3 +693,21 @@ two default-path prefill cells) with a 95 % CI upper bound below 0.99. A miss: S
 Order: M1 first; a bitwise difference stops before M2. If M1 voids (e.g. b16 not up in time), M2 still runs and the void part is reported
 unverified (no third window).
 
+**Coordinator, 02:14 EST 11-27 (as written):**
+
+> Coordinator 02:14 EST. Main7 plan approved as written: M1 bitwise + serve, M2 speed ABBA n=4, and your gated cells. The deviation (3 short prompts, prose/chat/code dropped) is fine for a regression check. Say it in the doc.
+>
+> One change: run the 100 seeds on the DEFAULT path, with no explicit spec flags, the same as a user request. New main's default is what we're verifying, so don't lean on WA1b's equivalence. If that costs extra time, keep GA2's path and say so.
+>
+> #542 state at 02:13: 5 of 6 checks are green, and only `cargo test (linux)` is still running. My watcher merges it the moment that check passes. I'll message you the merge SHA. Keep your poll as a backup. Write this message into the results doc.
+
+**Amendment to the main7 pre-registration (02:17, before queuing):**
+- M1 item 3 runs on the **default path**: the seed harness with `INTARSIA_SS_DEFAULT=1` (no spec flags: `EngineOptions::spec_auto`,
+  as the CLI sets it when no `--spec` is given; the recipe's DSpark default, sampled requests drafting by `sampled_dflash`). Arms: off =
+  `INTARSIA_SPEC_SAMPLED_DFLASH=0` (sampled requests plain), def = unset. A def run without the `DSpark default` load line is void. No
+  extra time.
+- main7 has no default-path mode in its harness (it came with this branch), so main7's seed-harness exe is built from main7's tree with
+  this branch's `crates/intarsia-models/tests/inkling2_sampled_real.rs` (test-only: the default mode, plus per-request timing and free
+  memory on stderr). The `main7` CLI binary is built from main7's tree as is (cargo does not compile test files into it).
+- The short-prompt deviation (3 prompts; no prose / chat / code cells) is fine for a regression check (coordinator 02:14).
+

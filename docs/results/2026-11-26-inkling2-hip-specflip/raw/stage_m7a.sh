@@ -3,7 +3,7 @@
 #   card 0: `serve` main7 solo (no spec flags: the default), started first and alone (cold admission, up to 240 s); its 16 replies one at a
 #           time (serve_bitwise.py solo, SB_FIT=1) once it answers.
 #   card 1: greedy md5.json 256 tokens --ignore-eos: --spec off and the default; the default at 64 tokens (vs the first 64 ids of off);
-#           100 seeds at T 1.0 (24 tokens; the seed harness of main7, --spec dflash with the checkpoint's DSpark draft, k5 = GA2's path):
+#           100 seeds at T 1.0 (24 tokens) on the default path (INTARSIA_SS_DEFAULT=1, no spec flags; coordinator 02:14):
 #           INTARSIA_SPEC_SAMPLED_DFLASH=0 (off) vs unset (the recipe's sampled default). Then, once solo answers: `serve --max-batch 16`
 #           main7 (cold admission), its 16 replies at once; b16 vs solo (serve_bitwise.py compare).
 set -uo pipefail
@@ -43,14 +43,15 @@ md5() {  # name tokens extra
   rc 1 $B generate -m $M --backend hip --max-seq 8192 --profile-every 0 --show-ids --ignore-eos --max-tokens $2 --prompt-ids /work/.scratch/prompts/md5.json $3 > "$f.out" 2> "$f.err"
   echo "[m7a c1] md5 $1 rc $? t+$(el)s $(cat "$f.out" "$f.err" | grep -a '^ids\[' | md5sum | cut -c1-32) | $(grep -aE '^decode overall|^spec: verify|DSpark default' "$f.err" | tr '\n' ' ' | cut -c1-300)"
 }
-seeds() {  # arm off | def
-  local f=$OUT/seeds-$1 e=""
+seeds() {  # arm off | def; the DEFAULT path (coordinator 02:14): INTARSIA_SS_DEFAULT=1, no spec flags
+  local f=$OUT/seeds-$1 e="INTARSIA_SS_DEFAULT=1"
   rm -f "$f.txt"
-  [ $1 = off ] && e="INTARSIA_SPEC_SAMPLED_DFLASH=0"
+  [ $1 = off ] && e="$e INTARSIA_SPEC_SAMPLED_DFLASH=0"
   rc 1 env $e INTARSIA_TEST_REAL_MODEL=1 INTARSIA_INK_MODEL=$M INTARSIA_INKLING2_BACKEND=hip INTARSIA_SS_SEEDS=0..100 INTARSIA_SS_TEMPS=1.0 \
-    INTARSIA_SS_TOKENS=24 INTARSIA_SS_K=5 INTARSIA_SS_BUDGET_S=75 INTARSIA_SS_OUT=/work/logs/m7a-$BR/seeds-$1.txt \
+    INTARSIA_SS_TOKENS=24 INTARSIA_SS_BUDGET_S=75 INTARSIA_SS_OUT=/work/logs/m7a-$BR/seeds-$1.txt \
     /work/.scratch/bin/t-$BR-inkling2_sampled_real --nocapture > "$f.log" 2>&1
-  echo "[m7a c1] seeds $1 rc $? t+$(el)s lines $(wc -l < "$f.txt" 2>/dev/null) | $(grep -aE 'DFlash-family drafting|draft length per request|requests in' "$f.log" | tr '\n' ' ' | cut -c1-300)"
+  echo "[m7a c1] seeds $1 rc $? t+$(el)s lines $(wc -l < "$f.txt" 2>/dev/null) | $(grep -aE 'DSpark default|DFlash-family drafting|draft length per request|requests in' "$f.log" | tr '\n' ' ' | cut -c1-400)"
+  grep -aq 'DSpark default' "$f.log" || echo "[m7a c1] seeds $1: VOID (no DSpark default line: the recipe default did not apply)"
 }
 start 0 solo
 ( md5 off 256 "--spec off"; md5 def 256 ""; md5 def64 64 ""; seeds off; seeds def ) > "$OUT/c1.log" 2>&1 &
