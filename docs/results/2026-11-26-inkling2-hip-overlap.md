@@ -46,6 +46,42 @@ In substance, every rule kept:
 
 Later go-aheads from the coordinator are written below as they arrive.
 
+### Step 1: S3's three stalls are in the client path (endor, Wi-Fi, Tailscale), not in the engine (Mac only, 23:36-23:50)
+
+Scripts and outputs in `raw/`: `stalls.py` (multi-stream gap events vs arrivals, first tokens, prefill spans), `steps.py` (the decode
+step timeline), `srvitl.py` (the server's own ITL / step histograms per real level, from the 0.2 s poll), `coalesce.py`;
+`stall-s3-B8.txt`, `stall-server-itl.txt`, `stall-coalesce.txt`.
+
+1. **The server never saw the stalls.** `intarsia_batch_itl_seconds` is recorded in `scheduler.rs` `token_done` at each token's
+   emission (one `now` per decode step), before `on_token` hands it to the HTTP stream. Over S3 B's 8-stream level it has **0 of
+   1016 gaps above 0.25 s** (buckets: <=20 ms 30, <=35 ms 817, <=100 ms 11, <=150 ms 108, <=250 ms 50), while the client saw 19 gaps
+   of 0.34-0.41 s. The same holds for B at 8 and 16 streams in S1, S2 and S3 (server ITL p99 in the 150-250 ms bucket every time);
+   A's 0.5-0.66 s chunk waits do show in the server histogram ((0.25, 1] s: 30-48 at 8 streams).
+2. **Each stall is a "late pair".** The stalled token arrives 0.04-2 ms before the next one, in every decoding stream at the same
+   instant (S3 B: 5, 6, 7 streams at 1.73, 2.71, 3.74 s into the run; gaps 0.368 / 0.344 / 0.410 s, each followed by 0.002 / 4e-5 /
+   0.001 s). A decode step takes at least ~10 ms (the histogram's smallest bucket), so two tokens of one request 2 ms apart cannot
+   both come from the scheduler at those times: the first was held after emission and delivered with the second.
+3. **Not overlap-specific.** S3 A (main5, no overlap) has the same signature (one 7-stream late pair of 0.31 s), and so has O3's N3
+   (b13, no overlap: 15 late pairs at 16 streams). No other S1 / S2 visit has one.
+4. **Only the Mac client shows it.** Card 0's real prompts are sent by `serve_bitwise.py` on endor; card 1's (S1 poison, S3 pace
+   arms, S4) by the same script on tatooine. Gaps under 5 ms: **2-28 % of all gaps in every endor-client run** (O1-O4, S1-S3, A and
+   B), **0 in every tatooine-client run** (O2 poison, S1 card 1, S3 card 1, S4), and 0 late pairs there. Card 1's o4 pace-150
+   server (B's binary and config) ran its 16 real prompts at 21:31:31-21:31:47, the seconds of card 0's three stalls: its local
+   client saw 0 late pairs, 0 gaps under 5 ms, max gap 0.37 s (the ordinary step beside a chunk).
+5. **What differs on endor.** endor reaches tatooine through Tailscale (`utun4`, direct over the LAN) on Wi-Fi (`en0`); a ping now
+   (endor running two cpu jobs) is 2.8-76 ms. S3 ran inside the exclusive Metal slot #12360 (ink-sampled-adapt, seeds / calibration /
+   speed, 21:17:04-21:42:55) and O3 beside cpu tests #12306 / #12308; S1 ran with endor idle. S2 also fell in #12360 and O4 beside
+   cpu tests #12330 without a late pair, so the load raises the chance; it does not cause one every time.
+6. Smaller versions: S1 B's single 0.375 s gap (one stream, 4.39 s in) and S2 B's 0.293 s are absent from the server histogram too.
+   Nothing in the engine lines up with the three events: they fall mid-pass (passes end at 1.60, 2.24, 3.58, 5.02 s), no arrival or
+   admission is near them (all 8 arrive within 2 ms at t = 0), and the steps on either side are ordinary (0.11-0.16 s beside a chunk).
+
+**Hypothesis.** S3's 8-stream ITL p99 for B (0.368 s, ratio 0.627, the one window that broke the interval) is client-path
+delay on endor (Wi-Fi + Tailscale + a loaded laptop), not the overlap; the engine's tail at 8 streams is the 150-250 ms bucket in
+all three windows. **Test.** Run the real prompts with the client on tatooine (the script and prompts unchanged, as the card-1 stages
+do) for both arms: the gaps under 5 ms must drop to 0 and the 8-stream B tail must match the server histogram. Recorded before
+any GPU run: 2026-11-26 23:50 EST. No engine instrumentation is needed: the server histogram plus the client's gaps decide it.
+
 ## Result (2026-11-26 ~21:45): overlap works and is bitwise, but gate 4 fails at 8 streams, so it ships opt-in
 
 Speed, gate 4's paired windows S1 (AB), S2 (BA), S3 (AB): A = main5 (main a4c8f3b19, #538 packing on), B = o4 (overlap on, pace

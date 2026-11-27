@@ -1,0 +1,69 @@
+o1/N1-bitwise-conc.json                            gaps  1927  <5 ms   98 ( 5.1 %)  late pairs  15
+o1/N1-bitwise-conc_8_0.json                        gaps   964  <5 ms   77 ( 8.0 %)  late pairs   0
+o1/N1-bitwise-conc_8_1.json                        gaps   963  <5 ms   76 ( 7.9 %)  late pairs   0
+o1/X1-bitwise-conc.json                            gaps  1927  <5 ms  139 ( 7.2 %)  late pairs   3
+o1/X1-bitwise-conc_8_0.json                        gaps   964  <5 ms  251 (26.0 %)  late pairs  35
+o1/X1-bitwise-conc_8_1.json                        gaps   963  <5 ms   64 ( 6.6 %)  late pairs   0
+o1/X2-bitwise-conc.json                            gaps  1927  <5 ms   60 ( 3.1 %)  late pairs  11
+o1/X2-bitwise-conc_8_0.json                        gaps   964  <5 ms   85 ( 8.8 %)  late pairs   0
+o2/N2-bitwise-conc.json                            gaps  1927  <5 ms   33 ( 1.7 %)  late pairs   0
+o2/N2-bitwise-conc_8_0.json                        gaps   964  <5 ms   91 ( 9.4 %)  late pairs   7
+o2/P0-bitwise-conc.json                            gaps  1927  <5 ms  538 (27.9 %)  late pairs 137
+o2/P0-bitwise-conc_8_0.json                        gaps   964  <5 ms   78 ( 8.1 %)  late pairs   7
+o2/P3-bitwise-conc.json                            gaps  1927  <5 ms   83 ( 4.3 %)  late pairs  15
+o2/P3-bitwise-conc_8_0.json                        gaps   964  <5 ms   77 ( 8.0 %)  late pairs   0
+o2/poison-bitwise-conc.json                        gaps  1927  <5 ms    0 ( 0.0 %)  late pairs   0
+o2/poison-bitwise-conc_4_0.json                    gaps   480  <5 ms    0 ( 0.0 %)  late pairs   0
+o2/poison-bitwise-conc_4_1.json                    gaps   485  <5 ms    0 ( 0.0 %)  late pairs   0
+o2/poison-bitwise-conc_4_2.json                    gaps   484  <5 ms    0 ( 0.0 %)  late pairs   0
+o2/poison-bitwise-conc_4_3.json                    gaps   478  <5 ms    0 ( 0.0 %)  late pairs   0
+o3/N3-bitwise-conc.json                            gaps  1927  <5 ms  109 ( 5.7 %)  late pairs  15
+o3/N3-bitwise-conc_8_0.json                        gaps   964  <5 ms  129 (13.4 %)  late pairs   0
+o3/Y0-bitwise-conc.json                            gaps  1927  <5 ms   90 ( 4.7 %)  late pairs   0
+o3/Y0-bitwise-conc_8_0.json                        gaps   964  <5 ms  134 (13.9 %)  late pairs   0
+o3/Y1-bitwise-conc.json                            gaps  1927  <5 ms  124 ( 6.4 %)  late pairs   0
+o3/Y1-bitwise-conc_8_0.json                        gaps   964  <5 ms  101 (10.5 %)  late pairs   0
+o3/Y2-bitwise-conc.json                            gaps  1927  <5 ms  126 ( 6.5 %)  late pairs   0
+o3/Y2-bitwise-conc_8_0.json                        gaps   964  <5 ms  126 (13.1 %)  late pairs   0
+o4/G4-bitwise-conc.json                            gaps  1927  <5 ms   47 ( 2.4 %)  late pairs   0
+o4/G4-bitwise-conc_4_0.json                        gaps   480  <5 ms   40 ( 8.3 %)  late pairs   0
+o4/G4-bitwise-conc_4_1.json                        gaps   485  <5 ms   42 ( 8.7 %)  late pairs   0
+o4/G4-bitwise-conc_4_2.json                        gaps   484  <5 ms   39 ( 8.1 %)  late pairs   0
+o4/G4-bitwise-conc_4_3.json                        gaps   478  <5 ms   49 (10.3 %)  late pairs   0
+o4/G4-bitwise-conc_8_0.json                        gaps   964  <5 ms   69 ( 7.2 %)  late pairs   0
+o4/G4-bitwise-conc_8_1.json                        gaps   963  <5 ms   52 ( 5.4 %)  late pairs   0
+s1/A-reals1-r1-n16.json                            gaps  1940  <5 ms   94 ( 4.8 %)  late pairs   0
+s1/A-reals1-r1-n4.json                             gaps   481  <5 ms   54 (11.2 %)  late pairs   0
+s1/A-reals1-r1-n8.json                             gaps   973  <5 ms   84 ( 8.6 %)  late pairs   0
+s1/B-reals1-r1-n16.json                            gaps  1940  <5 ms   63 ( 3.2 %)  late pairs   0
+s1/B-reals1-r1-n4.json                             gaps   481  <5 ms   48 (10.0 %)  late pairs   0
+s1/B-reals1-r1-n8.json                             gaps   973  <5 ms   78 ( 8.0 %)  late pairs   0
+s2/A-reals2-r1-n16.json                            gaps  1936  <5 ms  126 ( 6.5 %)  late pairs   0
+s2/A-reals2-r1-n4.json                             gaps   484  <5 ms   57 (11.8 %)  late pairs   0
+s2/A-reals2-r1-n8.json                             gaps   964  <5 ms   68 ( 7.1 %)  late pairs   0
+s2/B-reals2-r1-n16.json                            gaps  1936  <5 ms   59 ( 3.0 %)  late pairs   0
+s2/B-reals2-r1-n4.json                             gaps   484  <5 ms   46 ( 9.5 %)  late pairs   0
+s2/B-reals2-r1-n8.json                             gaps   964  <5 ms   66 ( 6.8 %)  late pairs   0
+s3/A-reals3-r1-n16.json                            gaps  1941  <5 ms   59 ( 3.0 %)  late pairs   0
+s3/A-reals3-r1-n4.json                             gaps   487  <5 ms   44 ( 9.0 %)  late pairs   0
+s3/A-reals3-r1-n8.json                             gaps   974  <5 ms   69 ( 7.1 %)  late pairs   7
+s3/B-reals3-r1-n16.json                            gaps  1941  <5 ms   35 ( 1.8 %)  late pairs   0
+s3/B-reals3-r1-n4.json                             gaps   487  <5 ms   41 ( 8.4 %)  late pairs   0
+s3/B-reals3-r1-n8.json                             gaps   974  <5 ms  100 (10.3 %)  late pairs  19
+s1/card1/poison-o4-bitwise-conc.json               gaps  1927  <5 ms    0 ( 0.0 %)  late pairs   0
+s1/card1/poison-o4-bitwise-conc_4_0.json           gaps   480  <5 ms    0 ( 0.0 %)  late pairs   0
+s1/card1/poison-o4-bitwise-conc_4_1.json           gaps   485  <5 ms    0 ( 0.0 %)  late pairs   0
+s1/card1/poison-o4-bitwise-conc_4_2.json           gaps   484  <5 ms    0 ( 0.0 %)  late pairs   0
+s1/card1/poison-o4-bitwise-conc_4_3.json           gaps   478  <5 ms    0 ( 0.0 %)  late pairs   0
+s3/card1/pace-m-bitwise-conc.json                  gaps  1927  <5 ms    0 ( 0.0 %)  late pairs   0
+s3/card1/pace-m-bitwise-conc_8_0.json              gaps   964  <5 ms    0 ( 0.0 %)  late pairs   0
+s3/card1/pace-p0-bitwise-conc.json                 gaps  1927  <5 ms    0 ( 0.0 %)  late pairs   0
+s3/card1/pace-p0-bitwise-conc_8_0.json             gaps   964  <5 ms    0 ( 0.0 %)  late pairs   0
+s3/card1/pace-p150-bitwise-conc.json               gaps  1927  <5 ms    0 ( 0.0 %)  late pairs   0
+s3/card1/pace-p150-bitwise-conc_8_0.json           gaps   964  <5 ms    0 ( 0.0 %)  late pairs   0
+s3/card1/pace-p300-bitwise-conc.json               gaps  1927  <5 ms    0 ( 0.0 %)  late pairs   0
+s3/card1/pace-p300-bitwise-conc_8_0.json           gaps   964  <5 ms    0 ( 0.0 %)  late pairs   0
+s4/card/def-o5-bitwise-conc.json                   gaps  1927  <5 ms    0 ( 0.0 %)  late pairs   0
+s4/card/def-o5-bitwise-conc_8_0.json               gaps   964  <5 ms    0 ( 0.0 %)  late pairs   0
+s4/card/off-o5-bitwise-conc.json                   gaps  1927  <5 ms    0 ( 0.0 %)  late pairs   0
+s4/card/off-o5-bitwise-conc_8_0.json               gaps   964  <5 ms    0 ( 0.0 %)  late pairs   0
