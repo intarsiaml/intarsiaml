@@ -50,6 +50,31 @@ Work folders: Mac `.worktrees/ink-dflash2`; tatooine `~/intarsiaml-ink-dflash2`,
 - Sanity: if greedy acceptance on code comes out under ~3 tokens per pass, suspect a tap or mask bug before
   concluding anything.
 
+## Measurement plan (pre-registered with the rule, before any GPU run)
+
+- **Prompts** (`raw/speed.json`, md5 `7763e4744bb4abcfef7a19552708b9cf`; rebuilt because the canonical file lived in
+  `~/intarsiaml-ink-hip-verify`, removed by #12258; the ink-sampled copy is a 6-prompt cut): 0 warm-up (excluded), 1-12 the 12
+  greedy golden prompts (`golden/inkling2-mini-vllm-greedy.json`, checked equal), 13 / 14 / 15 the 1021 / 4108 / 16455-id prompts
+  (ink-spec-k `longp.json`), 16-17 `long_prose_300` / `long_prose_700` (ink-spec-k `prose.json`), 18 `code_tests` (ink-spec-k
+  `code.json`). 256 tokens, greedy, EOS honoured.
+- **Cells** (`speed.py` classes): short = 1-12, 1k = 13, 4k = 14, 16k = 15, prose = 16-17, chat = 5-12 (the 8 `chat_*` golden
+  prompts). The rule's cells are these six. Code = 3 + 18 is reported as an extra cell (not in the rule).
+- **Arms, same binary and card 0:** DSpark = no `--spec` flags (the recipe default, DSpark k5, cut 0.5); DFlash2 = `--spec dflash
+  --spec-draft /models/Inkling-2-Mini-DFlash2 --spec-k K` with K chosen as below. ABBA 4 + 4 (two windows of A B B A / B A A B),
+  ratio DFlash2 / DSpark per (prompt, rep), geometric mean per cell, 95 % CI = t-interval over the 4 rep pairs (lane
+  ink-hip-verify's `speed.py`). Prefill 4k / 16k from the same processes.
+- **k choice (deviation from "best single k", the window budget does not hold a k 4..7 sweep next to ABBA 4 + 4):** window 1 traces
+  DFlash2 k7 (`INTARSIA_SPEC_TRACE=1`: accepted per pass, draft ms, verify ms) and the default; the predicted best k is the one
+  maximising mean(min(accepted, k) + 1) / (draft ms + verify ms(k + 1 rows)) over the traced passes, verify ms per row count from the
+  DSpark trace (2..6 rows) and the DFlash2 trace (8 rows), 7 rows interpolated. ABBA runs that k only. A k sweep runs only if a
+  window is left.
+- **Gates:** greedy ids (`raw/md5.json`: golden `code`, 101 ids, and the 4108-id prompt; `--ignore-eos`, 64 and 256 tokens)
+  `--spec off` = DFlash2 k7; every ABBA process's ids equal across arms and reps; HIP tiny suite `tests/inkling2_dflash2.rs`;
+  `kernels test --op dyn_conv` at H 2304 (no op added or changed).
+- **Low acceptance:** under ~3 tokens per pass on code means a tap / embedding / mask bug first; window 1 also runs
+  `INTARSIA_DFLASH2_EMBED_NORM=1` (Inkling's `embed_norm` on the block rows) and `INTARSIA_DFLASH2_HEAD=mxfp4` (a quantised draft
+  head) on the variant set for tokens per pass and tok/s.
+
 ## Later messages from the coordinator
 
 - **~19:10 EST, file ownership:** lane ink-hip-bpf (prefill overlap) now owns `kernels/hip/ink_mix.hip`, `kernels/hip/ink_attn.hip` and

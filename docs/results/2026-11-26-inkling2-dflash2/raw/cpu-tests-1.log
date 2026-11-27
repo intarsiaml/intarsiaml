@@ -1,0 +1,6 @@
+fleetq: #12269 running on endor: bash /opt/code/intarsiaml/.worktrees/ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/cpu_tests.sh
+test result: ok. 269 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 16.26s
+dsv41: the tensor-parallel group failed (backend error: dsv41 engine worker panicked: scripted panic); aborting the communicator and marking the engine failed
+dsv41: the tensor-parallel group failed (backend error: dsv41 engine worker panicked: scripted panic); aborting the communicator and marking the engine failed
+test result: ok. 80 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.60s
+== intarsia-models --test inkling2_dflash2

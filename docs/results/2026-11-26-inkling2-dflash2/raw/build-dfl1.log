@@ -1,0 +1,5 @@
+fleetq: #12268 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'env NAME=dfl1 bash ~/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/setup.sh'
+[setup] seed source intarsia-cargo-target-ink-hip-bpf 1 GB 19:17:46
+cp: preserving times for '/d/.': Operation not permitted
+[setup] seeded exit 1 19:17:48
+[setup] build dfl1 19:17:48
