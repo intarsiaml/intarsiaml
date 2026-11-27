@@ -1,0 +1,36 @@
+fleetq: #12541 running on endor: python3 docs/results/2026-11-27-inkling2-metal-sampled-retune/raw/sim2.py docs/results/2026-11-27-inkling2-metal-sampled-retune/raw/cal/drafts --po=0.031 --grid=B
+traces: [(11, '0.7'), (11, '1.0'), (13, '0.7'), (13, '1.0'), (17, '0.7'), (17, '1.0'), (19, '0.7'), (19, '1.0')]; cost table d=0.237 r=[0.236, 0.418, 0.583]; po 0.031
+current recipe policy g=0.85,margin=0.0,drop=0.0,probe=3,hold0=8,hold_max=32 po 0.031
+  per prompt pol/off (geomean over seeds):
+    T 0.7: short_b 1.020  short_a 1.732  short_c 1.452  len1k 1.096  len4k 1.604
+    T 1.0: short_b 0.970  short_a 1.028  short_c 1.510  len1k 1.128  len4k 1.493
+    T 0.7 classes pol/off | fix/off | pol/(0.98 fix): short 1.332|1.330|1.023  1k 1.096|1.114|1.004  4k 1.604|1.617|1.012
+    T 1.0 classes pol/off | fix/off | pol/(0.98 fix): short 1.125|1.115|1.030  1k 1.128|1.149|1.002  4k 1.493|1.505|1.012
+  score 0.9903 (prompts 0.9903, classes 1.0018)
+HIP recipe policy g=0.95,margin=0.0,drop=0.05,probe=1,hold0=16,hold_max=64 po 0.031
+  per prompt pol/off (geomean over seeds):
+    T 0.7: short_b 0.981  short_a 1.713  short_c 1.465  len1k 1.098  len4k 1.610
+    T 1.0: short_b 0.962  short_a 1.017  short_c 1.521  len1k 1.127  len4k 1.498
+    T 0.7 classes pol/off | fix/off | pol/(0.98 fix): short 1.310|1.330|1.005  1k 1.098|1.114|1.006  4k 1.610|1.617|1.016
+    T 1.0 classes pol/off | fix/off | pol/(0.98 fix): short 1.119|1.115|1.024  1k 1.127|1.149|1.001  4k 1.498|1.505|1.016
+  score 0.9819 (prompts 0.9819, classes 1.0007)
+
+stage B grid: 3456 settings; top by score:
+  score 1.0124 mean 1.3071  g=0.95,margin=0.0,drop=0.05,probe=2,hold0=8,hold_max=64,stop_n=3,giveup=1
+  score 1.0124 mean 1.3071  g=0.95,margin=0.0,drop=0.05,probe=2,hold0=8,hold_max=64,stop_n=3,hold_grow=4.0,giveup=1
+  score 1.0124 mean 1.3071  g=0.95,margin=0.0,drop=0.05,probe=2,hold0=8,hold_max=128,stop_n=3,giveup=1
+  score 1.0124 mean 1.3071  g=0.95,margin=0.0,drop=0.05,probe=2,hold0=8,hold_max=128,stop_n=3,hold_grow=4.0,giveup=1
+  score 1.0124 mean 1.3071  g=0.95,margin=0.02,drop=0.05,probe=2,hold0=8,hold_max=64,stop_n=3,giveup=1
+  score 1.0124 mean 1.3071  g=0.95,margin=0.02,drop=0.05,probe=2,hold0=8,hold_max=64,stop_n=3,hold_grow=4.0,giveup=1
+  score 1.0124 mean 1.3071  g=0.95,margin=0.02,drop=0.05,probe=2,hold0=8,hold_max=128,stop_n=3,giveup=1
+  score 1.0124 mean 1.3071  g=0.95,margin=0.02,drop=0.05,probe=2,hold0=8,hold_max=128,stop_n=3,hold_grow=4.0,giveup=1
+pick (best score, ties within 0.003 by mean pol/off):
+PICK policy g=0.95,margin=0.0,drop=0.1,probe=1,hold0=8,hold_max=64,giveup=1 po 0.031
+  per prompt pol/off (geomean over seeds):
+    T 0.7: short_b 1.023  short_a 1.713  short_c 1.465  len1k 1.105  len4k 1.610
+    T 1.0: short_b 0.990  short_a 1.004  short_c 1.521  len1k 1.145  len4k 1.498
+    T 0.7 classes pol/off | fix/off | pol/(0.98 fix): short 1.335|1.330|1.024  1k 1.105|1.114|1.012  4k 1.610|1.617|1.016
+    T 1.0 classes pol/off | fix/off | pol/(0.98 fix): short 1.126|1.115|1.031  1k 1.145|1.149|1.016  4k 1.498|1.505|1.016
+  score 1.0101 (prompts 1.0101, classes 1.0124)
+adapt string: d=0.237,r=0.236/0.418/0.583,g=0.95,margin=0.0,drop=0.1,probe=1,hold0=8,hold_max=64,giveup=1
+fleetq: #12541 done (exit 0)
