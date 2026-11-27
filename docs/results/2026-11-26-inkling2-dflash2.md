@@ -251,6 +251,43 @@ DSpark k5 on all six cells.
 
 ## Later messages from the coordinator
 
+- **20:37 EST, PARK NOW:** the user restarts Claude Desktop in about 10 min. Let #12324 finish only if under 3 min are left. Queue
+  nothing new. Bring radiance back if it is down. Commit locally (no push needed). Add a "Parked 2026-11-26 20:40" section. Reply in
+  10 lines or fewer.
+
 - **~19:10 EST, file ownership:** lane ink-hip-bpf (prefill overlap) now owns `kernels/hip/ink_mix.hip`, `kernels/hip/ink_attn.hip` and
   `kernels/hip/ink_route_fused.hip`. Do not edit them; tell the coordinator first if the DFlash2 path seems to need a change there.
   The batched-prefill / serve-scheduler code also stays with ink-hip-bpf. Everything else in the brief is unchanged.
+
+## Parked 2026-11-26 20:40
+
+- **Head:** `ink/dflash2` at the commit that adds this section. Its parent `d1c01cb34` is code-identical: main `aee06201c` merged in, then
+  docs-only commits. Local commits after the 20:16 push of PR #541 are not pushed: the window-5 doc, the LOG wording, the main merge
+  and the checks / fleetq-id sections.
+- **Radiance:** up (rank0 and rank1, `fleetq status` 20:38). No job of this lane is running or queued.
+- **Passed:**
+  - **Windows:** #12276 (window 1: admission dyn_conv ADMITTED; embed_norm finding), #12284 (window 2: md5 off = DFlash2 k7 at
+    64 / 256 tokens, `f2e334dd...` / `380af8a5...`, with 88 % / 52 % accepted; HIP tiny `greedy_ids_equal_spec_off` ok),
+    #12297 + #12305 (ABBA 4 + 4: short 1.190, 1k 1.047, 4k 0.905, 16k 0.950, prose 1.045, chat 1.154, code 1.584, prefill
+    0.998, ids equal across all 8 processes and to main), #12312 (k sweep, n = 1).
+  - **CPU tests:** round 4 #12330 (after the aee06201c merge), all pass: core lib 275, models lib 80, inkling2_dflash2 8,
+    dflash2_cpu 13, dflash_cpu 7, inkling2_dspark 4, inkling2_dspark_cut 1, recipes_doc 3, docs_env_vars 2. Earlier rounds:
+    #12269, #12286, #12306.
+  - **HIP build of the merged head:** #12324, `dfl6` md5 `689cde21f795f1e38ba968c25d06daea`, cli + test build exit 0.
+- **Not verified:**
+  - No GPU run of the merged head: the ABBA binary is `dfl5`, the branch before the merges.
+  - `runs_with_admitted_kernels_only` on HIP timed out at 85 s (passes on cpu).
+  - No ABBA at k4 / k5.
+  - 1k, 16k and prose untested below k7.
+- **Logs:**
+  - Mac: `docs/results/2026-11-26-inkling2-dflash2/raw/` (window1-12276.log .. window5-12312.log, w1/, w2/, ab/, k/, build-dfl*.log,
+    cpu-tests-1..4.log, speed-analysis.txt, ksweep-analysis.txt).
+  - tatooine: `~/intarsiaml-ink-dflash2/logs/` (window-1126-*.log, w1, w2, ab, k, build logs); binaries `.scratch/bin/intarsia-dfl1..6`
+    (folder 2.4 GB in all); volume `intarsia-cargo-target-ink-dflash2` (1.58 GB); drafter `/data/models/intarsia/Inkling-2-Mini-DFlash2`
+    (945 MB). No containers left. Radiance-down total 17 min 13 s of 20.
+- **Next step:**
+  1. Push `ink/dflash2`: `fleetq run --host endor --load cpu --expect 6 -- git -C /opt/code/intarsiaml/.worktrees/ink-dflash2 push`.
+  2. `gh pr edit 541 --body-file` with the k-sweep table. The draft body was in the session scratchpad and is lost at the restart.
+  3. The speed windows of this brief are done (ABBA 4 + 4 at k7, verdict OPT-IN). The open speed work is an ABBA 4 + 4 at k4 and k5
+     vs DSpark k5 on all six cells, about 2 windows of 3.75 min each per k. That needs a new radiance budget, since 2 min 47 s are
+     left of this lane's 20.

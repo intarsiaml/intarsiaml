@@ -1,2 +1,21 @@
 fleetq: #12330 running on endor: bash docs/results/2026-11-26-inkling2-dflash2/raw/cpu_tests.sh
 test result: ok. 275 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 15.76s
+..dsv41: the tensor-parallel group failed (backend error: dsv41 engine worker panicked: scripted panic); aborting the communicator and marking the engine failed
+dsv41: the tensor-parallel group failed (backend error: dsv41 engine worker panicked: scripted panic); aborting the communicator and marking the engine failed
+test result: ok. 80 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.96s
+== intarsia-models --test inkling2_dflash2
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.58s
+== intarsia-models --test dflash2_cpu
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 68.97s
+== intarsia-models --test dflash_cpu
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.78s
+== intarsia-models --test inkling2_dspark
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 67.65s
+== intarsia-models --test inkling2_dspark_cut
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.06s
+== intarsia-models --test recipes_doc
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+== intarsia-cli --test docs_env_vars
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+cpu tests exit 0
+fleetq: #12330 done (exit 0)
