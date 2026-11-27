@@ -1441,6 +1441,21 @@ mod dspark_default_tests {
     /// checked apart. No other recipe has a draft default. `golden/inkling2-tiny-dspark` holds an Inkling-2 `config.json` with
     /// `mtp_config` and `mtp.safetensors`; `golden/inkling2-tiny` has no draft.
     #[test]
+    fn sampled_dflash_default_needs_the_solo_dspark_default() {
+        // lane ink-hip-specflip (flip A): the recipe turns sampled drafting on for Inkling-2 on HIP, but it acts only through a loaded
+        // draft; a batching engine (`--max-batch` > 1) loads none (no DSpark default, `--spec dflash` refused), so there sampled requests
+        // take plain steps exactly as on main
+        let recipe = crate::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
+        assert_eq!(recipe.sampled_dflash("hip"), Some(true));
+        let base = EngineOptions { spec_auto: true, ..Default::default() };
+        assert_eq!(dspark_default(&base, &recipe, "hip", 1, true), Some(5), "solo: the draft the flip uses");
+        for n in [2, 4, 16] {
+            let o = EngineOptions { max_batch: Some(n), ..base.clone() };
+            assert_eq!(dspark_default(&o, &recipe, "hip", 1, true), None, "--max-batch {n}: no draft, so no sampled drafting");
+        }
+    }
+
+    #[test]
     fn dspark_default_only_where_the_recipe_sets_it() {
         let recipe = crate::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
         let base = EngineOptions { spec_auto: true, ..Default::default() };
