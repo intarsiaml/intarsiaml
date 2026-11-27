@@ -11,7 +11,7 @@ O=$REPO/logs/ab
 mkdir -p "$O" "$S/prompts"; cp "$RAW/speed.json" "$S/prompts/"
 M=/models/Inkling-2-Mini
 D=/models/Inkling-2-Mini-DFlash2
-BR=${BR:-dfl2}; K=${K:-7}; TOK=${TOK:-256}; LIMIT=${LIMIT:-195}; ORDER=${ORDER:-a}; R1=${R1:-r1}; R2=${R2:-r2}
+BR=${BR:-dfl5}; K=${K:-7}; TOK=${TOK:-256}; LIMIT=${LIMIT:-195}; ORDER=${ORDER:-a}; R1=${R1:-r1}; R2=${R2:-r2}
 B=/work/.scratch/bin/intarsia-$BR
 [ -x "$S/bin/intarsia-$BR" ] || { echo "[stage] guard: $BR missing"; exit 3; }
 T0=$(date +%s)
