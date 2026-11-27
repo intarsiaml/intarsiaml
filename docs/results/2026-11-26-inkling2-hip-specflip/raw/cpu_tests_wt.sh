@@ -8,6 +8,10 @@ L=$W/.scratch/cpu-${1:-$(date +%H%M)}; mkdir -p "$L"
 for v in $(env | grep -oE '^INTARSIA_[A-Z0-9_]+'); do unset "$v"; done
 export CARGO_TARGET_DIR=$W/target
 cd "$W/.scratch/wt-a"
+# The lane worktree and this tree share CARGO_TARGET_DIR with the same crate layout, so cargo gives their workspace crates the same
+# unit hashes: a tree whose files are older than the other tree's last build would be taken as fresh (#12548: mdualC linked main7's
+# intarsia-core). Touch this tree's tracked sources first so every workspace crate is rebuilt from them.
+git ls-files -z crates kernels recipes build.rs 2>/dev/null | xargs -0 touch
 echo "[cpu] head $(git rev-parse --short HEAD) $(date +%T)"
 rc=0
 run() {  # name, cargo test args

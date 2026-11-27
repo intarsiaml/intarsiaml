@@ -768,3 +768,14 @@ and the plain cells are the same). Radiance for the main7 check: M1 4:16 + M2 4:
 4. Metal no-op slot: `raw/metal_slot.sh` with `MAIN=mmain7 BR=mdualC` (exclusive, <= 20 min, 45 s idle gaps between run groups, none
    after 07:00), after item 3.
 5. Push `ink/hip-specflip-b` (no PR) after items 3 and 4.
+
+**#12548 (03:04-03:05): exit 6, no cpu suite ran.** `mmain7` built (from the lane worktree checked out at main7; every workspace crate
+compiled). The (a) Metal build then failed in `intarsia-cli` (E0560: `LoadOptions` has no field `dflash_alt`), although the merged tree
+has the field. Cause: the lane worktree and `.scratch/wt-a` share `CARGO_TARGET_DIR` and have the same crate layout, so cargo gives their
+workspace crates the same unit hashes and checks freshness by mtime; wt-a's files (merge at ~02:57) were older than main7's build
+(03:04), so cargo reused main7's `intarsia-core` and only rebuilt cli and the Metal backend. Not a merge error. Fix: `metal_build_wt.sh`
+and `raw/cpu_tests_wt.sh` touch wt-a's tracked sources first, so every workspace crate is rebuilt from that tree. Earlier binaries
+checked: the PR A cpu suites (23:25, 23:43, 00:24) ran before any wt-a build into the shared target; `mmain2` / `mspecA2` / `mmain3`
+were built from the lane worktree after a checkout (changed files newer, so rebuilt). Only `mdualB` (01:21, after `mmain3` 01:15) may
+have had the same stale core. It was never run, and it is not used. #12549 (the Metal slot) then exited at its binary guard (no
+`mdualC`): nothing ran, the drafter link was never made.
