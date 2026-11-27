@@ -249,3 +249,27 @@ acceptance, tokens per pass and plain-step tokens per arm; ids identical across 
 4. greedy md5 equals main (W1 step 1).
 
 Otherwise the report names the part that failed and the best setting found.
+
+## Parked 2026-11-26 20:40 (coordinator: Claude Desktop restart)
+
+- **Head:** `ink/sampled-adapt` local commit after `d23914b2d` (this section and `raw/` scripts on top); not pushed, no PR yet.
+- **Main merged:** yes, `origin/main` `aee06201c` (#535) merged in `56ec7c465` (one conflict in `docs/recipes.md`, resolved add-only).
+- **Passed (cpu, endor):** core `spec::` unit tests 58/58 (incl. 6 `spec::adapt`) and `inkling2_dspark_sampled_adapt` 2/2 on the
+  final policy (fleetq #12332, logs `.scratch/logs/cpu-2031/`): the k = 0 sync test (draft after 2 / 3 / 17 plain steps, stash
+  overflow included, equals the draft over the same rows ingested by verify passes) and seeded ids == `--spec off` for the table,
+  aggressive and `drafts` modes (aggressive scripted: 195 plain-step tokens vs fixed k's 13, so the policy both holds and resumes).
+  Earlier full cpu suite on the pre-merge head (#12314, `.scratch/logs/cpu-2012/`): `inkling2_dspark_sampled` 2/2,
+  `_gumbel` 1/1, `inkling2_dspark` 4/4, `_cut` 1/1, `verify_softcap` 1/1, `recipes_doc` 3/3, `docs_env_vars` 2/2, core lib 274/274.
+- **Not verified:** no GPU window and no Metal slot ran (radiance never taken down by this lane). Nothing on the real model: no
+  calibration, seeds, greedy md5, or speed. The full cpu suite has not rerun on the merged head (only the adapt suite and core `spec::`).
+  `sim.py` is checked only on synthetic traces.
+- **Builds:** tatooine #12317 (ad1 + main5, pre-merge, unused), #12321 (ad2, pre-merge, unused), #12328 (ad3 = a source tree changed
+  mid-build: do not use; main6 = main `aee06201c`, hip, `~/intarsiaml-ink-sampled-adapt/.scratch/bin/intarsia-main6`); #12336 (ad4)
+  released before it started. endor Metal: #12329 (ad3 at `6da9139a7`, main6 md5 `0894595e...`), #12335 (ad4 at `d23914b2d`,
+  `.scratch/bin/intarsia-ad4`). Logs: `.scratch/logs/fleet-*.log`; tatooine `~/intarsiaml-ink-sampled-adapt/logs/build-*.log`.
+- **Exact next step:** rebuild hip ad4 on tatooine (`fleetq run --host tatooine-r9700 --load cpu --expect 8 -- ssh tatooine
+  'SKIP_MAIN=1 BR=ad4 bash ~/intarsiaml-ink-sampled-adapt/.scratch/tat/builds.sh'`), then W1 (`raw/tat/w1.sh` under
+  `raw/tat/window.sh`, CAP 280, `--takes-down radiance --quiet gpu,cpu`), then `sim.py logs/w1/cal` (15 % table rule, replay check,
+  grid if needed), then W2 (`raw/tat/w2.sh`, ADAPT from sim), then the Metal slot (`raw/metal/slot.sh`, `--exclusive --expect 30`).
+- **Cleanup answer:** this lane no longer uses `.worktrees/ink-sampled` (its `.scratch/prompts/*.json` were copied here), the remote
+  `ink/sampled-dspark` branch, or tatooine `~/intarsiaml-ink-sampled` / `intarsia-br5` / `intarsia-main5` / its docker volume. All can go.
