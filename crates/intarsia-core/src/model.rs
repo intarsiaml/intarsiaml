@@ -1871,9 +1871,17 @@ impl Model {
                 if tp.world > 1 {
                     return Err(Error::Unsupported("tensor parallelism of Inkling-2".into()));
                 }
-                // the model's own DSpark draft (`--spec dflash --spec-draft <model dir>`, `model/dspark.rs`) is the one drafter it takes
-                if opts.mtp || opts.dflash.as_ref().is_some_and(|d| d.config.dspark.is_none()) {
-                    return Err(Error::Unsupported("speculative drafters other than its DSpark draft (--spec dflash --spec-draft <model dir>) on Inkling-2".into()));
+                // the model's own DSpark draft (`--spec dflash --spec-draft <model dir>`, `model/dspark.rs`), and on HIP (and cpu) a
+                // DFlash2 draft (lane ink-dflash2, `--spec dflash --spec-draft <incoai/Inkling-2-Mini-DFlash2 dir>`, `model/dflash2.rs`)
+                let dflash2 = |d: &dflash::DflashLoad| d.config.v2 && d.config.spine.is_none() && d.config.dspark.is_none() && !d.dcoco;
+                let other = opts.dflash.as_ref().is_some_and(|d| d.config.dspark.is_none() && !dflash2(d));
+                if opts.mtp || other {
+                    return Err(Error::Unsupported(
+                        "speculative drafters other than its DSpark draft (--spec dflash --spec-draft <model dir>) or a DFlash2 draft on Inkling-2".into(),
+                    ));
+                }
+                if opts.dflash.as_ref().is_some_and(dflash2) && !matches!(b.name(), "hip" | "cpu") {
+                    return Err(Error::Unsupported(format!("a DFlash2 draft on Inkling-2 on the {} backend (hip and cpu only, lane ink-dflash2)", b.name())));
                 }
                 let ic = recipe.layer.other.get("ink").ok_or_else(|| Error::model("recipe [layer.ink] missing"))?;
                 let field = |k: &str| ic.get(k).and_then(|v| v.as_str()).map(String::from).ok_or_else(|| Error::model(format!("recipe [layer.ink] needs '{k}'")));
@@ -1996,6 +2004,12 @@ impl Model {
                 // a split draft takes its logits on each rank's vocabulary shard of the group's head (lane dh): no whole copy
                 if vocab_par && !dflash_tp {
                     head.full_head = load_head(false)?;
+                }
+                // lane ink-dflash2: an Inkling-2 DFlash2 draft's logits on its own quantised copy of the unembed's real rows
+                // (`INTARSIA_DFLASH2_HEAD`, as the DSpark draft's `INTARSIA_DSPARK_HEAD`): mxfp4 by default on HIP, `bf16` = the target's
+                // head as the reference does. Draft numerics only (the proposals), never the output.
+                if head.v2.is_some() && dims.ink.is_some() {
+                    head.full_head = dflash::dflash2_head_copy(b, src, &unembed, dims, &|n| weights_bytes.set(weights_bytes.get() + n))?.or(head.full_head);
                 }
                 Some(head)
             }

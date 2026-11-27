@@ -1,0 +1,23 @@
+fleetq: #12352 waiting (#5 in line): in line behind #12346 "ink-hip-overlap: sync + hip build o5 (merged head 1b35c6741)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12346 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12346 set, or it will wait for #12346 to be released.
+fleetq: #12352 waiting (#3 in line): in line behind #12347 "ink-hip-i8: W3 (4k accuracy both arms + plain short ABBA 4+4, R2U1 defaults)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12347 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12347 set, or it will wait for #12347 to be released.
+fleetq: #12352 waiting (#2 in line): in line behind #12349 "ink-sampled-adapt: W1 (md5, calibration, seeds)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12349 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12349 set, or it will wait for #12349 to be released.
+fleetq: #12352 waiting (#1 in line): radiance-rank0 is also taken down by #12349 "ink-sampled-adapt: W1 (md5, calibration, seeds)" (claude-04c0e1cd)
+fleetq:   #12349 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12349 set, or it will wait for #12349 to be released.
+fleetq: #12352 waiting (#1 in line): needs tatooine-r9700-2 quiet, but its GPU is 92% busy with work fleetq does not track
+fleetq: #12352 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12352 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 K=4 ORDER=b R1=r3 R2=r4 BR=dfl6 bash /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/window.sh /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/stage_ab_k.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/stage_ab_k.sh; cap 285s; stopping radiance 2026-11-26 21:16:34
+[window] radiance stopped 2026-11-26 21:16:38 (inactive)
+[stage] start 21:16:38 dfl6 689cde21f795f1e38ba968c25d06daea K 4 TOK 256 ORDER b r3 r4
+[speed] dfl@r3 rc 0 t+48s | up to 4 drafts | decode overall: 4195 tokens after the first, 33401 ms (125.60 tok/s) | spec: verify passes=1265 proposed=5038 accepted=2935 (acceptance 58.3%, 3.32 tokens per pass)
+[speed] dspark@r3 rc 0 t+104s | up to 5 drafts | decode overall: 4195 tokens after the first, 38498 ms (108.97 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[speed] dspark@r4 rc 0 t+159s | up to 5 drafts | decode overall: 4195 tokens after the first, 38489 ms (108.99 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[speed] dfl@r4 rc 0 t+208s | up to 4 drafts | decode overall: 4195 tokens after the first, 33438 ms (125.46 tok/s) | spec: verify passes=1265 proposed=5038 accepted=2935 (acceptance 58.3%, 3.32 tokens per pass)
+[stage] done 21:20:06 t+208s
+[window] stage done 2026-11-26 21:20:07 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 21:20:07
+[window] radiance answers 2026-11-26 21:20:17 (after 15 s)
+fleetq: #12352 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
