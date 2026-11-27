@@ -1,0 +1,21 @@
+fleetq: #12558 running on endor: /opt/code/intarsiaml/.worktrees/ink-metal-dflash2-ready/docs/results/2026-11-27-inkling2-metal-dflash2-ready/raw/slotC.sh
+slot C start 03:55:10 binary md5 49a4d94be3648ec35ed2c7128dd513cb git e3cb12a2b
+== check 2b: sampled, generate, seed 7, 32 tokens, --ignore-eos
+off T1.0 k0 n100 rc 0 t+52s | ids lines 100 | verify/keyed trace lines 1
+off T0.6 k0 n60 rc 0 t+87s | ids lines 60 | verify/keyed trace lines 1
+off T0.7 k20 n30 rc 0 t+106s | ids lines 30 | verify/keyed trace lines 1
+dfl5 T1.0 k0 n100 rc 0 t+162s | ids lines 100 | verify/keyed trace lines 3
+dfl5 T0.6 k0 n60 rc 0 t+197s | ids lines 60 | verify/keyed trace lines 3
+dfl5 T0.7 k20 n30 rc 0 t+216s | ids lines 30 | verify/keyed trace lines 3
+dfl5s T1.0 k0 n100 rc 0 t+274s | ids lines 100 | verify/keyed trace lines 1009
+dfl5s T0.6 k0 n60 rc 0 t+306s | ids lines 60 | verify/keyed trace lines 682
+dfl5s T0.7 k20 n30 rc 0 t+325s | ids lines 30 | verify/keyed trace lines 362
+   1 sampled requests (temperature > 0): DFlash-family drafting off (default; single sequence, one rank, seed-exact keyed rule)
+   1 sampled requests (temperature > 0): DFlash-family drafting on (INTARSIA_SPEC_SAMPLED_DFLASH; single sequence, one rank, seed-exact keyed rule)
+== check 4: memory / KV capacity, generate --max-seq 4194304 (1048576 fallback) --kv-fraction 0.25, 64 tokens of the code prompt
+mem1 default rc 0 max-seq 4194304 window 2026-11-27T09:00:35..2026-11-27T09:00:44 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 8.0s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.41 GB, context 615670 tokens (recipe builtin:inkling2, chat template chat_template.jinja) |          33120124928  maximum resident set size          44104144976  peak memory footprint 
+mem2 dfl5 rc 0 max-seq 4194304 window 2026-11-27T09:00:47..2026-11-27T09:00:54 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 4.1s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.27 GB, context 615458 tokens (recipe builtin:inkling2, chat template chat_template.jinja) |          32765739008  maximum resident set size          48828029008  peak memory footprint 
+mem3 default rc 0 max-seq 4194304 window 2026-11-27T09:00:57..2026-11-27T09:01:06 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 7.7s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.41 GB, context 615670 tokens (recipe builtin:inkling2, chat template chat_template.jinja) |          33119879168  maximum resident set size          44102752072  peak memory footprint 
+mem4 dfl5 rc 0 max-seq 4194304 window 2026-11-27T09:01:09..2026-11-27T09:01:14 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 4.0s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.27 GB, context 615458 tokens (recipe builtin:inkling2, chat template chat_template.jinja) |          32761757696  maximum resident set size          48828094328  peak memory footprint 
+slot C end 04:01:17 t+367s
+fleetq: #12558 done (exit 0)

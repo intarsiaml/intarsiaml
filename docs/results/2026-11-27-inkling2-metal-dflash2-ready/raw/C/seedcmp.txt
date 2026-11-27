@@ -1,0 +1,8 @@
+T0.6-k0      dfl5   vs off: ref 60 / arm 60 prompts, compared 60, differ 0 []
+T0.6-k0      dfl5s  vs off: ref 60 / arm 60 prompts, compared 60, differ 0 []
+T0.7-k20     dfl5   vs off: ref 30 / arm 30 prompts, compared 30, differ 0 []
+T0.7-k20     dfl5s  vs off: ref 30 / arm 30 prompts, compared 30, differ 0 []
+T1.0-k0      dfl5   vs off: ref 100 / arm 100 prompts, compared 100, differ 0 []
+T1.0-k0      dfl5s  vs off: ref 100 / arm 100 prompts, compared 100, differ 0 []
+TOTAL dfl5 vs off: compared 190, differ 0
+TOTAL dfl5s vs off: compared 190, differ 0
