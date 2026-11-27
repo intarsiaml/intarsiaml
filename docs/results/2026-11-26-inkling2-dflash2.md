@@ -219,6 +219,36 @@ more. Not measured: 16k, 1k and prose at k4 / k5. So whether k4 or k5 would pass
 (2 min 47 s) does not hold the ABBA 4 + 4 that would decide it. The next window for this drafter would run ABBA k4 (and k5) vs
 DSpark k5 on all six cells.
 
+## Checks the brief asked for
+
+- **Selector used when drafting:** yes. Every traced pass logs `selproj` and `select` (`raw/w2/trace-dfl.err`), and
+  `draft_pass_matches_host_reference` checks the device drafts against a host selector walk (>= 4 picks) on the tiny fixture.
+  The header comment that said "not loaded yet" is fixed.
+- **Tap quantity:** the reference aliases the DFlash capture to the DSpark capture ("native post-residual visit features and final
+  norm"). `taps_equal_the_dspark_drafts_taps` checks the DFlash2 taps bitwise against DSpark's. `taps_are_the_visit_partials_and_the_final_norm`
+  checks them bitwise against `ink_dump`'s `vNN.partial_out` / `final_hidden`.
+- **8-row verify bitwise under the DFlash path:** greedy md5 off = DFlash2 k7 (window 2) across many passes that accepted all 7
+  drafts (an 8-row verify).
+- **Which binary each gate covered:**
+  - The formal off-vs-DFlash2 md5 gate ran on `dfl4` (bf16 draft head).
+  - `dfl5`, the ABBA binary with the mxfp4 draft head, is covered by the ABBA ids equality. DFlash2 = DSpark on all 19 prompts x 8 processes, and both equal main `178d87ece`'s spec default on prompts 1-15.
+  - The PR head (main merged in) has CPU tests and a HIP compile check, no GPU run.
+- **Draft vs verify split:** from the traces only (warm, code, chat_system, 4k, prose_300, code_tests). 1k and 16k have the combined
+  ms per pass only.
+- **Scope:**
+  - Inkling DFlash2 is refused on Metal and CUDA (`model.rs`).
+  - `--max-batch` > 1 refuses any `--spec dflash` draft, unchanged (`load.rs`).
+  - DSpark is unchanged: same tap buffer, same default.
+  - No HIP kernel or op added or changed, and no file owned by ink-hip-bpf touched.
+
+## fleetq ids
+
+- Download: #12261.
+- Builds: #12268 (seed + dfl1), #12273 (dfl2), #12279 (dfl3), #12282 (dfl4), #12292 (dfl5), #12324 (dfl6 = PR head, compile check).
+- GPU windows: #12276, #12284, #12297, #12305, #12312.
+- CPU tests on endor: #12269, #12286, #12306, #12330.
+- Push: #12318 and later.
+
 ## Later messages from the coordinator
 
 - **~19:10 EST, file ownership:** lane ink-hip-bpf (prefill overlap) now owns `kernels/hip/ink_mix.hip`, `kernels/hip/ink_attn.hip` and
