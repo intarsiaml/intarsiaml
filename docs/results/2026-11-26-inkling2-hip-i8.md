@@ -34,8 +34,6 @@ default-on. Status: @@STATUS@@
    change, CI), then microbench, accuracy, checks (command + result), radiance down per window, fleetq ids, PR link + head, a LOG.md
    row (add-only), the unanimis id, leftovers.
 
-3. 2026-11-26 (coordinator, via the advisor pass of this lane, not a brief): none yet.
-
 ## Format and contract
 
 Int8 weight `q [N, K]` (levels -127..=127) with one f32 scale per output row (`scales [N, 1]`), W8A16: `out[m, n] = rA(scale[n] *
