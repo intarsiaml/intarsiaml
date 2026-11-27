@@ -1,0 +1,2 @@
+wall 22.15 s, aggregate 34.7 tok/s, latency median 1.85 s max 2.12 s, prompt tokens 4418, cached 0, ttft median 0.3365 max 0.5791969299316406, itl p50 0.012 p99 0.0241
+reuse-solo: 6 replies, 768 tokens -> /home/josef/intarsiaml-ink-hip-bpf/logs/w4/solo-main3-bitwise-reuse-solo_6.json

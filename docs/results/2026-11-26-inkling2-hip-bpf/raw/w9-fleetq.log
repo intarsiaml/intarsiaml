@@ -1,0 +1,40 @@
+fleetq: #12256 waiting (#2 in line): in line behind #12255 "ink-hip-combined: C2 md5 new vs old + plain decode 4+4 ABBA 256 tok, both cards, radiance down <= 4:10" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12255 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12255 set, or it will wait for #12255 to be released.
+fleetq: #12256 waiting (#1 in line): radiance-rank0 is also taken down by #12255 "ink-hip-combined: C2 md5 new vs old + plain decode 4+4 ABBA 256 tok, both cards, radiance down <= 4:10" (claude-04c0e1cd)
+fleetq:   #12255 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12255 set, or it will wait for #12255 to be released.
+fleetq: #12256 waiting (#1 in line): needs tatooine-r9700-2 quiet, but its GPU is 42% busy with work fleetq does not track
+fleetq: #12256 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12256 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 58% busy with work fleetq does not track
+fleetq: #12256 running on tatooine-r9700, tatooine-r9700-2: bash -c 'ssh -o BatchMode=yes tatooine '"'"'test -x ~/intarsiaml-ink-hip-bpf/.scratch/bin/intarsia-b12 && test -x ~/intarsiaml-ink-hip-bpf/.scratch/bin/intarsia-main4'"'"' < /dev/null || { echo '"'"'binaries missing: no window'"'"'; exit 3; }; env VISITS=/opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/visits-w9.txt OUT=/opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/w9 CAP=265 BG=stage_w9bg.sh BG_CAP=240 bash /opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/serve_window.sh'
+[18:33:38] radiance down
+[18:33:38] background stage stage_w9bg.sh started (cap 240 s)
+[18:33:38] R1: start (b12; INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[18:35:30] R1: up (IP 172.17.0.3 after 109s ; 153 s left)
+[18:35:42] R1 k1 r1: localeval exit 0 (141 s left): [localeval] 4 streams: aggregate 118.1 tok/s 
+[18:35:43] R1: wait /home/josef/intarsiaml-ink-hip-bpf/logs/w9/main4-primed exit 0 (140 s left)
+[18:35:45] R1: stopped: VRAM peak R1: card0 29221 MiB, card1 28611 MiB
+[18:35:45] A1: start (main4; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[18:36:04] A1: up (IP 172.17.0.3 after 18s ; 119 s left)
+[18:36:15] A1 k1 r1: localeval exit 0 (108 s left): [localeval] 4 streams: aggregate 113.4 tok/s 
+[18:36:27] A1 k2 r1: localeval exit 0 (96 s left): [localeval] 4 streams: aggregate 111.5 tok/s 
+[18:36:29] A1: stopped: VRAM peak A1: card0 28496 MiB, card1 28526 MiB
+[18:36:29] R2: start (b12; INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[18:36:48] R2: up (IP 172.17.0.2 after 18s ; 75 s left)
+[18:36:59] R2 k2 r1: localeval exit 0 (64 s left): [localeval] 4 streams: aggregate 118.7 tok/s 
+[18:37:10] R2 k3 r1: localeval exit 0 (53 s left): [localeval] 4 streams: aggregate 120.1 tok/s 
+[18:37:12] R2: stopped: VRAM peak R2: card0 29103 MiB, card1 57 MiB
+[18:37:12] A2: start (main4; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[18:37:29] A2: up (IP 172.17.0.2 after 17s ; 34 s left)
+[18:37:30] A2: SKIP localeval rep 1: 33 s left
+[18:37:32] A2: stopped: VRAM peak A2: card0 28465 MiB, card1 57 MiB
+[18:37:32] visits done (31 s left)
+[18:37:32] waiting for the background stage
+[18:37:32] background stage ended: [bg] done 2026-11-26 18:36:29
+[18:37:43] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/hold.sh; cap 265s; stopping radiance 2026-11-26 18:33:34
+[window] radiance stopped 2026-11-26 18:33:38 (inactive)
+[window] stage done 2026-11-26 18:37:33 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 18:37:33
+[window] radiance answers 2026-11-26 18:37:43 (after 15 s)
+fleetq: #12256 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit $?

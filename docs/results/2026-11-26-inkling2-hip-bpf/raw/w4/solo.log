@@ -1,0 +1,9 @@
+[supervisor] started server pid 7
+prefill chunk 2048 (recipe inkling2, hip)
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.3 s)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.6 s
+admission on plan shapes: 27 kernel(s) checked, 6 case(s) run, 106 cached
+loaded ink on hip (AMD Radeon Graphics) in 115.2s, context 4608 tokens
+sampling defaults: temperature=1 top_p=1 top_k=0 (from /models/Inkling-2-Mini/generation_config.json; a request's own values win)
+intarsia server listening on http://0.0.0.0:8132

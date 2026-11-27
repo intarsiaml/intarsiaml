@@ -9,6 +9,9 @@
 //! * `conv_mix_bf16_rows` (lane ink-hip-batch): ConvMix's row-table form (batched decode, `OpCall::rows`): row t is the T = 1 call of
 //!   sequence t at its own position on its own ring (the RT instantiations of the row kernel); bitwise the solo call per row
 //!   (tests/ink_rows.rs; results docs/results/2026-11-26-inkling2-hip-batch.md).
+//! * `conv_mix_bf16_segs` (lane ink-hip-bpf): ConvMix's segment-table form (packed prefill, `OpCall::segs`): each segment of the call is
+//!   the solo call over its rows on its own ring (the SEG instantiations, kernels/hip/ink_mix_segs.hip); bitwise per-segment solo calls
+//!   (crates/intarsia-models/tests/inkling2_packed.rs; results docs/results/2026-11-26-inkling2-hip-bpf.md).
 //!
 //! An op of `OPS` counts as ported once `TABLE` lists it (until then it stays in `kernels::UNIMPLEMENTED`).
 
@@ -21,6 +24,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("ink_in_proj_bf16_matmul", Op::InkInProj),
     ("conv_mix_bf16", Op::ConvMix),
     ("conv_mix_bf16_rows", Op::ConvMix),
+    ("conv_mix_bf16_segs", Op::ConvMix),
     ("attn_res_mix_bf16", Op::AttnResMix),
     ("sconv_res_bf16", Op::SconvRes),
     ("loop_blend_bf16", Op::LoopBlend),
@@ -101,6 +105,14 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_TOL)
                     .scratch(conv_mix_scratch)
                     .row_table(),
+                // packed prefill (`OpCall::segs`): segment s bitwise its solo call (takes the base kernel's admission)
+                "conv_mix_bf16_segs" => k
+                    .weights(bf)
+                    .when(|s| s.k > 0 && s.k <= MIX_D_MAX && s.n <= MIX_QUERIES_MAX)
+                    .tol(BF16_TOL)
+                    .tol_f32(F32_TOL)
+                    .scratch(conv_mix_scratch)
+                    .seg_table(),
                 "attn_res_mix_bf16" => k
                     .when(|s| s.k > 0 && s.k <= MIX_D_MAX && s.kv_len <= MIX_SOURCES_MAX && s.n <= MIX_QUERIES_MAX)
                     .tol(BF16_TOL)
@@ -190,6 +202,32 @@ pub(crate) mod launch {
             roff: i64,
             s: S,
         ) -> c_int;
+        #[allow(clippy::too_many_arguments)]
+        fn ik_conv_mix_bf16_segs(
+            x: T,
+            taps: T,
+            res: T,
+            add: T,
+            src: T,
+            q: T,
+            norm: T,
+            msg: T,
+            down: T,
+            gain: T,
+            forget: T,
+            meta: T,
+            eps: f32,
+            y: TM,
+            ring: TM,
+            sum: TM,
+            mix: TM,
+            sc: SC,
+            tab: T,
+            tstride: i64,
+            tindex: i64,
+            roff: i64,
+            s: S,
+        ) -> c_int;
         fn ik_loop_blend_bf16(dest: T, msg: T, down: T, gain: T, forget: T, norm: T, eps: f32, out: TM, sc: SC, s: S) -> c_int;
         #[allow(clippy::too_many_arguments)]
         fn ik_ink_route_bf16(
@@ -249,6 +287,33 @@ pub(crate) mod launch {
             // the ring carrier's byte offset in its row's buffer (output 1); a row table of the Inkling-2 ops has no byte offset of its own
             "conv_mix_bf16_rows" if a.tab.is_null() || a.tab_off != 0 || a.call.outputs.len() < 2 => 1, // IK_ERR_INVALID_ARG
             "conv_mix_bf16_rows" => ik_conv_mix_bf16_rows(
+                a.i(0),
+                a.i(1),
+                a.i(2),
+                a.i(3),
+                a.i(4),
+                a.i(5),
+                a.i(6),
+                a.i(7),
+                a.i(8),
+                a.i(9),
+                a.i(10),
+                a.pos,
+                at.eps,
+                a.o(0),
+                a.o(1),
+                a.o(2),
+                a.o(3),
+                a.sc,
+                a.tab,
+                a.tab_stride,
+                a.tab_index,
+                a.call.outputs[1].offset as i64,
+                a.s,
+            ),
+            // the segment table (`OpCall::segs`): its address table as `a.tab`, its segment rows as `a.pos` (HipBackend::launch)
+            "conv_mix_bf16_segs" if a.tab.is_null() || a.pos.is_null() || a.call.segs.is_none() || a.call.outputs.len() < 2 => 1,
+            "conv_mix_bf16_segs" => ik_conv_mix_bf16_segs(
                 a.i(0),
                 a.i(1),
                 a.i(2),

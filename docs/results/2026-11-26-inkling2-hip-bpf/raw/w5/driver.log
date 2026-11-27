@@ -1,0 +1,28 @@
+[17:37:50] radiance down
+[17:37:50] background stage stage_w5bg.sh started (cap 180 s)
+[17:37:50] pk16: start (b10; INTARSIA_INK_PACK=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[17:38:09] pk16: up (IP 172.17.0.3 after 19s ; 191 s left)
+[17:38:16] pk16: bitwise conc:4:0 exit 0 (184 s left): wall 5.13 s, aggregate 99.8 tok/s, latency median 5.1 s max 5.13 s, prompt tokens 5241, cached 0, ttft median 1.5557 max 2.0814578533172607, itl p50 0.024 p99 0.0874
+[17:38:21] pk16: bitwise conc:4:1 exit 0 (179 s left): wall 5.19 s, aggregate 98.6 tok/s, latency median 5.16 s max 5.19 s, prompt tokens 5406, cached 0, ttft median 1.6814 max 2.167891025543213, itl p50 0.0241 p99 0.4867
+[17:38:27] pk16: bitwise conc:4:2 exit 0 (173 s left): wall 5.56 s, aggregate 92.1 tok/s, latency median 5.52 s max 5.56 s, prompt tokens 6778, cached 0, ttft median 1.5786 max 2.4561662673950195, itl p50 0.0243 p99 0.2408
+[17:38:33] pk16: bitwise conc:4:3 exit 0 (167 s left): wall 6.38 s, aggregate 80.3 tok/s, latency median 6.27 s max 6.37 s, prompt tokens 8327, cached 0, ttft median 2.4034 max 3.2603812217712402, itl p50 0.0245 p99 0.5707
+[17:38:42] pk16: bitwise conc:8:0 exit 0 (158 s left): wall 8.80 s, aggregate 116.3 tok/s, latency median 8.62 s max 8.8 s, prompt tokens 12019, cached 0, ttft median 1.8941 max 4.511063098907471, itl p50 0.0344 p99 0.6138
+[17:38:52] pk16: bitwise conc:8:1 exit 0 (148 s left): wall 9.29 s, aggregate 110.3 tok/s, latency median 9.14 s max 9.28 s, prompt tokens 13733, cached 0, ttft median 2.1053 max 5.09745979309082, itl p50 0.0339 p99 0.5998
+[17:39:08] pk16: bitwise conc exit 0 (132 s left): wall 16.48 s, aggregate 124.2 tok/s, latency median 16.14 s max 16.48 s, prompt tokens 25752, cached 0, ttft median 2.8408 max 9.720392227172852, itl p50 0.0582 p99 0.6279
+[17:39:19] pk16: bitwise reuse-conc:6 exit 0 (121 s left): wall 5.41 s, aggregate 142.1 tok/s, latency median 5.39 s max 5.39 s, prompt tokens 4418, cached 0, ttft median 1.1966 max 1.7649171352386475, itl p50 0.0285 p99 0.0965
+[17:39:21] pk16: stopped: VRAM peak pk16: card0 28531 MiB, card1 22443 MiB
+[17:39:21] pk16r: start (b10; INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[17:39:40] pk16r: up (IP 172.17.0.2 after 18s ; 100 s left)
+[17:39:57] pk16r: bitwise conc exit 0 (83 s left): wall 15.98 s, aggregate 128.1 tok/s, latency median 15.71 s max 15.98 s, prompt tokens 25752, cached 0, ttft median 3.2319 max 9.255640029907227, itl p50 0.0576 p99 0.6518
+[17:39:58] pk16r: bitwise pp:2:2048:w5r exit 0 (82 s left): pp 2 x 2048: wall 1.676 s, prompt tokens 4714 (2349..2365), prompt 2812.1 tok/s, cached 0
+[17:40:00] pk16r: bitwise pp:4:1024:w5r exit 0 (80 s left): pp 4 x 1024: wall 1.466 s, prompt tokens 4748 (1181..1197), prompt 3238.0 tok/s, cached 0
+[17:40:02] pk16r: stopped: VRAM peak pk16r: card0 29186 MiB, card1 57 MiB
+[17:40:02] visits done (78 s left)
+[17:40:02] waiting for the background stage
+[17:40:02] background stage ended: [bg] done 2026-11-26 17:39:18
+[17:40:14] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/hold.sh; cap 210s; stopping radiance 2026-11-26 17:37:45
+[window] radiance stopped 2026-11-26 17:37:49 (inactive)
+[window] stage done 2026-11-26 17:40:04 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 17:40:04
+[window] radiance answers 2026-11-26 17:40:14 (after 15 s)

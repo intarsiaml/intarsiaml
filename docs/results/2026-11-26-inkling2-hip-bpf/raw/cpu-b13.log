@@ -1,0 +1,31 @@
+fleetq: #12259 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'S=~/intarsiaml-ink-hip-bpf/.scratch; cd ~/intarsiaml-ink-hip-bpf; bash $S/build.sh b13 m:inkling2_packed m:inkling2_batch m:inkling2 && bash $S/cpu_tests.sh core sched plan models hiplib; export INTARSIA_REPO=$PWD INTARSIA_TARGET_VOL=intarsia-cargo-target-ink-hip-bpf INTARSIA_CONTAINER_NAME=ink-hip-bpf-build; docker rm -f ink-hip-bpf-build > /dev/null 2>&1; deploy/tatooine/dev.sh cargo test --release -j8 -p intarsia-cli --test docs_env_vars < /dev/null > logs/docs-env.log 2>&1; echo "docs_env_vars exit $?"; grep -aE "test result|panicked|FAILED" logs/docs-env.log | head -4; docker rm -f ink-hip-bpf-build > /dev/null 2>&1; true'
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 20.66s
+cli build exit 0
+6805e84251d0611675a4cd972ccffc38  .scratch/bin/intarsia-b13
+    Finished `release` profile [optimized] target(s) in 15.95s
+  Executable tests/inkling2_packed.rs (/target/release/deps/inkling2_packed-1ed2245ff98f9c1a)
+test inkling2_packed build exit 0
+    Finished `release` profile [optimized] target(s) in 0.93s
+  Executable tests/inkling2_batch.rs (/target/release/deps/inkling2_batch-4078c269fe83f39e)
+test inkling2_batch build exit 0
+    Finished `release` profile [optimized] target(s) in 1.40s
+  Executable tests/inkling2.rs (/target/release/deps/inkling2-4591618c7e4a1464)
+test inkling2 build exit 0
+== core exit 0
+test result: ok. 270 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 13.48s
+== sched exit 0
+test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+== plan exit 0
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+== models exit 0
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.03s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.53s
+== hiplib exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.00s
+docs_env_vars exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+fleetq: #12259 done (exit 0)
+exit 0

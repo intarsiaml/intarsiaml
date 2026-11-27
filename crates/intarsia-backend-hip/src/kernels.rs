@@ -1068,4 +1068,30 @@ mod tests {
         assert_eq!(pick(Op::GdnConvDelta, &gdn(1, 64, 4)), None, "dk = 64");
         assert_eq!(pick(Op::GdnConvDelta, &gdn(1, 128, 3)), None, "3 taps");
     }
+
+    /// Lane ink-hip-bpf: the ConvMix segment-table twin (`conv_mix_bf16_segs`, packed prefill) is registered `seg_table` only (never
+    /// `rows_exact` or `row_table`), takes the real model's packed shapes (D 2304, 3 queries, 34..=4096 rows), and counts as admitted
+    /// once `conv_mix_bf16` is.
+    #[test]
+    fn the_inkling2_segment_table_twin_is_admitted_through_its_base() {
+        let bf = Some(DType::Bf16);
+        let info = intarsia_core::DeviceInfo {
+            name: "test".into(),
+            backend: "hip".into(),
+            arch: "gfx1201".into(),
+            total_mem: 0,
+            free_mem: 0,
+            unified: false,
+            bandwidth_gbs: None,
+        };
+        let mut reg = intarsia_core::Registry::new("hip", &info, all());
+        let k = reg.kernel("conv_mix_bf16_segs").expect("conv_mix_bf16_segs registered").clone();
+        assert!(k.seg_table && !k.row_table && !k.rows_exact && k.op == Op::ConvMix);
+        for m in [34usize, 257, 2048, 4096] {
+            assert!(k.accepts(&ShapeInfo { m, k: 2304, n: 3, act: bf, out: bf, weight: bf, ..Default::default() }), "m={m}");
+        }
+        assert!(!reg.is_admitted("conv_mix_bf16_segs"));
+        reg.set_admission("conv_mix_bf16", intarsia_core::Admission::Admitted);
+        assert!(reg.is_admitted("conv_mix_bf16_segs"), "admitted through conv_mix_bf16");
+    }
 }

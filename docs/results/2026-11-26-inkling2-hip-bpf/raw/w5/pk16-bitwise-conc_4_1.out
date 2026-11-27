@@ -1,0 +1,2 @@
+wall 5.19 s, aggregate 98.6 tok/s, latency median 5.16 s max 5.19 s, prompt tokens 5406, cached 0, ttft median 1.6814 max 2.167891025543213, itl p50 0.0241 p99 0.4867
+conc:4:1: 4 replies, 512 tokens -> /opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/w5/pk16-bitwise-conc_4_1.json

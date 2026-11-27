@@ -1,0 +1,44 @@
+[bg] (1) solo server main3 2026-11-26 17:32:00
+[bg] solo main3 up after 118s (0 = not up) 2026-11-26 17:33:58
+[bg] solo main3 bitwise solo exit 0 2026-11-26 17:34:32: wall 33.98 s, aggregate 60.3 tok/s, latency median 2.0 s max 2.97 s, prompt tokens 25752, cached 0, ttft median 0.4592 max 1.4093849658966064, itl p50 0.0122 p99 0.0247
+[bg] solo main3 bitwise reuse-solo:6 exit 0 2026-11-26 17:34:55: wall 22.15 s, aggregate 34.7 tok/s, latency median 1.85 s max 2.12 s, prompt tokens 4418, cached 0, ttft median 0.3365 max 0.5791969299316406, itl p50 0.012 p99 0.0241
+[bg solo] admission on plan shapes: 27 kernel(s) checked, 6 case(s) run, 106 cached
+[bg] (2) tiny inkling2_batch + inkling2 (60 s left) 2026-11-26 17:34:55
+[bg tiny] test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+[bg tiny] test inkling2_tiny_screen_keeps_batching ... FAILED
+[bg tiny] test inkling2_tiny_screened_head_one_row_only ... FAILED
+[bg tiny] test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.89s
+[bg tiny] test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.68s
+[bg] tiny inkling2_packed default (52 s left) 2026-11-26 17:35:03
+[bg packed default] test inkling2_packed_engine_equals_solo_engine ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 
+[bg packed default] thread 'inkling2_packed_engine_equals_solo_engine' panicked at crates/intarsia-models/tests/inkling2_packed.rs:401:9:
+[bg packed default] test inkling2_packed_equals_solo_tiny ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+[bg packed default] thread 'inkling2_packed_equals_solo_tiny' panicked at crates/intarsia-models/tests/inkling2_packed.rs:188:9:
+[bg packed default] test inkling2_packed_intermediates_equal_solo ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s
+[bg packed default] tiny 2 x 20: 548 segment tensors compared, 532 differ
+[bg packed default] thread 'inkling2_packed_intermediates_equal_solo' panicked at crates/intarsia-models/tests/inkling2_packed.rs:324:5:
+[bg packed default] test inkling2_packed_refuses_what_cannot_pack ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s
+[bg packed default] test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.68s
+[bg] tiny inkling2_packed pf2off (50 s left) 2026-11-26 17:35:05
+[bg packed pf2off] test inkling2_packed_engine_equals_solo_engine ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 
+[bg packed pf2off] test inkling2_packed_equals_solo_tiny ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+[bg packed pf2off] 2 x 17: 2 segments, 37 rows: packed == solo
+[bg packed pf2off] 17 / 40 / 300, one resumed: 3 segments, 360 rows: packed == solo
+[bg packed pf2off] 2048 / 1000 / 17: 3 segments, 3065 rows: packed == solo
+[bg packed pf2off] 4096 rows, two resumed: 4 segments, 4096 rows: packed == solo
+[bg packed pf2off] blend tails: 3 segments, 1037 rows: packed == solo
+[bg packed pf2off] 16 mixed: 16 segments, 1976 rows: packed == solo
+[bg packed pf2off] test inkling2_packed_intermediates_equal_solo ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s
+[bg packed pf2off] tiny 2 x 20: 548 segment tensors compared, 0 differ
+[bg packed pf2off] tiny 40 + 300, one resumed: 548 segment tensors compared, 0 differ
+[bg packed pf2off] test inkling2_packed_refuses_what_cannot_pack ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s
+[bg packed pf2off] test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 3.12s
+[bg] (3) real-shape inkling2_packed, cap 42 s 2026-11-26 17:35:08
+[bg] real exit 101 2026-11-26 17:35:13
+[bg real] test inkling2_packed_equals_solo_real ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+[bg real] inkling2_packed_equals_solo_real: moe_split_rows = Some(256), pack_rows_max = 4096, kv cap 1121
+[bg real] thread 'inkling2_packed_equals_solo_real' panicked at crates/intarsia-models/tests/inkling2_packed.rs:171:87:
+[bg real] test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 4.28s
+[bg] G2 short b10 [2026-11-26 17:35:13] prefill floor [4bit]: top-1 (all rows) 99.47% (not gated for this class) ok | 21-way KL (scored rows, n=569) 4.491e-3 (need <= 3.0e-2) ok [all rows, n=569: 4.491e-3, reported only] | tail mass (all rows) ours 0.0665 vs ref 0.0679, excess -0.0014 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested 
+[bg] G2 long b10 SKIP (32 s left)
+[bg] done 2026-11-26 17:35:23

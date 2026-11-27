@@ -1,0 +1,31 @@
+fleetq: #12208 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'S=~/intarsiaml-ink-hip-bpf/.scratch; SKIP_COMPILE=1 bash $S/isa.sh 2>&1 | tail -8; bash $S/build.sh b3 m:inkling2_packed m:inkling2_batch m:inkling2 && bash $S/cpu_tests.sh packed hiplib'
+  MISSING in branch: _ZN12_GLOBAL__N_114ink_row_kernelILi6ELb1ELb0ELb0EEEvNSt11conditionalIXT2_ENS_9RowArgsRTENS_7RowArgsEE4typeE
+  MISSING in branch: _ZN12_GLOBAL__N_114ink_row_kernelILi6ELb1ELb0ELb1EEEvNSt11conditionalIXT2_ENS_9RowArgsRTENS_7RowArgsEE4typeE
+  MISSING in branch: _ZN12_GLOBAL__N_114ink_row_kernelILi6ELb1ELb1ELb0EEEvNSt11conditionalIXT2_ENS_9RowArgsRTENS_7RowArgsEE4typeE
+  MISSING in branch: _ZN12_GLOBAL__N_114ink_row_kernelILi6ELb1ELb1ELb1EEEvNSt11conditionalIXT2_ENS_9RowArgsRTENS_7RowArgsEE4typeE
+  7 / 55 of main's kernels identical in the branch (instructions and descriptor)
+== ink_moe: main 427 kernels, branch 427 (0 new: [])
+  427 / 427 of main's kernels identical in the branch (instructions and descriptor)
+== ink_mix_segs (new TU): 56 kernels, 24 SEG instantiations
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 22.81s
+cli build exit 0
+df1e81195f0bbdad07129ca0eee0d0a2  .scratch/bin/intarsia-b3
+    Finished `release` profile [optimized] target(s) in 16.87s
+  Executable tests/inkling2_packed.rs (/target/release/deps/inkling2_packed-1ed2245ff98f9c1a)
+test inkling2_packed build exit 0
+    Finished `release` profile [optimized] target(s) in 0.96s
+  Executable tests/inkling2_batch.rs (/target/release/deps/inkling2_batch-4078c269fe83f39e)
+test inkling2_batch build exit 0
+    Finished `release` profile [optimized] target(s) in 1.48s
+  Executable tests/inkling2.rs (/target/release/deps/inkling2-4591618c7e4a1464)
+test inkling2 build exit 0
+== packed exit 101
+thread 'inkling2_packed_equals_solo_tiny' panicked at crates/intarsia-models/tests/inkling2_packed.rs:154:111:
+test inkling2_packed_equals_solo_tiny ... FAILED
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.14s
+error: test failed, to rerun pass `-p intarsia-models --test inkling2_packed`
+== hiplib exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.00s
+fleetq: #12208 done (exit 101)

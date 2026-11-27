@@ -1,0 +1,57 @@
+fleetq: #12216 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12214 "ink-hip-p12: build main3 (b7450223e) tiny inkling2 test binary (cpu)" (claude-04c0e1cd) loads it
+fleetq:   #12214 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12214 set, or it will wait for #12214 to be released.
+fleetq: #12216 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=260 BIN=b5 PRIME_CFGS="INTARSIA_INK_PACK=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9|--max-seq 4608 --spec off" bash ~/intarsiaml-ink-hip-bpf/.scratch/window.sh ~/intarsiaml-ink-hip-bpf/.scratch/stage_unit.sh; echo "radiance: $(systemctl --user is-active radiance)"'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/stage_unit.sh; cap 260s; stopping radiance 2026-11-26 16:44:35
+[window] radiance stopped 2026-11-26 16:44:39 (inactive)
+[stage] card0 inkling2_packed (tiny + real) 2026-11-26 16:44:39
+[stage] card1 inkling2_batch + inkling2 (tiny hip) 2026-11-26 16:44:39
+[card1] test inkling2_tiny_chunk_scan ... ok
+[card1] test inkling2_tiny_chunked_and_decode_match_prefill_bitwise ... ok
+[card1] test inkling2_tiny_failed_pass_resets_the_sequence ... ok
+[card1] test inkling2_tiny_g1a_f32_vs_f64 ... ok
+[card1] test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+[card1] test inkling2_tiny_graph_decode_is_bitwise_the_eager_decode ... ok
+[card1] test inkling2_tiny_interleaved_sequences_equal_solo ... ok
+[card1] test inkling2_tiny_launch_diff ... ok
+[card1] test inkling2_tiny_loads ... ok
+[card1] test inkling2_tiny_logits_dump ... ok
+[card1] test inkling2_tiny_no_kernel_refusal_names_the_op ... ok
+[card1] test inkling2_tiny_p12_forced_on ... ok
+[card1] test inkling2_tiny_rollback_by_length ... ok
+[card1] test inkling2_tiny_screen_keeps_batching ... FAILED
+[card1] test inkling2_tiny_screened_head_one_row_only ... FAILED
+[card1] test inkling2_tiny_verify_graph_replays_equal_decode_bitwise ... ok
+[card1] test inkling2_tiny_verify_rows_equal_decode_bitwise ... ok
+[card1] thread 'inkling2_tiny_g1b_teacher_forced_bf16' panicked at crates/intarsia-models/tests/inkling2.rs:292:5:
+[card1] thread 'inkling2_tiny_screen_keeps_batching' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+[card1] thread 'inkling2_tiny_screened_head_one_row_only' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+[card1] test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+[card1] error: test failed, to rerun pass `-p intarsia-models --test inkling2`
+[stage] card1 prime: INTARSIA_INK_PACK=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9 2026-11-26 16:44:41
+[card0] test inkling2_packed_engine_equals_solo_engine ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+[card0] thread 'inkling2_packed_engine_equals_solo_engine' panicked at crates/intarsia-models/tests/inkling2_packed.rs:318:9:
+[card0] assertion `left == right` failed: request 0
+[card0] test inkling2_packed_equals_solo_real ... inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.4 s
+[card0] inkling2_packed_equals_solo_real: moe_split_rows = Some(256), pack_rows_max = 2737
+[card0] thread 'inkling2_packed_equals_solo_real' panicked at crates/intarsia-models/tests/inkling2_packed.rs:183:61:
+[card0] test inkling2_packed_equals_solo_tiny ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.1 s
+[card0] thread 'inkling2_packed_equals_solo_tiny' panicked at crates/intarsia-models/tests/inkling2_packed.rs:188:9:
+[card0] assertion `left == right` failed: 2 x 17: segment 0 (20 rows at 0) head
+[card0] test inkling2_packed_refuses_what_cannot_pack ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+[card0] test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.47s
+[card0] error: test failed, to rerun pass `-p intarsia-models --test inkling2_packed`
+[stage] card0 done 2026-11-26 16:44:51
+[stage] card1 prime up after 101s (0 = not up) 2026-11-26 16:46:22
+[card1] admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached
+[card1] continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+[card1] inkling2 packed prefill: on, up to 2048 rows per pass, segments of 17+ rows
+[stage] card1 prime: --max-seq 4608 --spec off 2026-11-26 16:46:23
+[stage] card1 prime up after 17s (0 = not up) 2026-11-26 16:46:39
+[card1] admission on plan shapes: 23 kernel(s) checked, 0 case(s) run, 119 cached
+[stage] card1 done 2026-11-26 16:46:39
+[stage] done 2026-11-26 16:46:39
+[window] stage done 2026-11-26 16:46:40 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 16:46:40
+[window] radiance answers 2026-11-26 16:46:50 (after 15 s)
+radiance: active
+fleetq: #12216 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

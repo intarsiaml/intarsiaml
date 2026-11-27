@@ -1,0 +1,114 @@
+fleetq: #12224 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=260 bash ~/intarsiaml-ink-hip-bpf/.scratch/window.sh ~/intarsiaml-ink-hip-bpf/.scratch/stage_diag.sh; echo "radiance: $(systemctl --user is-active radiance)"'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/stage_diag.sh; cap 260s; stopping radiance 2026-11-26 16:59:32
+[window] radiance stopped 2026-11-26 16:59:36 (inactive)
+[stage] card0 inkling2_packed default 2026-11-26 16:59:36
+[stage] card1 inkling2_batch (branch) 2026-11-26 16:59:36
+[card1 batch] test inkling2_batch_argmax_equals_solo ... ok
+[card1 batch] test inkling2_batch_equals_solo_2_5_16 ... ok
+[card1 batch] test inkling2_batch_failed_pass_resets_every_sequence ... ok
+[card1 batch] test inkling2_batch_membership_changes ... ok
+[card1 batch] test inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo ... ok
+[card1 batch] test inkling2_batch_rollback_per_sequence ... ok
+[card1 batch] test inkling2_batch_sampler_rows_are_softcapped ... ok
+[card1 batch] test inkling2_batched_engine_equals_solo_engine ... ok
+[card1 batch] test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.66s
+[stage] card1 inkling2 main 2026-11-26 16:59:42
+[card1 main inkling2] test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+[card1 main inkling2] test inkling2_tiny_screen_keeps_batching ... FAILED
+[card1 main inkling2] test inkling2_tiny_screened_head_one_row_only ... FAILED
+[card1 main inkling2] test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.75s
+[stage] card1 inkling2 branch PF2=0 2026-11-26 16:59:44
+[card1 branch pf2off inkling2] test inkling2_tiny_screen_keeps_batching ... FAILED
+[card1 branch pf2off inkling2] test inkling2_tiny_screened_head_one_row_only ... FAILED
+[card1 branch pf2off inkling2] test result: FAILED. 15 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.77s
+[stage] card1 done 2026-11-26 16:59:46
+[card0 default] test inkling2_packed_engine_equals_solo_engine ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+[card0 default] thread 'inkling2_packed_engine_equals_solo_engine' panicked at crates/intarsia-models/tests/inkling2_packed.rs:401:9:
+[card0 default]   left: ([210, 253, 30, 166, 266, 171, 24, 9, 243, 213, 164, 21, 197, 124, 226, 115, 18, 155, 116, 139, 82, 294, 155, 61], 24)
+[card0 default]  right: ([21, 183, 50, 16, 24, 82, 228, 48, 64, 77, 30, 191, 175, 114, 241, 57, 210, 95, 213, 101, 21, 265, 66, 101], 24)
+[card0 default] test inkling2_packed_equals_solo_real ... inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.2 s
+[card0 default] inkling2_packed_equals_solo_real: moe_split_rows = Some(256), pack_rows_max = 4096, kv cap 2737
+[card0 default] 17 + 2048: 2 segments, 2065 rows: packed == solo
+[card0 default] around the split: 4 segments, 785 rows: packed == solo
+[card0 default] blend tails: 3 segments, 1032 rows: packed == solo
+[card0 default] thread 'inkling2_packed_equals_solo_real' panicked at crates/intarsia-models/tests/inkling2_packed.rs:183:61:
+[card0 default] 2 x 2048: packed pass refused: memory plan: kernel needs 226625024 scratch bytes but the plan reserved 113368832
+[card0 default] test inkling2_packed_equals_solo_tiny ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.2 s
+[card0 default] thread 'inkling2_packed_equals_solo_tiny' panicked at crates/intarsia-models/tests/inkling2_packed.rs:188:9:
+[card0 default]   left: [3211864801, 1088779492, 3209164077, 1076521561, 3220634118, 1076295800, 3201656684, 3221444238, 3234668149, 3236129963, 3213827966, 3212991687, 3203831483, 3213931654, 3229034230, 1089222789, 1062270815, 3215677217, 1082142932, 3200788441, 1060146705,
+[card0 default]  right: [3184760473, 1069652327, 1077265084, 3215210048, 3215449955, 1074752427, 3101622272, 3235073800, 3214531782, 3221497098, 1079383124, 1067643760, 1052237396, 3222837498, 3223241737, 3223932996, 1086676377, 3230892801, 1037838051, 3221392235, 1047384241,
+[card0 default] test inkling2_packed_intermediates_equal_solo ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+[card0 default] tiny 2 x 20: DIFF final_hidden (segment 0: 20 rows at 0): 1279 of 1280 values differ, first at 0: -1.5703125 vs -0.98046875
+[card0 default] tiny 2 x 20: DIFF final_hidden (segment 1: 20 rows at 0): 1278 of 1280 values differ, first at 0: 0.7734375 vs 2.3125
+[card0 default] tiny 2 x 20: DIFF v00.attn_out (segment 0: 20 rows at 0): 1206 of 1280 values differ, first at 0: -0.016601563 vs -0.010620117
+[card0 default] tiny 2 x 20: DIFF v00.attn_out (segment 1: 20 rows at 0): 1262 of 1280 values differ, first at 0: -0.08544922 vs -0.060546875
+[card0 default] tiny 2 x 20: DIFF v00.attn_proj (segment 0: 20 rows at 0): 896 of 1280 values differ, first at 0: -0.043945313 vs -0.028198242
+[card0 default] tiny 2 x 20: DIFF v00.attn_proj (segment 1: 20 rows at 0): 1084 of 1280 values differ, first at 0: -0.2265625 vs -0.16015625
+[card0 default] tiny 2 x 20: DIFF v00.expert_ids (segment 0: 20 rows at 0): 34 of 80 values differ, first at 9: 12 vs 6
+[card0 default] tiny 2 x 20: DIFF v00.expert_ids (segment 1: 20 rows at 0): 31 of 80 values differ, first at 1: 9 vs 11
+[card0 default] tiny 2 x 20: DIFF v00.expert_w (segment 0: 20 rows at 0): 76 of 80 values differ, first at 0: 2.3175983 vs 2.3104885
+[card0 default] tiny 2 x 20: DIFF v00.expert_w (segment 1: 20 rows at 0): 80 of 80 values differ, first at 0: 2.3699856 vs 2.2755418
+[card0 default] tiny 2 x 20: DIFF v00.mlp_in (segment 0: 20 rows at 0): 1198 of 1280 values differ, first at 0: -0.115722656 vs -0.11376953
+[card0 default] tiny 2 x 20: DIFF v00.mlp_in (segment 1: 20 rows at 0): 1242 of 1280 values differ, first at 0: 0.46679688 vs 0.44335938
+[card0 default] tiny 2 x 20: DIFF v00.moe_out (segment 0: 20 rows at 0): 1205 of 1280 values differ, first at 0: -1.1875 vs -1.2265625
+[card0 default] tiny 2 x 20: DIFF v00.moe_out (segment 1: 20 rows at 0): 1257 of 1280 values differ, first at 0: -0.075683594 vs -0.25976563
+[card0 default] tiny 2 x 20: DIFF v00.partial_out (segment 0: 20 rows at 0): 1275 of 1280 values differ, first at 0: -0.62109375 vs -0.63671875
+[card0 default] tiny 2 x 20: DIFF v00.partial_out (segment 1: 20 rows at 0): 1276 of 1280 values differ, first at 0: -0.12402344 vs -0.19238281
+[card0 default] tiny 2 x 20: DIFF v00.rel (segment 0: 20 rows at 0): 415 of 960 values differ, first at 8: 2.453125 vs -0.1640625
+[card0 default] tiny 2 x 20: DIFF v00.rel (segment 1: 20 rows at 0): 478 of 960 values differ, first at 8: -1.2734375 vs -1.5859375
+[card0 default] tiny 2 x 20: DIFF v00.router_logits (segment 0: 20 rows at 0): 304 of 320 values differ, first at 0: 1.2405952 vs 1.2571704
+[card0 default] tiny 2 x 20: DIFF v00.router_logits (segment 1: 20 rows at 0): 320 of 320 values differ, first at 0: -1.9748052 vs -1.885318
+[card0 default] tiny 2 x 20: DIFF v00.router_sel (segment 0: 20 rows at 0): 304 of 320 values differ, first at 0: 0.9556676 vs 0.95853865
+[card0 default] tiny 2 x 20: DIFF v00.router_sel (segment 1: 20 rows at 0): 320 of 320 values differ, first at 0: 0.30187368 vs 0.3117792
+[card0 default] tiny 2 x 20: DIFF v01.attn_in_k (segment 0: 20 rows at 0): 1273 of 1280 values differ, first at 0: -1.140625 vs -1.1171875
+[card0 default] tiny 2 x 20: DIFF v01.attn_in_k (segment 1: 20 rows at 0): 1268 of 1280 values differ, first at 0: 0.703125 vs 0.34179688
+[card0 default] tiny 2 x 20: DIFF v01.attn_in_q (segment 0: 20 rows at 0): 1273 of 1280 values differ, first at 0: -1.140625 vs -1.1171875
+[card0 default] tiny 2 x 20: DIFF v01.attn_in_q (segment 1: 20 rows at 0): 1268 of 1280 values differ, first at 0: 0.703125 vs 0.34179688
+[card0 default] tiny 2 x 20: DIFF v01.attn_in_v (segment 0: 20 rows at 0): 1273 of 1280 values differ, first at 0: -1.140625 vs -1.1171875
+[card0 default] tiny 2 x 20: DIFF v01.attn_in_v (segment 1: 20 rows at 0): 1268 of 1280 values differ, first at 0: 0.703125 vs 0.34179688
+[card0 default] tiny 2 x 20: DIFF v01.attn_out (segment 0: 20 rows at 0): 1277 of 1280 values differ, first at 0: 0.046142578 vs 0.063964844
+[card0 default] tiny 2 x 20: DIFF v01.attn_out (segment 1: 20 rows at 0): 1277 of 1280 values differ, first at 0: 0.0625 vs 0.09667969
+[card0 default] tiny 2 x 20: DIFF v01.attn_proj (segment 0: 20 rows at 0): 1280 of 1280 values differ, first at 0: 0.095214844 vs 0.13183594
+[card0 default] tiny 2 x 20: DIFF v01.attn_proj (segment 1: 20 rows at 0): 1275 of 1280 values differ, first at 0: 0.12890625 vs 0.19921875
+[card0 default] tiny 2 x 20: DIFF v01.expert_ids (segment 0: 20 rows at 0): 45 of 80 values differ, first at 11: 12 vs 2
+[card0 default] tiny 2 x 20: DIFF v01.expert_ids (segment 1: 20 rows at 0): 42 of 80 values differ, first at 1: 2 vs 7
+[card0 default] tiny 2 x 20: DIFF v01.expert_w (segment 0: 20 rows at 0): 80 of 80 values differ, first at 0: 2.1906044 vs 2.3053668
+[card0 default] tiny 2 x 20: DIFF v01.expert_w (segment 1: 20 rows at 0): 80 of 80 values differ, first at 0: 1.9168609 vs 1.9173027
+[card0 default] tiny 2 x 20: DIFF v01.k (segment 0: 20 rows at 0): 1275 of 1280 values differ, first at 0: 0.30078125 vs 0.26757813
+[card0 default] tiny 2 x 20: DIFF v01.k (segment 1: 20 rows at 0): 1276 of 1280 values differ, first at 0: 0.5859375 vs 0.064453125
+[card0 default] tiny 2 x 20: DIFF v01.mlp_in (segment 0: 20 rows at 0): 1272 of 1280 values differ, first at 0: -0.62109375 vs -0.6796875
+[card0 default] tiny 2 x 20: DIFF v01.mlp_in (segment 1: 20 rows at 0): 1214 of 1280 values differ, first at 1: 0.25 vs 0.25390625
+[card0 default] tiny 2 x 20: 548 segment tensors compared, 532 differ
+[card0 default] thread 'inkling2_packed_intermediates_equal_solo' panicked at crates/intarsia-models/tests/inkling2_packed.rs:324:5:
+[card0 default] tiny 2 x 20: packed intermediates differ from solo (532 tensors)
+[card0 default] test inkling2_packed_refuses_what_cannot_pack ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+[card0 default] test result: FAILED. 1 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.37s
+[stage] card0 inkling2_packed pf2off 2026-11-26 16:59:48
+[card0 pf2off] test inkling2_packed_engine_equals_solo_engine ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+[card0 pf2off] test inkling2_packed_equals_solo_real ... inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.1 s
+[card0 pf2off] inkling2_packed_equals_solo_real: moe_split_rows = Some(256), pack_rows_max = 4096, kv cap 2749
+[card0 pf2off] 17 + 2048: 2 segments, 2065 rows: packed == solo
+[card0 pf2off] around the split: 4 segments, 785 rows: packed == solo
+[card0 pf2off] blend tails: 3 segments, 1032 rows: packed == solo
+[card0 pf2off] thread 'inkling2_packed_equals_solo_real' panicked at crates/intarsia-models/tests/inkling2_packed.rs:183:61:
+[card0 pf2off] 2 x 2048: packed pass refused: memory plan: kernel needs 226625024 scratch bytes but the plan reserved 113368832
+[card0 pf2off] test inkling2_packed_equals_solo_tiny ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.2 s
+[card0 pf2off] 2 x 17: 2 segments, 37 rows: packed == solo
+[card0 pf2off] 17 / 40 / 300, one resumed: 3 segments, 360 rows: packed == solo
+[card0 pf2off] 2048 / 1000 / 17: 3 segments, 3065 rows: packed == solo
+[card0 pf2off] thread 'inkling2_packed_equals_solo_tiny' panicked at crates/intarsia-models/tests/inkling2_packed.rs:183:61:
+[card0 pf2off] 4096 rows, two resumed: packed pass refused: invalid op call: inkling2 packed prefill of 4 chunks, 4097 rows (2..=16 chunks, at most 4096 rows)
+[card0 pf2off] test inkling2_packed_intermediates_equal_solo ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+[card0 pf2off] tiny 2 x 20: 548 segment tensors compared, 0 differ
+[card0 pf2off] tiny 40 + 300, one resumed: 548 segment tensors compared, 0 differ
+[card0 pf2off] real 17 + 300: 1636 segment tensors compared, 0 differ
+[card0 pf2off] real 257 + 600, one resumed: 1636 segment tensors compared, 0 differ
+[card0 pf2off] test inkling2_packed_refuses_what_cannot_pack ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.2 s
+[card0 pf2off] test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.49s
+[stage] card0 done 2026-11-26 17:00:13
+[stage] done 2026-11-26 17:00:13
+[window] stage done 2026-11-26 17:00:14 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 17:00:14
+[window] radiance answers 2026-11-26 17:00:24 (after 15 s)
+radiance: active
+fleetq: #12224 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

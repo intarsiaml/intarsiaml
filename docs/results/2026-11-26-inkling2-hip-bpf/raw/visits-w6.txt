@@ -1,0 +1,5 @@
+# speed pair (AB): A = main's batching server (main3 = origin/main 6517d98f4: no Inkling packing), B = the branch packing
+# (INTARSIA_INK_PACK=1); same flags, same card 0. Per visit: the real-prompt levels 4 / 8 / 16 (tagged: every request carries the
+# window's nonce), the 1k filler sweep at 1 / 4 / 8 / 16 streams (localeval), the pure-prefill rows.
+A;main3;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;real:4,8,16:1:w6 && le:--sizes 1024 --gen 128 --reps 1 --concurrency 1,4,8,16@fill && bitwise:pp:16:49:w6+pp:8:512:w6+pp:4:1024:w6+pp:2:2048:w6 && bitwise:reuse2-conc:6
+B;b10;INTARSIA_INK_PACK=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;real:4,8,16:1:w6 && le:--sizes 1024 --gen 128 --reps 1 --concurrency 1,4,8,16@fill && bitwise:pp:16:49:w6+pp:8:512:w6+pp:4:1024:w6+pp:2:2048:w6 && bitwise:reuse2-conc:6
