@@ -271,3 +271,16 @@ engine makes the twin, so the twin cannot lower the context; window O4 checks it
 real and filler: interval lower bound <= 1.01. Filler ITL comes from the server's histograms (bucketed, reported, not gated).
 1 stream has nothing to overlap (no decode beside a chunk): its rows are reported from the same visits. Budget: O1-O3 used 11:53 of
 brief 3's 30:00; O4 (gates) plus 3 speed windows at <= 4:30 each fit in the rest.
+
+### O4: gates on o4 (fleetq #12322; radiance down 20:26:17 - 20:30:19 = 4:02)
+
+| check | result |
+|---|---|
+| default budget (`serve --max-batch 16`, no other flag) | main5: context 3285 tokens, `intarsia_kv_tokens_capacity` 52560, VRAM 28098 MiB after load (card 0). o4: context 3285, 52560, 28130 MiB (card 1), overlap on by default. **The twin costs no context or KV.** |
+| speed config (`--kv-fraction 0.9 --max-seq 4608`) | o4: context 4608, 73728 KV tokens (main's 73728); VRAM peak of the G4 visit 28593 MiB (main5's peak in O3-type visits: 28530) |
+| gate 1, real prompts, o4 overlap default-on (G4) | conc:4 waves 0-3: 4/4 each; conc:8 waves 0-1: 8/8 each; 16 at once: 16/16 (vs W4's solo replies); 219 of 1108 decode steps ran beside a chunk in flight; stream 1 created at priority -1 |
+| gate 2, greedy md5 (`generate --ignore-eos`) | main5 `--spec off`: short 64 04cdb28a, short 256 9a27c21b, 4k 64 2252566a, 4k 256 9675bbb9 (= W3's main3); o4 DSpark default: the same four md5. Decode tok/s o4 DSpark 98.2 / 94.5 / 86.5 / 108.8 vs W3 main3 98.1 / 94.6 / 85.1 / 105.9 (the per-launch ticket-slot lookup costs nothing measurable) |
+| gate 3, hip tiny on the o4 tree | `inkling2_batch` 10/10, `inkling2_packed` 6/6 (46 / 32 decode phases beside chunks in flight) |
+| gate 3, admission (`kernels test --op`, o4) | conv_mix_bf16 532 cases ADMITTED, loop_blend_bf16 27 ADMITTED, ink_attn_decode_bf16 70 ADMITTED, ink_route_bf16 40 ADMITTED |
+
+Left for S1-S3's card 1: o4 `--spec off` and main5 DSpark md5, G2 short / long both, the poisoned run on o4, the solo server.

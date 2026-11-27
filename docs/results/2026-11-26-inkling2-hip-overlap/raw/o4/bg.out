@@ -1,0 +1,24 @@
+[def-o4] (o4, card 1) up after 111s (0 = not up) 2026-11-26 20:28:13: admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 prefill/decode overlap: on (the default here; INTARSIA_OVERLAP=0 turns it off), decode steps at most every 150 ms beside a chunk loaded ink on hip (AMD Radeon Graphics) in 111.4s, context 3285 tokens 
+[def-o4] intarsia_kv_tokens_capacity 52560 VRAM card1 28130 MiB
+[cfg-o4] (o4, card 1) up after 18s (0 = not up) 2026-11-26 20:28:30: admission on plan shapes: 23 kernel(s) checked, 0 case(s) run, 134 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 prefill/decode overlap: on (the default here; INTARSIA_OVERLAP=0 turns it off), decode steps at most every 150 ms beside a chunk loaded ink on hip (AMD Radeon Graphics) in 16.7s, context 4608 tokens 
+[cfg-o4] intarsia_kv_tokens_capacity 73728 VRAM card1 28496 MiB
+MD5 card1 o4 short 64 dspark 04cdb28a6849728e8aa5be39bf65c07e rc 0 | prefill 106 ms (291.5 tok/s) | decode 642 ms (98.19 tok/s) [2026-11-26 20:28:41]
+MD5 card1 o4 short 256 dspark 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | prefill 100 ms (309.6 tok/s) | decode 2700 ms (94.45 tok/s) [2026-11-26 20:28:53]
+MD5 card1 o4 4k 64 dspark 2252566a5c54cf52cb564bd214c9af2b rc 0 | prefill 1362 ms (3104.3 tok/s) | decode 729 ms (86.45 tok/s) [2026-11-26 20:29:03]
+MD5 card1 o4 4k 256 dspark 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | prefill 1356 ms (3118.2 tok/s) | decode 2345 ms (108.75 tok/s) [2026-11-26 20:29:16]
+[tiny] inkling2_batch (o4 tree) exit 0 2026-11-26 20:29:23
+[tiny inkling2_batch] test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.24s
+[tiny] inkling2_packed (o4 tree) exit 0 2026-11-26 20:29:28
+[tiny inkling2_packed] overlap, pace 0 ms: 46 decode phases beside chunks in flight, 1 packed passes
+[tiny inkling2_packed] overlap, pace 2 ms: 32 decode phases beside chunks in flight, 1 packed passes
+[tiny inkling2_packed] test inkling2_packed_equals_solo_real ... ok
+[tiny inkling2_packed] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.25s
+ADMIT conv_mix (o4) [2026-11-26 20:29:28]
+ADMIT conv_mix: conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+ADMIT loop_blend (o4) [2026-11-26 20:29:35]
+ADMIT loop_blend: loop_blend     loop_blend_bf16                27      0    3.226e-3    2.637e-4  ADMITTED
+ADMIT ink_attn_decode (o4) [2026-11-26 20:29:37]
+ADMIT ink_attn_decode: ink_attn_decode ink_attn_decode_bf16           70      0    1.033e-3    7.283e-5  ADMITTED
+ADMIT ink_route (o4) [2026-11-26 20:29:42]
+ADMIT ink_route: ink_route      ink_route_bf16                 40      0    2.037e-7    1.450e-7  ADMITTED
+[bg] done 2026-11-26 20:29:43
