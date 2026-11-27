@@ -224,11 +224,18 @@ Before the dispatch fix the int8 env also failed `inkling2_tiny_chunked_and_deco
 - Not verified: long accuracy after the dispatch fix (identical code path expected); decode with k other than the default; Metal and CUDA (out of
   scope, not exercised); the spec-default speedup at n >= 4 and at 16k with a CI.
 
+## 6b. Answer to brief 3 (clean-up of the study lane)
+
+Yes: `.worktrees/ink-q8` (already absent; only `.worktrees/ink-q8-raw` exists, which this lane never touched), the remote branch
+`ink/q8-study` (merged as #540; this branch contains it through main) and its `target/` can be removed. Nothing of this lane reads scripts, data
+or binaries from them: the HIP goldens come from `/opt/code/intarsiaml/golden/inkling-2-mini-vllm-*-top20.safetensors`, the scripts are under
+`docs/results/2026-11-26-inkling2-hip-i8/raw/`, and a grep of those scripts, this lane's scratch scripts and the tatooine folder finds no path under them.
+
 ## 7. Radiance and fleetq
 
 Radiance down this lane (each window restarted it, `/v1/models` answered after 10-15 s): W1 20:03:04-20:03:24 (0:20), W2 20:30:34-20:33:04 (2:30),
 W3 21:08:04-21:12:02 (3:58), W4 21:25:07-21:28:44 (3:37), W6 21:38:08-21:38:41 (0:33), W5 21:48:07-21:51:18 (3:11, the run that found the bug),
-W5b 21:57:36-22:00:48 (3:12), W7 22:01:37-22:03:30 (1:53): about 19.2 min of the 20 (W3-W7: 14.4 min). Logs: `raw/window*.log`.
+W5b 21:57:36-22:00:48 (3:12), W7 22:01:37-22:03:30 (1:53): about 19.2 min of the 20 (W3-W7: 16.4 min). Logs: `raw/window*.log`.
 fleetq: build #12339 (merged main) and #12375 (after the fix, binary `intarsia-a` md5 185d01e0, plus the models test binaries), windows #12347
 (W3), #12354 (W4), #12363 (W5), #12357 (W6), #12378 (W5b), #12379 (W7); endor cpu #12364, #12372, #12373 (the test fails without the fix).
 Scripts: `raw/stage_w3.sh`, `stage_w45.sh`, `stage_w6.sh`, `stage_w7.sh`, `stage_speed.sh`, `window.sh`, `run.sh`, `speed.py`, `klpair.py`.
