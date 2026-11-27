@@ -118,8 +118,9 @@ while IFS=';' read -r name bin sargs largs; do
     ltag=a$ai; case "$largs" in *@*) ltag=${largs##*@}; largs=${largs%@*} ;; esac
     for r in $(seq 1 "${LEREPS:-1}"); do
       date +%s.%N > "$OUT/$name-$ltag-r$r.t0"
-      if (( $(left) < 40 )); then say "$name: SKIP localeval rep $r: $(left) s left"; break; fi
-      cap=$(( $(left) - 25 )); (( cap > 230 )) && cap=230
+      # LE_MIN / LE_MARGIN (env): the least time left to start a rep, and what the rep's cap leaves (defaults 40 / 25 s)
+      if (( $(left) < ${LE_MIN:-40} )); then say "$name: SKIP localeval rep $r: $(left) s left"; break; fi
+      cap=$(( $(left) - ${LE_MARGIN:-25} )); (( cap > 230 )) && cap=230
       ( cd "$LE" && to "$cap" env PYTHONUNBUFFERED=1 uv run localeval speed --url "http://$T:$PORT/v1" --model ink $largs --label "ink-hip-bpf-$name-$ltag-r$r" \
           --recipe "intarsia serve -m Inkling-2-Mini --backend hip $sargs (tree $bin)" ) < /dev/null 2>&1 \
           | perl -MTime::HiRes=time -ne '$|=1; printf "%.3f %s", time, $_' > "$OUT/$name-$ltag-r$r-le.out"
