@@ -1,0 +1,26 @@
+fleetq: #12454 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=265 BR=specA1g MAIN=mainA bash ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/window.sh ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_serve.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_serve.sh; cap 265s; stopping radiance 2026-11-26 23:26:45
+[window] radiance stopped 2026-11-26 23:26:49 (inactive)
+[gate] start 23:26:49 specA1g d52cbb09447871313b6c3261a4de2f75 commit d84acc9f67fccc512af0baabef69ce2ff68d5e93
+[gate c0] b16 up after 19s 23:27:07
+[gate c0] b16 conc rc 1 23:27:19 | urllib.error.HTTPError: HTTP Error 400: Bad Request
+[gate c0] b16 lines: continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 17.2s, context 3285 tokens 
+[gate c0] main-b16 (mainA 3fb1b5f8d) after 102s: admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 100.6s, context 3285 tokens 
+[gate c1] solo up after 122s 23:28:51
+[gate c1] solo solo rc 1 23:28:58 | urllib.error.HTTPError: HTTP Error 400: Bad Request
+[gate c1] solo lines: --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row) sampled requests (temperature > 0): DFlash-family drafting on (recipe inkling2 [tuning.hip] sampled_dflash; INTARSIA_SPEC_SAMPLED_DFLASH=0 turns it off; single sequence, one rank, seed-exact keyed rule) loaded ink on hip (AMD Radeon Graphics) 
+Traceback (most recent call last):
+  File "/home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/serve_bitwise.py", line 213, in <module>
+    main()
+  File "/home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/serve_bitwise.py", line 107, in main
+    a, b = (json.load(open(x)) for x in sys.argv[2:4])
+    ^^^^
+  File "/home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/serve_bitwise.py", line 107, in <genexpr>
+    a, b = (json.load(open(x)) for x in sys.argv[2:4])
+                      ^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/josef/intarsiaml-ink-hip-specflip/logs/serve-specA1g/solo.json'
+[serve] done 23:29:01
+[window] stage done 2026-11-26 23:29:02 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 23:29:02
+[window] radiance answers 2026-11-26 23:29:12 (after 15 s)
+fleetq: #12454 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -1,0 +1,20 @@
+fleetq: #12405 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 64% busy with work fleetq does not track
+fleetq: #12405 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 CARD=1 K=4 ORDER=b R1=r3 R2=r4 BR=main7 PART=2 bash ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/window.sh ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_conf.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_conf.sh; cap 285s; stopping radiance 2026-11-26 22:48:34
+[window] radiance stopped 2026-11-26 22:48:38 (inactive)
+[stage] start 22:48:38 card 1 7763e4744bb4abcfef7a19552708b9cf main7 689cde21f795f1e38ba968c25d06daea K 4 TOK 256 ORDER b r3 r4
+[speed] dfl@r3 rc 0 t+48s | up to 4 drafts | decode overall: 4195 tokens after the first, 33179 ms (126.44 tok/s) | spec: verify passes=1265 proposed=5038 accepted=2935 (acceptance 58.3%, 3.32 tokens per pass)
+[speed] dspark@r3 rc 0 t+104s | up to 5 drafts | decode overall: 4195 tokens after the first, 38304 ms (109.52 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[speed] dspark@r4 rc 0 t+159s | up to 5 drafts | decode overall: 4195 tokens after the first, 38323 ms (109.46 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[speed] dfl@r4 rc 0 t+207s | up to 4 drafts | decode overall: 4195 tokens after the first, 33288 ms (126.02 tok/s) | spec: verify passes=1265 proposed=5038 accepted=2935 (acceptance 58.3%, 3.32 tokens per pass)
+[stage] done 22:52:05 t+207s
+[kv] start 22:52:05 part 2 card 1 main7
+[kv] dspark-default rc 0
+[kv] dspark-default t+9s | --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 2.4 s --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row) loaded Inkling-2-Mini on AMD Radeon Graphics in 8.0s: 24 layers, hidden 2304, act bf16, kv bf16, weights 15.94 GB, context 4096 tokens (recipe builtin:inkling2, chat tem
+[kv] b16-default t+64s | 
+[kv] b16-dfl t+65s | Error: loading /models/Inkling-2-Mini: unsupported: --spec dflash with the batching engine (use --max-batch 1) 
+[kv] done 22:53:10 t+65s
+[window] stage done 2026-11-26 22:53:11 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 22:53:11
+[window] radiance answers 2026-11-26 22:53:21 (after 15 s)
+fleetq: #12405 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

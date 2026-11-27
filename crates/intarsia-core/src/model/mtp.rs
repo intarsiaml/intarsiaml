@@ -732,13 +732,18 @@ impl Model {
         self.spec_sampled_dflash.store(b, std::sync::atomic::Ordering::Relaxed);
     }
 
-    /// [`Model::set_spec_sampled_dflash`], else `INTARSIA_SPEC_SAMPLED_DFLASH`, else the backend default
-    /// ([`crate::spec::sampled_dflash_default_for`]: off everywhere).
+    /// [`Model::set_spec_sampled_dflash`], else `INTARSIA_SPEC_SAMPLED_DFLASH`, else the recipe's `[tuning.<backend>] sampled_dflash` when
+    /// the loaded draft is the checkpoint's own DSpark draft, else off ([`crate::spec::sampled_dflash_resolve`]; lane ink-hip-specflip:
+    /// on by default for Inkling-2 on HIP).
     pub fn spec_sampled_dflash(&self) -> bool {
         match self.spec_sampled_dflash.load(std::sync::atomic::Ordering::Relaxed) {
             1 => false,
             2 => true,
-            _ => crate::spec::sampled_dflash_from_env().unwrap_or_else(|| crate::spec::sampled_dflash_default_for(self.backend.name())),
+            _ => crate::spec::sampled_dflash_resolve(
+                crate::spec::sampled_dflash_from_env(),
+                self.recipe.sampled_dflash(self.backend.name()),
+                self.dflash.as_ref().is_some_and(|h| h.dspark.is_some()),
+            ),
         }
     }
 

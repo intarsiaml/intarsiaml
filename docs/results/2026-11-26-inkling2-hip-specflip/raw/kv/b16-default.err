@@ -1,0 +1,4 @@
+[supervisor] started server pid 7
+prefill chunk 2048 (recipe inkling2, hip)
+pack12 off: the model is loaded to batch (--max-batch > 1); the bf16 weights serve every row
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.3 s
