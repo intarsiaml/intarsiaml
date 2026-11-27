@@ -1,0 +1,1980 @@
+prefill chunk 2048 (recipe inkling2, metal)
+prefill chunk: long-prompt chunk off (INTARSIA_INK_LONG_CHUNK=1 turns it on: 4096 rows from 4097 tokens)
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.46 GB + bounds, cap 64, 0.9 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.4 s)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.0 s
+dflash: draft of 5 layers (taps [5, 23, 41, 48], block 8, DFlash2) loaded in 0.1 s
+--spec dflash on metal: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)
+speculative decoding: Dflash, up to 5 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_bf16_gemv_rows ink_kv_prologue=ink_kv_prologue_bf16 rel_sink_attn=rel_sink_attn_bf16 matmul=matmul_bf16_gemv_rows conv_mix=conv_mix_bf16 ink_route=ink_route_bf16 moe_experts=moe_experts_situ_bf16_rows attn_res_mix=attn_res_mix_bf16 loop_blend=loop_blend_bf16 moe_experts_mxfp8=moe_experts_mxfp8_bf16_rows matmul=matmul_bf16_nax add=add_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 dyn_conv=dyn_conv_bf16 attn_decode=attn_decode_bf16_splitkv silu_glu=silu_glu_bf16 logits=logits_bf16_gemv_rows argmax=argmax_f32 attn_decode=attn_decode_bf16_window matmul=matmul_bf16_gemv matmul_p12=matmul_p12_logits_gemv_rows
+sampled requests (temperature > 0): DFlash-family drafting on (INTARSIA_SPEC_SAMPLED_DFLASH; single sequence, one rank, seed-exact keyed rule)
+loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 4.1s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.27 GB, context 4096 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel gumbel_argmax_f32
+sampled DFlash-family drafting: draft length per request on (d=0.237,r=0.236/0.418/0.583,g=0.85,n0=1,a0=0.6,margin=0,drop=0,probe=3,hold=8,hold_max=32,explore=8; INTARSIA_SPEC_SAMPLED_ADAPT=0 turns it off)
+spec: dflash2 draft flush 13.641 block 2.473 head 1.887 selproj 0.220 dl 1.441 select 0.563 total 20.225 ms
+spec: keyed draft 20.314 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 1 emits 2 drafts [150085, 220, 137489, 149880, 182047]
+spec: keyed verify 6 rows (logits) 24.972 ms, accept 1.170 ms
+adapt: step pass 5 2 tokens 46.509 ms
+spec: dflash2 draft flush 0.677 block 2.405 head 1.889 selproj 0.192 dl 0.925 select 0.543 total 6.630 ms
+spec: keyed draft 6.708 ms, 2 drafts
+spec: token 4 pos 26 drafted 2 accepted 0 emits 1 drafts [86828, 149880]
+spec: keyed verify 3 rows (logits) 21.467 ms, accept 0.684 ms
+adapt: step pass 2 1 tokens 28.927 ms
+spec: dflash2 draft flush 0.726 block 2.280 head 1.846 selproj 0.215 dl 0.640 select 0.497 total 6.204 ms
+spec: keyed draft 6.266 ms, 1 drafts
+spec: token 5 pos 27 drafted 1 accepted 1 emits 2 drafts [149880]
+spec: keyed verify 2 rows (logits) 16.467 ms, accept 1.040 ms
+adapt: step pass 1 2 tokens 23.848 ms
+spec: dflash2 draft flush 0.678 block 2.356 head 1.814 selproj 0.217 dl 0.695 select 0.551 total 6.312 ms
+spec: keyed draft 6.379 ms, 1 drafts
+spec: token 7 pos 29 drafted 1 accepted 1 emits 2 drafts [302]
+spec: keyed verify 2 rows (logits) 16.433 ms, accept 1.127 ms
+adapt: step pass 1 2 tokens 24.009 ms
+spec: dflash2 draft flush 0.666 block 2.267 head 1.815 selproj 0.198 dl 0.625 select 0.512 total 6.084 ms
+spec: keyed draft 6.141 ms, 1 drafts
+spec: token 9 pos 31 drafted 1 accepted 1 emits 2 drafts [149876]
+spec: keyed verify 2 rows (logits) 16.348 ms, accept 0.984 ms
+adapt: step pass 1 2 tokens 23.539 ms
+spec: dflash2 draft flush 0.666 block 2.323 head 1.883 selproj 0.206 dl 0.629 select 0.529 total 6.237 ms
+spec: keyed draft 6.282 ms, 1 drafts
+spec: token 11 pos 33 drafted 1 accepted 0 emits 1 drafts [33780]
+spec: keyed verify 2 rows (logits) 16.739 ms, accept 0.685 ms
+adapt: step pass 1 1 tokens 23.775 ms
+spec: dflash2 draft flush 0.680 block 2.362 head 1.893 selproj 0.323 dl 0.622 select 0.508 total 6.388 ms
+spec: keyed draft 6.425 ms, 1 drafts
+spec: token 12 pos 34 drafted 1 accepted 1 emits 2 drafts [82]
+spec: keyed verify 2 rows (logits) 16.167 ms, accept 0.990 ms
+adapt: step pass 1 2 tokens 23.638 ms
+spec: dflash2 draft flush 0.744 block 2.341 head 1.920 selproj 0.226 dl 0.617 select 0.505 total 6.354 ms
+spec: keyed draft 6.404 ms, 5 drafts
+spec: token 14 pos 36 drafted 5 accepted 0 emits 1 drafts [150030, 151331, 13, 149917, 158842]
+spec: keyed verify 6 rows (logits) 24.018 ms, accept 0.598 ms
+adapt: step pass 5 1 tokens 31.069 ms
+spec: dflash2 draft flush 0.739 block 2.322 head 1.913 selproj 0.208 dl 0.620 select 0.501 total 6.304 ms
+spec: keyed draft 6.343 ms, 1 drafts
+spec: token 15 pos 37 drafted 1 accepted 0 emits 1 drafts [220]
+spec: keyed verify 2 rows (logits) 16.473 ms, accept 0.604 ms
+adapt: step pass 1 1 tokens 23.468 ms
+spec: dflash2 draft flush 0.671 block 2.293 head 1.868 selproj 0.232 dl 0.640 select 0.491 total 6.194 ms
+spec: keyed draft 6.231 ms, 1 drafts
+adapt: token 16 Stop { k: 1, rate: 0.9553031458040119, hold: 8 }
+spec: token 16 pos 38 drafted 1 accepted 0 emits 1 drafts [150127]
+spec: keyed verify 2 rows (logits) 16.383 ms, accept 0.584 ms
+adapt: step pass 1 1 tokens 23.248 ms
+adapt: step plain 0 1 tokens 14.834 ms
+adapt: step plain 0 1 tokens 14.282 ms
+adapt: step plain 0 1 tokens 14.010 ms
+adapt: step plain 0 1 tokens 13.931 ms
+adapt: step plain 0 1 tokens 13.940 ms
+adapt: step plain 0 1 tokens 14.087 ms
+adapt: step plain 0 1 tokens 14.045 ms
+adapt: step plain 0 1 tokens 14.080 ms
+spec: dflash2 draft flush 0.860 block 2.350 head 1.826 selproj 0.192 dl 0.661 select 0.507 total 6.396 ms
+spec: keyed draft 6.444 ms, 5 drafts
+spec: token 25 pos 47 drafted 5 accepted 0 emits 1 drafts [150266, 149933, 149876, 158842, 11]
+spec: keyed verify 6 rows (logits) 24.316 ms, accept 0.570 ms
+adapt: step pass 5 1 tokens 31.420 ms
+spec: dflash2 draft flush 0.658 block 2.258 head 1.850 selproj 0.187 dl 0.671 select 0.539 total 6.163 ms
+spec: keyed draft 6.222 ms, 5 drafts
+spec: token 26 pos 48 drafted 5 accepted 0 emits 1 drafts [149876, 158842, 172843, 302, 11]
+spec: keyed verify 6 rows (logits) 24.872 ms, accept 0.519 ms
+adapt: step pass 5 1 tokens 31.664 ms
+spec: dflash2 draft flush 0.668 block 2.246 head 1.854 selproj 0.189 dl 0.657 select 0.518 total 6.132 ms
+spec: keyed draft 6.188 ms, 5 drafts
+adapt: token 27 Resume { k: 2, rate: 1.0208321007649594 }
+spec: token 27 pos 49 drafted 5 accepted 2 emits 3 drafts [157796, 149876, 158842, 11, 150026]
+spec: keyed verify 6 rows (logits) 24.123 ms, accept 1.350 ms
+adapt: step pass 5 3 tokens 31.726 ms
+spec: dflash2 draft flush 0.680 block 2.264 head 1.867 selproj 0.182 dl 0.658 select 0.533 total 6.185 ms
+spec: keyed draft 6.234 ms, 2 drafts
+adapt: token 30 Stop { k: 2, rate: 0.9593524223576647, hold: 8 }
+spec: token 30 pos 52 drafted 2 accepted 0 emits 1 drafts [153962, 11]
+spec: keyed verify 3 rows (logits) 18.383 ms, accept 0.533 ms
+adapt: step pass 2 1 tokens 25.211 ms
+adapt: step plain 0 1 tokens 14.765 ms
+ids[w000]: [149879, 150085, 158842, 160800, 149880, 162723, 302, 149882, 149876, 220, 50560, 82, 149890, 149876, 152012, 150487, 149891, 149921, 220, 37538, 150225, 149876, 158759, 13, 150966, 150026, 157796, 149876, 150524, 220, 50560, 149879]
+decode[w000]: 32 tokens, 534 ms (58.03 tok/s)
+prefill[w000]: 24 tokens, 290 ms
+spec[w000]: verify passes=14 proposed=36 accepted=7 (acceptance 19.4%, 1.50 tokens per pass)
+spec: dflash2 draft flush 1.191 block 2.316 head 1.895 selproj 0.228 dl 0.621 select 0.537 total 6.789 ms
+spec: keyed draft 6.849 ms, 5 drafts
+adapt: token 2 Stop { k: 3, rate: 0.9174948000924428, hold: 8 }
+spec: token 2 pos 24 drafted 5 accepted 0 emits 1 drafts [169945, 149887, 165432, 82, 13]
+spec: keyed verify 6 rows (logits) 23.860 ms, accept 0.406 ms
+adapt: step pass 5 1 tokens 31.150 ms
+adapt: step plain 0 1 tokens 14.621 ms
+adapt: step plain 0 1 tokens 13.537 ms
+adapt: step plain 0 1 tokens 13.987 ms
+adapt: step plain 0 1 tokens 13.997 ms
+adapt: step plain 0 1 tokens 13.874 ms
+adapt: step plain 0 1 tokens 13.986 ms
+adapt: step plain 0 1 tokens 13.864 ms
+adapt: step plain 0 1 tokens 14.011 ms
+spec: dflash2 draft flush 0.911 block 2.268 head 1.827 selproj 0.206 dl 0.654 select 0.718 total 6.585 ms
+spec: keyed draft 6.629 ms, 5 drafts
+spec: token 11 pos 33 drafted 5 accepted 4 emits 5 drafts [150126, 150145, 149881, 149876, 150932]
+spec: keyed verify 6 rows (logits) 23.525 ms, accept 2.050 ms
+adapt: step pass 5 5 tokens 32.281 ms
+spec: dflash2 draft flush 1.489 block 2.263 head 1.857 selproj 0.201 dl 0.616 select 0.536 total 6.962 ms
+spec: keyed draft 7.004 ms, 5 drafts
+spec: token 16 pos 38 drafted 5 accepted 2 emits 3 drafts [42072, 153717, 11, 149984, 164577]
+spec: keyed verify 6 rows (logits) 24.461 ms, accept 1.509 ms
+adapt: step pass 5 3 tokens 33.028 ms
+spec: dflash2 draft flush 0.733 block 2.347 head 1.894 selproj 0.215 dl 0.616 select 0.526 total 6.331 ms
+spec: keyed draft 6.370 ms, 5 drafts
+adapt: token 19 Resume { k: 4, rate: 1.384812373650893 }
+spec: token 19 pos 41 drafted 5 accepted 1 emits 2 drafts [151644, 198259, 17, 11, 149880]
+spec: keyed verify 6 rows (logits) 23.917 ms, accept 0.957 ms
+adapt: step pass 5 2 tokens 31.302 ms
+spec: dflash2 draft flush 0.664 block 2.233 head 1.963 selproj 0.233 dl 0.616 select 0.511 total 6.221 ms
+spec: keyed draft 6.263 ms, 4 drafts
+spec: token 21 pos 43 drafted 4 accepted 2 emits 3 drafts [170510, 150079, 150382, 150079]
+spec: keyed verify 5 rows (logits) 22.033 ms, accept 1.241 ms
+adapt: step pass 4 3 tokens 29.595 ms
+spec: dflash2 draft flush 0.690 block 2.325 head 1.882 selproj 0.193 dl 0.617 select 0.503 total 6.210 ms
+spec: keyed draft 6.248 ms, 2 drafts
+spec: token 24 pos 46 drafted 2 accepted 1 emits 2 drafts [13, 68014]
+spec: keyed verify 3 rows (logits) 18.683 ms, accept 0.992 ms
+adapt: step pass 2 2 tokens 25.976 ms
+spec: dflash2 draft flush 0.738 block 2.326 head 1.881 selproj 0.179 dl 0.616 select 0.496 total 6.236 ms
+spec: keyed draft 6.274 ms, 2 drafts
+spec: token 26 pos 48 drafted 2 accepted 0 emits 1 drafts [150932, 12]
+spec: keyed verify 3 rows (logits) 18.670 ms, accept 0.556 ms
+adapt: step pass 2 1 tokens 25.548 ms
+spec: dflash2 draft flush 0.667 block 2.266 head 1.868 selproj 0.201 dl 0.617 select 0.513 total 6.133 ms
+spec: keyed draft 6.173 ms, 5 drafts
+spec: token 27 pos 49 drafted 5 accepted 0 emits 1 drafts [152822, 149914, 149890, 150932, 12]
+spec: keyed verify 6 rows (logits) 24.017 ms, accept 0.584 ms
+adapt: step pass 5 1 tokens 30.822 ms
+spec: dflash2 draft flush 0.682 block 2.253 head 1.883 selproj 0.227 dl 0.617 select 0.495 total 6.157 ms
+spec: keyed draft 6.200 ms, 2 drafts
+spec: token 28 pos 50 drafted 2 accepted 2 emits 3 drafts [149884, 149890]
+spec: keyed verify 3 rows (logits) 18.233 ms, accept 1.412 ms
+adapt: step pass 2 3 tokens 25.900 ms
+spec: dflash2 draft flush 0.671 block 2.235 head 1.880 selproj 0.235 dl 0.630 select 0.541 total 6.191 ms
+spec: keyed draft 6.230 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 0 emits 1 drafts [12]
+spec: keyed verify 2 rows (logits) 16.814 ms, accept 0.665 ms
+adapt: step pass 1 1 tokens 23.759 ms
+ids[w001]: [164178, 198797, 149880, 220, 148900, 145943, 13, 150962, 151823, 149914, 150126, 150145, 149881, 149876, 220, 42072, 153717, 149882, 151644, 152913, 170510, 150079, 171090, 13, 149917, 150452, 151572, 149884, 149890, 150932, 164577, 151625]
+decode[w001]: 32 tokens, 416 ms (74.53 tok/s)
+prefill[w001]: 24 tokens, 65 ms
+spec[w001]: verify passes=10 proposed=36 accepted=12 (acceptance 33.3%, 2.20 tokens per pass)
+spec: dflash2 draft flush 1.285 block 2.200 head 1.840 selproj 0.226 dl 0.633 select 0.496 total 6.680 ms
+spec: keyed draft 6.726 ms, 5 drafts
+adapt: token 2 Stop { k: 3, rate: 0.9174948000924428, hold: 8 }
+spec: token 2 pos 24 drafted 5 accepted 0 emits 1 drafts [13, 149917, 150200, 157282, 25]
+spec: keyed verify 6 rows (logits) 24.287 ms, accept 0.667 ms
+adapt: step pass 5 1 tokens 31.711 ms
+adapt: step plain 0 1 tokens 14.605 ms
+adapt: step plain 0 1 tokens 13.875 ms
+adapt: step plain 0 1 tokens 13.933 ms
+adapt: step plain 0 1 tokens 13.928 ms
+adapt: step plain 0 1 tokens 13.832 ms
+adapt: step plain 0 1 tokens 13.995 ms
+adapt: step plain 0 1 tokens 13.836 ms
+adapt: step plain 0 1 tokens 13.873 ms
+spec: dflash2 draft flush 0.905 block 2.366 head 1.880 selproj 0.207 dl 0.654 select 0.554 total 6.567 ms
+spec: keyed draft 6.614 ms, 5 drafts
+spec: token 11 pos 33 drafted 5 accepted 0 emits 1 drafts [150231, 149879, 149876, 220, 30]
+spec: keyed verify 6 rows (logits) 23.824 ms, accept 0.606 ms
+adapt: step pass 5 1 tokens 31.097 ms
+spec: dflash2 draft flush 0.740 block 2.252 head 1.837 selproj 0.205 dl 0.616 select 0.497 total 6.147 ms
+spec: keyed draft 6.191 ms, 5 drafts
+spec: token 12 pos 34 drafted 5 accepted 1 emits 2 drafts [149879, 220, 30, 1, 170289]
+spec: keyed verify 6 rows (logits) 24.716 ms, accept 1.089 ms
+adapt: step pass 5 2 tokens 32.047 ms
+spec: dflash2 draft flush 0.734 block 2.255 head 1.825 selproj 0.197 dl 0.616 select 0.498 total 6.124 ms
+spec: keyed draft 6.162 ms, 5 drafts
+adapt: token 14 Resume { k: 2, rate: 1.1663579223612526 }
+spec: token 14 pos 36 drafted 5 accepted 2 emits 3 drafts [30, 1, 170289, 150893, 25]
+spec: keyed verify 6 rows (logits) 24.545 ms, accept 1.326 ms
+adapt: step pass 5 3 tokens 32.095 ms
+spec: dflash2 draft flush 0.735 block 2.274 head 1.865 selproj 0.198 dl 0.618 select 0.520 total 6.211 ms
+spec: keyed draft 6.257 ms, 2 drafts
+spec: token 17 pos 39 drafted 2 accepted 2 emits 3 drafts [149884, 149878]
+spec: keyed verify 3 rows (logits) 18.410 ms, accept 1.221 ms
+adapt: step pass 2 3 tokens 25.946 ms
+spec: dflash2 draft flush 0.713 block 2.268 head 1.826 selproj 0.204 dl 0.636 select 0.510 total 6.157 ms
+spec: keyed draft 6.196 ms, 2 drafts
+spec: token 20 pos 42 drafted 2 accepted 2 emits 3 drafts [1355, 150377]
+spec: keyed verify 3 rows (logits) 17.984 ms, accept 1.555 ms
+adapt: step pass 2 3 tokens 25.791 ms
+spec: dflash2 draft flush 0.734 block 2.255 head 1.856 selproj 0.227 dl 0.652 select 0.560 total 6.285 ms
+spec: keyed draft 6.322 ms, 2 drafts
+spec: token 23 pos 45 drafted 2 accepted 2 emits 3 drafts [170289, 150893]
+spec: keyed verify 3 rows (logits) 18.121 ms, accept 1.242 ms
+adapt: step pass 2 3 tokens 25.747 ms
+spec: dflash2 draft flush 0.681 block 2.244 head 1.846 selproj 0.207 dl 0.616 select 0.530 total 6.125 ms
+spec: keyed draft 6.168 ms, 5 drafts
+spec: token 26 pos 48 drafted 5 accepted 5 emits 6 drafts [4123, 13, 158558, 149879, 151194]
+spec: keyed verify 6 rows (logits) 25.085 ms, accept 2.593 ms
+adapt: step pass 5 6 tokens 33.905 ms
+ids[w002]: [21, 68014, 371, 150409, 171960, 25, 196980, 1775, 149884, 149876, 151451, 149879, 151194, 30, 1, 150078, 149884, 149878, 151231, 1355, 150377, 13, 170289, 150893, 149911, 4123, 13, 158558, 149879, 151194, 149884, 152717]
+decode[w002]: 32 tokens, 366 ms (84.73 tok/s)
+prefill[w002]: 24 tokens, 70 ms
+spec[w002]: verify passes=8 proposed=31 accepted=14 (acceptance 45.2%, 2.75 tokens per pass)
+spec: dflash2 draft flush 1.339 block 2.259 head 1.828 selproj 0.186 dl 0.617 select 0.515 total 6.744 ms
+spec: keyed draft 6.797 ms, 5 drafts
+adapt: token 2 Stop { k: 3, rate: 0.9174948000924428, hold: 8 }
+spec: token 2 pos 24 drafted 5 accepted 0 emits 1 drafts [152275, 149922, 220, 68026, 149880]
+spec: keyed verify 6 rows (logits) 24.427 ms, accept 0.609 ms
+adapt: step pass 5 1 tokens 31.869 ms
+adapt: step plain 0 1 tokens 14.597 ms
+adapt: step plain 0 1 tokens 13.890 ms
+adapt: step plain 0 1 tokens 13.996 ms
+adapt: step plain 0 1 tokens 13.810 ms
+adapt: step plain 0 1 tokens 13.854 ms
+adapt: step plain 0 1 tokens 13.850 ms
+adapt: step plain 0 1 tokens 13.933 ms
+adapt: step plain 0 1 tokens 14.032 ms
+spec: dflash2 draft flush 0.903 block 2.263 head 1.848 selproj 0.212 dl 0.617 select 0.523 total 6.365 ms
+spec: keyed draft 6.408 ms, 5 drafts
+spec: token 11 pos 33 drafted 5 accepted 1 emits 2 drafts [279, 149876, 150019, 1153, 385]
+spec: keyed verify 6 rows (logits) 24.456 ms, accept 1.037 ms
+adapt: step pass 5 2 tokens 31.965 ms
+spec: dflash2 draft flush 0.665 block 2.334 head 1.841 selproj 0.195 dl 0.676 select 0.554 total 6.265 ms
+spec: keyed draft 6.317 ms, 5 drafts
+spec: token 13 pos 35 drafted 5 accepted 0 emits 1 drafts [149897, 150019, 1153, 385, 149879]
+spec: keyed verify 6 rows (logits) 24.195 ms, accept 0.624 ms
+adapt: step pass 5 1 tokens 31.182 ms
+spec: dflash2 draft flush 0.738 block 2.303 head 1.869 selproj 0.228 dl 0.636 select 0.491 total 6.265 ms
+spec: keyed draft 6.302 ms, 5 drafts
+adapt: token 14 Resume { k: 1, rate: 1.055494081516542 }
+spec: token 14 pos 36 drafted 5 accepted 1 emits 2 drafts [152275, 149880, 150126, 149897, 11]
+spec: keyed verify 6 rows (logits) 23.992 ms, accept 1.199 ms
+adapt: step pass 5 2 tokens 31.545 ms
+spec: dflash2 draft flush 0.675 block 2.269 head 1.848 selproj 0.189 dl 0.616 select 0.509 total 6.107 ms
+spec: keyed draft 6.143 ms, 1 drafts
+spec: token 16 pos 38 drafted 1 accepted 1 emits 2 drafts [149876]
+spec: keyed verify 2 rows (logits) 16.702 ms, accept 0.925 ms
+adapt: step pass 1 2 tokens 23.822 ms
+spec: dflash2 draft flush 0.711 block 2.354 head 1.896 selproj 0.228 dl 0.618 select 0.521 total 6.330 ms
+spec: keyed draft 6.366 ms, 1 drafts
+spec: token 18 pos 40 drafted 1 accepted 1 emits 2 drafts [40879]
+spec: keyed verify 2 rows (logits) 16.651 ms, accept 0.992 ms
+adapt: step pass 1 2 tokens 24.073 ms
+spec: dflash2 draft flush 0.676 block 2.311 head 1.880 selproj 0.239 dl 0.614 select 0.514 total 6.233 ms
+spec: keyed draft 6.268 ms, 1 drafts
+spec: token 20 pos 42 drafted 1 accepted 1 emits 2 drafts [1153]
+spec: keyed verify 2 rows (logits) 16.631 ms, accept 1.014 ms
+adapt: step pass 1 2 tokens 23.961 ms
+spec: dflash2 draft flush 0.687 block 2.261 head 1.847 selproj 0.211 dl 0.616 select 0.506 total 6.128 ms
+spec: keyed draft 6.163 ms, 5 drafts
+spec: token 22 pos 44 drafted 5 accepted 1 emits 2 drafts [11, 163755, 149878, 152275, 11]
+spec: keyed verify 6 rows (logits) 24.012 ms, accept 0.977 ms
+adapt: step pass 5 2 tokens 31.197 ms
+spec: dflash2 draft flush 0.741 block 2.295 head 1.927 selproj 0.228 dl 0.627 select 0.493 total 6.310 ms
+spec: keyed draft 6.355 ms, 1 drafts
+spec: token 24 pos 46 drafted 1 accepted 1 emits 2 drafts [40879]
+spec: keyed verify 2 rows (logits) 16.691 ms, accept 0.942 ms
+adapt: step pass 1 2 tokens 24.061 ms
+spec: dflash2 draft flush 0.693 block 2.340 head 1.941 selproj 0.226 dl 0.617 select 0.502 total 6.319 ms
+spec: keyed draft 6.359 ms, 1 drafts
+spec: token 26 pos 48 drafted 1 accepted 1 emits 2 drafts [1153]
+spec: keyed verify 2 rows (logits) 16.559 ms, accept 1.030 ms
+adapt: step pass 1 2 tokens 23.998 ms
+spec: dflash2 draft flush 0.750 block 2.326 head 1.875 selproj 0.191 dl 0.617 select 0.499 total 6.256 ms
+spec: keyed draft 6.295 ms, 1 drafts
+spec: token 28 pos 50 drafted 1 accepted 1 emits 2 drafts [149884]
+spec: keyed verify 2 rows (logits) 16.527 ms, accept 0.804 ms
+adapt: step pass 1 2 tokens 23.697 ms
+spec: dflash2 draft flush 0.675 block 2.370 head 1.883 selproj 0.210 dl 0.617 select 0.499 total 6.254 ms
+spec: keyed draft 6.294 ms, 1 drafts
+spec: token 30 pos 52 drafted 1 accepted 1 emits 2 drafts [149876]
+spec: keyed verify 2 rows (logits) 16.459 ms, accept 0.921 ms
+adapt: step pass 1 2 tokens 23.723 ms
+ids[w003]: [149876, 150019, 1153, 385, 149879, 149897, 40879, 11, 220, 39477, 279, 149920, 149878, 152275, 150429, 149876, 149897, 40879, 150019, 1153, 385, 11, 149897, 40879, 150435, 1153, 385, 149884, 149935, 149876, 150244, 149891]
+decode[w003]: 32 tokens, 452 ms (68.59 tok/s)
+prefill[w003]: 24 tokens, 73 ms
+spec[w003]: verify passes=12 proposed=32 accepted=10 (acceptance 31.2%, 1.83 tokens per pass)
+spec: dflash2 draft flush 1.221 block 2.295 head 1.898 selproj 0.251 dl 0.617 select 0.511 total 6.793 ms
+spec: keyed draft 6.835 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 1 emits 2 drafts [150135, 30, 200010, 200006, 30]
+spec: keyed verify 6 rows (logits) 24.643 ms, accept 1.019 ms
+adapt: step pass 5 2 tokens 32.536 ms
+spec: dflash2 draft flush 0.679 block 2.300 head 1.920 selproj 0.227 dl 0.632 select 0.511 total 6.268 ms
+spec: keyed draft 6.312 ms, 2 drafts
+spec: token 4 pos 26 drafted 2 accepted 1 emits 2 drafts [30, 200010]
+spec: keyed verify 3 rows (logits) 18.431 ms, accept 1.074 ms
+adapt: step pass 2 2 tokens 25.872 ms
+spec: dflash2 draft flush 0.740 block 2.257 head 1.867 selproj 0.227 dl 0.617 select 0.518 total 6.225 ms
+spec: keyed draft 6.271 ms, 1 drafts
+spec: token 6 pos 28 drafted 1 accepted 0 emits 1 drafts [2918]
+spec: keyed verify 2 rows (logits) 16.480 ms, accept 0.628 ms
+adapt: step pass 1 1 tokens 23.427 ms
+spec: dflash2 draft flush 0.666 block 2.230 head 1.893 selproj 0.173 dl 0.617 select 0.490 total 6.070 ms
+spec: keyed draft 6.111 ms, 1 drafts
+spec: token 7 pos 29 drafted 1 accepted 1 emits 2 drafts [25]
+spec: keyed verify 2 rows (logits) 16.354 ms, accept 1.035 ms
+adapt: step pass 1 2 tokens 23.552 ms
+spec: dflash2 draft flush 0.669 block 2.223 head 1.845 selproj 0.204 dl 0.619 select 0.505 total 6.066 ms
+spec: keyed draft 6.107 ms, 1 drafts
+spec: token 9 pos 31 drafted 1 accepted 1 emits 2 drafts [2918]
+spec: keyed verify 2 rows (logits) 16.453 ms, accept 1.122 ms
+adapt: step pass 1 2 tokens 23.731 ms
+spec: dflash2 draft flush 0.670 block 2.241 head 1.817 selproj 0.165 dl 0.667 select 0.521 total 6.081 ms
+spec: keyed draft 6.122 ms, 1 drafts
+spec: token 11 pos 33 drafted 1 accepted 0 emits 1 drafts [150135]
+spec: keyed verify 2 rows (logits) 16.329 ms, accept 0.556 ms
+adapt: step pass 1 1 tokens 23.059 ms
+spec: dflash2 draft flush 0.664 block 2.308 head 1.895 selproj 0.219 dl 0.617 select 0.516 total 6.219 ms
+spec: keyed draft 6.256 ms, 1 drafts
+spec: token 12 pos 34 drafted 1 accepted 1 emits 2 drafts [149879]
+spec: keyed verify 2 rows (logits) 16.337 ms, accept 1.044 ms
+adapt: step pass 1 2 tokens 23.691 ms
+spec: dflash2 draft flush 0.663 block 2.250 head 1.850 selproj 0.192 dl 0.656 select 0.530 total 6.141 ms
+spec: keyed draft 6.204 ms, 5 drafts
+spec: token 14 pos 36 drafted 5 accepted 3 emits 4 drafts [279, 150069, 149895, 220, 17]
+spec: keyed verify 6 rows (logits) 24.573 ms, accept 1.860 ms
+adapt: step pass 5 4 tokens 32.699 ms
+spec: dflash2 draft flush 1.284 block 2.304 head 1.861 selproj 0.202 dl 0.663 select 0.536 total 6.850 ms
+spec: keyed draft 6.912 ms, 3 drafts
+spec: token 18 pos 40 drafted 3 accepted 0 emits 1 drafts [155428, 13, 149917]
+spec: keyed verify 4 rows (logits) 20.280 ms, accept 0.661 ms
+adapt: step pass 3 1 tokens 27.904 ms
+spec: dflash2 draft flush 0.673 block 2.397 head 1.913 selproj 0.217 dl 0.620 select 0.514 total 6.332 ms
+spec: keyed draft 6.375 ms, 3 drafts
+spec: token 19 pos 41 drafted 3 accepted 1 emits 2 drafts [13, 149917, 150135]
+spec: keyed verify 4 rows (logits) 20.558 ms, accept 1.242 ms
+adapt: step pass 3 2 tokens 28.232 ms
+spec: dflash2 draft flush 0.672 block 2.257 head 1.898 selproj 0.232 dl 0.632 select 0.487 total 6.177 ms
+spec: keyed draft 6.222 ms, 3 drafts
+spec: token 21 pos 43 drafted 3 accepted 0 emits 1 drafts [149876, 150135, 151226]
+spec: keyed verify 4 rows (logits) 20.256 ms, accept 0.585 ms
+adapt: step pass 3 1 tokens 27.115 ms
+spec: dflash2 draft flush 0.664 block 2.261 head 1.817 selproj 0.190 dl 0.646 select 0.517 total 6.094 ms
+spec: keyed draft 6.142 ms, 3 drafts
+spec: token 22 pos 44 drafted 3 accepted 1 emits 2 drafts [149876, 150135, 151226]
+spec: keyed verify 4 rows (logits) 20.232 ms, accept 1.050 ms
+adapt: step pass 3 2 tokens 27.474 ms
+spec: dflash2 draft flush 0.737 block 2.332 head 1.879 selproj 0.199 dl 0.615 select 0.510 total 6.272 ms
+spec: keyed draft 6.323 ms, 1 drafts
+spec: token 24 pos 46 drafted 1 accepted 0 emits 1 drafts [149920]
+spec: keyed verify 2 rows (logits) 16.945 ms, accept 0.585 ms
+adapt: step pass 1 1 tokens 23.909 ms
+spec: dflash2 draft flush 0.705 block 2.499 head 1.983 selproj 0.229 dl 0.630 select 0.527 total 6.573 ms
+spec: keyed draft 6.630 ms, 1 drafts
+spec: token 25 pos 47 drafted 1 accepted 1 emits 2 drafts [149910]
+spec: keyed verify 2 rows (logits) 16.610 ms, accept 1.167 ms
+adapt: step pass 1 2 tokens 24.468 ms
+spec: dflash2 draft flush 0.658 block 2.255 head 1.857 selproj 0.180 dl 0.642 select 0.524 total 6.115 ms
+spec: keyed draft 6.164 ms, 1 drafts
+spec: token 27 pos 49 drafted 1 accepted 1 emits 2 drafts [150135]
+spec: keyed verify 2 rows (logits) 16.684 ms, accept 0.980 ms
+adapt: step pass 1 2 tokens 23.880 ms
+spec: dflash2 draft flush 0.761 block 2.282 head 1.885 selproj 0.229 dl 0.622 select 0.483 total 6.263 ms
+spec: keyed draft 6.308 ms, 3 drafts
+spec: token 29 pos 51 drafted 3 accepted 0 emits 1 drafts [149884, 220, 69580]
+spec: keyed verify 4 rows (logits) 20.527 ms, accept 0.661 ms
+adapt: step pass 3 1 tokens 27.544 ms
+spec: dflash2 draft flush 0.668 block 2.306 head 1.912 selproj 0.240 dl 0.622 select 0.517 total 6.265 ms
+spec: keyed draft 6.313 ms, 1 drafts
+spec: token 30 pos 52 drafted 1 accepted 1 emits 2 drafts [149924]
+spec: keyed verify 2 rows (logits) 16.590 ms, accept 0.991 ms
+adapt: step pass 1 2 tokens 23.947 ms
+ids[w004]: [149876, 150135, 151226, 30, 68014, 74310, 25, 68014, 2918, 149876, 150038, 149879, 152925, 279, 150069, 149895, 149924, 151976, 13, 151646, 11, 149876, 151263, 186693, 149910, 149876, 150135, 151226, 149881, 149924, 151976, 149884]
+decode[w004]: 32 tokens, 458 ms (67.70 tok/s)
+prefill[w004]: 24 tokens, 69 ms
+spec[w004]: verify passes=17 proposed=36 accepted=13 (acceptance 36.1%, 1.76 tokens per pass)
+spec: dflash2 draft flush 1.221 block 2.300 head 1.894 selproj 0.207 dl 0.619 select 0.516 total 6.757 ms
+spec: keyed draft 6.808 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 1 emits 2 drafts [149862, 149878, 13, 36802, 7]
+spec: keyed verify 6 rows (logits) 24.039 ms, accept 1.084 ms
+adapt: step pass 5 2 tokens 31.966 ms
+spec: dflash2 draft flush 0.689 block 2.269 head 1.883 selproj 0.202 dl 0.617 select 0.494 total 6.155 ms
+spec: keyed draft 6.195 ms, 2 drafts
+spec: token 4 pos 26 drafted 2 accepted 2 emits 3 drafts [13, 36802]
+spec: keyed verify 3 rows (logits) 18.296 ms, accept 1.518 ms
+adapt: step pass 2 3 tokens 26.067 ms
+spec: dflash2 draft flush 0.698 block 2.265 head 1.831 selproj 0.203 dl 0.634 select 0.490 total 6.121 ms
+spec: keyed draft 6.162 ms, 2 drafts
+spec: token 7 pos 29 drafted 2 accepted 2 emits 3 drafts [64, 8]
+spec: keyed verify 3 rows (logits) 18.365 ms, accept 1.346 ms
+adapt: step pass 2 3 tokens 25.936 ms
+spec: dflash2 draft flush 0.653 block 2.247 head 1.896 selproj 0.191 dl 0.651 select 0.547 total 6.185 ms
+spec: keyed draft 6.226 ms, 2 drafts
+spec: token 10 pos 32 drafted 2 accepted 2 emits 3 drafts [149860, 149862]
+spec: keyed verify 3 rows (logits) 18.605 ms, accept 1.289 ms
+adapt: step pass 2 3 tokens 26.172 ms
+spec: dflash2 draft flush 0.666 block 2.263 head 1.860 selproj 0.178 dl 0.657 select 0.523 total 6.147 ms
+spec: keyed draft 6.196 ms, 2 drafts
+spec: token 13 pos 35 drafted 2 accepted 2 emits 3 drafts [11, 149963]
+spec: keyed verify 3 rows (logits) 18.229 ms, accept 1.464 ms
+adapt: step pass 2 3 tokens 25.948 ms
+spec: dflash2 draft flush 0.687 block 2.271 head 1.872 selproj 0.218 dl 0.656 select 0.529 total 6.233 ms
+spec: keyed draft 6.288 ms, 2 drafts
+spec: token 16 pos 38 drafted 2 accepted 2 emits 3 drafts [149963, 11]
+spec: keyed verify 3 rows (logits) 18.203 ms, accept 1.320 ms
+adapt: step pass 2 3 tokens 25.866 ms
+spec: dflash2 draft flush 0.680 block 2.283 head 1.844 selproj 0.200 dl 0.665 select 0.533 total 6.206 ms
+spec: keyed draft 6.258 ms, 2 drafts
+spec: token 19 pos 41 drafted 2 accepted 2 emits 3 drafts [196986, 149963]
+spec: keyed verify 3 rows (logits) 18.139 ms, accept 1.244 ms
+adapt: step pass 2 3 tokens 25.697 ms
+spec: dflash2 draft flush 0.660 block 2.355 head 1.843 selproj 0.197 dl 0.654 select 0.538 total 6.248 ms
+spec: keyed draft 6.326 ms, 5 drafts
+spec: token 22 pos 44 drafted 5 accepted 3 emits 4 drafts [149862, 150583, 151157, 68014, 2]
+spec: keyed verify 6 rows (logits) 24.322 ms, accept 1.891 ms
+adapt: step pass 5 4 tokens 32.607 ms
+spec: dflash2 draft flush 1.117 block 2.256 head 1.865 selproj 0.192 dl 0.663 select 0.545 total 6.639 ms
+spec: keyed draft 6.689 ms, 3 drafts
+spec: token 26 pos 48 drafted 3 accepted 0 emits 1 drafts [68790, 68014, 3135]
+spec: keyed verify 4 rows (logits) 20.662 ms, accept 0.550 ms
+adapt: step pass 3 1 tokens 27.952 ms
+spec: dflash2 draft flush 0.674 block 2.250 head 1.868 selproj 0.181 dl 0.657 select 0.530 total 6.161 ms
+spec: keyed draft 6.226 ms, 3 drafts
+spec: token 27 pos 49 drafted 3 accepted 1 emits 2 drafts [7, 37777, 62]
+spec: keyed verify 4 rows (logits) 20.598 ms, accept 0.982 ms
+adapt: step pass 3 2 tokens 27.858 ms
+spec: dflash2 draft flush 0.672 block 2.272 head 1.852 selproj 0.177 dl 0.691 select 0.524 total 6.189 ms
+spec: keyed draft 6.272 ms, 3 drafts
+spec: token 29 pos 51 drafted 3 accepted 0 emits 1 drafts [7, 58, 16]
+spec: keyed verify 4 rows (logits) 20.616 ms, accept 0.621 ms
+adapt: step pass 3 1 tokens 27.570 ms
+spec: dflash2 draft flush 0.670 block 2.268 head 1.865 selproj 0.186 dl 0.662 select 0.529 total 6.180 ms
+spec: keyed draft 6.247 ms, 2 drafts
+spec: token 30 pos 52 drafted 2 accepted 0 emits 1 drafts [47508, 7]
+spec: keyed verify 3 rows (logits) 18.848 ms, accept 0.520 ms
+adapt: step pass 2 1 tokens 25.666 ms
+spec: dflash2 draft flush 0.666 block 2.257 head 1.852 selproj 0.207 dl 0.666 select 0.537 total 6.185 ms
+spec: keyed draft 6.238 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 0 emits 1 drafts [7]
+spec: keyed verify 2 rows (logits) 16.840 ms, accept 0.497 ms
+adapt: step pass 1 1 tokens 23.631 ms
+ids[w005]: [149860, 149862, 151157, 13, 36802, 7, 64, 8, 198, 149860, 149862, 149878, 11, 149963, 196977, 149963, 11, 149878, 196986, 149963, 198, 149862, 150583, 151157, 198, 1160, 7, 46389, 62, 2911, 34086, 7]
+decode[w005]: 32 tokens, 368 ms (84.31 tok/s)
+prefill[w005]: 24 tokens, 66 ms
+spec[w005]: verify passes=13 proposed=34 accepted=17 (acceptance 50.0%, 2.31 tokens per pass)
+spec: dflash2 draft flush 1.305 block 2.246 head 1.899 selproj 0.239 dl 0.637 select 0.533 total 6.859 ms
+spec: keyed draft 6.912 ms, 5 drafts
+adapt: token 2 Stop { k: 3, rate: 0.9174948000924428, hold: 8 }
+spec: token 2 pos 24 drafted 5 accepted 0 emits 1 drafts [150299, 149879, 149876, 155064, 149879]
+spec: keyed verify 6 rows (logits) 23.864 ms, accept 0.680 ms
+adapt: step pass 5 1 tokens 31.489 ms
+adapt: step plain 0 1 tokens 14.590 ms
+adapt: step plain 0 1 tokens 13.778 ms
+adapt: step plain 0 1 tokens 13.862 ms
+adapt: step plain 0 1 tokens 13.950 ms
+adapt: step plain 0 1 tokens 13.883 ms
+adapt: step plain 0 1 tokens 13.916 ms
+adapt: step plain 0 1 tokens 13.962 ms
+adapt: step plain 0 1 tokens 13.844 ms
+spec: dflash2 draft flush 0.840 block 2.297 head 1.880 selproj 0.196 dl 0.621 select 0.510 total 6.345 ms
+spec: keyed draft 6.393 ms, 5 drafts
+spec: token 11 pos 33 drafted 5 accepted 1 emits 2 drafts [150958, 13, 150078, 149884, 149878]
+spec: keyed verify 6 rows (logits) 24.085 ms, accept 1.143 ms
+adapt: step pass 5 2 tokens 31.686 ms
+spec: dflash2 draft flush 0.717 block 2.289 head 1.856 selproj 0.202 dl 0.679 select 0.543 total 6.285 ms
+spec: keyed draft 6.325 ms, 5 drafts
+spec: token 13 pos 35 drafted 5 accepted 0 emits 1 drafts [149878, 150958, 13, 150078, 149884]
+spec: keyed verify 6 rows (logits) 24.718 ms, accept 0.501 ms
+adapt: step pass 5 1 tokens 31.596 ms
+spec: dflash2 draft flush 0.678 block 2.350 head 1.889 selproj 0.270 dl 0.618 select 0.522 total 6.328 ms
+spec: keyed draft 6.390 ms, 5 drafts
+adapt: token 14 Resume { k: 1, rate: 1.055494081516542 }
+spec: token 14 pos 36 drafted 5 accepted 1 emits 2 drafts [150754, 165947, 13, 68014, 1072]
+spec: keyed verify 6 rows (logits) 24.586 ms, accept 1.016 ms
+adapt: step pass 5 2 tokens 32.054 ms
+spec: dflash2 draft flush 0.732 block 2.325 head 1.896 selproj 0.225 dl 0.617 select 0.513 total 6.309 ms
+spec: keyed draft 6.349 ms, 1 drafts
+adapt: token 16 Stop { k: 1, rate: 0.9764904904864475, hold: 8 }
+spec: token 16 pos 38 drafted 1 accepted 0 emits 1 drafts [152443]
+spec: keyed verify 2 rows (logits) 16.435 ms, accept 0.591 ms
+adapt: step pass 1 1 tokens 23.426 ms
+adapt: step plain 0 1 tokens 14.663 ms
+adapt: step plain 0 1 tokens 13.813 ms
+adapt: step plain 0 1 tokens 14.034 ms
+adapt: step plain 0 1 tokens 14.820 ms
+adapt: step plain 0 1 tokens 14.026 ms
+adapt: step plain 0 1 tokens 14.071 ms
+adapt: step plain 0 1 tokens 14.107 ms
+adapt: step plain 0 1 tokens 14.015 ms
+spec: dflash2 draft flush 0.884 block 2.293 head 1.864 selproj 0.181 dl 0.630 select 0.535 total 6.388 ms
+spec: keyed draft 6.463 ms, 5 drafts
+spec: token 25 pos 47 drafted 5 accepted 1 emits 2 drafts [1, 157823, 149887, 149878, 151093]
+spec: keyed verify 6 rows (logits) 24.360 ms, accept 1.147 ms
+adapt: step pass 5 2 tokens 32.036 ms
+spec: dflash2 draft flush 0.737 block 2.341 head 1.931 selproj 0.225 dl 0.619 select 0.510 total 6.364 ms
+spec: keyed draft 6.406 ms, 5 drafts
+spec: token 27 pos 49 drafted 5 accepted 2 emits 3 drafts [150202, 149882, 150259, 149878, 175966]
+spec: keyed verify 6 rows (logits) 24.613 ms, accept 1.254 ms
+adapt: step pass 5 3 tokens 32.334 ms
+spec: dflash2 draft flush 0.659 block 2.243 head 1.860 selproj 0.173 dl 0.652 select 0.526 total 6.114 ms
+spec: keyed draft 6.160 ms, 2 drafts
+adapt: token 30 Resume { k: 2, rate: 1.166274183421074 }
+spec: token 30 pos 52 drafted 2 accepted 1 emits 2 drafts [149878, 175966]
+spec: keyed verify 3 rows (logits) 18.709 ms, accept 0.953 ms
+adapt: step pass 2 2 tokens 25.874 ms
+ids[w006]: [149878, 156285, 153529, 149894, 150202, 149882, 150259, 149878, 175966, 149922, 150958, 150151, 181480, 150754, 169749, 151998, 149880, 150126, 150865, 149878, 196980, 1201, 12, 278, 1, 149894, 150202, 149882, 150643, 149878, 156132, 220]
+decode[w006]: 32 tokens, 481 ms (64.50 tok/s)
+prefill[w006]: 24 tokens, 70 ms
+spec[w006]: verify passes=8 proposed=33 accepted=6 (acceptance 18.2%, 1.75 tokens per pass)
+spec: dflash2 draft flush 1.272 block 2.293 head 1.884 selproj 0.275 dl 0.616 select 0.509 total 6.849 ms
+spec: keyed draft 6.902 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 1 emits 2 drafts [149878, 162980, 150893, 13, 200010]
+spec: keyed verify 6 rows (logits) 24.985 ms, accept 1.076 ms
+adapt: step pass 5 2 tokens 32.998 ms
+spec: dflash2 draft flush 0.743 block 2.326 head 1.865 selproj 0.239 dl 0.651 select 0.535 total 6.359 ms
+spec: keyed draft 6.398 ms, 2 drafts
+spec: token 4 pos 26 drafted 2 accepted 0 emits 1 drafts [149880, 149876]
+spec: keyed verify 3 rows (logits) 18.086 ms, accept 0.582 ms
+adapt: step pass 2 1 tokens 25.115 ms
+spec: dflash2 draft flush 0.660 block 2.347 head 1.845 selproj 0.205 dl 0.638 select 0.508 total 6.204 ms
+spec: keyed draft 6.245 ms, 1 drafts
+spec: token 5 pos 27 drafted 1 accepted 1 emits 2 drafts [3371]
+spec: keyed verify 2 rows (logits) 16.395 ms, accept 0.972 ms
+adapt: step pass 1 2 tokens 23.679 ms
+spec: dflash2 draft flush 0.698 block 2.243 head 1.848 selproj 0.202 dl 0.617 select 0.511 total 6.119 ms
+spec: keyed draft 6.155 ms, 1 drafts
+spec: token 7 pos 29 drafted 1 accepted 0 emits 1 drafts [13]
+spec: keyed verify 2 rows (logits) 16.481 ms, accept 0.627 ms
+adapt: step pass 1 1 tokens 23.308 ms
+spec: dflash2 draft flush 0.692 block 2.248 head 1.853 selproj 0.210 dl 0.618 select 0.513 total 6.134 ms
+spec: keyed draft 6.174 ms, 1 drafts
+spec: token 8 pos 30 drafted 1 accepted 1 emits 2 drafts [149935]
+spec: keyed verify 2 rows (logits) 16.454 ms, accept 0.950 ms
+adapt: step pass 1 2 tokens 23.630 ms
+spec: dflash2 draft flush 0.736 block 2.256 head 1.850 selproj 0.287 dl 0.653 select 0.521 total 6.303 ms
+spec: keyed draft 6.341 ms, 1 drafts
+spec: token 10 pos 32 drafted 1 accepted 0 emits 1 drafts [150971]
+spec: keyed verify 2 rows (logits) 16.607 ms, accept 0.653 ms
+adapt: step pass 1 1 tokens 23.647 ms
+spec: dflash2 draft flush 0.687 block 2.258 head 1.846 selproj 0.187 dl 0.615 select 0.508 total 6.100 ms
+spec: keyed draft 6.138 ms, 1 drafts
+adapt: token 11 Stop { k: 1, rate: 0.9516520087196807, hold: 8 }
+spec: token 11 pos 33 drafted 1 accepted 0 emits 1 drafts [68111]
+spec: keyed verify 2 rows (logits) 16.805 ms, accept 0.621 ms
+adapt: step pass 1 1 tokens 23.615 ms
+adapt: step plain 0 1 tokens 14.681 ms
+adapt: step plain 0 1 tokens 13.959 ms
+adapt: step plain 0 1 tokens 13.900 ms
+adapt: step plain 0 1 tokens 13.796 ms
+adapt: step plain 0 1 tokens 14.001 ms
+adapt: step plain 0 1 tokens 13.985 ms
+adapt: step plain 0 1 tokens 13.947 ms
+adapt: step plain 0 1 tokens 13.904 ms
+spec: dflash2 draft flush 0.841 block 2.338 head 1.885 selproj 0.203 dl 0.617 select 0.510 total 6.392 ms
+spec: keyed draft 6.441 ms, 5 drafts
+spec: token 20 pos 42 drafted 5 accepted 0 emits 1 drafts [371, 150377, 25, 153630, 149884]
+spec: keyed verify 6 rows (logits) 24.619 ms, accept 0.608 ms
+adapt: step pass 5 1 tokens 31.724 ms
+spec: dflash2 draft flush 0.683 block 2.332 head 1.903 selproj 0.253 dl 0.617 select 0.504 total 6.293 ms
+spec: keyed draft 6.332 ms, 5 drafts
+spec: token 21 pos 43 drafted 5 accepted 0 emits 1 drafts [371, 150409, 149884, 149878, 150942]
+spec: keyed verify 6 rows (logits) 24.269 ms, accept 0.654 ms
+adapt: step pass 5 1 tokens 31.300 ms
+spec: dflash2 draft flush 0.697 block 2.274 head 1.902 selproj 0.229 dl 0.657 select 0.514 total 6.273 ms
+spec: keyed draft 6.316 ms, 5 drafts
+adapt: token 22 Hold { k: 1, rate: 0.9562353862150272, hold: 16 }
+spec: token 22 pos 44 drafted 5 accepted 1 emits 2 drafts [145054, 88399, 145054, 25, 145054]
+spec: keyed verify 6 rows (logits) 23.862 ms, accept 1.117 ms
+adapt: step pass 5 2 tokens 31.343 ms
+adapt: step plain 0 1 tokens 14.901 ms
+adapt: step plain 0 1 tokens 14.027 ms
+adapt: step plain 0 1 tokens 13.971 ms
+adapt: step plain 0 1 tokens 14.042 ms
+adapt: step plain 0 1 tokens 14.086 ms
+adapt: step plain 0 1 tokens 14.008 ms
+adapt: step plain 0 1 tokens 13.984 ms
+adapt: step plain 0 1 tokens 14.025 ms
+ids[w007]: [150684, 149878, 150942, 12, 3371, 155271, 11, 149935, 149878, 220, 68619, 68619, 66046, 169823, 149881, 182416, 13, 145054, 68014, 145054, 198, 145054, 68014, 145054, 68014, 145054, 68014, 145054, 68014, 145054, 68014, 145054]
+decode[w007]: 32 tokens, 510 ms (60.83 tok/s)
+prefill[w007]: 24 tokens, 70 ms
+spec[w007]: verify passes=10 proposed=27 accepted=4 (acceptance 14.8%, 1.40 tokens per pass)
+spec: dflash2 draft flush 1.295 block 2.227 head 1.826 selproj 0.205 dl 0.619 select 0.498 total 6.670 ms
+spec: keyed draft 6.719 ms, 5 drafts
+adapt: token 2 Stop { k: 3, rate: 0.9174948000924428, hold: 8 }
+spec: token 2 pos 24 drafted 5 accepted 0 emits 1 drafts [30, 200010, 30, 200010, 30]
+spec: keyed verify 6 rows (logits) 23.539 ms, accept 0.614 ms
+adapt: step pass 5 1 tokens 30.901 ms
+adapt: step plain 0 1 tokens 14.567 ms
+adapt: step plain 0 1 tokens 13.891 ms
+adapt: step plain 0 1 tokens 13.897 ms
+adapt: step plain 0 1 tokens 13.864 ms
+adapt: step plain 0 1 tokens 13.904 ms
+adapt: step plain 0 1 tokens 13.873 ms
+adapt: step plain 0 1 tokens 13.890 ms
+adapt: step plain 0 1 tokens 13.983 ms
+spec: dflash2 draft flush 0.861 block 2.379 head 2.041 selproj 0.211 dl 0.618 select 0.503 total 6.614 ms
+spec: keyed draft 6.678 ms, 5 drafts
+spec: token 11 pos 33 drafted 5 accepted 1 emits 2 drafts [151976, 13, 68014, 150273, 149876]
+spec: keyed verify 6 rows (logits) 24.750 ms, accept 1.034 ms
+adapt: step pass 5 2 tokens 32.521 ms
+spec: dflash2 draft flush 0.682 block 2.277 head 1.859 selproj 0.234 dl 0.618 select 0.532 total 6.203 ms
+spec: keyed draft 6.249 ms, 5 drafts
+spec: token 13 pos 35 drafted 5 accepted 0 emits 1 drafts [21, 152024, 13, 68014, 2918]
+spec: keyed verify 6 rows (logits) 24.249 ms, accept 0.601 ms
+adapt: step pass 5 1 tokens 31.144 ms
+spec: dflash2 draft flush 0.745 block 2.338 head 1.894 selproj 0.178 dl 0.617 select 0.512 total 6.284 ms
+spec: keyed draft 6.330 ms, 5 drafts
+adapt: token 14 Resume { k: 3, rate: 1.2209125944102863 }
+spec: token 14 pos 36 drafted 5 accepted 3 emits 4 drafts [152024, 13, 68014, 2918, 149991]
+spec: keyed verify 6 rows (logits) 24.415 ms, accept 1.857 ms
+adapt: step pass 5 4 tokens 32.659 ms
+spec: dflash2 draft flush 0.672 block 2.367 head 1.932 selproj 0.230 dl 0.616 select 0.513 total 6.329 ms
+spec: keyed draft 6.375 ms, 3 drafts
+spec: token 18 pos 40 drafted 3 accepted 2 emits 3 drafts [25, 149917, 150514]
+spec: keyed verify 4 rows (logits) 20.662 ms, accept 1.719 ms
+adapt: step pass 3 3 tokens 28.812 ms
+spec: dflash2 draft flush 0.670 block 2.227 head 1.891 selproj 0.203 dl 0.620 select 0.509 total 6.121 ms
+spec: keyed draft 6.165 ms, 3 drafts
+spec: token 21 pos 43 drafted 3 accepted 2 emits 3 drafts [150134, 149876, 150135]
+spec: keyed verify 4 rows (logits) 20.047 ms, accept 1.337 ms
+adapt: step pass 3 3 tokens 27.625 ms
+spec: dflash2 draft flush 0.669 block 2.312 head 1.895 selproj 0.223 dl 0.622 select 0.521 total 6.241 ms
+spec: keyed draft 6.280 ms, 2 drafts
+spec: token 24 pos 46 drafted 2 accepted 2 emits 3 drafts [149884, 220]
+spec: keyed verify 3 rows (logits) 18.578 ms, accept 1.355 ms
+adapt: step pass 2 3 tokens 26.283 ms
+spec: dflash2 draft flush 0.741 block 2.333 head 1.891 selproj 0.218 dl 0.618 select 0.529 total 6.331 ms
+spec: keyed draft 6.368 ms, 5 drafts
+spec: token 27 pos 49 drafted 5 accepted 3 emits 4 drafts [150983, 13, 149917, 150514, 151226]
+spec: keyed verify 6 rows (logits) 24.543 ms, accept 1.789 ms
+adapt: step pass 5 4 tokens 32.767 ms
+spec: dflash2 draft flush 1.189 block 2.318 head 1.878 selproj 0.220 dl 0.647 select 0.538 total 6.790 ms
+spec: keyed draft 6.841 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 1 emits 2 drafts [151918]
+spec: keyed verify 2 rows (logits) 16.466 ms, accept 1.079 ms
+ids[w008]: [150069, 149899, 149876, 150135, 30, 68014, 3256, 25, 220, 18, 151976, 220, 68199, 152024, 13, 68014, 35543, 25, 149917, 151263, 150134, 149876, 187088, 149884, 220, 68154, 150983, 13, 149917, 151952, 151918, 149879]
+decode[w008]: 32 tokens, 379 ms (81.79 tok/s)
+prefill[w008]: 24 tokens, 68 ms
+spec[w008]: verify passes=9 proposed=34 accepted=14 (acceptance 41.2%, 2.56 tokens per pass)
+spec: dflash2 draft flush 1.335 block 2.271 head 1.855 selproj 0.185 dl 0.657 select 0.509 total 6.811 ms
+spec: keyed draft 6.866 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 5 emits 6 drafts [11, 220, 68040, 11, 220]
+spec: keyed verify 6 rows (logits) 22.595 ms, accept 2.475 ms
+adapt: step pass 5 6 tokens 31.977 ms
+spec: dflash2 draft flush 1.474 block 2.302 head 1.919 selproj 0.227 dl 0.636 select 0.504 total 7.061 ms
+spec: keyed draft 7.104 ms, 5 drafts
+spec: token 8 pos 30 drafted 5 accepted 5 emits 6 drafts [11, 220, 68084, 11, 220]
+spec: keyed verify 6 rows (logits) 22.769 ms, accept 2.798 ms
+adapt: step pass 5 6 tokens 32.729 ms
+spec: dflash2 draft flush 1.507 block 2.302 head 1.877 selproj 0.192 dl 0.620 select 0.510 total 7.008 ms
+spec: keyed draft 7.055 ms, 5 drafts
+spec: token 14 pos 36 drafted 5 accepted 5 emits 6 drafts [11, 220, 68080, 11, 220]
+spec: keyed verify 6 rows (logits) 22.562 ms, accept 2.452 ms
+adapt: step pass 5 6 tokens 32.134 ms
+spec: dflash2 draft flush 1.506 block 2.311 head 1.877 selproj 0.189 dl 0.620 select 0.518 total 7.021 ms
+spec: keyed draft 7.068 ms, 5 drafts
+spec: token 20 pos 42 drafted 5 accepted 5 emits 6 drafts [11, 220, 68073, 11, 220]
+spec: keyed verify 6 rows (logits) 22.977 ms, accept 2.632 ms
+adapt: step pass 5 6 tokens 32.736 ms
+spec: dflash2 draft flush 1.466 block 2.458 head 1.897 selproj 0.228 dl 0.626 select 0.526 total 7.200 ms
+spec: keyed draft 7.246 ms, 5 drafts
+spec: token 26 pos 48 drafted 5 accepted 5 emits 6 drafts [11, 220, 68020, 11, 220]
+spec: keyed verify 6 rows (logits) 22.723 ms, accept 2.885 ms
+adapt: step pass 5 6 tokens 32.917 ms
+ids[w009]: [68052, 11, 220, 68040, 11, 220, 68079, 11, 220, 68084, 11, 220, 68063, 11, 220, 68080, 11, 220, 68107, 11, 220, 68073, 11, 220, 68028, 11, 220, 68020, 11, 220, 68251, 11]
+decode[w009]: 32 tokens, 178 ms (174.55 tok/s)
+prefill[w009]: 24 tokens, 57 ms
+spec[w009]: verify passes=5 proposed=25 accepted=25 (acceptance 100.0%, 6.00 tokens per pass)
+spec: dflash2 draft flush 1.238 block 2.217 head 1.885 selproj 0.234 dl 0.638 select 0.501 total 6.714 ms
+spec: keyed draft 6.767 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 3 emits 4 drafts [149910, 149984, 156111, 150054, 149879]
+spec: keyed verify 6 rows (logits) 24.374 ms, accept 1.729 ms
+adapt: step pass 5 4 tokens 32.912 ms
+spec: dflash2 draft flush 0.678 block 2.263 head 1.840 selproj 0.206 dl 0.621 select 0.525 total 6.132 ms
+spec: keyed draft 6.172 ms, 3 drafts
+spec: token 6 pos 28 drafted 3 accepted 3 emits 4 drafts [151483, 1638, 150079]
+spec: keyed verify 4 rows (logits) 20.366 ms, accept 1.898 ms
+adapt: step pass 3 4 tokens 28.491 ms
+spec: dflash2 draft flush 1.306 block 2.356 head 1.886 selproj 0.209 dl 0.671 select 0.519 total 6.946 ms
+spec: keyed draft 7.005 ms, 3 drafts
+spec: token 10 pos 32 drafted 3 accepted 1 emits 2 drafts [13, 68014, 31298]
+spec: keyed verify 4 rows (logits) 21.113 ms, accept 0.954 ms
+adapt: step pass 3 2 tokens 29.122 ms
+spec: dflash2 draft flush 0.654 block 2.309 head 1.913 selproj 0.229 dl 0.618 select 0.529 total 6.251 ms
+spec: keyed draft 6.290 ms, 3 drafts
+spec: token 12 pos 34 drafted 3 accepted 0 emits 1 drafts [31298, 85886, 25]
+spec: keyed verify 4 rows (logits) 21.074 ms, accept 0.658 ms
+adapt: step pass 3 1 tokens 28.069 ms
+spec: dflash2 draft flush 0.745 block 2.327 head 1.881 selproj 0.180 dl 0.634 select 0.503 total 6.270 ms
+spec: keyed draft 6.306 ms, 3 drafts
+spec: token 13 pos 35 drafted 3 accepted 0 emits 1 drafts [150003, 149876, 150107]
+spec: keyed verify 4 rows (logits) 20.413 ms, accept 0.618 ms
+adapt: step pass 3 1 tokens 27.387 ms
+spec: dflash2 draft flush 0.661 block 2.221 head 1.841 selproj 0.210 dl 0.620 select 0.510 total 6.063 ms
+spec: keyed draft 6.102 ms, 3 drafts
+spec: token 14 pos 36 drafted 3 accepted 1 emits 2 drafts [152486, 13, 198]
+spec: keyed verify 4 rows (logits) 20.122 ms, accept 1.185 ms
+adapt: step pass 3 2 tokens 27.461 ms
+spec: dflash2 draft flush 0.705 block 2.259 head 1.895 selproj 0.221 dl 0.617 select 0.516 total 6.213 ms
+spec: keyed draft 6.247 ms, 3 drafts
+spec: token 16 pos 38 drafted 3 accepted 0 emits 1 drafts [200010, 200001, 200004]
+spec: keyed verify 4 rows (logits) 20.053 ms, accept 0.577 ms
+adapt: step pass 3 1 tokens 26.924 ms
+spec: dflash2 draft flush 0.719 block 2.320 head 1.883 selproj 0.223 dl 0.634 select 0.485 total 6.263 ms
+spec: keyed draft 6.299 ms, 5 drafts
+adapt: token 17 Stop { k: 3, rate: 0.9824938712263573, hold: 8 }
+spec: token 17 pos 39 drafted 5 accepted 0 emits 1 drafts [31298, 85886, 149884, 149878, 220]
+spec: keyed verify 6 rows (logits) 24.812 ms, accept 0.688 ms
+adapt: step pass 5 1 tokens 31.843 ms
+adapt: step plain 0 1 tokens 14.578 ms
+adapt: step plain 0 1 tokens 13.900 ms
+adapt: step plain 0 1 tokens 14.109 ms
+adapt: step plain 0 1 tokens 14.072 ms
+adapt: step plain 0 1 tokens 13.965 ms
+adapt: step plain 0 1 tokens 14.027 ms
+adapt: step plain 0 1 tokens 13.923 ms
+adapt: step plain 0 1 tokens 14.058 ms
+spec: dflash2 draft flush 0.854 block 2.266 head 1.861 selproj 0.212 dl 0.661 select 0.521 total 6.375 ms
+spec: keyed draft 6.436 ms, 5 drafts
+spec: token 26 pos 48 drafted 5 accepted 1 emits 2 drafts [198, 31298, 85886, 149884, 149876]
+spec: keyed verify 6 rows (logits) 25.508 ms, accept 0.871 ms
+adapt: step pass 5 2 tokens 32.899 ms
+spec: dflash2 draft flush 0.670 block 2.272 head 1.871 selproj 0.211 dl 0.656 select 0.520 total 6.200 ms
+spec: keyed draft 6.258 ms, 4 drafts
+spec: token 28 pos 50 drafted 4 accepted 0 emits 1 drafts [77, 8, 198, 68790]
+spec: keyed verify 5 rows (logits) 23.242 ms, accept 0.542 ms
+adapt: step pass 4 1 tokens 30.116 ms
+spec: dflash2 draft flush 0.663 block 2.359 head 1.856 selproj 0.172 dl 0.707 select 0.561 total 6.319 ms
+spec: keyed draft 6.379 ms, 3 drafts
+adapt: token 29 Resume { k: 1, rate: 1.0381922018432683 }
+spec: token 29 pos 51 drafted 3 accepted 1 emits 2 drafts [8, 151663, 198]
+spec: keyed verify 4 rows (logits) 21.048 ms, accept 0.941 ms
+adapt: step pass 3 2 tokens 28.428 ms
+spec: dflash2 draft flush 0.666 block 2.265 head 1.841 selproj 0.191 dl 0.658 select 0.537 total 6.157 ms
+spec: keyed draft 6.211 ms, 1 drafts
+adapt: token 31 Stop { k: 1, rate: 0.985783558432673, hold: 8 }
+spec: token 31 pos 53 drafted 1 accepted 0 emits 1 drafts [137982]
+spec: keyed verify 2 rows (logits) 16.866 ms, accept 0.598 ms
+adapt: step pass 1 1 tokens 23.726 ms
+ids[w010]: [150320, 149910, 149984, 156111, 152166, 151483, 1638, 150079, 150905, 13, 198, 2225, 149918, 152486, 30, 198, 7, 64, 8, 151663, 198, 7, 65, 8, 152486, 198, 7, 66, 8, 220, 39158, 198]
+decode[w010]: 32 tokens, 475 ms (65.28 tok/s)
+prefill[w010]: 24 tokens, 70 ms
+spec[w010]: verify passes=12 proposed=41 accepted=10 (acceptance 24.4%, 1.83 tokens per pass)
+spec: dflash2 draft flush 1.269 block 2.253 head 1.885 selproj 0.198 dl 0.669 select 0.540 total 6.815 ms
+spec: keyed draft 6.989 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 1 emits 2 drafts [150409, 171960, 25, 196980, 25]
+spec: keyed verify 6 rows (logits) 23.803 ms, accept 0.836 ms
+adapt: step pass 5 2 tokens 31.698 ms
+spec: dflash2 draft flush 0.673 block 2.290 head 1.888 selproj 0.193 dl 0.659 select 0.538 total 6.241 ms
+spec: keyed draft 6.310 ms, 2 drafts
+spec: token 4 pos 26 drafted 2 accepted 1 emits 2 drafts [82, 151501]
+spec: keyed verify 3 rows (logits) 18.509 ms, accept 0.727 ms
+adapt: step pass 2 2 tokens 25.640 ms
+spec: dflash2 draft flush 0.680 block 2.286 head 1.887 selproj 0.215 dl 0.635 select 0.528 total 6.231 ms
+spec: keyed draft 6.298 ms, 1 drafts
+spec: token 6 pos 28 drafted 1 accepted 0 emits 1 drafts [25]
+spec: keyed verify 2 rows (logits) 16.634 ms, accept 0.571 ms
+adapt: step pass 1 1 tokens 23.555 ms
+spec: dflash2 draft flush 0.752 block 2.346 head 1.884 selproj 0.185 dl 0.654 select 0.522 total 6.345 ms
+spec: keyed draft 6.394 ms, 1 drafts
+adapt: token 7 Stop { k: 1, rate: 0.9929221108284393, hold: 8 }
+spec: token 7 pos 29 drafted 1 accepted 0 emits 1 drafts [25]
+spec: keyed verify 2 rows (logits) 16.404 ms, accept 0.600 ms
+adapt: step pass 1 1 tokens 23.444 ms
+adapt: step plain 0 1 tokens 14.730 ms
+adapt: step plain 0 1 tokens 13.947 ms
+adapt: step plain 0 1 tokens 13.981 ms
+adapt: step plain 0 1 tokens 13.842 ms
+adapt: step plain 0 1 tokens 13.839 ms
+adapt: step plain 0 1 tokens 13.760 ms
+adapt: step plain 0 1 tokens 13.980 ms
+adapt: step plain 0 1 tokens 13.945 ms
+spec: dflash2 draft flush 0.845 block 2.318 head 1.880 selproj 0.228 dl 0.638 select 0.533 total 6.443 ms
+spec: keyed draft 6.487 ms, 5 drafts
+spec: token 16 pos 38 drafted 5 accepted 1 emits 2 drafts [200001, 200004, 368, 152692, 151170]
+spec: keyed verify 6 rows (logits) 24.913 ms, accept 1.030 ms
+adapt: step pass 5 2 tokens 32.488 ms
+spec: dflash2 draft flush 0.722 block 2.278 head 1.970 selproj 0.220 dl 0.657 select 0.536 total 6.383 ms
+spec: keyed draft 6.431 ms, 5 drafts
+spec: token 18 pos 40 drafted 5 accepted 5 emits 6 drafts [371, 150409, 171960, 25, 196980]
+spec: keyed verify 6 rows (logits) 23.973 ms, accept 2.331 ms
+adapt: step pass 5 6 tokens 32.804 ms
+spec: dflash2 draft flush 1.406 block 2.452 head 1.919 selproj 0.187 dl 0.633 select 0.528 total 7.125 ms
+spec: keyed draft 7.180 ms, 5 drafts
+adapt: token 24 Resume { k: 5, rate: 1.419562812586359 }
+spec: token 24 pos 46 drafted 5 accepted 2 emits 3 drafts [149884, 149876, 150230, 30, 1]
+spec: keyed verify 6 rows (logits) 24.110 ms, accept 1.398 ms
+adapt: step pass 5 3 tokens 32.753 ms
+spec: dflash2 draft flush 0.976 block 2.397 head 1.877 selproj 0.186 dl 0.626 select 0.516 total 6.578 ms
+spec: keyed draft 6.628 ms, 5 drafts
+spec: token 27 pos 49 drafted 5 accepted 1 emits 2 drafts [149879, 149878, 151170, 30, 1]
+spec: keyed verify 6 rows (logits) 23.879 ms, accept 0.962 ms
+adapt: step pass 5 2 tokens 31.527 ms
+spec: dflash2 draft flush 0.747 block 2.257 head 1.856 selproj 0.235 dl 0.623 select 0.521 total 6.239 ms
+spec: keyed draft 6.282 ms, 3 drafts
+spec: token 29 pos 51 drafted 3 accepted 0 emits 1 drafts [220, 30, 1]
+spec: keyed verify 4 rows (logits) 20.397 ms, accept 0.565 ms
+adapt: step pass 3 1 tokens 27.292 ms
+spec: dflash2 draft flush 0.715 block 2.333 head 1.899 selproj 0.209 dl 0.618 select 0.527 total 6.301 ms
+spec: keyed draft 6.343 ms, 2 drafts
+spec: token 30 pos 52 drafted 2 accepted 0 emits 1 drafts [30, 1]
+spec: keyed verify 3 rows (logits) 18.478 ms, accept 0.633 ms
+adapt: step pass 2 1 tokens 25.502 ms
+spec: dflash2 draft flush 0.666 block 2.388 head 1.821 selproj 0.213 dl 0.655 select 0.517 total 6.260 ms
+spec: keyed draft 6.299 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 0 emits 1 drafts [149876]
+spec: keyed verify 2 rows (logits) 16.350 ms, accept 0.656 ms
+adapt: step pass 1 1 tokens 23.356 ms
+ids[w011]: [371, 150409, 6, 82, 150377, 149884, 149881, 152692, 11, 149982, 150893, 149881, 152692, 13, 200010, 200001, 200008, 371, 150409, 171960, 25, 196980, 1775, 149884, 149876, 151170, 149879, 149876, 151388, 150207, 149941, 150030]
+decode[w011]: 32 tokens, 437 ms (70.95 tok/s)
+prefill[w011]: 24 tokens, 69 ms
+spec[w011]: verify passes=11 proposed=35 accepted=11 (acceptance 31.4%, 2.00 tokens per pass)
+spec: dflash2 draft flush 1.282 block 2.302 head 1.892 selproj 0.237 dl 0.616 select 0.532 total 6.862 ms
+spec: keyed draft 6.943 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 5 emits 6 drafts [371, 150409, 171960, 149878, 150744]
+spec: keyed verify 6 rows (logits) 24.205 ms, accept 2.353 ms
+adapt: step pass 5 6 tokens 33.570 ms
+spec: dflash2 draft flush 1.263 block 2.254 head 1.873 selproj 0.216 dl 0.637 select 0.502 total 6.745 ms
+spec: keyed draft 6.820 ms, 5 drafts
+spec: token 8 pos 30 drafted 5 accepted 5 emits 6 drafts [1355, 150377, 25, 151451, 149879]
+spec: keyed verify 6 rows (logits) 24.471 ms, accept 2.460 ms
+adapt: step pass 5 6 tokens 33.851 ms
+spec: dflash2 draft flush 1.495 block 2.349 head 1.909 selproj 0.224 dl 0.625 select 0.530 total 7.131 ms
+spec: keyed draft 7.211 ms, 5 drafts
+spec: token 14 pos 36 drafted 5 accepted 3 emits 4 drafts [13, 170289, 150893, 149911, 4123]
+spec: keyed verify 6 rows (logits) 24.699 ms, accept 1.825 ms
+adapt: step pass 5 4 tokens 33.824 ms
+spec: dflash2 draft flush 1.280 block 2.271 head 1.863 selproj 0.198 dl 0.627 select 0.518 total 6.758 ms
+spec: keyed draft 6.809 ms, 5 drafts
+spec: token 18 pos 40 drafted 5 accepted 1 emits 2 drafts [13, 182416, 149884, 149878, 149911]
+spec: keyed verify 6 rows (logits) 25.087 ms, accept 1.049 ms
+adapt: step pass 5 2 tokens 33.024 ms
+spec: dflash2 draft flush 0.671 block 2.233 head 1.834 selproj 0.166 dl 0.653 select 0.569 total 6.125 ms
+spec: keyed draft 6.178 ms, 5 drafts
+spec: token 20 pos 42 drafted 5 accepted 2 emits 3 drafts [150261, 149887, 150064, 152804, 13]
+spec: keyed verify 6 rows (logits) 23.720 ms, accept 1.216 ms
+adapt: step pass 5 3 tokens 31.188 ms
+spec: dflash2 draft flush 0.734 block 2.327 head 1.878 selproj 0.188 dl 0.621 select 0.530 total 6.279 ms
+spec: keyed draft 6.331 ms, 5 drafts
+spec: token 23 pos 45 drafted 5 accepted 2 emits 3 drafts [155456, 154762, 151331, 150145, 13]
+spec: keyed verify 6 rows (logits) 24.144 ms, accept 1.600 ms
+adapt: step pass 5 3 tokens 32.138 ms
+spec: dflash2 draft flush 0.663 block 2.228 head 1.871 selproj 0.212 dl 0.614 select 0.516 total 6.104 ms
+spec: keyed draft 6.154 ms, 3 drafts
+spec: token 26 pos 48 drafted 3 accepted 0 emits 1 drafts [170289, 150400, 149911]
+spec: keyed verify 4 rows (logits) 20.989 ms, accept 0.592 ms
+adapt: step pass 3 1 tokens 27.795 ms
+spec: dflash2 draft flush 0.684 block 2.305 head 1.898 selproj 0.211 dl 0.626 select 0.536 total 6.261 ms
+spec: keyed draft 6.315 ms, 5 drafts
+spec: token 27 pos 49 drafted 5 accepted 1 emits 2 drafts [149884, 149876, 151451, 149879, 182416]
+spec: keyed verify 6 rows (logits) 24.310 ms, accept 0.911 ms
+adapt: step pass 5 2 tokens 31.608 ms
+spec: dflash2 draft flush 0.742 block 2.350 head 1.886 selproj 0.241 dl 0.632 select 0.530 total 6.380 ms
+spec: keyed draft 6.435 ms, 3 drafts
+spec: token 29 pos 51 drafted 3 accepted 0 emits 1 drafts [13, 166910, 149911]
+spec: keyed verify 4 rows (logits) 21.609 ms, accept 0.371 ms
+adapt: step pass 3 1 tokens 28.480 ms
+spec: dflash2 draft flush 0.704 block 2.269 head 1.836 selproj 0.199 dl 0.654 select 0.527 total 6.191 ms
+spec: keyed draft 6.243 ms, 2 drafts
+spec: token 30 pos 52 drafted 2 accepted 2 emits 3 drafts [157687, 152652]
+spec: keyed verify 3 rows (logits) 18.480 ms, accept 1.166 ms
+ids[w012]: [200008, 371, 150409, 171960, 149878, 150744, 151231, 1355, 150377, 25, 151451, 149879, 153630, 13, 170289, 150893, 169411, 13, 150166, 150261, 149887, 152804, 155456, 154762, 13, 182416, 149884, 151451, 149880, 157687, 152652, 13]
+decode[w012]: 32 tokens, 311 ms (99.54 tok/s)
+prefill[w012]: 24 tokens, 68 ms
+spec[w012]: verify passes=10 proposed=43 accepted=21 (acceptance 48.8%, 3.10 tokens per pass)
+spec: dflash2 draft flush 1.308 block 2.238 head 1.891 selproj 0.234 dl 0.641 select 0.547 total 6.859 ms
+spec: keyed draft 7.377 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 5 emits 6 drafts [68273, 150983, 14, 71, 13]
+spec: keyed verify 6 rows (logits) 24.588 ms, accept 2.632 ms
+adapt: step pass 5 6 tokens 34.650 ms
+spec: dflash2 draft flush 1.397 block 2.241 head 1.821 selproj 0.203 dl 0.626 select 0.542 total 6.829 ms
+spec: keyed draft 6.876 ms, 5 drafts
+spec: token 8 pos 30 drafted 5 accepted 2 emits 3 drafts [151226, 160172, 149922, 220, 18]
+spec: keyed verify 6 rows (logits) 24.354 ms, accept 1.241 ms
+adapt: step pass 5 3 tokens 32.536 ms
+spec: dflash2 draft flush 0.671 block 2.294 head 1.926 selproj 0.223 dl 0.667 select 0.545 total 6.326 ms
+spec: keyed draft 6.381 ms, 5 drafts
+spec: token 11 pos 33 drafted 5 accepted 0 emits 1 drafts [149922, 220, 18, 25, 68063]
+spec: keyed verify 6 rows (logits) 24.536 ms, accept 0.515 ms
+adapt: step pass 5 1 tokens 31.481 ms
+spec: dflash2 draft flush 0.725 block 2.361 head 1.916 selproj 0.224 dl 0.661 select 0.522 total 6.408 ms
+spec: keyed draft 6.481 ms, 5 drafts
+spec: token 12 pos 34 drafted 5 accepted 0 emits 1 drafts [17, 149922, 220, 18, 25]
+spec: keyed verify 6 rows (logits) 24.212 ms, accept 0.515 ms
+adapt: step pass 5 1 tokens 31.262 ms
+spec: dflash2 draft flush 0.696 block 2.406 head 1.876 selproj 0.219 dl 0.747 select 0.591 total 6.535 ms
+spec: keyed draft 6.605 ms, 5 drafts
+spec: token 13 pos 35 drafted 5 accepted 0 emits 1 drafts [25, 68063, 153961, 185473, 279]
+spec: keyed verify 6 rows (logits) 24.274 ms, accept 0.528 ms
+adapt: step pass 5 1 tokens 31.462 ms
+spec: dflash2 draft flush 0.673 block 2.297 head 1.920 selproj 0.206 dl 0.669 select 0.527 total 6.291 ms
+spec: keyed draft 6.360 ms, 3 drafts
+spec: token 14 pos 36 drafted 3 accepted 2 emits 3 drafts [14, 71, 30]
+spec: keyed verify 4 rows (logits) 20.419 ms, accept 1.284 ms
+adapt: step pass 3 3 tokens 28.118 ms
+spec: dflash2 draft flush 0.684 block 2.285 head 1.847 selproj 0.212 dl 0.658 select 0.520 total 6.207 ms
+spec: keyed draft 6.268 ms, 2 drafts
+spec: token 17 pos 39 drafted 2 accepted 0 emits 1 drafts [150112, 220]
+spec: keyed verify 3 rows (logits) 18.310 ms, accept 0.581 ms
+adapt: step pass 2 1 tokens 25.209 ms
+spec: dflash2 draft flush 0.668 block 2.266 head 1.861 selproj 0.181 dl 0.684 select 0.549 total 6.208 ms
+spec: keyed draft 6.264 ms, 5 drafts
+spec: token 18 pos 40 drafted 5 accepted 0 emits 1 drafts [149922, 220, 18, 150983, 14]
+spec: keyed verify 6 rows (logits) 24.695 ms, accept 0.645 ms
+adapt: step pass 5 1 tokens 31.658 ms
+spec: dflash2 draft flush 0.678 block 2.268 head 1.822 selproj 0.210 dl 0.696 select 0.560 total 6.236 ms
+spec: keyed draft 6.282 ms, 2 drafts
+adapt: token 19 Stop { k: 2, rate: 0.9440272399750564, hold: 8 }
+spec: token 19 pos 41 drafted 2 accepted 0 emits 1 drafts [18, 150983]
+spec: keyed verify 3 rows (logits) 18.448 ms, accept 0.619 ms
+adapt: step pass 2 1 tokens 25.401 ms
+adapt: step plain 0 1 tokens 14.698 ms
+adapt: step plain 0 1 tokens 14.012 ms
+adapt: step plain 0 1 tokens 13.970 ms
+adapt: step plain 0 1 tokens 13.941 ms
+adapt: step plain 0 1 tokens 14.194 ms
+adapt: step plain 0 1 tokens 13.987 ms
+adapt: step plain 0 1 tokens 14.127 ms
+adapt: step plain 0 1 tokens 14.242 ms
+spec: dflash2 draft flush 0.909 block 2.324 head 1.879 selproj 0.204 dl 0.895 select 0.755 total 6.966 ms
+spec: keyed draft 7.026 ms, 4 drafts
+spec: token 28 pos 50 drafted 4 accepted 0 emits 1 drafts [220, 16, 13, 149917]
+spec: keyed verify 5 rows (logits) 23.550 ms, accept 0.624 ms
+adapt: step pass 4 1 tokens 31.271 ms
+spec: dflash2 draft flush 0.676 block 2.442 head 1.879 selproj 0.203 dl 0.972 select 0.794 total 6.965 ms
+spec: keyed draft 7.022 ms, 3 drafts
+spec: token 29 pos 51 drafted 3 accepted 1 emits 2 drafts [152275, 149922, 220]
+spec: keyed verify 4 rows (logits) 20.938 ms, accept 1.051 ms
+adapt: step pass 3 2 tokens 29.075 ms
+spec: dflash2 draft flush 0.671 block 2.325 head 1.875 selproj 0.251 dl 0.734 select 0.584 total 6.440 ms
+spec: keyed draft 6.485 ms, 1 drafts
+adapt: token 31 Resume { k: 2, rate: 1.0116942963881599 }
+spec: token 31 pos 53 drafted 1 accepted 1 emits 2 drafts [18]
+spec: keyed verify 2 rows (logits) 16.855 ms, accept 0.832 ms
+ids[w013]: [220, 68273, 150983, 14, 71, 13, 149897, 151226, 160172, 152275, 220, 18, 150983, 14, 71, 193203, 149880, 220, 17, 151976, 220, 68063, 152024, 151534, 150112, 149876, 151226, 160172, 152275, 220, 18, 150983]
+decode[w013]: 32 tokens, 470 ms (66.02 tok/s)
+prefill[w013]: 24 tokens, 71 ms
+spec[w013]: verify passes=12 proposed=45 accepted=11 (acceptance 24.4%, 1.92 tokens per pass)
+spec: dflash2 draft flush 1.306 block 2.235 head 1.840 selproj 0.223 dl 0.651 select 0.534 total 6.789 ms
+spec: keyed draft 6.853 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 2 emits 3 drafts [150167, 25, 150003, 149934, 197010]
+spec: keyed verify 6 rows (logits) 24.316 ms, accept 1.350 ms
+adapt: step pass 5 3 tokens 32.556 ms
+spec: dflash2 draft flush 0.656 block 2.236 head 1.871 selproj 0.229 dl 0.625 select 0.513 total 6.130 ms
+spec: keyed draft 6.172 ms, 2 drafts
+spec: token 5 pos 27 drafted 2 accepted 2 emits 3 drafts [149862, 150003]
+spec: keyed verify 3 rows (logits) 18.364 ms, accept 1.483 ms
+adapt: step pass 2 3 tokens 26.073 ms
+spec: dflash2 draft flush 0.740 block 2.262 head 1.840 selproj 0.212 dl 0.636 select 0.498 total 6.188 ms
+spec: keyed draft 6.226 ms, 2 drafts
+spec: token 8 pos 30 drafted 2 accepted 2 emits 3 drafts [197012, 220]
+spec: keyed verify 3 rows (logits) 18.898 ms, accept 1.440 ms
+adapt: step pass 2 3 tokens 26.617 ms
+spec: dflash2 draft flush 0.679 block 2.284 head 1.889 selproj 0.224 dl 0.636 select 0.496 total 6.209 ms
+spec: keyed draft 6.250 ms, 2 drafts
+spec: token 11 pos 33 drafted 2 accepted 2 emits 3 drafts [25, 198]
+spec: keyed verify 3 rows (logits) 19.327 ms, accept 1.353 ms
+adapt: step pass 2 3 tokens 26.980 ms
+spec: dflash2 draft flush 0.742 block 2.337 head 1.906 selproj 0.222 dl 0.626 select 0.516 total 6.349 ms
+spec: keyed draft 6.388 ms, 2 drafts
+spec: token 14 pos 36 drafted 2 accepted 2 emits 3 drafts [149862, 150583]
+spec: keyed verify 3 rows (logits) 19.058 ms, accept 1.154 ms
+adapt: step pass 2 3 tokens 26.650 ms
+spec: dflash2 draft flush 0.686 block 2.285 head 1.824 selproj 0.210 dl 0.667 select 0.546 total 6.217 ms
+spec: keyed draft 6.272 ms, 2 drafts
+spec: token 17 pos 39 drafted 2 accepted 2 emits 3 drafts [198, 149862]
+spec: keyed verify 3 rows (logits) 18.752 ms, accept 1.518 ms
+adapt: step pass 2 3 tokens 26.594 ms
+spec: dflash2 draft flush 0.664 block 2.226 head 1.850 selproj 0.245 dl 0.649 select 0.514 total 6.149 ms
+spec: keyed draft 6.190 ms, 2 drafts
+spec: token 20 pos 42 drafted 2 accepted 0 emits 1 drafts [220, 46389]
+spec: keyed verify 3 rows (logits) 18.979 ms, accept 0.633 ms
+adapt: step pass 2 1 tokens 25.847 ms
+spec: dflash2 draft flush 0.715 block 2.267 head 1.845 selproj 0.244 dl 0.622 select 0.537 total 6.230 ms
+spec: keyed draft 6.267 ms, 5 drafts
+spec: token 21 pos 43 drafted 5 accepted 4 emits 5 drafts [220, 46389, 7, 77, 196973]
+spec: keyed verify 6 rows (logits) 24.635 ms, accept 2.499 ms
+adapt: step pass 5 5 tokens 33.467 ms
+spec: dflash2 draft flush 1.499 block 2.359 head 1.891 selproj 0.252 dl 0.623 select 0.514 total 7.137 ms
+spec: keyed draft 7.196 ms, 4 drafts
+spec: token 26 pos 48 drafted 4 accepted 3 emits 4 drafts [25, 198, 149862, 150583]
+spec: keyed verify 5 rows (logits) 22.710 ms, accept 1.844 ms
+adapt: step pass 4 4 tokens 31.811 ms
+spec: dflash2 draft flush 0.734 block 2.328 head 1.873 selproj 0.299 dl 0.625 select 0.515 total 6.374 ms
+spec: keyed draft 6.415 ms, 2 drafts
+spec: token 30 pos 52 drafted 2 accepted 2 emits 3 drafts [149934, 197012]
+spec: keyed verify 3 rows (logits) 18.458 ms, accept 1.377 ms
+ids[w014]: [197005, 150167, 25, 198, 149862, 150003, 149934, 197012, 220, 16, 25, 198, 149860, 149862, 150583, 149934, 198, 149862, 150583, 151560, 220, 46389, 7, 77, 8, 25, 198, 149862, 150003, 149934, 197012, 220]
+decode[w014]: 32 tokens, 283 ms (109.57 tok/s)
+prefill[w014]: 24 tokens, 73 ms
+spec[w014]: verify passes=10 proposed=28 accepted=21 (acceptance 75.0%, 3.10 tokens per pass)
+spec: dflash2 draft flush 1.303 block 2.231 head 1.939 selproj 0.198 dl 0.648 select 0.535 total 6.854 ms
+spec: keyed draft 6.906 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 1 emits 2 drafts [42072, 153717, 11, 149876, 168672]
+spec: keyed verify 6 rows (logits) 24.424 ms, accept 0.987 ms
+adapt: step pass 5 2 tokens 32.355 ms
+spec: dflash2 draft flush 0.738 block 2.327 head 1.885 selproj 0.175 dl 0.628 select 0.524 total 6.278 ms
+spec: keyed draft 6.327 ms, 2 drafts
+spec: token 4 pos 26 drafted 2 accepted 1 emits 2 drafts [11, 150152]
+spec: keyed verify 3 rows (logits) 19.003 ms, accept 0.846 ms
+adapt: step pass 2 2 tokens 26.242 ms
+spec: dflash2 draft flush 0.687 block 2.557 head 1.892 selproj 0.270 dl 0.642 select 0.534 total 6.581 ms
+spec: keyed draft 6.635 ms, 1 drafts
+spec: token 6 pos 28 drafted 1 accepted 1 emits 2 drafts [149880]
+spec: keyed verify 2 rows (logits) 16.710 ms, accept 0.833 ms
+adapt: step pass 1 2 tokens 24.238 ms
+spec: dflash2 draft flush 0.685 block 2.305 head 1.899 selproj 0.219 dl 0.653 select 0.551 total 6.313 ms
+spec: keyed draft 6.372 ms, 1 drafts
+spec: token 8 pos 30 drafted 1 accepted 1 emits 2 drafts [148900]
+spec: keyed verify 2 rows (logits) 16.848 ms, accept 0.893 ms
+adapt: step pass 1 2 tokens 24.166 ms
+spec: dflash2 draft flush 0.680 block 2.266 head 1.860 selproj 0.172 dl 0.695 select 0.557 total 6.230 ms
+spec: keyed draft 6.289 ms, 1 drafts
+spec: token 10 pos 32 drafted 1 accepted 1 emits 2 drafts [149914]
+spec: keyed verify 2 rows (logits) 16.649 ms, accept 0.926 ms
+adapt: step pass 1 2 tokens 23.918 ms
+spec: dflash2 draft flush 0.696 block 2.365 head 1.885 selproj 0.187 dl 0.771 select 0.622 total 6.526 ms
+spec: keyed draft 6.577 ms, 1 drafts
+spec: token 12 pos 34 drafted 1 accepted 1 emits 2 drafts [149882]
+spec: keyed verify 2 rows (logits) 16.343 ms, accept 0.891 ms
+adapt: step pass 1 2 tokens 23.870 ms
+spec: dflash2 draft flush 0.677 block 2.417 head 1.844 selproj 0.204 dl 0.828 select 0.658 total 6.628 ms
+spec: keyed draft 6.690 ms, 1 drafts
+spec: token 14 pos 36 drafted 1 accepted 0 emits 1 drafts [198259]
+spec: keyed verify 2 rows (logits) 16.991 ms, accept 0.593 ms
+adapt: step pass 1 1 tokens 24.330 ms
+spec: dflash2 draft flush 0.744 block 2.343 head 1.894 selproj 0.179 dl 0.885 select 0.704 total 6.749 ms
+spec: keyed draft 6.811 ms, 5 drafts
+spec: token 15 pos 37 drafted 5 accepted 2 emits 3 drafts [170510, 150079, 150382, 150079, 149878]
+spec: keyed verify 6 rows (logits) 23.917 ms, accept 1.515 ms
+adapt: step pass 5 3 tokens 32.312 ms
+spec: dflash2 draft flush 0.751 block 2.364 head 1.929 selproj 0.213 dl 0.828 select 0.668 total 6.752 ms
+spec: keyed draft 6.812 ms, 2 drafts
+spec: token 18 pos 40 drafted 2 accepted 1 emits 2 drafts [161777, 196976]
+spec: keyed verify 3 rows (logits) 18.887 ms, accept 0.822 ms
+adapt: step pass 2 2 tokens 26.576 ms
+spec: dflash2 draft flush 0.668 block 2.374 head 1.854 selproj 0.176 dl 0.736 select 0.594 total 6.404 ms
+spec: keyed draft 6.456 ms, 2 drafts
+spec: token 20 pos 42 drafted 2 accepted 2 emits 3 drafts [165811, 171090]
+spec: keyed verify 3 rows (logits) 18.493 ms, accept 1.305 ms
+adapt: step pass 2 3 tokens 26.314 ms
+spec: dflash2 draft flush 0.664 block 2.254 head 1.838 selproj 0.208 dl 0.663 select 0.526 total 6.154 ms
+spec: keyed draft 6.210 ms, 2 drafts
+spec: token 23 pos 45 drafted 2 accepted 1 emits 2 drafts [68014, 2918]
+spec: keyed verify 3 rows (logits) 18.202 ms, accept 1.039 ms
+adapt: step pass 2 2 tokens 25.500 ms
+spec: dflash2 draft flush 0.711 block 2.333 head 1.890 selproj 0.227 dl 0.623 select 0.520 total 6.303 ms
+spec: keyed draft 6.341 ms, 2 drafts
+spec: token 25 pos 47 drafted 2 accepted 0 emits 1 drafts [150441, 149876]
+spec: keyed verify 3 rows (logits) 17.997 ms, accept 0.433 ms
+adapt: step pass 2 1 tokens 24.824 ms
+spec: dflash2 draft flush 0.672 block 2.262 head 1.873 selproj 0.197 dl 0.665 select 0.567 total 6.235 ms
+spec: keyed draft 6.279 ms, 2 drafts
+spec: token 26 pos 48 drafted 2 accepted 0 emits 1 drafts [149876, 220]
+spec: keyed verify 3 rows (logits) 17.754 ms, accept 0.641 ms
+adapt: step pass 2 1 tokens 24.725 ms
+spec: dflash2 draft flush 0.684 block 2.268 head 1.872 selproj 0.185 dl 0.630 select 0.536 total 6.176 ms
+spec: keyed draft 6.223 ms, 2 drafts
+spec: token 27 pos 49 drafted 2 accepted 1 emits 2 drafts [85886, 150905]
+spec: keyed verify 3 rows (logits) 17.911 ms, accept 1.016 ms
+adapt: step pass 2 2 tokens 25.208 ms
+spec: dflash2 draft flush 0.701 block 2.281 head 1.916 selproj 0.222 dl 0.638 select 0.508 total 6.266 ms
+spec: keyed draft 6.309 ms, 2 drafts
+spec: token 29 pos 51 drafted 2 accepted 1 emits 2 drafts [149882, 152913]
+spec: keyed verify 3 rows (logits) 18.463 ms, accept 0.917 ms
+adapt: step pass 2 2 tokens 25.743 ms
+spec: dflash2 draft flush 0.682 block 2.290 head 1.890 selproj 0.286 dl 0.655 select 0.534 total 6.338 ms
+spec: keyed draft 6.393 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 1 emits 2 drafts [182978]
+spec: keyed verify 2 rows (logits) 16.551 ms, accept 0.747 ms
+ids[w015]: [220, 42072, 166636, 11, 198797, 149880, 220, 148900, 145943, 149914, 150145, 149882, 151644, 152913, 170510, 150079, 160154, 161777, 11, 165811, 171090, 13, 68014, 1592, 149884, 152236, 85886, 151289, 149882, 170668, 182978, 30]
+decode[w015]: 32 tokens, 414 ms (74.86 tok/s)
+prefill[w015]: 24 tokens, 66 ms
+spec[w015]: verify passes=16 proposed=32 accepted=15 (acceptance 46.9%, 1.94 tokens per pass)
+spec: dflash2 draft flush 1.298 block 2.246 head 1.851 selproj 0.182 dl 0.657 select 0.527 total 6.761 ms
+spec: keyed draft 6.829 ms, 5 drafts
+adapt: token 2 Stop { k: 3, rate: 0.9174948000924428, hold: 8 }
+spec: token 2 pos 24 drafted 5 accepted 0 emits 1 drafts [170289, 150893, 149884, 149878, 152778]
+spec: keyed verify 6 rows (logits) 24.729 ms, accept 0.506 ms
+adapt: step pass 5 1 tokens 32.112 ms
+adapt: step plain 0 1 tokens 14.809 ms
+adapt: step plain 0 1 tokens 14.182 ms
+adapt: step plain 0 1 tokens 13.926 ms
+adapt: step plain 0 1 tokens 13.959 ms
+adapt: step plain 0 1 tokens 14.029 ms
+adapt: step plain 0 1 tokens 14.026 ms
+adapt: step plain 0 1 tokens 14.054 ms
+adapt: step plain 0 1 tokens 13.927 ms
+spec: dflash2 draft flush 0.866 block 2.248 head 1.872 selproj 0.205 dl 0.660 select 0.532 total 6.384 ms
+spec: keyed draft 6.441 ms, 5 drafts
+spec: token 11 pos 33 drafted 5 accepted 0 emits 1 drafts [25, 1866, 1, 11, 1]
+spec: keyed verify 6 rows (logits) 23.658 ms, accept 0.558 ms
+adapt: step pass 5 1 tokens 30.732 ms
+spec: dflash2 draft flush 0.693 block 2.351 head 1.877 selproj 0.205 dl 0.639 select 0.525 total 6.290 ms
+spec: keyed draft 6.330 ms, 5 drafts
+spec: token 12 pos 34 drafted 5 accepted 0 emits 1 drafts [4164, 25, 68154, 60, 58]
+spec: keyed verify 6 rows (logits) 24.639 ms, accept 0.639 ms
+adapt: step pass 5 1 tokens 31.659 ms
+spec: dflash2 draft flush 0.666 block 2.247 head 1.850 selproj 0.194 dl 0.653 select 0.513 total 6.123 ms
+spec: keyed draft 6.166 ms, 5 drafts
+adapt: token 13 Hold { k: 1, rate: 0.9383363262275128, hold: 16 }
+spec: token 13 pos 35 drafted 5 accepted 1 emits 2 drafts [25, 83734, 60, 220, 16]
+spec: keyed verify 6 rows (logits) 24.070 ms, accept 0.901 ms
+adapt: step pass 5 2 tokens 31.201 ms
+adapt: step plain 0 1 tokens 14.568 ms
+adapt: step plain 0 1 tokens 14.153 ms
+adapt: step plain 0 1 tokens 14.144 ms
+adapt: step plain 0 1 tokens 14.137 ms
+adapt: step plain 0 1 tokens 14.123 ms
+adapt: step plain 0 1 tokens 13.965 ms
+adapt: step plain 0 1 tokens 14.033 ms
+adapt: step plain 0 1 tokens 14.069 ms
+adapt: step plain 0 1 tokens 14.108 ms
+adapt: step plain 0 1 tokens 15.086 ms
+adapt: step plain 0 1 tokens 17.063 ms
+adapt: step plain 0 1 tokens 14.145 ms
+adapt: step plain 0 1 tokens 13.954 ms
+adapt: step plain 0 1 tokens 14.011 ms
+adapt: step plain 0 1 tokens 14.114 ms
+adapt: step plain 0 1 tokens 13.850 ms
+spec: dflash2 draft flush 0.860 block 2.266 head 1.827 selproj 0.188 dl 0.652 select 0.543 total 6.335 ms
+spec: keyed draft 6.378 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 1 emits 2 drafts [90]
+spec: keyed verify 2 rows (logits) 16.764 ms, accept 1.048 ms
+ids[w016]: [30, 68014, 1592, 150441, 149876, 196985, 48038, 76032, 58, 36901, 274, 820, 25, 15, 60, 90, 1644, 28, 15, 92, 25, 48038, 76032, 58, 36901, 274, 820, 25, 15, 60, 90, 1644]
+decode[w016]: 32 tokens, 492 ms (62.96 tok/s)
+prefill[w016]: 24 tokens, 71 ms
+spec[w016]: verify passes=5 proposed=21 accepted=2 (acceptance 9.5%, 1.40 tokens per pass)
+spec: dflash2 draft flush 1.226 block 2.235 head 1.840 selproj 0.202 dl 0.630 select 0.530 total 6.663 ms
+spec: keyed draft 6.720 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 2 emits 3 drafts [149922, 220, 68026, 151976, 149922]
+spec: keyed verify 6 rows (logits) 23.841 ms, accept 1.216 ms
+adapt: step pass 5 3 tokens 31.816 ms
+spec: dflash2 draft flush 0.668 block 2.334 head 1.833 selproj 0.176 dl 0.629 select 0.522 total 6.162 ms
+spec: keyed draft 6.209 ms, 2 drafts
+spec: token 5 pos 27 drafted 2 accepted 1 emits 2 drafts [195153, 13]
+spec: keyed verify 3 rows (logits) 18.129 ms, accept 0.926 ms
+adapt: step pass 2 2 tokens 25.316 ms
+spec: dflash2 draft flush 0.748 block 2.333 head 1.893 selproj 0.205 dl 0.628 select 0.514 total 6.322 ms
+spec: keyed draft 6.360 ms, 2 drafts
+spec: token 7 pos 29 drafted 2 accepted 0 emits 1 drafts [149880, 175143]
+spec: keyed verify 3 rows (logits) 18.268 ms, accept 0.579 ms
+adapt: step pass 2 1 tokens 25.255 ms
+spec: dflash2 draft flush 0.667 block 2.285 head 1.936 selproj 0.227 dl 0.657 select 0.527 total 6.298 ms
+spec: keyed draft 6.361 ms, 2 drafts
+spec: token 8 pos 30 drafted 2 accepted 0 emits 1 drafts [19, 195153]
+spec: keyed verify 3 rows (logits) 19.033 ms, accept 0.507 ms
+adapt: step pass 2 1 tokens 25.958 ms
+spec: dflash2 draft flush 0.707 block 2.373 head 1.991 selproj 0.250 dl 0.695 select 0.549 total 6.565 ms
+spec: keyed draft 6.631 ms, 2 drafts
+adapt: token 9 Stop { k: 3, rate: 0.9499299779069624, hold: 8 }
+spec: token 9 pos 31 drafted 2 accepted 0 emits 1 drafts [195153, 13]
+spec: keyed verify 3 rows (logits) 18.816 ms, accept 0.594 ms
+adapt: step pass 2 1 tokens 26.103 ms
+adapt: step plain 0 1 tokens 15.041 ms
+adapt: step plain 0 1 tokens 14.245 ms
+adapt: step plain 0 1 tokens 14.261 ms
+adapt: step plain 0 1 tokens 14.744 ms
+adapt: step plain 0 1 tokens 14.200 ms
+adapt: step plain 0 1 tokens 14.255 ms
+adapt: step plain 0 1 tokens 14.051 ms
+adapt: step plain 0 1 tokens 14.043 ms
+spec: dflash2 draft flush 0.898 block 2.290 head 1.883 selproj 0.187 dl 0.666 select 0.531 total 6.453 ms
+spec: keyed draft 6.506 ms, 5 drafts
+spec: token 18 pos 40 drafted 5 accepted 0 emits 1 drafts [33622, 11, 150592, 149991, 151226]
+spec: keyed verify 6 rows (logits) 24.614 ms, accept 0.510 ms
+adapt: step pass 5 1 tokens 31.742 ms
+spec: dflash2 draft flush 0.678 block 2.293 head 1.879 selproj 0.186 dl 0.670 select 0.528 total 6.234 ms
+spec: keyed draft 6.295 ms, 5 drafts
+spec: token 19 pos 41 drafted 5 accepted 0 emits 1 drafts [151226, 160172, 149878, 152275, 149922]
+spec: keyed verify 6 rows (logits) 25.095 ms, accept 0.528 ms
+adapt: step pass 5 1 tokens 31.974 ms
+spec: dflash2 draft flush 0.670 block 2.264 head 1.874 selproj 0.181 dl 0.671 select 0.528 total 6.187 ms
+spec: keyed draft 6.247 ms, 5 drafts
+adapt: token 20 Hold { k: 1, rate: 0.9455326119804439, hold: 16 }
+spec: token 20 pos 42 drafted 5 accepted 1 emits 2 drafts [220, 16, 198, 33, 25]
+spec: keyed verify 6 rows (logits) 24.809 ms, accept 1.154 ms
+adapt: step pass 5 2 tokens 32.266 ms
+adapt: step plain 0 1 tokens 14.739 ms
+adapt: step plain 0 1 tokens 14.032 ms
+adapt: step plain 0 1 tokens 14.237 ms
+adapt: step plain 0 1 tokens 14.143 ms
+adapt: step plain 0 1 tokens 14.083 ms
+adapt: step plain 0 1 tokens 14.052 ms
+adapt: step plain 0 1 tokens 14.265 ms
+adapt: step plain 0 1 tokens 14.348 ms
+adapt: step plain 0 1 tokens 14.335 ms
+adapt: step plain 0 1 tokens 14.139 ms
+ids[w017]: [279, 149922, 220, 19, 195153, 11, 220, 18, 14, 19, 149879, 149878, 164912, 149944, 157679, 30, 68014, 32, 13, 220, 19, 195153, 198, 33, 13, 150841, 220, 18, 14, 19, 164912, 149944]
+decode[w017]: 32 tokens, 502 ms (61.75 tok/s)
+prefill[w017]: 24 tokens, 68 ms
+spec[w017]: verify passes=8 proposed=28 accepted=4 (acceptance 14.3%, 1.50 tokens per pass)
+spec: dflash2 draft flush 1.334 block 2.289 head 1.958 selproj 0.199 dl 0.676 select 0.534 total 6.990 ms
+spec: keyed draft 7.049 ms, 5 drafts
+adapt: token 2 Stop { k: 3, rate: 0.9174948000924428, hold: 8 }
+spec: token 2 pos 24 drafted 5 accepted 0 emits 1 drafts [200010, 200001, 200004, 371, 220]
+spec: keyed verify 6 rows (logits) 24.835 ms, accept 0.683 ms
+adapt: step pass 5 1 tokens 32.611 ms
+adapt: step plain 0 1 tokens 14.913 ms
+adapt: step plain 0 1 tokens 14.261 ms
+adapt: step plain 0 1 tokens 14.230 ms
+adapt: step plain 0 1 tokens 14.030 ms
+adapt: step plain 0 1 tokens 13.859 ms
+adapt: step plain 0 1 tokens 14.154 ms
+adapt: step plain 0 1 tokens 14.265 ms
+adapt: step plain 0 1 tokens 14.046 ms
+spec: dflash2 draft flush 0.852 block 2.316 head 1.922 selproj 0.225 dl 0.743 select 0.560 total 6.618 ms
+spec: keyed draft 6.677 ms, 5 drafts
+spec: token 11 pos 33 drafted 5 accepted 1 emits 2 drafts [151226, 149879, 220, 220, 69580]
+spec: keyed verify 6 rows (logits) 24.628 ms, accept 1.166 ms
+adapt: step pass 5 2 tokens 32.550 ms
+spec: dflash2 draft flush 0.661 block 2.459 head 1.889 selproj 0.225 dl 0.823 select 0.665 total 6.722 ms
+spec: keyed draft 6.799 ms, 5 drafts
+spec: token 13 pos 35 drafted 5 accepted 1 emits 2 drafts [149920, 220, 69580, 150983, 14]
+spec: keyed verify 6 rows (logits) 24.871 ms, accept 1.178 ms
+adapt: step pass 5 2 tokens 32.918 ms
+spec: dflash2 draft flush 0.675 block 2.371 head 1.871 selproj 0.203 dl 0.893 select 0.709 total 6.722 ms
+spec: keyed draft 6.790 ms, 5 drafts
+adapt: token 15 Resume { k: 2, rate: 1.27173907990034 }
+spec: token 15 pos 37 drafted 5 accepted 2 emits 3 drafts [149897, 149882, 149939, 149922, 220]
+spec: keyed verify 6 rows (logits) 24.433 ms, accept 1.648 ms
+adapt: step pass 5 3 tokens 32.939 ms
+spec: dflash2 draft flush 0.684 block 2.410 head 1.855 selproj 0.179 dl 0.882 select 0.706 total 6.717 ms
+spec: keyed draft 6.771 ms, 2 drafts
+spec: token 18 pos 40 drafted 2 accepted 2 emits 3 drafts [149939, 149922]
+spec: keyed verify 3 rows (logits) 19.268 ms, accept 1.586 ms
+adapt: step pass 2 3 tokens 27.700 ms
+spec: dflash2 draft flush 0.739 block 2.405 head 1.850 selproj 0.183 dl 0.986 select 0.782 total 6.945 ms
+spec: keyed draft 7.017 ms, 2 drafts
+spec: token 21 pos 43 drafted 2 accepted 2 emits 3 drafts [151918, 149879]
+spec: keyed verify 3 rows (logits) 18.386 ms, accept 1.546 ms
+adapt: step pass 2 3 tokens 27.017 ms
+spec: dflash2 draft flush 0.680 block 2.324 head 1.911 selproj 0.241 dl 0.723 select 0.566 total 6.447 ms
+spec: keyed draft 6.493 ms, 2 drafts
+spec: token 24 pos 46 drafted 2 accepted 0 emits 1 drafts [69580, 150983]
+spec: keyed verify 3 rows (logits) 18.124 ms, accept 0.554 ms
+adapt: step pass 2 1 tokens 25.226 ms
+spec: dflash2 draft flush 0.689 block 2.243 head 1.851 selproj 0.245 dl 0.690 select 0.558 total 6.276 ms
+spec: keyed draft 6.324 ms, 5 drafts
+spec: token 25 pos 47 drafted 5 accepted 4 emits 5 drafts [150983, 14, 71, 13, 150129]
+spec: keyed verify 6 rows (logits) 24.720 ms, accept 2.351 ms
+adapt: step pass 5 5 tokens 33.456 ms
+spec: dflash2 draft flush 1.240 block 2.332 head 1.911 selproj 0.287 dl 0.656 select 0.517 total 6.942 ms
+spec: keyed draft 6.983 ms, 2 drafts
+spec: token 30 pos 52 drafted 2 accepted 1 emits 2 drafts [151226, 162835]
+spec: keyed verify 3 rows (logits) 18.127 ms, accept 0.993 ms
+adapt: step pass 2 2 tokens 26.158 ms
+ids[w018]: [13, 68014, 220, 220, 16, 13, 220, 16, 13, 149897, 151226, 162835, 149920, 152652, 149897, 149882, 152652, 149939, 149922, 149878, 151918, 149879, 220, 68366, 150983, 14, 71, 13, 163552, 151226, 160235, 149920]
+decode[w018]: 32 tokens, 399 ms (77.67 tok/s)
+prefill[w018]: 24 tokens, 68 ms
+spec[w018]: verify passes=9 proposed=33 accepted=13 (acceptance 39.4%, 2.44 tokens per pass)
+spec: dflash2 draft flush 1.287 block 2.215 head 1.849 selproj 0.227 dl 0.625 select 0.515 total 6.717 ms
+spec: keyed draft 6.766 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 2 emits 3 drafts [149862, 149878, 197023, 149878, 198]
+spec: keyed verify 6 rows (logits) 24.326 ms, accept 1.192 ms
+adapt: step pass 5 3 tokens 32.319 ms
+spec: dflash2 draft flush 0.683 block 2.341 head 1.938 selproj 0.221 dl 0.630 select 0.514 total 6.327 ms
+spec: keyed draft 6.366 ms, 2 drafts
+spec: token 5 pos 27 drafted 2 accepted 0 emits 1 drafts [149878, 196987]
+spec: keyed verify 3 rows (logits) 17.790 ms, accept 0.587 ms
+adapt: step pass 2 1 tokens 24.792 ms
+spec: dflash2 draft flush 0.683 block 2.290 head 1.881 selproj 0.208 dl 0.637 select 0.521 total 6.220 ms
+spec: keyed draft 6.268 ms, 2 drafts
+spec: token 6 pos 28 drafted 2 accepted 2 emits 3 drafts [64, 196987]
+spec: keyed verify 3 rows (logits) 17.897 ms, accept 1.423 ms
+adapt: step pass 2 3 tokens 25.642 ms
+spec: dflash2 draft flush 0.735 block 2.258 head 1.858 selproj 0.200 dl 0.635 select 0.511 total 6.197 ms
+spec: keyed draft 6.238 ms, 2 drafts
+spec: token 9 pos 31 drafted 2 accepted 2 emits 3 drafts [17, 8]
+spec: keyed verify 3 rows (logits) 17.995 ms, accept 1.578 ms
+adapt: step pass 2 3 tokens 25.862 ms
+spec: dflash2 draft flush 0.726 block 2.347 head 1.905 selproj 0.198 dl 0.651 select 0.523 total 6.349 ms
+spec: keyed draft 6.415 ms, 2 drafts
+spec: token 12 pos 34 drafted 2 accepted 0 emits 1 drafts [220, 68026]
+spec: keyed verify 3 rows (logits) 18.286 ms, accept 0.601 ms
+adapt: step pass 2 1 tokens 25.350 ms
+spec: dflash2 draft flush 0.676 block 2.293 head 1.827 selproj 0.223 dl 0.631 select 0.516 total 6.166 ms
+spec: keyed draft 6.208 ms, 2 drafts
+spec: token 13 pos 35 drafted 2 accepted 2 emits 3 drafts [198, 149862]
+spec: keyed verify 3 rows (logits) 18.496 ms, accept 1.371 ms
+adapt: step pass 2 3 tokens 26.126 ms
+spec: dflash2 draft flush 0.671 block 2.289 head 1.859 selproj 0.174 dl 0.646 select 0.514 total 6.154 ms
+spec: keyed draft 6.193 ms, 2 drafts
+spec: token 16 pos 38 drafted 2 accepted 2 emits 3 drafts [150313, 68014]
+spec: keyed verify 3 rows (logits) 18.474 ms, accept 1.375 ms
+adapt: step pass 2 3 tokens 26.094 ms
+spec: dflash2 draft flush 0.649 block 2.275 head 1.839 selproj 0.182 dl 0.710 select 0.579 total 6.234 ms
+spec: keyed draft 6.279 ms, 5 drafts
+spec: token 19 pos 41 drafted 5 accepted 0 emits 1 drafts [220, 38022, 62, 75550, 7]
+spec: keyed verify 6 rows (logits) 24.128 ms, accept 0.528 ms
+adapt: step pass 5 1 tokens 30.982 ms
+spec: dflash2 draft flush 0.707 block 2.336 head 1.890 selproj 0.234 dl 0.633 select 0.536 total 6.336 ms
+spec: keyed draft 6.374 ms, 2 drafts
+spec: token 20 pos 42 drafted 2 accepted 1 emits 2 drafts [62, 80012]
+spec: keyed verify 3 rows (logits) 17.921 ms, accept 1.138 ms
+adapt: step pass 2 2 tokens 25.483 ms
+spec: dflash2 draft flush 0.660 block 2.241 head 1.859 selproj 0.225 dl 0.635 select 0.520 total 6.141 ms
+spec: keyed draft 6.182 ms, 2 drafts
+spec: token 22 pos 44 drafted 2 accepted 1 emits 2 drafts [62, 80012]
+spec: keyed verify 3 rows (logits) 17.700 ms, accept 1.015 ms
+adapt: step pass 2 2 tokens 24.948 ms
+spec: dflash2 draft flush 0.738 block 2.363 head 1.903 selproj 0.235 dl 0.633 select 0.528 total 6.399 ms
+spec: keyed draft 6.437 ms, 2 drafts
+spec: token 24 pos 46 drafted 2 accepted 2 emits 3 drafts [7, 77]
+spec: keyed verify 3 rows (logits) 18.536 ms, accept 1.457 ms
+adapt: step pass 2 3 tokens 26.482 ms
+spec: dflash2 draft flush 0.745 block 2.327 head 1.911 selproj 0.239 dl 0.630 select 0.518 total 6.369 ms
+spec: keyed draft 6.427 ms, 2 drafts
+spec: token 27 pos 49 drafted 2 accepted 2 emits 3 drafts [25, 198]
+spec: keyed verify 3 rows (logits) 18.413 ms, accept 1.329 ms
+adapt: step pass 2 3 tokens 26.223 ms
+spec: dflash2 draft flush 0.678 block 2.360 head 1.868 selproj 0.198 dl 0.636 select 0.517 total 6.256 ms
+spec: keyed draft 6.295 ms, 2 drafts
+spec: token 30 pos 52 drafted 2 accepted 0 emits 1 drafts [150003, 149934]
+spec: keyed verify 3 rows (logits) 18.723 ms, accept 0.616 ms
+adapt: step pass 2 1 tokens 25.681 ms
+spec: dflash2 draft flush 0.684 block 2.267 head 1.833 selproj 0.209 dl 0.666 select 0.515 total 6.175 ms
+spec: keyed draft 6.222 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 1 emits 2 drafts [196977]
+spec: keyed verify 2 rows (logits) 16.644 ms, accept 1.100 ms
+ids[w019]: [149860, 149862, 149878, 196977, 196976, 64, 196987, 220, 17, 8, 196996, 151404, 198, 149862, 150583, 150313, 68014, 1719, 151457, 62, 2008, 62, 85325, 7, 77, 8, 25, 198, 149862, 151404, 196977, 220]
+decode[w019]: 32 tokens, 370 ms (83.78 tok/s)
+prefill[w019]: 24 tokens, 69 ms
+spec[w019]: verify passes=14 proposed=33 accepted=17 (acceptance 51.5%, 2.21 tokens per pass)
+spec: dflash2 draft flush 1.297 block 2.256 head 1.906 selproj 0.278 dl 0.658 select 0.544 total 6.938 ms
+spec: keyed draft 7.003 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 5 emits 6 drafts [200008, 371, 150409, 171960, 149887]
+spec: keyed verify 6 rows (logits) 25.145 ms, accept 2.339 ms
+adapt: step pass 5 6 tokens 34.535 ms
+spec: dflash2 draft flush 1.355 block 2.327 head 1.908 selproj 0.190 dl 0.661 select 0.554 total 6.995 ms
+spec: keyed draft 7.048 ms, 5 drafts
+spec: token 8 pos 30 drafted 5 accepted 5 emits 6 drafts [167182, 149887, 151098, 149878, 150046]
+spec: keyed verify 6 rows (logits) 24.469 ms, accept 2.538 ms
+adapt: step pass 5 6 tokens 34.133 ms
+spec: dflash2 draft flush 1.135 block 2.288 head 2.008 selproj 0.240 dl 0.701 select 0.562 total 6.933 ms
+spec: keyed draft 6.992 ms, 5 drafts
+spec: token 14 pos 36 drafted 5 accepted 1 emits 2 drafts [13, 150078, 149884, 149878, 179177]
+spec: keyed verify 6 rows (logits) 24.436 ms, accept 0.973 ms
+adapt: step pass 5 2 tokens 32.453 ms
+spec: dflash2 draft flush 0.741 block 2.292 head 1.905 selproj 0.215 dl 0.698 select 0.554 total 6.405 ms
+spec: keyed draft 6.449 ms, 5 drafts
+spec: token 16 pos 38 drafted 5 accepted 4 emits 5 drafts [150893, 149911, 4123, 13, 170289]
+spec: keyed verify 6 rows (logits) 24.149 ms, accept 1.988 ms
+adapt: step pass 5 5 tokens 32.642 ms
+spec: dflash2 draft flush 1.210 block 2.228 head 1.866 selproj 0.210 dl 0.652 select 0.529 total 6.695 ms
+spec: keyed draft 6.738 ms, 5 drafts
+spec: token 21 pos 43 drafted 5 accepted 2 emits 3 drafts [150396, 167182, 25, 167182, 13]
+spec: keyed verify 6 rows (logits) 24.168 ms, accept 1.255 ms
+adapt: step pass 5 3 tokens 32.211 ms
+spec: dflash2 draft flush 0.661 block 2.239 head 1.856 selproj 0.168 dl 0.633 select 0.524 total 6.082 ms
+spec: keyed draft 6.125 ms, 5 drafts
+spec: token 24 pos 46 drafted 5 accepted 2 emits 3 drafts [174520, 149923, 151469, 13, 154879]
+spec: keyed verify 6 rows (logits) 23.364 ms, accept 1.238 ms
+adapt: step pass 5 3 tokens 30.786 ms
+spec: dflash2 draft flush 0.663 block 2.247 head 1.878 selproj 0.176 dl 0.631 select 0.530 total 6.126 ms
+spec: keyed draft 6.173 ms, 4 drafts
+spec: token 27 pos 49 drafted 4 accepted 4 emits 5 drafts [150759, 13, 154879, 150130]
+spec: keyed verify 5 rows (logits) 22.684 ms, accept 1.775 ms
+adapt: step pass 4 5 tokens 30.692 ms
+ids[w020]: [200001, 200008, 371, 150409, 171960, 149887, 150396, 167182, 149887, 151098, 149878, 150046, 151170, 13, 170289, 150893, 149911, 4123, 13, 166910, 150396, 167182, 13, 174520, 149923, 190690, 150759, 13, 154879, 150130, 13, 179027]
+decode[w020]: 32 tokens, 243 ms (127.61 tok/s)
+prefill[w020]: 24 tokens, 69 ms
+spec[w020]: verify passes=7 proposed=34 accepted=23 (acceptance 67.6%, 4.29 tokens per pass)
+spec: dflash2 draft flush 1.344 block 2.318 head 1.950 selproj 0.213 dl 0.703 select 0.568 total 7.095 ms
+spec: keyed draft 7.179 ms, 5 drafts
+adapt: token 2 Stop { k: 3, rate: 0.9174948000924428, hold: 8 }
+spec: token 2 pos 24 drafted 5 accepted 0 emits 1 drafts [150202, 149876, 151573, 149884, 152978]
+spec: keyed verify 6 rows (logits) 25.875 ms, accept 0.557 ms
+adapt: step pass 5 1 tokens 33.656 ms
+adapt: step plain 0 1 tokens 14.938 ms
+adapt: step plain 0 1 tokens 14.130 ms
+adapt: step plain 0 1 tokens 14.109 ms
+adapt: step plain 0 1 tokens 14.201 ms
+adapt: step plain 0 1 tokens 14.276 ms
+adapt: step plain 0 1 tokens 14.138 ms
+adapt: step plain 0 1 tokens 14.057 ms
+adapt: step plain 0 1 tokens 14.008 ms
+spec: dflash2 draft flush 0.879 block 2.307 head 1.940 selproj 0.238 dl 0.668 select 0.527 total 6.559 ms
+spec: keyed draft 6.624 ms, 5 drafts
+spec: token 11 pos 33 drafted 5 accepted 1 emits 2 drafts [149859, 197017, 1, 68014, 371]
+spec: keyed verify 6 rows (logits) 24.485 ms, accept 0.888 ms
+adapt: step pass 5 2 tokens 32.084 ms
+spec: dflash2 draft flush 0.666 block 2.295 head 1.974 selproj 0.233 dl 0.671 select 0.520 total 6.358 ms
+spec: keyed draft 6.416 ms, 5 drafts
+spec: token 13 pos 35 drafted 5 accepted 0 emits 1 drafts [220, 68111, 13, 68014, 371]
+spec: keyed verify 6 rows (logits) 24.254 ms, accept 0.463 ms
+adapt: step pass 5 1 tokens 31.183 ms
+spec: dflash2 draft flush 0.666 block 2.257 head 1.844 selproj 0.193 dl 0.567 select 0.531 total 6.058 ms
+spec: keyed draft 6.119 ms, 5 drafts
+adapt: token 14 Hold { k: 1, rate: 0.8933380188327645, hold: 16 }
+spec: token 14 pos 36 drafted 5 accepted 0 emits 1 drafts [371, 150409, 6, 149884, 149878]
+spec: keyed verify 6 rows (logits) 24.385 ms, accept 0.634 ms
+adapt: step pass 5 1 tokens 31.209 ms
+adapt: step plain 0 1 tokens 14.886 ms
+adapt: step plain 0 1 tokens 14.217 ms
+adapt: step plain 0 1 tokens 14.226 ms
+adapt: step plain 0 1 tokens 14.096 ms
+adapt: step plain 0 1 tokens 14.084 ms
+adapt: step plain 0 1 tokens 14.003 ms
+adapt: step plain 0 1 tokens 14.070 ms
+adapt: step plain 0 1 tokens 14.126 ms
+adapt: step plain 0 1 tokens 13.816 ms
+adapt: step plain 0 1 tokens 13.941 ms
+adapt: step plain 0 1 tokens 13.920 ms
+adapt: step plain 0 1 tokens 14.081 ms
+adapt: step plain 0 1 tokens 14.161 ms
+adapt: step plain 0 1 tokens 13.962 ms
+adapt: step plain 0 1 tokens 14.021 ms
+adapt: step plain 0 1 tokens 14.033 ms
+spec: dflash2 draft flush 0.888 block 2.291 head 1.901 selproj 0.183 dl 0.666 select 0.523 total 6.453 ms
+spec: keyed draft 6.503 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 1 emits 2 drafts [149859]
+spec: keyed verify 2 rows (logits) 16.733 ms, accept 0.919 ms
+ids[w021]: [152198, 68014, 149859, 197017, 149859, 197017, 149859, 197017, 149859, 197017, 149859, 197010, 68014, 149859, 197017, 149859, 197017, 149859, 197017, 149859, 197017, 149859, 197010, 198, 149859, 197017, 149859, 197017, 149859, 197017, 149859, 197017]
+decode[w021]: 32 tokens, 492 ms (63.03 tok/s)
+prefill[w021]: 24 tokens, 71 ms
+spec[w021]: verify passes=5 proposed=21 accepted=2 (acceptance 9.5%, 1.40 tokens per pass)
+spec: dflash2 draft flush 1.210 block 2.306 head 1.909 selproj 0.230 dl 0.635 select 0.538 total 6.829 ms
+spec: keyed draft 6.893 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 2 emits 3 drafts [151093, 13, 200010, 200001, 200004]
+spec: keyed verify 6 rows (logits) 24.265 ms, accept 1.425 ms
+adapt: step pass 5 3 tokens 32.627 ms
+spec: dflash2 draft flush 0.683 block 2.262 head 1.862 selproj 0.239 dl 0.636 select 0.531 total 6.212 ms
+spec: keyed draft 6.255 ms, 2 drafts
+spec: token 5 pos 27 drafted 2 accepted 0 emits 1 drafts [371, 150893]
+spec: keyed verify 3 rows (logits) 18.273 ms, accept 0.617 ms
+adapt: step pass 2 1 tokens 25.197 ms
+spec: dflash2 draft flush 0.686 block 2.307 head 1.912 selproj 0.338 dl 0.629 select 0.518 total 6.391 ms
+spec: keyed draft 6.440 ms, 2 drafts
+spec: token 6 pos 28 drafted 2 accepted 1 emits 2 drafts [25, 220]
+spec: keyed verify 3 rows (logits) 18.602 ms, accept 0.996 ms
+adapt: step pass 2 2 tokens 26.087 ms
+spec: dflash2 draft flush 0.736 block 2.297 head 1.878 selproj 0.225 dl 0.642 select 0.508 total 6.286 ms
+spec: keyed draft 6.335 ms, 2 drafts
+spec: token 8 pos 30 drafted 2 accepted 0 emits 1 drafts [12, 149917]
+spec: keyed verify 3 rows (logits) 17.981 ms, accept 0.643 ms
+adapt: step pass 2 1 tokens 25.008 ms
+spec: dflash2 draft flush 0.676 block 2.367 head 1.913 selproj 0.180 dl 0.632 select 0.512 total 6.280 ms
+spec: keyed draft 6.319 ms, 2 drafts
+spec: token 9 pos 31 drafted 2 accepted 2 emits 3 drafts [6, 82]
+spec: keyed verify 3 rows (logits) 18.204 ms, accept 1.551 ms
+adapt: step pass 2 3 tokens 26.127 ms
+spec: dflash2 draft flush 0.738 block 2.337 head 1.914 selproj 0.235 dl 0.635 select 0.514 total 6.372 ms
+spec: keyed draft 6.411 ms, 2 drafts
+spec: token 12 pos 34 drafted 2 accepted 1 emits 2 drafts [149876, 150038]
+spec: keyed verify 3 rows (logits) 18.438 ms, accept 0.898 ms
+adapt: step pass 2 2 tokens 25.801 ms
+spec: dflash2 draft flush 0.685 block 2.374 head 1.968 selproj 0.259 dl 0.544 select 0.546 total 6.376 ms
+spec: keyed draft 6.475 ms, 2 drafts
+spec: token 14 pos 36 drafted 2 accepted 2 emits 3 drafts [149879, 149876]
+spec: keyed verify 3 rows (logits) 19.011 ms, accept 1.477 ms
+adapt: step pass 2 3 tokens 27.028 ms
+spec: dflash2 draft flush 0.711 block 2.382 head 2.004 selproj 0.283 dl 0.691 select 0.596 total 6.667 ms
+spec: keyed draft 6.743 ms, 5 drafts
+spec: token 17 pos 39 drafted 5 accepted 2 emits 3 drafts [151226, 149891, 196979, 85, 3]
+spec: keyed verify 6 rows (logits) 25.432 ms, accept 1.375 ms
+adapt: step pass 5 3 tokens 33.617 ms
+spec: dflash2 draft flush 0.698 block 2.321 head 1.925 selproj 0.220 dl 0.692 select 0.551 total 6.407 ms
+spec: keyed draft 6.469 ms, 2 drafts
+spec: token 20 pos 42 drafted 2 accepted 1 emits 2 drafts [7, 85]
+spec: keyed verify 3 rows (logits) 19.094 ms, accept 0.953 ms
+adapt: step pass 2 2 tokens 26.577 ms
+spec: dflash2 draft flush 0.696 block 2.291 head 1.910 selproj 0.194 dl 0.663 select 0.526 total 6.280 ms
+spec: keyed draft 6.351 ms, 2 drafts
+spec: token 22 pos 44 drafted 2 accepted 2 emits 3 drafts [62, 16]
+spec: keyed verify 3 rows (logits) 18.291 ms, accept 1.356 ms
+adapt: step pass 2 3 tokens 26.059 ms
+spec: dflash2 draft flush 0.709 block 2.353 head 1.958 selproj 0.215 dl 0.660 select 0.530 total 6.427 ms
+spec: keyed draft 6.493 ms, 2 drafts
+spec: token 25 pos 47 drafted 2 accepted 2 emits 3 drafts [8, 149880]
+spec: keyed verify 3 rows (logits) 18.715 ms, accept 1.349 ms
+adapt: step pass 2 3 tokens 26.616 ms
+spec: dflash2 draft flush 0.667 block 2.283 head 1.916 selproj 0.225 dl 0.657 select 0.523 total 6.272 ms
+spec: keyed draft 6.333 ms, 2 drafts
+spec: token 28 pos 50 drafted 2 accepted 2 emits 3 drafts [151918, 149879]
+spec: keyed verify 3 rows (logits) 18.583 ms, accept 1.354 ms
+adapt: step pass 2 3 tokens 26.327 ms
+spec: dflash2 draft flush 0.680 block 2.280 head 1.848 selproj 0.212 dl 0.659 select 0.529 total 6.208 ms
+spec: keyed draft 6.269 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 1 emits 2 drafts [150514]
+spec: keyed verify 2 rows (logits) 16.889 ms, accept 0.764 ms
+ids[w022]: [149910, 151093, 13, 68014, 3256, 25, 198, 2918, 6, 82, 159352, 149876, 151918, 149879, 149876, 150135, 151226, 149891, 196978, 7, 149957, 62, 16, 196978, 8, 149880, 149876, 151918, 149879, 149876, 150514, 151226]
+decode[w022]: 32 tokens, 351 ms (88.30 tok/s)
+prefill[w022]: 24 tokens, 70 ms
+spec[w022]: verify passes=13 proposed=31 accepted=18 (acceptance 58.1%, 2.38 tokens per pass)
+spec: dflash2 draft flush 1.283 block 2.330 head 1.970 selproj 0.225 dl 0.660 select 0.537 total 7.005 ms
+spec: keyed draft 7.086 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 1 emits 2 drafts [150102, 149933, 149878, 150038, 149881]
+spec: keyed verify 6 rows (logits) 24.307 ms, accept 0.980 ms
+adapt: step pass 5 2 tokens 32.415 ms
+spec: dflash2 draft flush 0.697 block 2.328 head 1.947 selproj 0.211 dl 0.661 select 0.534 total 6.378 ms
+spec: keyed draft 6.446 ms, 2 drafts
+spec: token 4 pos 26 drafted 2 accepted 1 emits 2 drafts [149878, 156863]
+spec: keyed verify 3 rows (logits) 18.537 ms, accept 0.934 ms
+adapt: step pass 2 2 tokens 25.974 ms
+spec: dflash2 draft flush 0.679 block 2.282 head 1.903 selproj 0.261 dl 0.746 select 0.585 total 6.456 ms
+spec: keyed draft 6.528 ms, 1 drafts
+spec: token 6 pos 28 drafted 1 accepted 0 emits 1 drafts [32248]
+spec: keyed verify 2 rows (logits) 16.916 ms, accept 0.527 ms
+adapt: step pass 1 1 tokens 24.023 ms
+spec: dflash2 draft flush 0.718 block 2.289 head 1.841 selproj 0.198 dl 0.668 select 0.528 total 6.242 ms
+spec: keyed draft 6.297 ms, 1 drafts
+spec: token 7 pos 29 drafted 1 accepted 1 emits 2 drafts [157071]
+spec: keyed verify 2 rows (logits) 16.614 ms, accept 0.899 ms
+adapt: step pass 1 2 tokens 23.865 ms
+spec: dflash2 draft flush 0.670 block 2.256 head 1.854 selproj 0.229 dl 0.663 select 0.545 total 6.217 ms
+spec: keyed draft 6.273 ms, 1 drafts
+spec: token 9 pos 31 drafted 1 accepted 0 emits 1 drafts [40105]
+spec: keyed verify 2 rows (logits) 16.744 ms, accept 0.685 ms
+adapt: step pass 1 1 tokens 23.759 ms
+spec: dflash2 draft flush 0.745 block 2.295 head 1.834 selproj 0.202 dl 0.721 select 0.567 total 6.364 ms
+spec: keyed draft 6.406 ms, 1 drafts
+spec: token 10 pos 32 drafted 1 accepted 1 emits 2 drafts [13]
+spec: keyed verify 2 rows (logits) 16.670 ms, accept 0.993 ms
+adapt: step pass 1 2 tokens 24.126 ms
+spec: dflash2 draft flush 0.681 block 2.331 head 1.850 selproj 0.193 dl 0.752 select 0.593 total 6.399 ms
+spec: keyed draft 6.455 ms, 1 drafts
+spec: token 12 pos 34 drafted 1 accepted 1 emits 2 drafts [149933]
+spec: keyed verify 2 rows (logits) 16.385 ms, accept 1.007 ms
+adapt: step pass 1 2 tokens 23.915 ms
+spec: dflash2 draft flush 0.694 block 2.354 head 1.874 selproj 0.190 dl 0.831 select 0.660 total 6.603 ms
+spec: keyed draft 6.667 ms, 5 drafts
+spec: token 14 pos 36 drafted 5 accepted 0 emits 1 drafts [149880, 153282, 11, 149880, 220]
+spec: keyed verify 6 rows (logits) 24.086 ms, accept 0.752 ms
+adapt: step pass 5 1 tokens 31.570 ms
+spec: dflash2 draft flush 0.675 block 2.338 head 1.896 selproj 0.184 dl 0.900 select 0.715 total 6.707 ms
+spec: keyed draft 6.775 ms, 1 drafts
+spec: token 15 pos 37 drafted 1 accepted 1 emits 2 drafts [151582]
+spec: keyed verify 2 rows (logits) 16.852 ms, accept 1.299 ms
+adapt: step pass 1 2 tokens 24.994 ms
+spec: dflash2 draft flush 0.697 block 2.425 head 1.871 selproj 0.192 dl 0.887 select 0.718 total 6.789 ms
+spec: keyed draft 6.852 ms, 1 drafts
+spec: token 17 pos 39 drafted 1 accepted 1 emits 2 drafts [149880]
+spec: keyed verify 2 rows (logits) 16.829 ms, accept 1.308 ms
+adapt: step pass 1 2 tokens 25.061 ms
+spec: dflash2 draft flush 0.740 block 2.455 head 1.888 selproj 0.251 dl 0.885 select 0.730 total 6.949 ms
+spec: keyed draft 7.005 ms, 1 drafts
+spec: token 19 pos 41 drafted 1 accepted 0 emits 1 drafts [13]
+spec: keyed verify 2 rows (logits) 16.921 ms, accept 0.616 ms
+adapt: step pass 1 1 tokens 24.602 ms
+spec: dflash2 draft flush 0.668 block 2.337 head 1.826 selproj 0.204 dl 0.719 select 0.570 total 6.324 ms
+spec: keyed draft 6.366 ms, 1 drafts
+spec: token 20 pos 42 drafted 1 accepted 1 emits 2 drafts [156558]
+spec: keyed verify 2 rows (logits) 16.409 ms, accept 0.940 ms
+adapt: step pass 1 2 tokens 23.776 ms
+spec: dflash2 draft flush 0.670 block 2.268 head 1.848 selproj 0.247 dl 0.639 select 0.535 total 6.207 ms
+spec: keyed draft 6.259 ms, 1 drafts
+spec: token 22 pos 44 drafted 1 accepted 0 emits 1 drafts [220]
+spec: keyed verify 2 rows (logits) 16.399 ms, accept 0.634 ms
+adapt: step pass 1 1 tokens 23.346 ms
+spec: dflash2 draft flush 0.744 block 2.344 head 1.874 selproj 0.208 dl 0.631 select 0.526 total 6.326 ms
+spec: keyed draft 6.371 ms, 1 drafts
+spec: token 23 pos 45 drafted 1 accepted 1 emits 2 drafts [150580]
+spec: keyed verify 2 rows (logits) 16.434 ms, accept 0.976 ms
+adapt: step pass 1 2 tokens 23.832 ms
+spec: dflash2 draft flush 0.734 block 2.331 head 1.882 selproj 0.186 dl 0.632 select 0.521 total 6.286 ms
+spec: keyed draft 6.325 ms, 1 drafts
+spec: token 25 pos 47 drafted 1 accepted 0 emits 1 drafts [220]
+spec: keyed verify 2 rows (logits) 16.741 ms, accept 0.651 ms
+adapt: step pass 1 1 tokens 23.761 ms
+spec: dflash2 draft flush 0.690 block 2.263 head 1.833 selproj 0.205 dl 0.654 select 0.542 total 6.186 ms
+spec: keyed draft 6.227 ms, 5 drafts
+spec: token 26 pos 48 drafted 5 accepted 2 emits 3 drafts [220, 64169, 220, 34541, 149882]
+spec: keyed verify 6 rows (logits) 24.201 ms, accept 1.359 ms
+adapt: step pass 5 3 tokens 31.842 ms
+spec: dflash2 draft flush 0.677 block 2.294 head 1.847 selproj 0.203 dl 0.638 select 0.521 total 6.179 ms
+spec: keyed draft 6.220 ms, 2 drafts
+spec: token 29 pos 51 drafted 2 accepted 1 emits 2 drafts [149882, 152206]
+spec: keyed verify 3 rows (logits) 17.647 ms, accept 1.106 ms
+adapt: step pass 2 2 tokens 25.021 ms
+spec: dflash2 draft flush 0.680 block 2.425 head 1.891 selproj 0.236 dl 0.637 select 0.532 total 6.401 ms
+spec: keyed draft 6.436 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 0 emits 1 drafts [149882]
+spec: keyed verify 2 rows (logits) 16.287 ms, accept 0.666 ms
+adapt: step pass 1 1 tokens 23.438 ms
+ids[w023]: [11, 150102, 166839, 149878, 220, 64169, 157071, 220, 48511, 13, 151243, 149933, 156205, 11, 151582, 11, 149880, 171452, 149910, 156558, 13, 151373, 150580, 11, 149876, 220, 64169, 157819, 149882, 150323, 149894, 149878]
+decode[w023]: 32 tokens, 474 ms (65.38 tok/s)
+prefill[w023]: 24 tokens, 61 ms
+spec[w023]: verify passes=18 proposed=32 accepted=12 (acceptance 37.5%, 1.67 tokens per pass)
+spec: dflash2 draft flush 1.311 block 2.461 head 1.902 selproj 0.256 dl 0.655 select 0.525 total 7.110 ms
+spec: keyed draft 7.169 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 1 emits 2 drafts [166140, 150054, 198, 149862, 152166]
+spec: keyed verify 6 rows (logits) 25.483 ms, accept 0.833 ms
+adapt: step pass 5 2 tokens 33.524 ms
+spec: dflash2 draft flush 0.674 block 2.269 head 1.855 selproj 0.199 dl 0.687 select 0.533 total 6.217 ms
+spec: keyed draft 6.263 ms, 2 drafts
+spec: token 4 pos 26 drafted 2 accepted 0 emits 1 drafts [151483, 1638]
+spec: keyed verify 3 rows (logits) 18.943 ms, accept 0.486 ms
+adapt: step pass 2 1 tokens 25.743 ms
+spec: dflash2 draft flush 0.679 block 2.533 head 1.955 selproj 0.272 dl 0.663 select 0.531 total 6.633 ms
+spec: keyed draft 6.683 ms, 1 drafts
+spec: token 5 pos 27 drafted 1 accepted 1 emits 2 drafts [150905]
+spec: keyed verify 2 rows (logits) 16.574 ms, accept 0.889 ms
+adapt: step pass 1 2 tokens 24.198 ms
+spec: dflash2 draft flush 0.678 block 2.288 head 1.879 selproj 0.200 dl 0.684 select 0.529 total 6.258 ms
+spec: keyed draft 6.312 ms, 1 drafts
+spec: token 7 pos 29 drafted 1 accepted 1 emits 2 drafts [154819]
+spec: keyed verify 2 rows (logits) 16.557 ms, accept 0.821 ms
+adapt: step pass 1 2 tokens 23.748 ms
+spec: dflash2 draft flush 0.684 block 2.283 head 1.904 selproj 0.191 dl 0.670 select 0.519 total 6.252 ms
+spec: keyed draft 6.310 ms, 1 drafts
+spec: token 9 pos 31 drafted 1 accepted 1 emits 2 drafts [13]
+spec: keyed verify 2 rows (logits) 17.158 ms, accept 0.936 ms
+adapt: step pass 1 2 tokens 24.461 ms
+spec: dflash2 draft flush 0.712 block 2.308 head 1.916 selproj 0.203 dl 0.679 select 0.533 total 6.351 ms
+spec: keyed draft 6.419 ms, 1 drafts
+spec: token 11 pos 33 drafted 1 accepted 1 emits 2 drafts [371]
+spec: keyed verify 2 rows (logits) 17.541 ms, accept 0.884 ms
+adapt: step pass 1 2 tokens 24.924 ms
+spec: dflash2 draft flush 0.723 block 2.367 head 1.992 selproj 0.241 dl 0.734 select 0.556 total 6.613 ms
+spec: keyed draft 6.685 ms, 1 drafts
+spec: token 13 pos 35 drafted 1 accepted 0 emits 1 drafts [127683]
+spec: keyed verify 2 rows (logits) 17.714 ms, accept 0.533 ms
+adapt: step pass 1 1 tokens 25.014 ms
+spec: dflash2 draft flush 0.692 block 2.443 head 1.948 selproj 0.242 dl 0.662 select 0.529 total 6.516 ms
+spec: keyed draft 6.571 ms, 5 drafts
+spec: token 14 pos 36 drafted 5 accepted 1 emits 2 drafts [286, 149879, 149876, 150320, 149884]
+spec: keyed verify 6 rows (logits) 24.759 ms, accept 0.948 ms
+adapt: step pass 5 2 tokens 32.332 ms
+spec: dflash2 draft flush 0.681 block 2.326 head 1.912 selproj 0.202 dl 0.671 select 0.531 total 6.322 ms
+spec: keyed draft 6.378 ms, 1 drafts
+spec: token 16 pos 38 drafted 1 accepted 1 emits 2 drafts [149876]
+spec: keyed verify 2 rows (logits) 16.808 ms, accept 0.911 ms
+adapt: step pass 1 2 tokens 24.152 ms
+spec: dflash2 draft flush 0.679 block 2.404 head 1.852 selproj 0.186 dl 0.668 select 0.524 total 6.312 ms
+spec: keyed draft 6.372 ms, 1 drafts
+spec: token 18 pos 40 drafted 1 accepted 1 emits 2 drafts [149879]
+spec: keyed verify 2 rows (logits) 16.891 ms, accept 1.021 ms
+adapt: step pass 1 2 tokens 24.341 ms
+spec: dflash2 draft flush 0.704 block 2.319 head 1.875 selproj 0.215 dl 0.659 select 0.538 total 6.310 ms
+spec: keyed draft 6.364 ms, 1 drafts
+spec: token 20 pos 42 drafted 1 accepted 1 emits 2 drafts [868]
+spec: keyed verify 2 rows (logits) 16.943 ms, accept 1.080 ms
+adapt: step pass 1 2 tokens 24.441 ms
+spec: dflash2 draft flush 0.696 block 2.296 head 1.864 selproj 0.211 dl 0.654 select 0.527 total 6.248 ms
+spec: keyed draft 6.301 ms, 1 drafts
+spec: token 22 pos 44 drafted 1 accepted 1 emits 2 drafts [182978]
+spec: keyed verify 2 rows (logits) 16.793 ms, accept 0.881 ms
+adapt: step pass 1 2 tokens 24.030 ms
+spec: dflash2 draft flush 0.688 block 2.293 head 1.869 selproj 0.203 dl 0.654 select 0.529 total 6.236 ms
+spec: keyed draft 6.282 ms, 1 drafts
+spec: token 24 pos 46 drafted 1 accepted 0 emits 1 drafts [156111]
+spec: keyed verify 2 rows (logits) 16.923 ms, accept 0.443 ms
+adapt: step pass 1 1 tokens 23.709 ms
+spec: dflash2 draft flush 0.667 block 2.369 head 1.867 selproj 0.232 dl 0.658 select 0.550 total 6.341 ms
+spec: keyed draft 6.395 ms, 1 drafts
+spec: token 25 pos 47 drafted 1 accepted 1 emits 2 drafts [131099]
+spec: keyed verify 2 rows (logits) 17.097 ms, accept 0.934 ms
+adapt: step pass 1 2 tokens 24.480 ms
+spec: dflash2 draft flush 0.676 block 2.254 head 1.869 selproj 0.200 dl 0.658 select 0.525 total 6.181 ms
+spec: keyed draft 6.228 ms, 1 drafts
+spec: token 27 pos 49 drafted 1 accepted 1 emits 2 drafts [13]
+spec: keyed verify 2 rows (logits) 16.911 ms, accept 1.040 ms
+adapt: step pass 1 2 tokens 24.240 ms
+spec: dflash2 draft flush 0.691 block 2.289 head 1.876 selproj 0.237 dl 0.655 select 0.535 total 6.282 ms
+spec: keyed draft 6.333 ms, 3 drafts
+spec: token 29 pos 51 drafted 3 accepted 0 emits 1 drafts [371, 220, 149884]
+spec: keyed verify 4 rows (logits) 20.808 ms, accept 0.468 ms
+adapt: step pass 3 1 tokens 27.668 ms
+spec: dflash2 draft flush 0.677 block 2.285 head 1.887 selproj 0.197 dl 0.659 select 0.543 total 6.248 ms
+spec: keyed draft 6.309 ms, 1 drafts
+spec: token 30 pos 52 drafted 1 accepted 0 emits 1 drafts [149876]
+spec: keyed verify 2 rows (logits) 16.771 ms, accept 0.429 ms
+adapt: step pass 1 1 tokens 23.563 ms
+spec: dflash2 draft flush 0.683 block 2.344 head 1.932 selproj 0.219 dl 0.659 select 0.557 total 6.394 ms
+spec: keyed draft 6.441 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 1 emits 2 drafts [85886]
+spec: keyed verify 2 rows (logits) 17.294 ms, accept 1.036 ms
+ids[w024]: [150136, 166140, 152166, 150932, 150905, 150079, 154819, 150905, 13, 68014, 371, 220, 41617, 286, 149884, 149876, 150954, 149879, 156279, 868, 274, 182978, 149881, 149888, 131099, 120649, 13, 68014, 368, 152236, 85886, 11]
+decode[w024]: 32 tokens, 459 ms (67.48 tok/s)
+prefill[w024]: 24 tokens, 73 ms
+spec[w024]: verify passes=18 proposed=29 accepted=13 (acceptance 44.8%, 1.72 tokens per pass)
+spec: dflash2 draft flush 1.541 block 2.553 head 2.082 selproj 0.275 dl 0.662 select 0.535 total 7.649 ms
+spec: keyed draft 7.717 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 5 emits 6 drafts [371, 150409, 171960, 25, 196980]
+spec: keyed verify 6 rows (logits) 27.280 ms, accept 2.523 ms
+adapt: step pass 5 6 tokens 37.564 ms
+spec: dflash2 draft flush 1.569 block 2.695 head 1.996 selproj 0.204 dl 0.655 select 0.517 total 7.636 ms
+spec: keyed draft 7.676 ms, 5 drafts
+spec: token 8 pos 30 drafted 5 accepted 2 emits 3 drafts [149884, 149876, 150230, 30, 1]
+spec: keyed verify 6 rows (logits) 27.591 ms, accept 1.557 ms
+adapt: step pass 5 3 tokens 36.884 ms
+spec: dflash2 draft flush 0.884 block 2.763 head 2.079 selproj 0.253 dl 0.643 select 0.526 total 7.147 ms
+spec: keyed draft 7.220 ms, 5 drafts
+spec: token 11 pos 33 drafted 5 accepted 1 emits 2 drafts [149879, 220, 30, 1, 149904]
+spec: keyed verify 6 rows (logits) 27.854 ms, accept 0.996 ms
+adapt: step pass 5 2 tokens 36.124 ms
+spec: dflash2 draft flush 0.745 block 2.703 head 1.942 selproj 0.216 dl 0.658 select 0.528 total 6.792 ms
+spec: keyed draft 6.833 ms, 5 drafts
+spec: token 13 pos 35 drafted 5 accepted 0 emits 1 drafts [151388, 30, 1, 170289, 150893]
+spec: keyed verify 6 rows (logits) 27.363 ms, accept 0.642 ms
+adapt: step pass 5 1 tokens 34.888 ms
+spec: dflash2 draft flush 0.871 block 2.810 head 2.006 selproj 0.230 dl 0.642 select 0.528 total 7.088 ms
+spec: keyed draft 7.133 ms, 4 drafts
+spec: token 14 pos 36 drafted 4 accepted 4 emits 5 drafts [157422, 30, 1, 170289]
+spec: keyed verify 5 rows (logits) 26.133 ms, accept 2.417 ms
+adapt: step pass 4 5 tokens 35.739 ms
+spec: dflash2 draft flush 1.614 block 2.722 head 1.956 selproj 0.254 dl 0.655 select 0.514 total 7.714 ms
+spec: keyed draft 7.769 ms, 4 drafts
+spec: token 19 pos 41 drafted 4 accepted 0 emits 1 drafts [13, 170289, 149895, 151231]
+spec: keyed verify 5 rows (logits) 25.084 ms, accept 0.529 ms
+adapt: step pass 4 1 tokens 33.429 ms
+spec: dflash2 draft flush 0.705 block 2.451 head 1.918 selproj 0.219 dl 0.650 select 0.518 total 6.460 ms
+spec: keyed draft 6.503 ms, 4 drafts
+spec: token 20 pos 42 drafted 4 accepted 4 emits 5 drafts [4123, 13, 170289, 151791]
+spec: keyed verify 5 rows (logits) 24.668 ms, accept 1.919 ms
+adapt: step pass 4 5 tokens 33.164 ms
+spec: dflash2 draft flush 1.216 block 2.410 head 1.887 selproj 0.379 dl 0.655 select 0.532 total 7.079 ms
+spec: keyed draft 7.134 ms, 5 drafts
+spec: token 25 pos 47 drafted 5 accepted 5 emits 6 drafts [1355, 25, 151451, 149879, 198386]
+spec: keyed verify 6 rows (logits) 25.948 ms, accept 1.951 ms
+adapt: step pass 5 6 tokens 35.092 ms
+spec: dflash2 draft flush 1.087 block 2.387 head 1.897 selproj 0.201 dl 0.660 select 0.553 total 6.784 ms
+spec: keyed draft 6.843 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 1 emits 2 drafts [153629]
+spec: keyed verify 2 rows (logits) 17.571 ms, accept 0.961 ms
+ids[w025]: [200008, 371, 150409, 171960, 25, 196980, 1775, 149884, 149876, 151451, 149879, 149876, 151465, 157422, 30, 1, 170289, 150893, 149911, 4123, 13, 170289, 151791, 151231, 1355, 25, 151451, 149879, 198386, 149884, 153629, 13]
+decode[w025]: 32 tokens, 308 ms (100.54 tok/s)
+prefill[w025]: 24 tokens, 73 ms
+spec[w025]: verify passes=9 proposed=38 accepted=22 (acceptance 57.9%, 3.44 tokens per pass)
+spec: dflash2 draft flush 1.457 block 2.409 head 2.010 selproj 0.193 dl 0.667 select 0.534 total 7.271 ms
+spec: keyed draft 7.338 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 3 emits 4 drafts [371, 150409, 171960, 25, 196980]
+spec: keyed verify 6 rows (logits) 26.434 ms, accept 1.713 ms
+adapt: step pass 5 4 tokens 35.532 ms
+spec: dflash2 draft flush 0.743 block 2.475 head 2.003 selproj 0.197 dl 0.673 select 0.536 total 6.628 ms
+spec: keyed draft 6.694 ms, 3 drafts
+spec: token 6 pos 28 drafted 3 accepted 3 emits 4 drafts [150202, 150332, 150318]
+spec: keyed verify 4 rows (logits) 22.516 ms, accept 1.626 ms
+adapt: step pass 3 4 tokens 30.976 ms
+spec: dflash2 draft flush 0.741 block 2.509 head 2.034 selproj 0.206 dl 0.678 select 0.544 total 6.711 ms
+spec: keyed draft 6.767 ms, 3 drafts
+spec: token 10 pos 32 drafted 3 accepted 0 emits 1 drafts [150102, 13, 170289]
+spec: keyed verify 4 rows (logits) 23.065 ms, accept 0.495 ms
+adapt: step pass 3 1 tokens 30.424 ms
+spec: dflash2 draft flush 0.735 block 2.453 head 2.012 selproj 0.377 dl 0.675 select 0.531 total 6.782 ms
+spec: keyed draft 6.843 ms, 3 drafts
+spec: token 11 pos 33 drafted 3 accepted 3 emits 4 drafts [182416, 13, 170289]
+spec: keyed verify 4 rows (logits) 23.558 ms, accept 1.514 ms
+adapt: step pass 3 4 tokens 31.972 ms
+spec: dflash2 draft flush 0.741 block 2.534 head 2.011 selproj 0.202 dl 0.659 select 0.530 total 6.678 ms
+spec: keyed draft 6.738 ms, 3 drafts
+spec: token 15 pos 37 drafted 3 accepted 0 emits 1 drafts [150567, 149894, 182416]
+spec: keyed verify 4 rows (logits) 23.314 ms, accept 0.575 ms
+adapt: step pass 3 1 tokens 30.678 ms
+spec: dflash2 draft flush 0.719 block 2.782 head 2.116 selproj 0.187 dl 0.663 select 0.537 total 7.005 ms
+spec: keyed draft 7.072 ms, 3 drafts
+spec: token 16 pos 38 drafted 3 accepted 3 emits 4 drafts [4123, 13, 170289]
+spec: keyed verify 4 rows (logits) 23.925 ms, accept 1.890 ms
+adapt: step pass 3 4 tokens 32.955 ms
+spec: dflash2 draft flush 1.219 block 2.986 head 2.200 selproj 0.273 dl 0.710 select 0.542 total 7.930 ms
+spec: keyed draft 7.995 ms, 3 drafts
+spec: token 20 pos 42 drafted 3 accepted 0 emits 1 drafts [150517, 151247, 13]
+spec: keyed verify 4 rows (logits) 23.690 ms, accept 0.459 ms
+adapt: step pass 3 1 tokens 32.207 ms
+spec: dflash2 draft flush 0.745 block 2.583 head 2.147 selproj 0.231 dl 0.684 select 0.547 total 6.937 ms
+spec: keyed draft 7.005 ms, 5 drafts
+spec: token 21 pos 43 drafted 5 accepted 0 emits 1 drafts [34664, 6, 150288, 150788, 182416]
+spec: keyed verify 6 rows (logits) 27.673 ms, accept 0.454 ms
+adapt: step pass 5 1 tokens 35.187 ms
+spec: dflash2 draft flush 0.720 block 2.572 head 2.095 selproj 0.208 dl 0.657 select 0.533 total 6.785 ms
+spec: keyed draft 6.839 ms, 3 drafts
+spec: token 22 pos 44 drafted 3 accepted 1 emits 2 drafts [6, 150288, 150788]
+spec: keyed verify 4 rows (logits) 23.398 ms, accept 0.827 ms
+adapt: step pass 3 2 tokens 31.117 ms
+spec: dflash2 draft flush 0.760 block 2.638 head 2.156 selproj 0.223 dl 0.673 select 0.537 total 6.987 ms
+spec: keyed draft 7.050 ms, 3 drafts
+spec: token 24 pos 46 drafted 3 accepted 1 emits 2 drafts [149882, 182416, 13]
+spec: keyed verify 4 rows (logits) 25.430 ms, accept 0.894 ms
+adapt: step pass 3 2 tokens 33.434 ms
+spec: dflash2 draft flush 0.991 block 3.189 head 2.104 selproj 0.290 dl 0.661 select 0.525 total 7.761 ms
+spec: keyed draft 7.805 ms, 3 drafts
+spec: token 26 pos 48 drafted 3 accepted 0 emits 1 drafts [13, 182416, 13]
+spec: keyed verify 4 rows (logits) 25.377 ms, accept 0.593 ms
+adapt: step pass 3 1 tokens 33.829 ms
+spec: dflash2 draft flush 0.871 block 2.712 head 2.167 selproj 0.267 dl 0.659 select 0.529 total 7.206 ms
+spec: keyed draft 7.262 ms, 3 drafts
+spec: token 27 pos 49 drafted 3 accepted 2 emits 3 drafts [182416, 30, 150860]
+spec: keyed verify 4 rows (logits) 25.934 ms, accept 1.420 ms
+adapt: step pass 3 3 tokens 34.669 ms
+spec: dflash2 draft flush 0.796 block 2.659 head 2.097 selproj 0.186 dl 0.655 select 0.529 total 6.922 ms
+spec: keyed draft 6.969 ms, 2 drafts
+spec: token 30 pos 52 drafted 2 accepted 0 emits 1 drafts [156021, 25]
+spec: keyed verify 3 rows (logits) 22.855 ms, accept 0.629 ms
+adapt: step pass 2 1 tokens 30.503 ms
+spec: dflash2 draft flush 0.957 block 3.005 head 2.235 selproj 0.262 dl 0.645 select 0.521 total 7.624 ms
+spec: keyed draft 7.675 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 1 emits 2 drafts [25]
+spec: keyed verify 2 rows (logits) 21.989 ms, accept 0.891 ms
+ids[w026]: [200008, 371, 150409, 171960, 180433, 150202, 150332, 150318, 152206, 149881, 182416, 13, 170289, 150893, 149911, 4123, 13, 170289, 150476, 196984, 1179, 6, 161640, 149882, 153630, 149918, 182416, 30, 166728, 152439, 25, 196984]
+decode[w026]: 32 tokens, 454 ms (68.27 tok/s)
+prefill[w026]: 24 tokens, 76 ms
+spec[w026]: verify passes=14 proposed=43 accepted=17 (acceptance 39.5%, 2.21 tokens per pass)
+spec: dflash2 draft flush 1.674 block 2.504 head 2.062 selproj 0.200 dl 0.625 select 0.536 total 7.601 ms
+spec: keyed draft 7.654 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 1 emits 2 drafts [149876, 152275, 149922, 220, 18]
+spec: keyed verify 6 rows (logits) 28.558 ms, accept 0.955 ms
+adapt: step pass 5 2 tokens 37.206 ms
+spec: dflash2 draft flush 0.745 block 2.638 head 2.043 selproj 0.212 dl 0.636 select 0.520 total 6.794 ms
+spec: keyed draft 6.838 ms, 2 drafts
+spec: token 4 pos 26 drafted 2 accepted 2 emits 3 drafts [152275, 149922]
+spec: keyed verify 3 rows (logits) 21.047 ms, accept 1.563 ms
+adapt: step pass 2 3 tokens 29.495 ms
+spec: dflash2 draft flush 0.856 block 2.581 head 2.045 selproj 0.263 dl 0.637 select 0.519 total 6.901 ms
+spec: keyed draft 6.939 ms, 2 drafts
+spec: token 7 pos 29 drafted 2 accepted 0 emits 1 drafts [19, 25]
+spec: keyed verify 3 rows (logits) 21.839 ms, accept 0.561 ms
+adapt: step pass 2 1 tokens 29.386 ms
+spec: dflash2 draft flush 0.819 block 2.772 head 2.016 selproj 0.252 dl 0.644 select 0.518 total 7.020 ms
+spec: keyed draft 7.063 ms, 2 drafts
+spec: token 8 pos 30 drafted 2 accepted 2 emits 3 drafts [25, 68358]
+spec: keyed verify 3 rows (logits) 21.648 ms, accept 1.446 ms
+adapt: step pass 2 3 tokens 30.215 ms
+spec: dflash2 draft flush 0.851 block 2.738 head 2.026 selproj 0.224 dl 0.641 select 0.507 total 6.986 ms
+spec: keyed draft 7.034 ms, 2 drafts
+spec: token 11 pos 33 drafted 2 accepted 2 emits 3 drafts [185473, 279]
+spec: keyed verify 3 rows (logits) 22.481 ms, accept 1.357 ms
+adapt: step pass 2 3 tokens 30.933 ms
+spec: dflash2 draft flush 0.820 block 2.691 head 2.045 selproj 0.246 dl 0.642 select 0.522 total 6.966 ms
+spec: keyed draft 7.006 ms, 2 drafts
+spec: token 14 pos 36 drafted 2 accepted 2 emits 3 drafts [149876, 150244]
+spec: keyed verify 3 rows (logits) 21.543 ms, accept 1.430 ms
+adapt: step pass 2 3 tokens 30.033 ms
+spec: dflash2 draft flush 0.751 block 2.547 head 1.975 selproj 0.267 dl 0.643 select 0.512 total 6.696 ms
+spec: keyed draft 6.739 ms, 2 drafts
+spec: token 17 pos 39 drafted 2 accepted 2 emits 3 drafts [149922, 220]
+spec: keyed verify 3 rows (logits) 22.093 ms, accept 1.504 ms
+adapt: step pass 2 3 tokens 30.388 ms
+spec: dflash2 draft flush 0.796 block 2.709 head 1.954 selproj 0.178 dl 0.654 select 0.524 total 6.816 ms
+spec: keyed draft 6.865 ms, 5 drafts
+spec: token 20 pos 42 drafted 5 accepted 4 emits 5 drafts [150983, 14, 71, 13, 151337]
+spec: keyed verify 6 rows (logits) 28.812 ms, accept 2.473 ms
+adapt: step pass 5 5 tokens 38.205 ms
+spec: dflash2 draft flush 1.662 block 2.558 head 2.031 selproj 0.202 dl 0.661 select 0.526 total 7.640 ms
+spec: keyed draft 7.709 ms, 4 drafts
+spec: token 25 pos 47 drafted 4 accepted 4 emits 5 drafts [150161, 150038, 149998, 149876]
+spec: keyed verify 5 rows (logits) 25.393 ms, accept 2.183 ms
+adapt: step pass 4 5 tokens 35.346 ms
+spec: dflash2 draft flush 1.561 block 2.899 head 1.975 selproj 0.182 dl 0.650 select 0.509 total 7.776 ms
+spec: keyed draft 7.885 ms, 2 drafts
+spec: token 30 pos 52 drafted 2 accepted 1 emits 2 drafts [151226, 155939]
+spec: keyed verify 3 rows (logits) 21.149 ms, accept 1.126 ms
+adapt: step pass 2 2 tokens 30.237 ms
+ids[w027]: [160172, 149876, 150244, 152275, 149922, 220, 18, 25, 68358, 153961, 185473, 279, 149881, 149876, 150244, 151390, 149922, 220, 69580, 150983, 14, 71, 13, 150847, 150161, 150038, 149998, 149876, 150514, 151226, 152925, 150069]
+decode[w027]: 32 tokens, 339 ms (91.57 tok/s)
+prefill[w027]: 24 tokens, 81 ms
+spec[w027]: verify passes=10 proposed=28 accepted=20 (acceptance 71.4%, 3.00 tokens per pass)
+spec: dflash2 draft flush 1.469 block 2.430 head 1.974 selproj 0.226 dl 0.635 select 0.520 total 7.254 ms
+spec: keyed draft 7.298 ms, 5 drafts
+adapt: token 2 Stop { k: 3, rate: 0.9174948000924428, hold: 8 }
+spec: token 2 pos 24 drafted 5 accepted 0 emits 1 drafts [149878, 150299, 149879, 181713, 150920]
+spec: keyed verify 6 rows (logits) 25.999 ms, accept 0.604 ms
+adapt: step pass 5 1 tokens 33.934 ms
+adapt: step plain 0 1 tokens 16.602 ms
+adapt: step plain 0 1 tokens 16.394 ms
+adapt: step plain 0 1 tokens 16.274 ms
+adapt: step plain 0 1 tokens 14.929 ms
+adapt: step plain 0 1 tokens 15.383 ms
+adapt: step plain 0 1 tokens 16.650 ms
+adapt: step plain 0 1 tokens 16.563 ms
+adapt: step plain 0 1 tokens 15.878 ms
+spec: dflash2 draft flush 0.973 block 2.735 head 1.997 selproj 0.276 dl 0.633 select 0.530 total 7.143 ms
+spec: keyed draft 7.188 ms, 5 drafts
+spec: token 11 pos 33 drafted 5 accepted 5 emits 6 drafts [150003, 149934, 197012, 220, 15]
+spec: keyed verify 6 rows (logits) 28.015 ms, accept 2.756 ms
+adapt: step pass 5 6 tokens 38.025 ms
+spec: dflash2 draft flush 1.604 block 2.588 head 2.213 selproj 0.275 dl 0.635 select 0.532 total 7.846 ms
+spec: keyed draft 7.899 ms, 5 drafts
+spec: token 17 pos 39 drafted 5 accepted 5 emits 6 drafts [198, 149860, 149862, 150583, 197044]
+spec: keyed verify 6 rows (logits) 27.857 ms, accept 2.571 ms
+adapt: step pass 5 6 tokens 38.390 ms
+spec: dflash2 draft flush 1.123 block 2.585 head 1.923 selproj 0.206 dl 0.711 select 0.595 total 7.143 ms
+spec: keyed draft 7.207 ms, 5 drafts
+adapt: token 23 Resume { k: 5, rate: 2.1558795456222115 }
+spec: token 23 pos 45 drafted 5 accepted 5 emits 6 drafts [149862, 150003, 149934, 197010, 220]
+spec: keyed verify 6 rows (logits) 28.046 ms, accept 3.019 ms
+adapt: step pass 5 6 tokens 38.328 ms
+spec: dflash2 draft flush 1.548 block 2.729 head 2.036 selproj 0.229 dl 0.630 select 0.513 total 7.687 ms
+spec: keyed draft 7.728 ms, 3 drafts
+spec: token 29 pos 51 drafted 3 accepted 3 emits 4 drafts [25, 198, 149860]
+spec: keyed verify 4 rows (logits) 23.281 ms, accept 1.680 ms
+ids[w028]: [72358, 149876, 150135, 149934, 181713, 150920, 13, 70646, 198, 149862, 150003, 149934, 197012, 220, 15, 25, 198, 149860, 149862, 150583, 197044, 198, 149862, 150003, 149934, 197010, 220, 16, 25, 198, 149860, 149862]
+decode[w028]: 32 tokens, 310 ms (99.96 tok/s)
+prefill[w028]: 24 tokens, 82 ms
+spec[w028]: verify passes=5 proposed=23 accepted=18 (acceptance 78.3%, 4.60 tokens per pass)
+spec: dflash2 draft flush 1.350 block 2.369 head 1.890 selproj 0.241 dl 0.654 select 0.528 total 7.032 ms
+spec: keyed draft 7.090 ms, 5 drafts
+spec: token 2 pos 24 drafted 5 accepted 1 emits 2 drafts [149882, 151644, 198259, 17, 149920]
+spec: keyed verify 6 rows (logits) 25.394 ms, accept 0.821 ms
+adapt: step pass 5 2 tokens 33.344 ms
+spec: dflash2 draft flush 0.725 block 2.441 head 1.941 selproj 0.235 dl 0.670 select 0.531 total 6.542 ms
+spec: keyed draft 6.592 ms, 2 drafts
+spec: token 4 pos 26 drafted 2 accepted 0 emits 1 drafts [198259, 17]
+spec: keyed verify 3 rows (logits) 20.036 ms, accept 0.463 ms
+adapt: step pass 2 1 tokens 27.142 ms
+spec: dflash2 draft flush 0.734 block 2.392 head 1.995 selproj 0.207 dl 0.660 select 0.548 total 6.536 ms
+spec: keyed draft 6.593 ms, 1 drafts
+spec: token 5 pos 27 drafted 1 accepted 1 emits 2 drafts [170510]
+spec: keyed verify 2 rows (logits) 20.218 ms, accept 0.992 ms
+adapt: step pass 1 2 tokens 27.856 ms
+spec: dflash2 draft flush 0.798 block 2.466 head 2.000 selproj 0.257 dl 0.657 select 0.527 total 6.704 ms
+spec: keyed draft 6.749 ms, 1 drafts
+spec: token 7 pos 29 drafted 1 accepted 1 emits 2 drafts [171090]
+spec: keyed verify 2 rows (logits) 19.842 ms, accept 0.940 ms
+adapt: step pass 1 2 tokens 27.589 ms
+spec: dflash2 draft flush 0.830 block 2.792 head 1.983 selproj 0.235 dl 0.636 select 0.517 total 6.992 ms
+spec: keyed draft 7.045 ms, 1 drafts
+spec: token 9 pos 31 drafted 1 accepted 0 emits 1 drafts [68014]
+spec: keyed verify 2 rows (logits) 20.516 ms, accept 0.656 ms
+adapt: step pass 1 1 tokens 28.282 ms
+spec: dflash2 draft flush 0.919 block 2.684 head 1.998 selproj 0.241 dl 0.639 select 0.516 total 6.997 ms
+spec: keyed draft 7.041 ms, 1 drafts
+spec: token 10 pos 32 drafted 1 accepted 1 emits 2 drafts [150320]
+spec: keyed verify 2 rows (logits) 18.774 ms, accept 0.891 ms
+adapt: step pass 1 2 tokens 26.752 ms
+spec: dflash2 draft flush 0.732 block 2.441 head 1.966 selproj 0.182 dl 0.691 select 0.587 total 6.599 ms
+spec: keyed draft 6.659 ms, 1 drafts
+spec: token 12 pos 34 drafted 1 accepted 0 emits 1 drafts [153388]
+spec: keyed verify 2 rows (logits) 18.971 ms, accept 0.538 ms
+adapt: step pass 1 1 tokens 26.228 ms
+spec: dflash2 draft flush 0.713 block 2.659 head 1.989 selproj 0.264 dl 0.656 select 0.528 total 6.809 ms
+spec: keyed draft 6.856 ms, 5 drafts
+spec: token 13 pos 35 drafted 5 accepted 2 emits 3 drafts [149887, 150905, 151370, 149880, 150905]
+spec: keyed verify 6 rows (logits) 25.900 ms, accept 1.530 ms
+adapt: step pass 5 3 tokens 34.340 ms
+spec: dflash2 draft flush 0.776 block 2.652 head 1.988 selproj 0.220 dl 0.643 select 0.498 total 6.776 ms
+spec: keyed draft 6.817 ms, 2 drafts
+spec: token 16 pos 38 drafted 2 accepted 0 emits 1 drafts [149880, 149876]
+spec: keyed verify 3 rows (logits) 20.170 ms, accept 0.647 ms
+adapt: step pass 2 1 tokens 27.686 ms
+spec: dflash2 draft flush 0.815 block 2.557 head 1.878 selproj 0.217 dl 0.654 select 0.528 total 6.649 ms
+spec: keyed draft 6.693 ms, 2 drafts
+spec: token 17 pos 39 drafted 2 accepted 0 emits 1 drafts [149876, 151324]
+spec: keyed verify 3 rows (logits) 19.607 ms, accept 0.493 ms
+adapt: step pass 2 1 tokens 26.847 ms
+spec: dflash2 draft flush 0.725 block 2.456 head 1.962 selproj 0.205 dl 0.629 select 0.539 total 6.515 ms
+spec: keyed draft 6.563 ms, 2 drafts
+spec: token 18 pos 40 drafted 2 accepted 2 emits 3 drafts [70451, 11]
+spec: keyed verify 3 rows (logits) 19.713 ms, accept 1.493 ms
+adapt: step pass 2 3 tokens 27.829 ms
+spec: dflash2 draft flush 0.694 block 2.364 head 1.971 selproj 0.184 dl 0.652 select 0.542 total 6.407 ms
+spec: keyed draft 6.457 ms, 2 drafts
+spec: token 21 pos 43 drafted 2 accepted 1 emits 2 drafts [149921, 153690]
+spec: keyed verify 3 rows (logits) 18.963 ms, accept 0.715 ms
+adapt: step pass 2 2 tokens 26.218 ms
+spec: dflash2 draft flush 0.723 block 2.390 head 1.969 selproj 0.236 dl 0.655 select 0.536 total 6.507 ms
+spec: keyed draft 6.558 ms, 2 drafts
+spec: token 23 pos 45 drafted 2 accepted 2 emits 3 drafts [149876, 150283]
+spec: keyed verify 3 rows (logits) 18.748 ms, accept 1.397 ms
+adapt: step pass 2 3 tokens 26.772 ms
+spec: dflash2 draft flush 0.740 block 2.554 head 1.958 selproj 0.169 dl 0.654 select 0.529 total 6.604 ms
+spec: keyed draft 6.703 ms, 2 drafts
+spec: token 26 pos 48 drafted 2 accepted 0 emits 1 drafts [149876, 152190]
+spec: keyed verify 3 rows (logits) 20.130 ms, accept 0.468 ms
+adapt: step pass 2 1 tokens 27.388 ms
+spec: dflash2 draft flush 0.692 block 2.376 head 1.979 selproj 0.186 dl 0.663 select 0.558 total 6.454 ms
+spec: keyed draft 6.507 ms, 2 drafts
+spec: token 27 pos 49 drafted 2 accepted 1 emits 2 drafts [177582, 13]
+spec: keyed verify 3 rows (logits) 20.300 ms, accept 0.780 ms
+adapt: step pass 2 2 tokens 27.655 ms
+spec: dflash2 draft flush 0.739 block 2.591 head 2.029 selproj 0.207 dl 0.673 select 0.544 total 6.782 ms
+spec: keyed draft 6.842 ms, 3 drafts
+spec: token 29 pos 51 drafted 3 accepted 1 emits 2 drafts [151869, 152190, 150630]
+spec: keyed verify 4 rows (logits) 22.296 ms, accept 0.817 ms
+adapt: step pass 3 2 tokens 30.075 ms
+spec: dflash2 draft flush 0.760 block 2.478 head 2.067 selproj 0.269 dl 0.667 select 0.540 total 6.780 ms
+spec: keyed draft 6.857 ms, 1 drafts
+spec: token 31 pos 53 drafted 1 accepted 1 emits 2 drafts [149887]
+spec: keyed verify 2 rows (logits) 17.834 ms, accept 0.819 ms
+ids[w029]: [150145, 149882, 152166, 152913, 170510, 150079, 171090, 13, 150078, 150320, 149884, 155764, 149887, 150905, 151793, 149881, 153186, 70451, 11, 149891, 149921, 153553, 149876, 150283, 149879, 152190, 177582, 149880, 151869, 150905, 149887, 149971]
+decode[w029]: 32 tokens, 478 ms (64.91 tok/s)
+prefill[w029]: 24 tokens, 71 ms
+spec[w029]: verify passes=17 proposed=35 accepted=14 (acceptance 40.0%, 1.82 tokens per pass)
+decode overall: 930 tokens after the first, 12202 ms (76.22 tok/s)
+prefill overall: 720 tokens, 2318 ms (310.7 tok/s)
+spec: verify passes=329 proposed=977 accepted=406 (acceptance 41.6%, 2.23 tokens per pass)

@@ -1,0 +1,10 @@
+fleetq: #12557 running on endor: /opt/code/intarsiaml/.worktrees/ink-metal-dflash2-ready/docs/results/2026-11-27-inkling2-metal-dflash2-ready/raw/slotA.sh
+slot A start 03:49:40 binary md5 49a4d94be3648ec35ed2c7128dd513cb git 6fd8a6052
+== check 1: greedy, generate, code + len4k + len16k, 256 tokens, --ignore-eos
+g-off rc 0 t+26s | decode[code]: 256 tokens, 3195 ms (79.82 tok/s) decode[len4k]: 256 tokens, 3376 ms (75.53 tok/s) decode[len16k]: 256 tokens, 3648 ms (69.90 tok/s)  |          20002152376  peak memory footprint
+g-default rc 0 t+49s | decode[code]: 256 tokens, 2329 ms (109.50 tok/s) decode[len4k]: 256 tokens, 2391 ms (106.65 tok/s) decode[len16k]: 256 tokens, 3249 ms (78.48 tok/s)  |          20838344000  peak memory footprint
+g-dfl5 rc 0 t+70s | decode[code]: 256 tokens, 1855 ms (137.50 tok/s) decode[len4k]: 256 tokens, 2362 ms (107.96 tok/s) decode[len16k]: 256 tokens, 3420 ms (74.55 tok/s)  |          20316398960  peak memory footprint
+== check 2: serve arms (sampled seeds, solo greedy b4)
+arm off: server not up
+Terminated: 15
+fleetq: #12557 done (exit 130)

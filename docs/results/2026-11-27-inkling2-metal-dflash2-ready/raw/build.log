@@ -1,0 +1,9 @@
+fleetq: #12556 running on endor: /opt/code/intarsiaml/.worktrees/ink-metal-dflash2-ready/.scratch/build.sh
+[build] cli 03:46:51 git f25bb273a
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 22.76s
+MD5 (/opt/code/intarsiaml/.worktrees/ink-metal-dflash2-ready/.scratch/bin/intarsia-br1) = 49a4d94be3648ec35ed2c7128dd513cb
+-rwxr-xr-x@ 1 josef  staff  39771872 Nov 27 03:47 /opt/code/intarsiaml/.worktrees/ink-metal-dflash2-ready/.scratch/bin/intarsia-br1
+[build] done 03:47:13
+fleetq: #12556 done (exit 0)
