@@ -1,7 +1,7 @@
 # Inkling-2-Mini + DFlash2 k5 on Metal: readiness checks for a default flip (lane ink-metal-dflash2-ready, 2026-11-27)
 
-Status: **DONE 2026-11-27 04:25 EST. Verification only: no default, recipe or code change.** Four checks pass, one is a FLAG (memory scales with the
-context capacity). Branch `ink/metal-dflash2-ready` from origin/main `f25bb273a` (PR #546 in). Binary `br1` built from this tree before any doc
+Status: **DONE 2026-11-27 04:30 EST. Verification only: no default, recipe or code change.** Every check passes except one FLAG (the draft's memory scales with
+the context capacity); there is no failure. Branch `ink/metal-dflash2-ready` from origin/main `f25bb273a` (PR #546 in). Binary `br1` built from this tree before any doc
 commit (own target dir `target/`, sources touched first, build job #12556, md5 `49a4d94be3648ec35ed2c7128dd513cb`, every slot's first line logs it).
 Question for the user: is DFlash2 k5 (`--spec dflash --spec-draft <Inkling-2-Mini-DFlash2> --spec-k 5`, #546) safe to make Metal's greedy default for
 Inkling-2-Mini (today DSpark k3, recipe `mtp_default_k`)? Speed is not re-measured here (#546: mean of 6 cells 1.072 vs DSpark k3, GO).
@@ -12,9 +12,11 @@ Inkling-2-Mini (today DSpark k3, recipe `mtp_default_k`)? Speed is not re-measur
 |---|---|---|---|---|
 | 1 | Greedy ids at long context | 256 ids of `dfl5` = `off` = default on `code` (101 ids), `len4k`, `len16k` | **PASS** | md5 equal on all 3 prompts, 256/256 ids each; 16k `89994b87...`, 4k `9e85ba11...` and code `c69d1438...` also equal #546's md5s |
 | 2a | Path of a sampled request under `--spec dflash` (DFlash2) | read from code + trace | **plain steps** (DFlash2 does not draft sampled requests) | 0 verify passes in 190 sampled requests; startup line "drafting off (default ...)" |
-| 2b | Sampled ids `dfl5` = `off` | every (config, prompt) pair equal | **PASS** | 190 / 190 equal (T 1.0: 100, T 0.6: 60, T 0.7 top-k 20 top-p 0.9: 30); **deviation: one seed, distinct prompts**, see below |
+| 2b | Sampled ids `dfl5` = `off` | every (config, prompt) pair equal | **PASS** | 190 / 190 equal (T 1.0: 100, T 0.6: 60, T 0.7 top-k 20 top-p 0.9: 30); **deviation: one seed, distinct prompts**, see below; 2d adds 20 seeds with prefix reuse |
 | 2b' | Same with `INTARSIA_SPEC_SAMPLED_DFLASH=1` (opt-in sampled drafting with the DFlash2 draft) | same rule, reported apart | **PASS** | 190 / 190 equal; it drafts (906 verify passes at T 1.0, acceptance 30 %, 2.03 tokens per pass) |
-| 2c | Speed, information only: one ABBA on 3 short prompts, 45 s idle | FLAG if geo < 0.98 or any prompt < 0.95 | **no flag** | dfl5 / default: count 1.496, story 1.028, chat 1.280; geo **1.253**, min 1.028; ids equal |
+| 2c | Speed, information only, **greedy**: one ABBA on 3 short prompts, 45 s idle | FLAG if geo < 0.98 or any prompt < 0.95 | **no flag** | dfl5 / default: count 1.496, story 1.028, chat 1.280; geo **1.253**, min 1.028; ids equal |
+| 2c-s | Same ABBA, **sampled** (T 1.0, added rule) | same thresholds | **no flag** | geo **1.000**, min 0.999 (both arms plain steps, 0 verify passes); the unpaired T 1.0 gap of slot C (70.1 vs 75.9) was noise |
+| 2d | Seed stream 0..19 x T 1.0 / 0.6 on one engine with prefix reuse, DFlash2 k5 draft vs own DSpark draft, `SAMPLED_DFLASH=0` (added rule) | 40 lines identical | **PASS** | 40 / 40 identical |
 | 3a | `--max-batch 4 --spec dflash` | record what happens | **refused loudly** | exit 1 after 0 s, before the weights load: "unsupported: --spec dflash with the batching engine (use --max-batch 1)" |
 | 3b | `--max-batch 4`, no `--spec`: 4 concurrent greedy = solo | all 4 equal | **PASS** | 4 / 4 equal, twice; no draft is loaded (no speculation line in the log), as with the DSpark default today |
 | 4 | Memory and KV capacity, `dfl5` vs default | FLAG if > +1.5 GB peak or > 5 % less context | **FLAG** | at the free-memory-clamped capacity: context 615,458 vs 615,670 tokens (-0.03 %), peak footprint **48.83 vs 44.10 GB (+4.73 GB)**, repeated; at 20,480 tokens: 20.32 vs 20.84 GB (no extra) |
@@ -85,6 +87,8 @@ Metal budget: <= 25 min of exclusive slots in all, each <= 15 min, none after 07
   - **4**: `generate --max-seq 4194304 --kv-fraction 0.25` (clamped by free memory; `serve`'s `--max-seq` would have been the same planner) and
     `/usr/bin/time -l` peak memory footprint; macmon's system `ram_usage` includes file cache (it read 89 GB with nothing running) and is not
     used. The serve startup line "context N tokens" is generate's "context N tokens" line.
+- Slot E (#12561) was stopped after 1.3 min when the seed-stream harness proved to run at ~1.1 s per request (100 seeds would have cost 7 min); the
+  slot was relaunched as #12562 with the ABBA first and 20 seeds. Its aborted log is `raw/E/slotE-aborted.log`.
 - The ABBA (2c) uses `generate` on `abba3.json` with one rep pair (2 + 2 processes), as the brief said; slot D's is greedy (see slot E for sampled).
 - **3b compared the 4 concurrent replies with the solo replies of the same batch server**, not with the single-sequence `dfl5` server's replies the
   rule named (that server never came up, see above). Free cross-path check afterwards: the batch server's solo reply for `code` (128 ids) equals the first
@@ -144,6 +148,17 @@ process per cell, power state unknown) is not a result: plain-step tok/s was 75.
 
 Geometric mean 1.253, lowest prompt 1.028; ids identical across all 4 processes. No flag. (Short prompts are where #546 saw the gain: 1.17-1.35.)
 
+**2c-sampled** (slot E, #12562, `raw/E/abba.txt`; `--temperature 1.0 --top-k 0 --top-p 1.0 --seed 7 --ignore-eos`, 256 tokens, the same order and idle):
+tok/s default (r1, r2) vs dfl5 (r1, r2): count 77.21, 77.08 vs 77.10, 77.32 (1.001); story 77.29, 76.98 vs 77.12, 76.97 (0.999); chat_reasoning
+77.20, 76.82 vs 76.92, 77.20 (1.001). Geometric mean **1.000**; `spec: verify passes=0` in all four processes, ids identical. So **a sampled
+request is not slower under a DFlash2 k5 default than under today's DSpark default** (the 70.1 vs 75.9 tok/s of slot C was a power-state gap between
+unpaired processes).
+
+**2d** (`raw/E/seeds-X.txt`, `seeds-Y.txt`; the real-model harness `inkling2_sampled_real`, one engine, 40 requests of the same prompt in a row, so
+each reuses the previous request's KV prefix; seeds 0..19 x T 1.0 / 0.6, 16 tokens, `SAMPLED_DFLASH=0`): X = DFlash2 k5 draft loaded
+(`INTARSIA_SS_DRAFT`), Y = the own DSpark draft k3 (today's default draft); the sorted 40 lines are identical (`seeds: X and Y identical`), 0 verify passes in
+both. **PASS.** The reference is the DSpark-loaded engine, not `--spec off`; the `--spec off` comparison is 2b.
+
 ## Check 3: batching (slot D, #12559)
 
 - **3a.** `serve --max-batch 4 --spec dflash --spec-draft <DFlash2> --spec-k 5`: exits 1 after 0 s (before the weights load, `load.rs:1007-1008`):
@@ -181,7 +196,7 @@ is 4096): it matters only for a user who raises `--max-seq` into the hundreds of
 - **Which requests**: greedy requests at one sequence (the ones that draft today with DSpark k3) would use DFlash2 k5 instead: ids identical (check 1,
   #546), decode about +7 % over six cells (#546), +25 % on the three short prompts here, up to +35 % on code, about +1 to +3 % at 1k / 4k / 16k
   with CIs that include 1.0. **Sampled requests do not change**: they take plain steps under a DFlash2 draft (2a), as they do under the DSpark
-  default on Metal today, and their ids equal `--spec off`. `--max-batch` > 1 does not change: no draft, silent for the default (3b).
+  default on Metal today, and their ids equal `--spec off` (190 / 190) and their speed is the same (sampled ABBA 1.000). `--max-batch` > 1 does not change: no draft, silent for the default (3b).
 - **Does `--spec-k` need a `[tuning.metal]` entry, and is it recipe-only? On main it is not possible; on the unmerged HIP flip B branch it is two keys.**
   On main the default mechanism (`dspark_default`, `[tuning.metal] mtp_default_k`) loads only the checkpoint's own DSpark draft (`mtp.safetensors`) at
   the key's k; the DFlash2 drafter (`incoai/Inkling-2-Mini-DFlash2`, 990 MB) has no key and its own default k is block - 1 = 7, which #546 measured to
@@ -203,7 +218,7 @@ is 4096): it matters only for a user who raises `--max-seq` into the hundreds of
 
 ## Not verified
 
-- Seeds 0..99 of one prompt (the stream of seeded requests on one engine) with the DFlash2 draft loaded: replaced by distinct prompts at one seed (see deviations).
+- Seeds 0..99 of one prompt with the DFlash2 draft loaded and `--spec off` as the reference: replaced by distinct prompts at one seed against `--spec off` (190) plus 20 seeds x 2 temperatures on one engine against the DSpark-loaded engine (40); no `--spec off` reference over a seed stream.
 - Anything on `serve` with a DFlash2 draft (admission of the DFlash2 verify plan on Metal, HTTP path, `serve`'s default context): the one slot that
   would have cost 4+ min of cold admission per arm. The engine, sampler and decode path are the same as `generate`'s.
 - `--max-batch` > 1 with a draft (refused by design); a DFlash2 batch test (none exists).
@@ -219,9 +234,10 @@ is 4096): it matters only for a user who raises `--max-seq` into the hundreds of
 
 ## Metal time and fleetq
 
-Exclusive endor slots: #12557 (slot A: greedy md5 at 4k / 16k, then the aborted `serve` arms; 03:49:40 to about 03:53:30, 3.8 min), #12558 (slot C:
-sampled identity + memory, 03:55:10-04:01:17, 6.1 min), #12559 (slot D: refusal, ABBA, `serve --max-batch 4`, 04:01:41-04:08:09, 6.5 min). **Total
-16.4 min** of the 25 min budget, each slot under 15 min, none after 07:00. cpu: #12556 (build, 22 s). Scripts and logs in `raw/` (`slotA.sh`,
+Exclusive endor slots (fleetq log times): #12557 (slot A: greedy md5 at 4k / 16k, then the aborted `serve` arms; 03:49:40-03:53:05, 3.4 min), #12558
+(slot C: sampled identity + memory, 03:55:10-04:01:18, 6.1 min), #12559 (slot D: refusal, greedy ABBA, `serve --max-batch 4`, 04:01:40-04:08:09,
+6.5 min), #12561 (slot E, stopped, 04:13:42-04:15:00, 1.3 min), #12562 (slot E2: sampled ABBA + 20-seed stream, 04:15:11-04:21:10, 6.0 min). **Total
+23.3 min** of the 25 min budget, each slot under 15 min, none after 07:00. cpu: #12556 (CLI build, 22 s), #12560 (test binary build, 16 s). Scripts and logs in `raw/` (`slotA.sh`,
 `slotC.sh`, `slotD.sh`, `lib.sh`, `client.py`, `md5.py`, `seedcmp.py`, `abba.py`, prompts); the cold-admission wait of slot A is
 `raw/A/s-off-killed-cold-admission.err`. `serve` also wrote admission-cache files under `~/.cache/intarsia/admission/` (the program's own cache).
 No drafter link or other folder was created; nothing outside this worktree was changed.
@@ -234,4 +250,5 @@ No drafter link or other folder was created; nothing outside this worktree was c
 
 - 2026-11-27 03:44 brief received; worktree `.worktrees/ink-metal-dflash2-ready`. 03:47 build #12556 done (22 s, own target dir).
 - 03:50 rules committed (`af39bfbfa`) before the first slot. 03:49-03:53 slot A: check 1 PASS; `serve` arms stuck in cold admission, slot stopped.
-- 03:55-04:01 slot C (sampled identity, memory), 04:01-04:08 slot D (refusal, ABBA, batch). 04:10 doc written.
+- 03:55-04:01 slot C (sampled identity, memory), 04:01-04:08 slot D (refusal, ABBA, batch). 04:10 doc written; advisor review: sampled ABBA and seed stream added as slot E (rules written first), d93147da reproduced, HIP flip branch read for the recipe answer.
+- 04:21 slot E2 done; 04:30 doc final.
