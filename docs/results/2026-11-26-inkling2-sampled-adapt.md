@@ -270,6 +270,34 @@ Otherwise the report names the part that failed and the best setting found.
 
 Resume log: 21:00 hip ad4 rebuilt on tatooine (#12342, source = `d23914b2d`, tree synced from this worktree at 21:00:38, unchanged during the build).
 
+## 4. HIP window W1 (2026-11-26 21:12:07-21:15:58, radiance down 3 min 51 s, fleetq #12349, binaries ad4 `8c94480a` = `d23914b2d` source, main6 `e8f62379`)
+
+Raw: `raw/w1/` (copied from tatooine `logs/w1/`), `raw/w1/sim.txt`.
+
+- **Greedy md5 (clause 4, HIP): identical.** 7 prompts (6 short + 4k) x 64 tokens; the `ids[...]` lines of main6 `--spec off`, ad4 `--spec off`,
+  main6 default (DSpark k5) and ad4 default hash to the same `b75db738189a28fa84f4e8b0a9c0dc7d` (441 tokens after the first; default
+  62.3 % acceptance, 140 passes on both binaries: greedy DSpark is bit-for-bit unchanged).
+- **Seed equality (clause 3, HIP): identical.** Real model, k5, 24 tokens, seeds 0..99 x T 1.0 / 0.6: drafting off vs the policy on (default
+  table, traced): 100 / 100 shared and identical at T 1.0, 100 / 100 at T 0.6 (200 requests each, 75 s / 83 s). The policy arm made 412 phase
+  changes (217 stops, 28 resumes), 521 verify passes, 859 proposed, 194 accepted, so k = 0 stretches and re-entries were exercised. Tiny
+  hip suite `inkling2_dspark_sampled_adapt` 2 / 2.
+- **Cost table (15 % rule, `sim.py`):** D (keyed draft) 3.10 ms, P = 13.23 ms (drafts run: step 16.25 ms - draft 3.03 ms), so d = 0.234
+  (built-in 0.26, -10 %). Cycle time with m drafts: m = 1 19.93 ms (n 139), 2 22.91 (87), 3 25.45 (64), 4 29.36 (43), 5 32.34 (122), so
+  r = 0.273 / 0.498 / 0.690 / 0.985 / 1.211 (built-in 0.26 / 0.47 / 0.60 / 0.75 / 0.91). r_4 (+31 %) and r_5 (+33 %) exceed 15 %: the rule
+  selects the **measured table**. Rows 4 and 5 cost more in the sampled cycle than the probe-derived table (eager verify probe) said; cause not investigated.
+- **Replay check: exact.** Fixed k5 replayed on the `drafts` run's proposals reproduces the fixed run's passes / proposed / accepted for all
+  12 prompt x temperature runs; predicted time 0.91-1.05 x measured (len4k 0.91: the cycle table is one per-m median over all prompts; the 4k prompt's longer context is not modelled).
+- **Policy replay with the measured table and the other parameters at their defaults** misses the 0.99 bars at T 0.7 `short_b` (0.987)
+  and T 1.0 1k (pol / (0.99 x fix) 0.909), so the pre-registered grid ran (324 settings). Best (highest predicted minimum prompt among
+  settings keeping every class >= 0.99 x fixed): `g=0.95, margin=0, drop=0.05, probe=1, hold=16, hold_max=64`.
+  Predicted pol / off (seed-11 traces, in-sample): `short_b` 0.989 (T 1.0) / 0.992 (T 0.7); short 1.169 / 1.148, 1k 1.170 / 1.073, 4k
+  1.573 / 1.614 against fixed k5 short 1.102 / 1.109, 1k 1.163 / 1.041, 4k 1.573 / 1.614. W2 (seed 7) is the out-of-sample test.
+- **W2 policy arm:** `INTARSIA_SPEC_SAMPLED_ADAPT=d=0.234,r=0.273/0.498/0.69/0.985/1.211,g=0.95,margin=0.0,drop=0.05,probe=1,hold=16,hold_max=64`.
+- cpu suite, merged head (endor `--load cpu`, #12351, `.scratch/logs/cpu-2105`): all pass: `inkling2_dspark_sampled_adapt` 2/2,
+  `inkling2_dspark_sampled` 2/2 (3 ignored real-model), `_gumbel` 1/1, `inkling2_dspark` 4/4, `_cut` 1/1, `verify_softcap` 1/1, `recipes_doc` 3/3,
+  `docs_env_vars` 2/2, core lib 280/280 (4 ignored). Found on the way: the merge of main left two `BackendTuning { .. }` literals in
+  `crates/intarsia-models/tests/mtp.rs` without `sampled_adapt` (test target did not compile); fixed (`3d2175adb`).
+
 ## Parked 2026-11-26 20:40 (coordinator: Claude Desktop restart)
 
 - **Head:** `ink/sampled-adapt` local commit after `d23914b2d` (this section and `raw/` scripts on top); not pushed, no PR yet.

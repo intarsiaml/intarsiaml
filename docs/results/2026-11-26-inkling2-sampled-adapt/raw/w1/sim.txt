@@ -1,0 +1,66 @@
+backend hip, K 5; runs [('0', '0.7'), ('0', '1.0'), ('1', '0.7'), ('1', '1.0'), ('drafts', '0.7'), ('drafts', '1.0')]
+D (keyed draft, fixed run) median 3.099 ms (n 613); drafts run: step median 16.252 ms, draft median 3.027 ms -> P 13.225 ms
+  pass with 1 drafts: n 139, cycle median 19.934 ms -> r_1 = 0.273
+  pass with 2 drafts: n 87, cycle median 22.911 ms -> r_2 = 0.498
+  pass with 3 drafts: n 64, cycle median 25.447 ms -> r_3 = 0.690
+  pass with 4 drafts: n 43, cycle median 29.357 ms -> r_4 = 0.985
+  pass with 5 drafts: n 122, cycle median 32.341 ms -> r_5 = 1.211
+built-in d 0.26, r [0.26, 0.47, 0.6, 0.75, 0.91]; measured d 0.234, r 1:0.273 2:0.498 3:0.690 4:0.985 5:1.211
+15 % rule: MEASURED TABLE (r_4 0.985 vs 0.75; r_5 1.211 vs 0.91)
+measured table: d=0.234,r=0.273/0.498/0.69/0.985/1.211
+
+replay of fixed k on the drafts run's proposals vs the fixed run (passes / proposed / accepted; ms predicted vs decode ms):
+  T 1.0 warm     replay 65/180/54 measured 65/180/54 same; 1775 ms predicted vs 1756 measured (1.011)
+  T 1.0 short_b  replay 53/87/35 measured 53/87/35 same; 1790 ms predicted vs 1749 measured (1.023)
+  T 1.0 short_a  replay 56/173/62 measured 56/173/62 same; 1617 ms predicted vs 1547 measured (1.045)
+  T 1.0 short_c  replay 41/145/84 measured 41/145/84 same; 1164 ms predicted vs 1165 measured (0.999)
+  T 1.0 len1k    replay 45/114/61 measured 45/114/61 same; 1444 ms predicted vs 1513 measured (0.954)
+  T 1.0 len4k    replay 34/119/85 measured 34/119/85 same; 1068 ms predicted vs 1171 measured (0.912)
+  T 0.7 warm     replay 51/149/58 measured 51/149/58 same; 1611 ms predicted vs 1587 measured (1.015)
+  T 0.7 short_b  replay 51/80/39 measured 51/80/39 same; 1704 ms predicted vs 1663 measured (1.025)
+  T 0.7 short_a  replay 55/172/58 measured 55/172/58 same; 1676 ms predicted vs 1603 measured (1.046)
+  T 0.7 short_c  replay 40/149/85 measured 40/149/85 same; 1165 ms predicted vs 1152 measured (1.011)
+  T 0.7 len1k    replay 51/129/54 measured 51/129/54 same; 1614 ms predicted vs 1662 measured (0.971)
+  T 0.7 len4k    replay 33/126/88 measured 33/126/88 same; 1040 ms predicted vs 1140 measured (0.913)
+replay check: exact
+
+policy replay, table d=0.234, r=[0.273, 0.498, 0.69, 0.985, 1.211] (other parameters built-in):
+| T | prompt | fix / off | pol / off | pol / fix | pol passes, accepted, plain steps | stops / holds / resumes |
+|---|---|---:|---:|---:|---|---|
+| 1.0 | short_b | 0.938 | 0.999 | 1.064 | 16, 13, 98 | 3 / 3 / 2 |
+| 1.0 | short_a | 1.039 | 1.050 | 1.010 | 44, 43, 40 | 2 / 1 / 2 |
+| 1.0 | short_c | 1.443 | 1.593 | 1.104 | 41, 84, 2 | 0 / 0 / 0 |
+| 1.0 | len1k | 1.163 | 1.047 | 0.900 | 22, 27, 78 | 2 / 2 / 2 |
+| 1.0 | len4k | 1.573 | 1.586 | 1.008 | 34, 85, 8 | 0 / 0 / 0 |
+| 0.7 | short_b | 0.986 | 0.987 | 1.001 | 20, 13, 94 | 1 / 3 / 0 |
+| 0.7 | short_a | 1.002 | 1.069 | 1.067 | 49, 50, 28 | 1 / 1 / 0 |
+| 0.7 | short_c | 1.442 | 1.510 | 1.047 | 43, 81, 3 | 0 / 0 / 0 |
+| 0.7 | len1k | 1.041 | 1.091 | 1.048 | 34, 41, 52 | 1 / 2 / 0 |
+| 0.7 | len4k | 1.614 | 1.625 | 1.007 | 33, 88, 6 | 0 / 0 / 0 |
+  T 1.0 short: fix / off 1.102, pol / off 1.162, pol / (0.99 x fix) 1.065
+  T 1.0 1k: fix / off 1.163, pol / off 1.047, pol / (0.99 x fix) 0.909
+  T 1.0 4k: fix / off 1.573, pol / off 1.586, pol / (0.99 x fix) 1.019
+  T 0.7 short: fix / off 1.109, pol / off 1.149, pol / (0.99 x fix) 1.047
+  T 0.7 1k: fix / off 1.041, pol / off 1.091, pol / (0.99 x fix) 1.059
+  T 0.7 4k: fix / off 1.614, pol / off 1.625, pol / (0.99 x fix) 1.017
+  lowest prompt pol / off 0.987; defaults miss the 0.99 bars at [('0.7', 'short_b'), ('1.0', '1k')]: grid
+grid best: min prompt 0.989 at ADAPT=g=0.95,margin=0.0,drop=0.05,probe=1,hold=16,hold_max=64
+| T | prompt | fix / off | pol / off | pol / fix | pol passes, accepted, plain steps | stops / holds / resumes |
+|---|---|---:|---:|---:|---|---|
+| 1.0 | short_b | 0.938 | 0.989 | 1.054 | 7, 3, 117 | 1 / 3 / 0 |
+| 1.0 | short_a | 1.039 | 1.078 | 1.038 | 59, 59, 9 | 0 / 0 / 0 |
+| 1.0 | short_c | 1.443 | 1.593 | 1.104 | 41, 84, 2 | 0 / 0 / 0 |
+| 1.0 | len1k | 1.163 | 1.170 | 1.006 | 46, 59, 22 | 0 / 0 / 0 |
+| 1.0 | len4k | 1.573 | 1.573 | 1.000 | 34, 85, 8 | 0 / 0 / 0 |
+| 0.7 | short_b | 0.986 | 0.992 | 1.007 | 25, 17, 85 | 1 / 2 / 0 |
+| 0.7 | short_a | 1.002 | 1.035 | 1.033 | 53, 51, 23 | 1 / 0 / 0 |
+| 0.7 | short_c | 1.442 | 1.565 | 1.086 | 41, 84, 2 | 0 / 0 / 0 |
+| 0.7 | len1k | 1.041 | 1.073 | 1.031 | 52, 54, 21 | 0 / 0 / 0 |
+| 0.7 | len4k | 1.614 | 1.614 | 1.000 | 33, 88, 6 | 0 / 0 / 0 |
+  T 1.0 short: fix / off 1.102, pol / off 1.169
+  T 1.0 1k: fix / off 1.163, pol / off 1.170
+  T 1.0 4k: fix / off 1.573, pol / off 1.573
+  T 0.7 short: fix / off 1.109, pol / off 1.148
+  T 0.7 1k: fix / off 1.041, pol / off 1.073
+  T 0.7 4k: fix / off 1.614, pol / off 1.614
+adapt string: d=0.234,r=0.273/0.498/0.69/0.985/1.211,g=0.95,margin=0.0,drop=0.05,probe=1,hold=16,hold_max=64
