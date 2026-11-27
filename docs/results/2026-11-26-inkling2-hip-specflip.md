@@ -779,3 +779,21 @@ checked: the PR A cpu suites (23:25, 23:43, 00:24) ran before any wt-a build int
 were built from the lane worktree after a checkout (changed files newer, so rebuilt). Only `mdualB` (01:21, after `mmain3` 01:15) may
 have had the same stale core. It was never run, and it is not used. #12549 (the Metal slot) then exited at its binary guard (no
 `mdualC`): nothing ran, the drafter link was never made.
+
+**Item 3, full cpu suite of the (a) head (#12551, 03:07:55-03:24:22; `raw/cpu-a-0ff0eb1e1-12551.log`): all green.** Head `0ff0eb1e1`
+(the merge plus docs); every workspace crate compiled from wt-a (checked in the build logs). core lib 283 passed, core scheduler 54,
+intarsia-models 635 (incl. inkling2_dflash2 with #546's `draft_pass_matches_host_reference`,
+`recipe_dflash2_default_finds_the_drafter_or_falls_back`, the two dual-load tests; dflash2_cpu; mtp; the sampled tests), intarsia-cli 208
+(incl. docs_env_vars), intarsia-server lib 71; 0 failed.
+
+**Item 4, the Metal no-op slot (#12553, exclusive, 03:24:22-03:40:50 = 16:28 of its 20 min; `raw/metal-dualC/`): PASS.**
+- The drafter sat beside the checkpoint for the slot: a symlink `snapshots/Inkling-2-Mini-DFlash2` to the copy fleetq #12464 put in
+  endor's HF cache (`models--incoai--Inkling-2-Mini-DFlash2`, 944 MB). The slot made it at start and removed it at exit (the link
+  only; no folder made or deleted).
+- greedy md5 (md5.json, 256 tokens, `--ignore-eos`): main7 `mmain7` (49a4d94b) and the (a) head `mdualC` (df3f03f9), `--spec off` and the
+  default: all four **`d93147da`** (= #12515's value); the default verify counts are the same for both (169 passes, 429 proposed, 311 accepted).
+- The default still loads DSpark k3 alone on Metal: one `dflash: draft of 3 layers ... block 7` line, the `[tuning.metal]` DSpark banner,
+  no DFlash2 or second-draft line.
+- Sampled default on Metal (T 1.0, seed 1): `sampled requests (temperature > 0): DFlash-family drafting off (default ...)`.
+- Metal tiny suites of the (a) head: inkling2_sampled_default 2/2, inkling2_dspark_sampled 2/2 (3 ignored), inkling2_dspark_sampled_adapt
+  2/2, inkling2_dspark 4/4, inkling2_dflash2 12/12; 0 failed. 45 s idle gaps sat between run groups (nothing timed).

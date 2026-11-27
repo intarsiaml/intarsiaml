@@ -1,0 +1,25 @@
+fleetq: #12553 waiting (#1 in line): needs endor to itself; running there: #12551 "ink-hip-specflip: Part 2 rerun: Metal CLI (a) head (mdualC, sources touched), then the full cpu suite of the (a) head" (claude-04c0e1cd), #12552 "ink-metal-sampled2: push headline fix" (claude-04c0e1cd); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #12551 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12551 set, or it will wait for #12551 to be released.
+fleetq: #12553 waiting (#1 in line): needs endor to itself; running there: #12551 "ink-hip-specflip: Part 2 rerun: Metal CLI (a) head (mdualC, sources touched), then the full cpu suite of the (a) head" (claude-04c0e1cd); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #12551 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12551 set, or it will wait for #12551 to be released.
+fleetq: #12553 running on endor: env MAIN=mmain7 BR=mdualC TAG=dualC DRAFT_SRC=/Users/josef/.cache/huggingface/hub/models--incoai--Inkling-2-Mini-DFlash2/snapshots/4f9088ea66c21f2b99ed657d1941c306b03e84d2 bash .scratch/wt-a/docs/results/2026-11-26-inkling2-hip-specflip/raw/metal_slot.sh
+[metal] start 03:24:22
+[metal] linked /Users/josef/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots/b85c3cfa615fc413cc9af3379f491b963f3b586a/../Inkling-2-Mini-DFlash2 -> /Users/josef/.cache/huggingface/hub/models--incoai--Inkling-2-Mini-DFlash2/snapshots/4f9088ea66c21f2b99ed657d1941c306b03e84d2
+[metal] DFlash2 drafter beside the checkpoint: /Users/josef/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots/b85c3cfa615fc413cc9af3379f491b963f3b586a/../Inkling-2-Mini-DFlash2 (README.md REVISION config.json model.safetensors )
+[metal] bin mmain7 49a4d94be3648ec35ed2c7128dd513cb 4b629184c5ecf1ac2e89a97a1f4bd86f2f87fb69
+[metal] bin mdualC df3f03f9c2f674e11c936dad6b4bb43d 0ff0eb1e1e1cd3bd796ea0d34810387afea2453d
+[metal] md5 mmain7 off rc 0 03:25:23 ids-md5 d93147da26f2e6b532dde683564b544b lines 2 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[metal] md5 mmain7 def rc 0 03:25:37 ids-md5 d93147da26f2e6b532dde683564b544b lines 2 | spec: verify passes=169 proposed=429 accepted=311 (acceptance 72.5%, 2.84 tokens per pass)
+[metal]   mmain7 default load: --spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on metal ([tuning.metal] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 3.7 s 
+[metal] md5 mdualC off rc 0 03:26:35 ids-md5 d93147da26f2e6b532dde683564b544b lines 2 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[metal] md5 mdualC def rc 0 03:26:49 ids-md5 d93147da26f2e6b532dde683564b544b lines 2 | spec: verify passes=169 proposed=429 accepted=311 (acceptance 72.5%, 2.84 tokens per pass)
+[metal]   mdualC default load: --spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on metal ([tuning.metal] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 3.7 s 
+[metal] mdualC sampled default rc 0 03:26:58 | --spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on metal ([tuning.metal] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) --spec dflash on metal: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row) sampled requests (temperature > 0): DFlash-family drafting off (default; single sequence, one rank, seed-exact keyed rule) 
+[metal] mdualC tiny inkling2_sampled_default (metal) rc 0 03:28:50 | test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.02s | 
+[metal] mdualC tiny inkling2_dspark_sampled (metal) rc 0 03:30:26 | test result: ok. 2 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 95.22s | 
+[metal] mdualC tiny inkling2_dspark_sampled_adapt (metal) rc 0 03:32:59 | test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 151.81s | 
+[metal] mdualC tiny inkling2_dspark (metal) rc 0 03:36:30 | test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 210.71s | 
+[metal] mdualC tiny inkling2_dflash2 (metal) rc 0 03:40:50 | test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 257.89s | 
+[metal] done 03:40:50
+[metal] removed the drafter link /Users/josef/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots/b85c3cfa615fc413cc9af3379f491b963f3b586a/../Inkling-2-Mini-DFlash2
+fleetq: #12553 done (exit 0)
