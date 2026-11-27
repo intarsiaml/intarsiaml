@@ -1,10 +1,70 @@
 # Inkling-2-Mini HIP spec default flips (lane ink-hip-specflip)
 
-Status: in progress (2026-11-26 22:25 EST).
+Status: in progress (2026-11-26 22:55 EST). Flip B: confirmation ABBA **meets GO** again; KV check 2 **over 5 %** by the pre-registered
+reading (memory-limited solo capacity -9.9 %; the default contexts do not move): flip B stopped, (a) / (b) / (c) go to the user. Flip A: PR A.
 
-## Speed table
+## Speed table: confirmation ABBA, DFlash2 k4 / DSpark k5 (windows C1 + C2, card 1, binary `main7`)
 
-(Confirmation ABBA for flip B: pending.)
+`main7` = origin/main `cd16cac1b` (#541 merged), md5 `689cde21f795f1e38ba968c25d06daea`: the same bits as #541's ABBA binary `dfl6` (the
+code is identical; only docs differ). 4 + 4 fresh processes (C1 A B B A r1 r2, C2 B A A B r3 r4), card 1 (#541: card 0), #541's
+prompts / arms / `speed.py`. Ratio per (prompt, rep), geometric mean per cell, 95 % CI = t over the 4 rep pairs (`raw/conf-k4-analysis.txt`).
+
+| DFlash2 k4 / DSpark k5 | short | 1k | prose | chat | 4k | 16k | **mean of the 6 (geo / arith)** | code (extra) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| confirmation, card 1 | **1.190** [1.184-1.196] | **1.142** [1.137-1.147] | **1.047** [1.044-1.051] | **1.217** [1.211-1.223] | **0.991** [0.987-0.994] | **1.101** [1.097-1.105] | **1.112 / 1.115** | 1.303 [1.299-1.308] |
+| #541, card 0 | 1.189 [1.184-1.194] | 1.142 [1.138-1.146] | 1.048 [1.046-1.050] | 1.216 [1.212-1.221] | 0.991 [0.987-0.995] | 1.101 [1.098-1.104] | 1.112 / 1.115 | 1.303 [1.299-1.306] |
+
+| tok/s (median of 4 processes) | short | 1k | prose | chat | 4k | 16k | code |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| DSpark k5 (main's default) | 109.83 | 102.24 | 121.39 | 100.63 | 117.42 | 91.23 | 127.71 |
+| DFlash2 k4 | 130.77 | 116.89 | 127.23 | 122.54 | 116.45 | 100.53 | 166.54 |
+
+Prefill per class DFlash2 / DSpark 0.98-1.00 (4k 3443 vs 3446, 16k 3252 vs 3260 tok/s). Tokens per verify pass 3.32 vs 2.72 (pooled).
+
+**GO verdict: met again.** Geometric mean 1.112 >= 1.03; worst cell 4k 0.991 with its CI upper bound 0.994, not below 0.99 (as narrow as
+#541's 0.995); ids identical across all 8 processes, and equal to #541's card-0 ids (md5 of the `ids[...]` lines `4f5a5e398f69...`, both arms).
+The two cards agree to the third decimal on every cell.
+
+## KV check (coordinator check 2): holding both drafters
+
+Card 1, binary `main7`, solo `generate` (`raw/kv/`): with `--max-seq 1000000` the context printed is the memory-limited KV capacity
+(`memplan.rs`: `0.5 x measured free memory / bytes per token`, the default `--kv-fraction`); the defaults (`--max-seq` 4096) after.
+
+| load | weights line | KV capacity (tokens, `--max-seq 1000000`) | default context |
+|---|---:|---:|---:|
+| `--spec off` | 14.97 GB | 192,960 | |
+| DSpark alone (main's default) | 15.94 GB | 177,504 | 4096 (`raw/kv/dspark-default.err`) |
+| DFlash2 alone (`--spec dflash --spec-draft <DFlash2> --spec-k 4`) | 16.05 GB | 175,424 | |
+| DSpark + DFlash2 (cannot load today; derived) | 17.02 GB | **159,968** | 4096 (159,968 > 4096) |
+| `serve --max-batch 16`, any of them | | | no drafter loads: `--spec dflash` is refused ("--spec dflash with the batching engine (use --max-batch 1)", `raw/kv/b16-dfl.err`) and the DSpark default is off above one sequence; the batch-16 context (#538: 2791 per sequence) is the same whatever drafter flips. The b16 server did not come up inside the 55 s the stage gave it (first-start admission), so its line comes from the gate window. |
+
+Derivation (the engine's own formula, applied by the loads themselves): DFlash2's resident bytes (weights, its mxfp4 head copy, tap
+buffers) take capacity(off) - capacity(DFlash2) = 192,960 - 175,424 = **17,536 tokens**; DSpark's take 192,960 - 177,504 = 15,456. Both
+together: 177,504 - 17,536 = **159,968**, i.e. **-9.9 %** of DSpark-alone capacity (17,536 / 177,504). About 32 KB of KV budget per
+token (DSpark: ~1.0 GB of resident bytes, half of it out of the KV budget, over 15,456 tokens). The draft per-sequence state (DFlash2:
+5 layers x 8 x 128 x 2 x 2 B = 20 KB per token of cap, full length) is allocated after the plan, outside the budget.
+
+**Verdict, as pre-registered: over 5 %** (the memory-limited solo capacity, -9.9 %). The default contexts do not move: solo stays 4096
+(the capacity stays 39x above it) and `--max-batch 16` loads no drafter. So the cost is real only for a solo server run with a large
+`--max-seq`. Flip B stops here; the choice among (a) dual drafters (-9.9 % solo capacity), (b) DFlash2 alone, sampled requests drafting
+with DFlash2 (capacity -1.2 % vs main; sampled DFlash2 is unmeasured and needs its own gate) and (c) DFlash2 alone, sampled requests
+plain on HIP (flip A lost wherever B applies) goes to the user.
+
+## Flip A as built (PR A)
+
+- **Rule.** A new recipe key `[tuning.<backend>] sampled_dflash` (bool; `recipes/inkling2.toml` sets `true` under `[tuning.hip]` only).
+  `Model::spec_sampled_dflash` resolves `Model::set_spec_sampled_dflash` (tests), then `INTARSIA_SPEC_SAMPLED_DFLASH`, then the recipe
+  key, then off (`spec::sampled_dflash_resolve`). The key counts only when the loaded draft is the checkpoint's own DSpark draft: an
+  explicit `--spec dflash --spec-draft <DFlash2 dir>` keeps sampled requests plain unless the variable says `1` (sampled DFlash2 was
+  never measured). Where it is on, #543's draft length policy (`INTARSIA_SPEC_SAMPLED_ADAPT`, recipe `[tuning.hip] sampled_adapt`) is
+  on with it, as #543 built it.
+- **Why a recipe key, not `spec::sampled_dflash_default_for("hip")`:** a code default per backend would also turn sampled drafting on
+  for every other model that drafts with a DFlash-family draft on HIP (Qwen3.8-27B DFlash2 / DSpine run there); the recipe scopes it to
+  Inkling-2, like `gumbel_sampling` on Metal.
+- **Unchanged:** Metal (it failed #543's gate), CUDA, cpu; greedy requests; `--spec off`; `--max-batch` > 1 (the batching engine loads
+  no draft at all, so it takes plain steps as on main); prefix-store requests (the DSpark default is off with a store, as on main).
+- **Revert:** `INTARSIA_SPEC_SAMPLED_DFLASH=0` (or delete the recipe line). `INTARSIA_SPEC_SAMPLED_ADAPT=0` keeps sampled drafting with
+  fixed k5 (#535's form).
 
 ## Pre-registration: confirmation ABBA and KV check (written 22:40 EST by the lane clock, before any window)
 

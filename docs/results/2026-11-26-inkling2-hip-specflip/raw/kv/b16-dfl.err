@@ -1,0 +1,3 @@
+[supervisor] started server pid 7
+Error: loading /models/Inkling-2-Mini: unsupported: --spec dflash with the batching engine (use --max-batch 1)
+[supervisor] server failed to start (exit 78); not restarting
