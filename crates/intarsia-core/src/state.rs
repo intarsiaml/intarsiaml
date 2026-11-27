@@ -343,10 +343,8 @@ pub struct SequenceState {
     /// The DFlash drafter's state (`--spec dflash` only).
     pub dflash: Option<Box<DflashState>>,
     /// Lane ink-hip-specflip (a): with a second DFlash-family draft loaded (`Model::dflash_alt`, Inkling-2's DFlash2 for greedy
-    /// requests beside its DSpark draft), the state of the draft that is not in use, parked; `None` without a second draft.
-    /// `Model::select_dflash` swaps it with `dflash` when a request wants the other draft.
-    pub dflash_parked: Option<Box<DflashState>>,
-    /// `dflash` holds the second draft's state (`Model::dflash_alt`) and `dflash_parked` the first's.
+    /// requests beside its DSpark draft), `dflash` holds the second draft's state, not the first's. One draft state at a time:
+    /// `Model::select_dflash` replaces it when a request wants the other draft.
     pub dflash_alt_on: bool,
     /// Per-row recurrent state of the last verify pass (speculative decoding on a model with recurrent slots).
     pub spec_rows: SpecRows,
@@ -424,7 +422,6 @@ impl SequenceState {
             prefill_chunk_rows: 0,
             mtp: None,
             dflash: None,
-            dflash_parked: None,
             dflash_alt_on: false,
             spec_rows: SpecRows::default(),
             replay_from: 0,

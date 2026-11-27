@@ -804,8 +804,8 @@ fn dual_drafts_greedy_with_dflash2_sampled_with_dspark_and_keep_spec_off_ids() {
     eprintln!("dual conversation: passes {} proposed {} accepted {}", s.spec_steps, s.spec_proposed, s.spec_accepted);
 }
 
-/// Option (a)'s loads: the second draft adds its parked state to each sequence and its weights to the plan (the context shrinks or
-/// stays), and without it the load is the DSpark-only one (flip A: no parked state, the same context). A DFlash2 draft alone (no
+/// Option (a)'s loads: the second draft adds its weights to the plan (the context shrinks or stays) and no second per-sequence state (one
+/// draft state at a time, `Model::select_dflash` replaces it); without it the load is the DSpark-only one (flip A: the same context). A DFlash2 draft alone (no
 /// DSpark draft) keeps sampled requests plain under the recipe key, greedy ones draft. A second draft that is not DFlash2 is refused.
 #[test]
 fn dual_load_adds_the_second_draft_only_when_given() {
@@ -823,8 +823,15 @@ fn dual_load_adds_the_second_draft_only_when_given() {
     assert!(!one.has_dflash_alt() && one.dflash_alt_k() == 0);
     assert!(two.has_dflash_alt() && two.dflash_alt_k() == 4);
     let (s1, s2) = (one.new_state().unwrap(), two.new_state().unwrap());
-    assert!(s1.dflash.is_some() && s1.dflash_parked.is_none() && !s1.dflash_alt_on, "DSpark alone: no parked state");
-    assert!(s2.dflash.is_some() && s2.dflash_parked.is_some() && !s2.dflash_alt_on, "dual: the DSpark state first, DFlash2's parked");
+    assert!(s1.dflash.is_some() && !s1.dflash_alt_on, "DSpark alone");
+    assert!(s2.dflash.is_some() && !s2.dflash_alt_on, "dual: the DSpark state first (one draft state at a time)");
+    // a swap replaces the state (the other draft's, empty) and back; without a second draft nothing happens
+    let mut s3 = two.new_state().unwrap();
+    assert!(two.select_dflash(&mut s3, true).unwrap() && s3.dflash_alt_on && s3.dflash.as_ref().is_some_and(|d| d.kv.len == 0 && d.synced));
+    assert!(!two.select_dflash(&mut s3, true).unwrap(), "already the second draft's");
+    assert!(two.select_dflash(&mut s3, false).unwrap() && !s3.dflash_alt_on && s3.dflash.is_some());
+    let mut s4 = one.new_state().unwrap();
+    assert!(!one.select_dflash(&mut s4, true).unwrap() && !s4.dflash_alt_on, "no second draft: no swap");
     assert!(s2.cap <= s1.cap, "the second draft's weights come out of the KV budget ({} vs {})", s2.cap, s1.cap);
     assert!(one.spec_sampled_dflash() && two.spec_sampled_dflash(), "sampled requests draft with DSpark in both");
     let (again, _) = dual_model(&r, Some(&ds), None, 5, 0);

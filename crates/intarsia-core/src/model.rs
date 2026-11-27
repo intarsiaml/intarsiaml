@@ -3478,8 +3478,6 @@ impl Model {
         }
         st.mtp = self.new_mtp_state(self.plan.kv_cap_tokens)?;
         st.dflash = self.new_dflash_state(self.plan.kv_cap_tokens)?;
-        // lane ink-hip-specflip (a): the second draft's state, parked until a request wants it (`Model::select_dflash`)
-        st.dflash_parked = self.new_dflash_state_of(self.dflash_alt.as_ref(), self.plan.kv_cap_tokens)?;
         if st.mtp.is_some() && st.has_recurrent() {
             // allocated once here (and reserved in the memory plan), not in the first verify pass
             let need = st.recurrent_bytes().max(16);

@@ -503,23 +503,25 @@ impl Model {
     }
 
     /// Lane ink-hip-specflip (a): make `st`'s draft state the second draft's (`alt`, greedy requests) or the first's. Nothing without
-    /// a second draft, or when `st` already holds that draft's state. A swap parks the other draft's state and starts the incoming one
-    /// over (empty, synced only on an empty sequence): it ingested nothing while it was parked, so `Seq::new`'s resync rule applies as
-    /// after a request that did not draft (re-prefill a short reuse, run a long one without drafting). Captured graphs are dropped (the
-    /// target's taps go to the other draft's buffers). Drafts only propose, so the swap never changes a token. Returns whether it
-    /// swapped.
+    /// a second draft, or when `st` already holds that draft's state. One draft state at a time (the two never hold memory together,
+    /// so the second draft adds its weights to the load and no per-sequence state): a swap drops the captured graphs (the target's taps
+    /// go to the other draft's buffers), frees the old state and allocates the other draft's, empty (synced only on an empty sequence).
+    /// It has ingested none of the sequence, so `Seq::new`'s resync rule applies as after a request that did not draft (re-prefill a
+    /// short reuse, run a long one without drafting). Drafts only propose, so the swap never changes a token. Returns whether it swapped.
     pub fn select_dflash(&self, st: &mut SequenceState, alt: bool) -> Result<bool> {
-        if self.dflash_alt.is_none() || st.dflash_alt_on == alt || st.dflash_parked.is_none() || st.dflash.is_none() {
+        if self.dflash_alt.is_none() || st.dflash_alt_on == alt || st.dflash.is_none() {
             return Ok(false);
         }
-        std::mem::swap(&mut st.dflash, &mut st.dflash_parked);
-        st.dflash_alt_on = alt;
-        let len = st.len;
-        if let Some(d) = st.dflash.as_mut() {
-            d.cut(0, &*self.backend)?;
-            d.synced = len == 0;
-        }
         self.graphs.invalidate();
+        st.dflash = None;
+        let mut d = self.new_dflash_state_of(self.dflash_of(alt), self.plan.kv_cap_tokens)?.ok_or_else(|| Error::invalid("select_dflash: no such draft"))?;
+        d.synced = st.len == 0;
+        st.dflash = Some(d);
+        st.dflash_alt_on = alt;
+        static SAID: std::sync::Once = std::sync::Once::new();
+        SAID.call_once(|| {
+            eprintln!("dflash: a request switched drafts ({}): its sequence's draft state is replaced, one at a time", if alt { "greedy: the second draft" } else { "sampled: the first draft" })
+        });
         Ok(true)
     }
 
