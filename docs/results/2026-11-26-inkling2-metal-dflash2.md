@@ -51,6 +51,14 @@ DFlash2 k / DSpark k3, the same cells (`raw/s2-sweep/`; ids identical in all fiv
 K3 / k4 / k5 are within 0.006 of each other (inside this sweep's noise); k5 had the highest mean and was the ABBA's k as registered.
 (k5 in the ABBA, 4 pairs: 1.072; the sweep's single pair said 1.076.) k7 is the only k that loses on 1k and 16k and wins most on code.
 
+### Secondary: k4, ABBA 2 + 2 (slot 5, #12514, `raw/k4/`, same binary and protocol; reported, not the verdict)
+
+DFlash2 k4 / DSpark k3: short 1.136 [1.077-1.198], 1k 1.076 [1.033-1.120], prose 1.072 [0.831-1.383], chat 1.135 [1.067-1.208], 4k 0.996
+[0.910-1.091], 16k 1.071 [0.883-1.299]; mean of the six 1.080 (per rep 1.083, 1.077); ids identical; prefill 4k 0.939 [0.656-1.346], 16k
+1.076 [0.560-2.067]. By the rule's numbers it is GO too, with n = 2 (t = 12.7 intervals), so it cannot separate k4 from k5; k4 is a bit
+better at 1k / 16k and worse at short / chat / 4k. The first attempt of this slot (#12510) ran no process: `slot.sh`'s guard matched another
+lane's shell command line (no Metal time used).
+
 ## Bitwise results (greedy ids == `--spec off`)
 
 - `raw/s1-md5/` (slot 1, #12474, binary `br1`) and `raw/s3-md5/` (slot 3, #12495, binary `br3`): `md5.json` = the golden `code` prompt and the
@@ -88,7 +96,7 @@ K3 / k4 / k5 are within 0.006 of each other (inside this sweep's noise); k5 had 
 
 ## Not verified
 
-- A secondary ABBA at k4 (below, if present) is n = 2 pairs.
+- The secondary k4 ABBA is n = 2 pairs (wide CIs); k5's ABBA, the verdict's, is n = 4.
 - Sampled requests (`temperature > 0`) with a DFlash2 draft on Metal: not run (the engine's greedy-only speculation gate is unchanged). No md5 at 16k.
 - The mxfp4 / fp8 draft head on Metal (refused, not tried); the host top-k as a speed cost on Metal (not profiled; a Metal device top-k is a
   possible lever); whether a lower draft cost would move k.
@@ -101,9 +109,9 @@ K3 / k4 / k5 are within 0.006 of each other (inside this sweep's noise); k5 had 
 
 Exclusive Metal slots: #12474 (slot 1: tiny suites + md5, 23:45:17-23:52:23, 7.1 min), #12478 (slot 2: Metal kernel tests, k sweep, md5 at 64,
 23:53:38-00:02:41, 9.1 min), #12495 (slot 3: bf16 draft pass on Metal, md5 on `br3`, ABBA half A, 00:25:17-00:33:06, 7.8 min), #12502 (slot 4:
-full Metal suite, ABBA half B, 00:39:13-00:49:05, 9.9 min). Total 33.9 min. cpu / net jobs: #12464 (drafter copy, md5 `49860050629751794f4168a03620a5ee`,
+full Metal suite, ABBA half B, 00:39:13-00:49:05, 9.9 min). #12514 (slot 5: the secondary k4 ABBA, 00:53:20-01:00:17, 7.0 min). Total 40.9 min. cpu / net jobs: #12464 (drafter copy, md5 `49860050629751794f4168a03620a5ee`,
 sha256 `217980ab00d116693fa5946df7bbfd967caf5fac1f529afd541fbd470ddb54ee` = the HF LFS sha256 of #541's download), #12466 and #12488 (builds),
-#12468, #12479, #12490 (cpu tests). #12465 and #12487 and #12489 were released while still queued (never ran).
+#12468, #12479, #12490 (cpu tests), #12512 (push). #12465 and #12487 and #12489 were released while still queued (never ran).
 Drafter: `~/.cache/huggingface/hub/models--incoai--Inkling-2-Mini-DFlash2/snapshots/4f9088ea66c21f2b99ed657d1941c306b03e84d2/` on endor.
 
 ## Brief (coordinator, 2026-11-26 23:36 EST; the user is asleep and said "keep working")
