@@ -393,3 +393,18 @@ your results doc. Nothing else changes. The 06:00 cutoff for windows is 06:00 ES
 > 5. Write this go-ahead (00:08 EST, build (a), gate above, the 45-min ceiling) into the results doc now, so it survives compaction.
 >
 > When you report (a), give the speed table (greedy and sampled cells), md5/seed results, KV numbers, PR number and head.
+
+**Lane to coordinator, 00:26 EST:** cpu suite #12480 on `136b4dc16` green (core-lib 283, scheduler 53, models 629, cli 208); GA2 md5 /
+seeds / contexts pass, serve 16 / 16 not run (solo cold admission > 175 s); asked for one serve-only rerun (~4:30).
+
+**Coordinator, 00:27 EST 11-27 (as written):**
+
+> Approved: one serve-only rerun window for PR A on 136b4dc16, 285 s cap, solo first and alone with up to 240 s for cold admission, then b16 (warm).
+>
+> - One try only. If solo admission runs past 240 s again or the window voids for any other reason, don't queue a third. Report, and I decide whether G2c's 16/16 on specA1g plus the opt-in nature of #544 is enough to merge.
+> - If it passes (b16 replies equal solo 16/16), tell me and I merge #545.
+> - Radiance after it: ~30:30 of 33. The 45-min ceiling for (a) still stands, on a window plan first.
+> - Write this approval (00:27 EST, one try, 285 s) into the results doc.
+>
+> Metal binaries and the Metal slot go ahead as planned.
+
