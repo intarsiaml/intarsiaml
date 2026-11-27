@@ -250,6 +250,26 @@ acceptance, tokens per pass and plain-step tokens per arm; ids identical across 
 
 Otherwise the report names the part that failed and the best setting found.
 
+## Resume brief (coordinator, 2026-11-26 ~21:00 EST, new agent after the restart; condensed, wins over earlier text where it differs)
+
+> Gate, fixed in advance, do not relax: (1) every prompt >= 0.98 of plain sampling, `short_b` included, on HIP and Metal; (2) each class
+> (short, 1k, 4k) keeps >= 98 % of the fixed-k5 gain; (3) seeded output identical to `--spec off`; (4) greedy output identical to main.
+> Steps: rebuild hip ad4 (check the source did not change mid-build); W1 then `sim.py` on `logs/w1/cal` (15 % table rule, replay check,
+> grid if needed); W2 with ADAPT from the sim; Metal `raw/metal/slot.sh` on endor `--exclusive --expect 30`; full cpu suite on the final
+> head (endor `--load cpu`); fill this doc with the speed table first (per prompt and per class, on/off ratio with 95 % CI, fixed k5 and
+> adaptive, T 1.0 and 0.7, HIP and Metal), gate verdict per clause, LOG.md row, unanimis capture; push via `fleetq run --host endor
+> --load cpu`, PR to `main`, do not merge, do not turn sampled DSpark on by default. If the gate fails: name clause, prompt, backend,
+> margin, and what the sim says would fix it, then stop (one extra tuning round inside the budget is fine).
+> Budget: radiance <= 10 min total; endor Metal one exclusive slot <= 30 min. Windows: `--host tatooine-r9700 --takes-down radiance
+> --quiet gpu,cpu`, each <= 5 min, none started after 06:00 EST. Never `fleetq release` a running window job (does not stop the Mac
+> driver; radiance was down 20:38-20:42 for that reason): kill the driver's process tree, confirm `curl -s http://tatooine:8080/v1/models`
+> answers; confirm radiance after every window. Waits <= 4 min per call. Merge `origin/main`, never rebase. Work only in this worktree
+> and `~/intarsiaml-ink-sampled-adapt`. unanimis capture: no `project`/`scope`, `intarsiaml` in `source`.
+> Final report <= 15 lines: speed table first, gate per clause, seed and greedy identity, PR number + head, radiance and Metal minutes,
+> not verified, fleetq ids.
+
+Resume log: 21:00 hip ad4 rebuilt on tatooine (#12342, source = `d23914b2d`, tree synced from this worktree at 21:00:38, unchanged during the build).
+
 ## Parked 2026-11-26 20:40 (coordinator: Claude Desktop restart)
 
 - **Head:** `ink/sampled-adapt` local commit after `d23914b2d` (this section and `raw/` scripts on top); not pushed, no PR yet.
