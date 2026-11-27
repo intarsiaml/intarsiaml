@@ -1,0 +1,20 @@
+fleetq: #12345 running on endor: bash .scratch/cpu_endor.sh
+head 1b35c6741 start 21:02:39
+== core exit 0 (21:03:06)
+test result: ok. 274 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 15.69s
+== sched exit 0 (21:03:19)
+test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+== models exit 0 (21:07:57)
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 44.29s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.45s
+test result: ok. 2 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 93.92s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 94.51s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.65s
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.50s
+== docs exit 0 (21:08:19)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+== server exit 0 (21:08:42)
+test result: ok. 71 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.58s
+all exit 0 (21:08:42)
+fleetq: #12345 done (exit 0)

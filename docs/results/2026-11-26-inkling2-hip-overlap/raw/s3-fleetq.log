@@ -1,0 +1,8 @@
+fleetq: #12355 waiting (#4 in line): in line behind #12352 "ink-dflash2: ABBA k4 w2 (b, r3 r4)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12352 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12352 set, or it will wait for #12352 to be released.
+fleetq: #12355 waiting (#3 in line): in line behind #12353 "ink-hip-overlap: window S2 (paired speed BA: o4 vs main5; card 1 o5 md5 + solo servers o4 / o5)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12353 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12353 set, or it will wait for #12353 to be released.
+fleetq: #12355 waiting (#2 in line): in line behind #12354 "ink-hip-i8: W4 (plain decode + prefill, 4k ABBA 4+4, 16k 2+2)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12354 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12354 set, or it will wait for #12354 to be released.
+fleetq: #12355 waiting (#1 in line): radiance-rank0 is also taken down by #12354 "ink-hip-i8: W4 (plain decode + prefill, 4k ABBA 4+4, 16k 2+2)" (claude-04c0e1cd)
+fleetq:   #12354 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12354 set, or it will wait for #12354 to be released.

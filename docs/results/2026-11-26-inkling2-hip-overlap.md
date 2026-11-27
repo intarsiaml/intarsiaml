@@ -338,6 +338,36 @@ the visits ran on a quiet box. Checked by the resumed agent (21:05):
 `speed_sum.py` fix (21:05): the real-prompt reply files are a dict keyed by prompt, so the TTFT p95 / ITL p90 rows were never
 computed; they are now (S1: ITL p90 B / A 1.64 / 1.81 / 1.31 at 4 / 8 / 16, TTFT p95 = max at these N 1.05 / 1.12 / 1.23).
 
+### S2: paired speed rep 2, order BA (fleetq #12353; radiance down 21:21:05 - 21:24:14 = 3:09)
+
+Driver `raw/window_s.sh 2` (sync, the three binaries checked, then `serve_window.sh`); raw `raw/s2/`, card 1 `raw/s2/card1/`.
+- Complete: B (o4) then A (main5), real 4 / 8 / 16 (nonce s2) and filler 1 / 4 / 8 / 16, every cell exit 0.
+- Bitwise, card 0: B's replies equal A's, 4/4, 8/8, 16/16.
+- Card 1: **o5 (merged head) greedy md5 8 / 8 = main** (`--spec off` and the DSpark default, short / 4k, 64 / 256: 04cdb28a,
+  9a27c21b, 2252566a, 9675bbb9 each; decode tok/s DSpark 96.8 / 94.8 / 86.3 / 108.6, spec off 83.1 / 83.5 / 79.6 / 80.3, o4's).
+  **The solo servers of o4 and o5 did not come up** within the stage's 40 s: started without `--spec off` (W4's solo config), they
+  load the DSpark draft and admit its shapes; no reply was sent. Moved to window S4 with W4's flags.
+
+| S2 (1 rep) | A main5 | B o4 | B / A |
+|---|---|---|---|
+| real 4: agg / TTFT p50 / ITL p99 | 102.3 / 1.574 / 0.114 | 101.7 / 1.281 / 0.169 | 0.994 / 0.814 / 1.489 |
+| real 8: agg / TTFT p50 / ITL p99 | 112.7 / 2.056 / 0.588 | 112.0 / 1.707 / 0.193 | 0.994 / 0.830 / **0.328** |
+| real 16: agg / TTFT p50 / ITL p99 | 125.1 / 2.762 / 0.626 | 124.7 / 2.673 / 0.256 | 0.997 / 0.968 / **0.409** |
+| filler 1 / 4 / 8 / 16 agg | 61.8 / 113.5 / 139.6 / 153.9 | 62.0 / 115.3 / 140.3 / 153.2 | 1.003 / 1.016 / 1.005 / 0.995 |
+| filler 1 / 4 / 8 / 16 TTFT p50 | 0.393 / 1.319 / 2.096 / 3.684 | 0.395 / 1.162 / 1.999 / 3.704 | 1.005 / 0.881 / 0.954 / 1.005 |
+
+### Merge of origin/main aee06201c (#535) and o5
+
+`git merge origin/main` (21:01, a merge; commit 20fc7ea25, parents ba3af1417 / aee06201c): auto-merged. #535 (sampled DSpark,
+opt-in `INTARSIA_SPEC_SAMPLED_DFLASH`) shares two files with this change, `model.rs` and `model/batch.rs`: its new field
+`spec_sampled_dflash` lands in `decode_twin`'s `Model` literal (0 = the env default; a twin never speculates). No kernel or HIP
+backend file in common. o5 = the merged tree (hip build fleetq #12346, md5 d20df8b1d67a7bf1182c3e292ac1e938). Its md5 and batched /
+solo bitwise checks run on card 1 of S2 / S3. cpu tests of the merged tree on endor (fleetq #12345, `raw/cpu_endor.sh`, log
+`raw/cpu-merged-endor.log`): `intarsia-core` lib 274, `tests/scheduler.rs` 54, `batch_recurrent` 15, `inkling2` 17,
+`inkling2_batch` 10, `inkling2_dspark_sampled` 2 (+3 ignored), `inkling2_dspark_sampled_gumbel` 1, `inkling2_packed` 6,
+`prefix_store` 39, `docs_env_vars` 2, `intarsia-server` lib 71: all pass.
+
+
 ## Parked 2026-11-26 20:40 (coordinator: Claude Desktop restart)
 
 - **Head**: the commit that adds this section (parent 32bd1e389), branch `ink/hip-overlap`, local only (not pushed; origin has none of it).

@@ -1,0 +1,2 @@
+fleetq: #12362 waiting (#6 in line): in line behind #12355 "ink-hip-overlap: window S3 (paired speed AB: main5 vs o4; card 1 pace 0/150/300 on merged o5, batched bitwise)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12355 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12355 set, or it will wait for #12355 to be released.
