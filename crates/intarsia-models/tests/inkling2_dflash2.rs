@@ -161,8 +161,10 @@ fn draft_dir() -> PathBuf {
 fn backend(f32: bool) -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
         Ok("hip") if !f32 => intarsia_backend_hip::create(0).unwrap(),
-        Ok("cpu") | Ok("hip") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
-        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu or hip"),
+        #[cfg(target_os = "macos")]
+        Ok("metal") if !f32 => intarsia_backend_metal::MetalBackend::arc().unwrap(),
+        Ok("cpu") | Ok("hip") | Ok("metal") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
+        Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal or hip"),
     }
 }
 
@@ -507,10 +509,23 @@ fn target_f64(name: &str) -> Vec<f64> {
 
 #[test]
 fn draft_pass_matches_host_reference() {
+    draft_pass_vs_reference(true);
+}
+
+/// Lane ink-metal-dflash2: the same draft pass in bf16 on the test backend (`INTARSIA_INKLING2_BACKEND`: cpu, `metal` or `hip`) against the
+/// f64 reference, at the bf16 tolerance (the selector's picks are not compared: at bf16 a near-tie may fall either way). On Metal this runs the
+/// real DynConv / window-attention / rope / qk-norm / logits kernels at the tiny draft's shapes; the f32 test above stays on cpu.
+#[test]
+fn draft_pass_in_bf16_on_the_backend_matches_host_reference() {
+    draft_pass_vs_reference(false);
+}
+
+fn draft_pass_vs_reference(f32: bool) {
     if target_dir().is_none() {
         eprintln!("skipped: no tiny fixtures");
         return;
     }
+    let tol = if f32 { 1e-4 } else { 5e-2 };
     // a context shorter than the window (every row sees all of it) and longer (row r keeps the last WINDOW - 1 - r)
     let embed = target_f64("model.llm.embed.weight");
     let embed_norm = target_f64("model.llm.embed_norm.weight");
@@ -519,7 +534,7 @@ fn draft_pass_matches_host_reference() {
     let dw = draft_weights(5);
     let mut checked = 0;
     for c in [3usize, 13] {
-        let (m, _) = try_model(Some(&draft_dir()), 7, true, &Default::default()).unwrap();
+        let (m, _) = try_model(Some(&draft_dir()), 7, f32, &Default::default()).unwrap();
         let mut st = m.new_state().unwrap();
         let mut rng = SplitMix64::new(c as u64);
         let feat_f32: Vec<f32> = (0..c * TAPS.len() * H).map(|_| rng.normal()).collect();
@@ -537,7 +552,7 @@ fn draft_pass_matches_host_reference() {
             let num: f64 = got[r * H..(r + 1) * H].iter().zip(&want[r]).map(|(a, b)| (*a as f64 - b).powi(2)).sum();
             let e = (num / want[r].iter().map(|b| b * b).sum::<f64>()).sqrt();
             eprintln!("context {c} row {r}: rel l2 {e:.2e}");
-            assert!(e < 1e-4, "context {c} row {r}: rel l2 {e}");
+            assert!(e < tol, "context {c} row {r}: rel l2 {e}");
         }
         // the selector over the real rows of the unembed: walk from the anchor, top SEL_TOP logits of each row, the score
         // logit + pred[prev] . proj(h) . succ[cand], softcapped after the correction; checked while the walk's margins are clear
@@ -545,6 +560,9 @@ fn draft_pass_matches_host_reference() {
             (dw.get("candidate_selector.hidden_projection.weight"), dw.get("candidate_selector.predecessor_codebook"), dw.get("candidate_selector.successor_codebook"));
         let mut prev = next as usize;
         for r in 1..BLOCK {
+            if !f32 {
+                break;
+            }
             let logits: Vec<f64> = (0..V).map(|v| (0..H).map(|j| unembed[v * H + j] * want[r][j]).sum()).collect();
             let mut order: Vec<usize> = (0..V).collect();
             order.sort_by(|&a, &b| logits[b].partial_cmp(&logits[a]).unwrap());
@@ -568,7 +586,7 @@ fn draft_pass_matches_host_reference() {
             prev = sc[0].1;
         }
     }
-    assert!(checked >= 4, "only {checked} drafts were checked against the host selector");
+    assert!(!f32 || checked >= 4, "only {checked} drafts were checked against the host selector");
 }
 
 // ------------------------------------------------------------------------------------------------------------------

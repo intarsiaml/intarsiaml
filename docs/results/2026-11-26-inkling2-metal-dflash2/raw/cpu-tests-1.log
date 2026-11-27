@@ -1,0 +1,23 @@
+fleetq: #12468 waiting (#2 in line): in line behind #12460 "moe-g0" (josef@endor) on endor
+fleetq: #12468 running on endor: /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/.scratch/cpu_tests.sh
+== intarsia-models --test inkling2_dflash2 23:39:34
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 73.95s
+== intarsia-models --test dflash2_cpu 23:41:07
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 72.35s
+== intarsia-models --test dflash_cpu 23:42:22
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.99s
+== intarsia-models --test inkling2_dspark 23:42:47
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 72.29s
+== intarsia-models --test inkling2_dspark_cut 23:44:01
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.35s
+== intarsia-models --test recipes_doc 23:44:14
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+== metal test binaries --no-run 23:44:16
+  Executable tests/inkling2_dspark.rs (target/release/deps/inkling2_dspark-cfe0bff7e3649813)
+  Executable tests/inkling2_dspark_cut.rs (target/release/deps/inkling2_dspark_cut-9039d7115e9aeec8)
+  Executable tests/inkling2_verify_softcap.rs (target/release/deps/inkling2_verify_softcap-f0d363c52a7f027b)
+    Finished `release` profile [optimized] target(s) in 15.48s
+  Executable tests/dflash2.rs (target/release/deps/dflash2-c3f49dbf26c78a2f)
+test result: ok. 281 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 15.67s
+cpu tests exit 0 23:44:57
+fleetq: #12468 done (exit 0)

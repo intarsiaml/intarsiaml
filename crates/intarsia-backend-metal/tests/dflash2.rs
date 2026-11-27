@@ -2,7 +2,8 @@
 //! Lane dm (DFlash2 on Metal, docs/results/2026-11-06-metal-dflash2.md): the draft's two Metal kernels.
 //!
 //! * `dyn_conv_bf16` (`Op::DynConv`) against an f64 reference of the op's definition (ops.rs) at the 27B draft's shape (H 5120,
-//!   K 2 taps, G 320 groups) for T 1 / 3 / 8 / 16 block rows, and at an odd geometry (H 48, K 3, G 3); operands at a 2-byte offset.
+//!   K 2 taps, G 320 groups) and at the Inkling-2-Mini DFlash2 draft's (H 2304, K 2, G 144; lane ink-metal-dflash2) for T 1 / 3 / 8 / 16
+//!   block rows, and at an odd geometry (H 48, K 3, G 3); operands at a 2-byte offset.
 //! * `attn_decode_bf16_window` (`AttnDecode` with `OpAttrs::window > 0`): bitwise the plain decode kernel run over a cache that
 //!   holds only the window's keys (`max(0, p + 1 - w) ..= p` moved to rows `0 ..`), at the draft's heads (32 / 8, head_dim 128)
 //!   on the split-KV path and at a shape that takes the single-pass path; and a window that covers the whole context is
@@ -59,7 +60,7 @@ fn conv_ref(x: &[u16], k: &[u16], base: &[u16], t: usize, h: usize, taps: usize,
 #[test]
 fn dyn_conv_matches_the_reference() {
     let be = backend();
-    for &(h, taps, g) in &[(5120usize, 2usize, 320usize), (48, 3, 3)] {
+    for &(h, taps, g) in &[(5120usize, 2usize, 320usize), (2304, 2, 144), (48, 3, 3)] {
         for &t in &[1usize, 3, 8, 16] {
             let seed = (h * 31 + t * 7 + taps) as u64;
             let x = rand_bf16(t * h, seed);

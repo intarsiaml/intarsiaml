@@ -1,0 +1,15 @@
+fleetq: #12502 waiting (#2 in line): in line behind #12501 "ink-hip-overlap2: Metal no-op slot (greedy md5 main 1bf40e29f vs branch on Inkling, spec off + DSpark, 256 tok; Metal tiny inkling2_batch + inkling2)" (claude-04c0e1cd) on endor
+fleetq:   #12501 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12501 set, or it will wait for #12501 to be released.
+fleetq: #12502 waiting (#1 in line): endor is held exclusively by #12501 "ink-hip-overlap2: Metal no-op slot (greedy md5 main 1bf40e29f vs branch on Inkling, spec off + DSpark, 256 tok; Metal tiny inkling2_batch + inkling2)" (claude-04c0e1cd)
+fleetq:   #12501 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12501 set, or it will wait for #12501 to be released.
+fleetq: #12502 running on endor: env BR=br3 NAME=s4-abba-b ORDER=b R1=r3 R2=r4 FULL=1 K=5 /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/docs/results/2026-11-26-inkling2-metal-dflash2/raw/slot3.sh
+slot start 00:39:13 K 5 order b r3 r4
+== full inkling2_dflash2 suite on metal rc 0 00:42:07 | test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 174.08s 
+start 00:42:07 out /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/.scratch/metal/s4-abba-b binary md5 7940c0132b6d0b77a409989013d7b525 git 19390eb01 prompts speed tok 256 idle 45 limit 1000
+dfl5@r3 rc 0 00:43:53 t+106s | up to 5 drafts | decode overall: 4261 tokens after the first, 40094 ms (106.27 tok/s) | spec: verify passes=1215 proposed=6042 accepted=3042 (acceptance 50.3%, 3.50 tokens per pass)
+dspark@r3 rc 0 00:45:40 t+213s | up to 3 drafts | decode overall: 4261 tokens after the first, 44085 ms (96.65 tok/s) | spec: verify passes=1627 proposed=3779 accepted=2277 (acceptance 60.3%, 2.40 tokens per pass)
+dspark@r4 rc 0 00:47:27 t+320s | up to 3 drafts | decode overall: 4261 tokens after the first, 43931 ms (96.99 tok/s) | spec: verify passes=1627 proposed=3779 accepted=2277 (acceptance 60.3%, 2.40 tokens per pass)
+dfl5@r4 rc 0 00:49:05 t+418s | up to 5 drafts | decode overall: 4261 tokens after the first, 39034 ms (109.16 tok/s) | spec: verify passes=1215 proposed=6042 accepted=3042 (acceptance 50.3%, 3.50 tokens per pass)
+end 00:49:05
+slot end 00:49:05
+fleetq: #12502 done (exit 0)

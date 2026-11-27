@@ -1,0 +1,18 @@
+fleetq: #12474 running on endor: /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/docs/results/2026-11-26-inkling2-metal-dflash2/raw/slot1.sh
+slot1 start 23:45:17
+== tiny suites on metal 23:45:17
+  inkling2_dflash2 rc 0 23:48:11 | test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 173.66s 
+  inkling2_dspark rc 0 23:51:04 | test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 172.70s 
+  inkling2_verify_softcap rc 0 23:51:04 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s 
+  inkling2 rc 0 23:51:08 | test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.19s 
+== md5 23:51:08
+start 23:51:08 out /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/.scratch/metal/s1-md5 binary md5 74219febe8cb328860760dd76eb67698 git 3fb1b5f8d prompts md5 tok 256 idle 0 limit 900
+off@r1 rc 0 23:51:25 t+17s |  | decode overall: 510 tokens after the first, 6624 ms (77.00 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+dspark@r1 rc 0 23:51:39 t+31s | up to 3 drafts | decode overall: 510 tokens after the first, 4720 ms (108.04 tok/s) | spec: verify passes=169 proposed=429 accepted=311 (acceptance 72.5%, 2.84 tokens per pass)
+dfl4@r1 rc 0 23:51:50 t+42s | up to 4 drafts | decode overall: 510 tokens after the first, 4424 ms (115.29 tok/s) | spec: verify passes=138 proposed=547 accepted=371 (acceptance 67.8%, 3.69 tokens per pass)
+dfl7@r1 rc 0 23:52:01 t+53s | up to 7 drafts | decode overall: 510 tokens after the first, 4058 ms (125.69 tok/s) | spec: verify passes=107 proposed=735 accepted=402 (acceptance 54.7%, 4.76 tokens per pass)
+dfl3@r1 rc 0 23:52:12 t+64s | up to 3 drafts | decode overall: 510 tokens after the first, 4508 ms (113.14 tok/s) | spec: verify passes=153 proposed=457 accepted=355 (acceptance 77.7%, 3.32 tokens per pass)
+dfl5@r1 rc 0 23:52:23 t+75s | up to 5 drafts | decode overall: 510 tokens after the first, 4273 ms (119.34 tok/s) | spec: verify passes=123 proposed=608 accepted=386 (acceptance 63.5%, 4.14 tokens per pass)
+end 23:52:23
+slot1 end 23:52:23
+fleetq: #12474 done (exit 0)
