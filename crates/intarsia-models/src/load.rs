@@ -1294,7 +1294,14 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
             // lane ink-sampled (opt-in)
             let on = model.spec_sampled_dflash();
-            let how = if std::env::var("INTARSIA_SPEC_SAMPLED_DFLASH").is_ok_and(|v| !v.is_empty()) { "INTARSIA_SPEC_SAMPLED_DFLASH" } else { "default" };
+            let how = if std::env::var("INTARSIA_SPEC_SAMPLED_DFLASH").is_ok_and(|v| !v.is_empty()) {
+                "INTARSIA_SPEC_SAMPLED_DFLASH".to_string()
+            } else if on {
+                // lane ink-hip-specflip: the recipe's default (Inkling-2 on HIP); INTARSIA_SPEC_SAMPLED_DFLASH=0 reverts
+                format!("recipe {} [tuning.{}] sampled_dflash; INTARSIA_SPEC_SAMPLED_DFLASH=0 turns it off", recipe.model.family, model.backend.name())
+            } else {
+                "default".to_string()
+            };
             eprintln!(
                 "sampled requests (temperature > 0): DFlash-family drafting {} ({how}; single sequence, one rank, seed-exact keyed rule)",
                 if on { "on" } else { "off" }
