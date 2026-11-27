@@ -1,0 +1,5 @@
+fleetq: #12561 running on endor: /opt/code/intarsiaml/.worktrees/ink-metal-dflash2-ready/docs/results/2026-11-27-inkling2-metal-dflash2-ready/raw/slotE.sh
+slot E start 04:13:42 binary md5 49a4d94be3648ec35ed2c7128dd513cb test binary md5 08d6512d7b66fb7aa96afcdc8846c730 git 0496ab63d
+== 2d: seed stream, one engine, prefix reuse
+Terminated: 15
+fleetq: #12561 done (exit 130)

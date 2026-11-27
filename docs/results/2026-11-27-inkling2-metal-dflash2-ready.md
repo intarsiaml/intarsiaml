@@ -182,12 +182,19 @@ is 4096): it matters only for a user who raises `--max-seq` into the hundreds of
   #546), decode about +7 % over six cells (#546), +25 % on the three short prompts here, up to +35 % on code, about +1 to +3 % at 1k / 4k / 16k
   with CIs that include 1.0. **Sampled requests do not change**: they take plain steps under a DFlash2 draft (2a), as they do under the DSpark
   default on Metal today, and their ids equal `--spec off`. `--max-batch` > 1 does not change: no draft, silent for the default (3b).
-- **It is not a recipe-only change.** The default mechanism (`dspark_default`, `[tuning.metal] mtp_default_k`) loads the checkpoint's own DSpark draft
-  (`mtp.safetensors`) at the key's k. The DFlash2 drafter is a separate 945 MB download (`incoai/Inkling-2-Mini-DFlash2`) with no recipe key for its
-  location, no fetch, and a different default k (block - 1 = 7, which #546 measured to lose at 1k and 16k). A default flip therefore needs code for
-  (a) finding or fetching the drafter and the fallback to DSpark k3 when it is absent, (b) the k: `--spec-k 5` is a flag today, so the recipe needs a
-  `[tuning.metal]` entry for the DFlash2 k (a new key; `mtp_default_k` is DSpark's), (c) the sampled rule, which must keep sampled requests plain (it does
-  by default). The HIP flip lane's branch `ink/hip-specflip-b` (not merged; see `STATE.md` 03:43) is the nearest existing mechanism and was not read here.
+- **Does `--spec-k` need a `[tuning.metal]` entry, and is it recipe-only? On main it is not possible; on the unmerged HIP flip B branch it is two keys.**
+  On main the default mechanism (`dspark_default`, `[tuning.metal] mtp_default_k`) loads only the checkpoint's own DSpark draft (`mtp.safetensors`) at
+  the key's k; the DFlash2 drafter (`incoai/Inkling-2-Mini-DFlash2`, 990 MB) has no key and its own default k is block - 1 = 7, which #546 measured to
+  lose at 1k and 16k on Metal, so k5 would have to come from the recipe. `git diff origin/main...origin/ink/hip-specflip-b` (e6e8b4ee5, the HIP
+  flip B of `STATE.md` 03:43, waiting for the user) adds exactly that mechanism per backend: `[tuning.<backend>] dflash2_draft = "Inkling-2-Mini-DFlash2"` and
+  `dflash2_k` (`dflash2_default_draft` in `load.rs`): where the DSpark default applies (no `--spec`, one sequence, one rank) the drafter loads **beside**
+  the DSpark draft, "not found: the DSpark default alone, never an error", `INTARSIA_SPEC_DFLASH2_DEFAULT=0` reverts, sampled requests keep the DSpark
+  draft's rule, no download. So a Metal flip on top of that branch is `[tuning.metal] dflash2_draft = ...` and `dflash2_k = 5`, plus its tests on Metal.
+  Open on Metal, none measured here: (a) that branch's Metal runs were no-op gates (key unset), so "both drafts loaded, each sequence keeps one active"
+  is untested on Metal; (b) the lookup is "next to the checkpoint" (`<checkpoint>/../Inkling-2-Mini-DFlash2` or an absolute path), but in the Hugging
+  Face cache layout the drafter is `models--incoai--Inkling-2-Mini-DFlash2/snapshots/<sha>/`, not a sibling of the checkpoint's snapshot directory, so
+  today it is found only through a symlink (what the flip lane did) or a machine-specific absolute path in the recipe; (c) loading both drafts adds
+  the DFlash2 weights (990 MB) to today's DSpark 636 MB and the draft KV of check 4 on top.
 - **Prefill costs time**: the draft ingests the prompt, so TTFT of a 4k / 16k prompt grows by about 0.2 s / 0.7 s (one process each here and #546's
   ratios 0.894 / 0.943, CIs include 1.0). Every default user pays that; the speed rule did not count it.
 - **Memory**: +~7 KB per context token of capacity, unbudgeted by the planner (check 4); negligible at serve's default and at 20k.
@@ -200,6 +207,11 @@ is 4096): it matters only for a user who raises `--max-seq` into the hundreds of
 - Anything on `serve` with a DFlash2 draft (admission of the DFlash2 verify plan on Metal, HTTP path, `serve`'s default context): the one slot that
   would have cost 4+ min of cold admission per arm. The engine, sampler and decode path are the same as `generate`'s.
 - `--max-batch` > 1 with a draft (refused by design); a DFlash2 batch test (none exists).
+- **KV prefix reuse with the DFlash2 draft (a `serve` user's second turn).** `generate --prompt-ids` resets the sequence before each prompt, so neither
+  #546 nor slots A to D exercised greedy DFlash2 across requests that share a prefix, and `crates/intarsia-models/tests/inkling2_dflash2.rs` has no
+  reuse / resync case (grep: none; the draft's own cache is re-synced in `dflash.rs` around line 540). Slot E's seed stream (2d) reuses the prompt
+  between requests but only with plain sampled steps. This is the top serve-path gap; the unmerged HIP flip branch adds such a test
+  (`INTARSIA_SS_PROMPT_X`, a reuse above `DFLASH_RESYNC_REUSE_MAX`) on HIP only.
 - The planner's treatment of the draft KV (measured as a peak-footprint difference, not by reading the allocation); behaviour near memory exhaustion.
 - Prefill / TTFT with a CI (single processes); speed beyond the 3 short prompts (#546 has the six cells); long runs (thermal), more than one machine.
 - Sampled drafting with the DFlash2 draft (`=1`) is exact in these 190 requests but not useful here (acceptance 30 % at T 1.0, no gain measured);
@@ -210,7 +222,7 @@ is 4096): it matters only for a user who raises `--max-seq` into the hundreds of
 Exclusive endor slots: #12557 (slot A: greedy md5 at 4k / 16k, then the aborted `serve` arms; 03:49:40 to about 03:53:30, 3.8 min), #12558 (slot C:
 sampled identity + memory, 03:55:10-04:01:17, 6.1 min), #12559 (slot D: refusal, ABBA, `serve --max-batch 4`, 04:01:41-04:08:09, 6.5 min). **Total
 16.4 min** of the 25 min budget, each slot under 15 min, none after 07:00. cpu: #12556 (build, 22 s). Scripts and logs in `raw/` (`slotA.sh`,
-`slotC.sh`, `slotD.sh`, `slotB.sh` unused, `lib.sh`, `client.py`, `md5.py`, `seedcmp.py`, `abba.py`, prompts); the cold-admission wait of slot A is
+`slotC.sh`, `slotD.sh`, `lib.sh`, `client.py`, `md5.py`, `seedcmp.py`, `abba.py`, prompts); the cold-admission wait of slot A is
 `raw/A/s-off-killed-cold-admission.err`. `serve` also wrote admission-cache files under `~/.cache/intarsia/admission/` (the program's own cache).
 No drafter link or other folder was created; nothing outside this worktree was changed.
 
