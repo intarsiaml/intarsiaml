@@ -439,6 +439,25 @@ solo bitwise checks run on card 1 of S2 / S3. cpu tests of the merged tree on en
 `prefix_store` 39, `docs_env_vars` 2, `intarsia-server` lib 71: all pass.
 
 
+### S4: checks only, the merged head o5 (fleetq #12362; radiance down 21:44:05 - 21:47:16 = 3:11)
+
+The coordinator's extra window. `raw/window_s4.sh` + `raw/stage_s4.sh` (both cards at once under `window.sh`, no speed); raw
+`raw/s4/card/`.
+- Card 0, o5 with no env (o5 predates the flip, so overlap is on: the `INTARSIA_OVERLAP=1` config of the merged head): its first
+  start ran o5's admission (23 kernels, 134 cases, 0 cached; up after 102 s), then **8/8 (conc:8:0) and 16/16 (16 at once) equal W4's
+  solo replies**, 113 decode steps beside chunks in flight, stream 1 at priority -1.
+- Card 0, o5 with `INTARSIA_OVERLAP=0` (the branch the PR head's unset default now takes): **8/8 and 16/16 equal**, 0 overlap steps,
+  ITL p99 0.585 / 0.625 (main's tail).
+- Card 1, hip tiny on the PR-head tree (test builds fleetq #12361 after the flip, the cli built with `--features hip` there too):
+  `inkling2_batch` **10/10**, `inkling2_packed` **6/6** (46 / 32 decode phases beside chunks in flight at pace 0 / 2 ms).
+- Card 1, the solo servers of o4 and o5 (`--spec off`): **again not up** within 100 / 60 s. Their logs stop after "loaded": a solo
+  serve loads the P12 (12-bit) weights and admits that plan's shapes, which no earlier run of o4 / o5 had cached (the batched config
+  loads bf16). Moved to S5 with a wait that covers the admission.
+
+cpu tests of the PR head (22f76ac23 tree, overlap opt-in) on endor (fleetq #12365, `raw/cpu-final-endor.log`): core lib 274,
+scheduler 54, batch_recurrent 15, inkling2 17, inkling2_batch 10, inkling2_dspark_sampled 2 (+3 ignored), inkling2_dspark_sampled_gumbel
+1, inkling2_packed 6, prefix_store 39, docs_env_vars 2, server lib 71: all pass.
+
 ## Parked 2026-11-26 20:40 (coordinator: Claude Desktop restart)
 
 - **Head**: the commit that adds this section (parent 32bd1e389), branch `ink/hip-overlap`, local only (not pushed; origin has none of it).

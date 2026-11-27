@@ -1,0 +1,4 @@
+fleetq: #12368 waiting (#3 in line): in line behind #12363 "ink-hip-i8: W5 (spec default decode + prefill, short 2+2, 4k 2+2, 16k 1+1)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12363 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12363 set, or it will wait for #12363 to be released.
+fleetq: #12368 waiting (#2 in line): in line behind #12366 "ink-dflash2: k4/k5 md5 gate + k5 pair r3" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12366 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12366 set, or it will wait for #12366 to be released.
