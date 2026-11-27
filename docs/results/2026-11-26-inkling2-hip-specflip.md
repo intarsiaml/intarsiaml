@@ -192,7 +192,7 @@ tatooine's lane folder while the Mac worktree stayed on PR A for its cpu suite; 
   0.6) emits `--spec off`'s ids; the dual load parks DFlash2's state and its context is <= the DSpark-only one, which is the same
   without the second draft; DFlash2 alone keeps sampled requests plain; a DSpark second draft is refused.
 
-**(a) window plan (sent 00:58, pending the coordinator's go):** control `specA2` (PR A). WA1 ~4:40: KV first (card 1; skip the speed
+**(a) window plan (sent ~00:42 EST by the Mac clock; the message said 00:58), approved with changes 1-4 below:** control `specA2` (PR A). WA1 ~4:40: KV first (card 1; skip the speed
 part if worse than -10 %), card 0 greedy ABBA half 1 (dfl dual dual dfl), card 1 md5 off / default + 100 seeds T 1.0; WA2 ~3:50: card 0
 greedy ABBA half 2 (dual dfl dfl dual), card 1 100 seeds T 0.6 + 64-token md5; WA3 ~4:50: sampled ABBA both cards (T 1.0 / 0.7, n = 4,
 dual vs specA2 default), then b16 serve of the dual binary vs PR A's GS2 b16 replies. ~13:20 in all (lane ~41:57 of 45). Proposed
@@ -454,4 +454,45 @@ seeds / contexts pass, serve 16 / 16 not run (solo cold admission > 175 s); aske
 > - Write this approval (00:27 EST, one try, 285 s) into the results doc.
 >
 > Metal binaries and the Metal slot go ahead as planned.
+
+**Lane to coordinator, ~00:42 EST (Mac clock; the message said 00:58):** the (a) window plan above (WA1 / WA2 / WA3, ~13:20) and the
+serve deviation.
+
+**Coordinator, 00:43 EST 11-27 (Mac clock; corrected from 00:59 by the coordinator), as written:**
+
+> Go on the (a) window plan once the dualA1 build and cpu tiny tests pass, with these changes:
+>
+> 1. Greedy control is specA2's default (DSpark k5), not DFlash2-only. The user approved flip B on the GO rule vs DSpark k5, so apply that rule to dual directly: mean of #541's six cells ≥ 1.03, and no cell's 95 % CI upper bound below 0.99. At 4k, dfl6 was 0.991 [0.987-0.995], so a 1 % dual-vs-dfl loss could break GO there; measuring vs dfl-only wouldn't catch that. Same ABBA shape (A=specA2, B=dual, split over WA1/WA2, n=4). Sampled stays as planned: dual vs specA2, every cell ≥ 0.99 by CI upper bound.
+> 2. Exact acceptance check (untimed, from existing runs where possible): on the greedy md5 prompts, dual's verify-pass and accepted-token counts must equal DFlash2-only k4 (`--spec dflash` k4, #541's dfl6 runs). On the 100 T 1.0 seeds, dual's counts must equal specA2's. That proves the shared mxfp4 unembed gives identical drafts and that parking doesn't change them. Any mismatch stops the flip.
+> 3. Mixed-switch test, because WA1-WA3 never switch request type in one process:
+>    - A cpu tiny test that alternates greedy and sampled requests on one engine, with ids equal `--spec off` and no panic on swap.
+>    - An untimed HIP run on card 1 in WA2: one process, about 8 requests alternating greedy and seeded-sampled over a shared prefix, ids equal off.
+> 4. Serve deviation approved: dual b16 = PR A GS2 b16, 16/16. b16 loads no drafter, and dual-solo correctness comes from md5 + seeds vs off. Record it in the results doc as a deviation with that reason.
+>
+> Ceiling stays 45:00. If a window voids or runs long and a rerun would cross 45, report before queuing. No window starts after 06:00.
+>
+> Write this go-ahead (00:59 EST, changes 1-4) into the results doc before queuing WA1.
+>
+> When you report, give: the GO table (dual / DSpark k5 with CI, six cells + mean), the sampled table, md5/seeds, acceptance-count equality, the mixed-switch result, KV numbers, PR number and head.
+
+**Coordinator correction (as written):** "record the (a) go-ahead as 00:43 EST, not 00:59. The Mac clock read 00:43 when I sent it, and
+your last message was stamped 00:58. Take timestamps for the results doc from `date` on the Mac." (Lane: from here on every time in this
+doc is the Mac's `date`.)
+
+**Deviation (approved, change 4): the (a) serve check** is the dual binary's `--max-batch 16` replies = PR A's GS2 b16 replies, 16 / 16,
+not dual solo vs b16: above one sequence the DSpark default is off, so no drafter loads (the batching engine is the one PR A and main
+run), and the dual solo engine's correctness is shown by its greedy md5 and seeds against `--spec off`.
+
+**How changes 1-3 are run (amends the pre-registration's item 2 and adds items 6-7, written before WA1):**
+- Greedy GO arms: `dspark` = `specA2` default (DSpark k5), `dual` = the (a) binary's default; WA1 card 0 A B B A (r1 r2), WA2 card 0
+  B A A B (r3 r4); `speed.py <dir> dspark "short=1-12,1k=13,4k=14,16k=15,prose=16-17,chat=5-12,code=3+18"`; GO = geometric mean of the
+  six cells >= 1.03 and no cell's CI upper bound < 0.99. Sampled: unchanged (dual / specA2 default, every cell's CI upper bound >= 0.99).
+- 6. **Acceptance counts equal** (any mismatch stops the flip): md5.json at 256 tokens, the dual default vs `specA2 --spec dflash
+  --spec-draft <DFlash2> --spec-k 4` (run in WA1 on card 1: no DFlash2-only md5 run exists from #541): `spec: verify passes / proposed /
+  accepted` and every per-prompt `spec[...]` line equal; 100 seeds at T 1.0: the dual default's `spec verify passes / proposed /
+  accepted` = GA2's specA2 default (265 / 408 / 123).
+- 7. **Mixed switch on HIP** (WA2, card 1, untimed): the seed harness with `INTARSIA_SS_TEMPS=0.0,1.0`, seeds 0..4 (8 requests in one
+  process, greedy and seeded sampled alternating over the same prompt, so every request swaps drafts), once with the short prompt
+  (reuse <= 128: the incoming draft re-prefills) and once with it repeated 12 times (reuse > 128: that request runs without drafting);
+  dual default vs no speculation at all (`INTARSIA_SPEC_DEFAULT=0`): ids equal, and the dual runs drafted (verify passes > 0).
 
