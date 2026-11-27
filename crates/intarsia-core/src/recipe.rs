@@ -454,6 +454,16 @@ pub struct BackendTuning {
     /// ([`crate::spec::sampled_dflash_resolve`]; with [`BackendTuning::sampled_adapt`]'s draft length policy). Unset: off. Only
     /// `recipes/inkling2.toml` sets it, `true` on HIP (docs/results/2026-11-26-inkling2-hip-specflip.md); Metal failed the gate and stays opt-in.
     pub sampled_dflash: Option<bool>,
+    /// Lane ink-hip-specflip (flip B, option (a); user decisions 2026-11-26 "Both, confirm first", coordinator 2026-11-27 00:08): the
+    /// DFlash2 drafter this backend's speculation default loads beside the checkpoint's own DSpark draft when it is found: greedy
+    /// requests draft with it (at [`BackendTuning::dflash2_k`]), sampled ones keep the DSpark draft. An absolute directory, or a name
+    /// resolved next to the checkpoint (`<checkpoint>/../<name>`: the drafter downloaded beside the model). Not found (or not a DFlash2
+    /// draft): the DSpark default alone, never an error. `INTARSIA_SPEC_DFLASH2_DEFAULT=0` restores the DSpark default (DFlash2 not
+    /// loaded). Without the DSpark draft in the checkpoint, the DFlash2 drafter alone drafts greedy requests and sampled ones stay
+    /// plain. Only `recipes/inkling2.toml` sets it, on HIP.
+    pub dflash2_draft: Option<String>,
+    /// `--spec-k` of [`BackendTuning::dflash2_draft`]'s greedy requests (a lone `--spec-k N` wins). Unset: the block's drafts.
+    pub dflash2_k: Option<usize>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -568,6 +578,16 @@ impl Recipe {
     /// [`crate::spec::sampled_dflash_resolve`].
     pub fn sampled_dflash(&self, backend: &str) -> Option<bool> {
         self.tuning.backends.get(backend).and_then(|b| b.sampled_dflash)
+    }
+
+    /// The recipe's `dflash2_draft` for `backend` (`[tuning.<backend>]`); resolved by `intarsia_models::load::dflash2_default_draft`.
+    pub fn dflash2_draft(&self, backend: &str) -> Option<&str> {
+        self.tuning.backends.get(backend).and_then(|b| b.dflash2_draft.as_deref())
+    }
+
+    /// The recipe's `dflash2_k` for `backend`.
+    pub fn dflash2_k(&self, backend: &str) -> Option<usize> {
+        self.tuning.backends.get(backend).and_then(|b| b.dflash2_k)
     }
 
     /// The recipe's `ink_attn_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.

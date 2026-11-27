@@ -1,0 +1,19 @@
+fleetq: #12569 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 36% busy with work fleetq does not track
+fleetq: #12569 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 BR=dualM CTL=main7 PART=serve bash ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/window.sh ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_a3.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_a3.sh; cap 285s; stopping radiance 2026-11-27 09:49:05
+[window] radiance stopped 2026-11-27 09:49:08 (inactive)
+[a3] start 09:49:08 PART serve BR dualM 704a6b208de5abd69837cad69ed0c229 e6e8b4ee58c38b499e0a75b51b8cca23505d5b23 0 uncommitted CTL main7 d644af53f7e375d1fab88b96a72a96f1
+[a3 c0] b16 up after 104s 09:50:53
+[a3 c0] b16 conc rc 0 09:51:07 | conc: 16 replies, 2048 tokens -> /home/josef/intarsiaml-ink-hip-specflip/logs/a3-serve-dualM/b16.json
+[a3 c0] b16 lines: admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 103.7s, context 3285 tokens 
+[a3] b16 dualM vs b16 m7a-main7: 16 / 16 replies equal
+[a3] b16 dualM vs b16 serve2-specA2: 16 / 16 replies equal
+[a3 c1] md5 off rc 0 09:49:22 380af8a5 | decode overall: 510 tokens after the first, 6227 ms (81.90 tok/s) spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) 
+[a3 c1] md5 def rc 0 09:49:36 380af8a5 | DFlash2 drafter /models/Inkling-2-Mini-DFlash2 (k 4): loaded beside the DSpark default of recipe inkling2 on hip for greedy requests ([tuning.hip] dflash2_draft; sampled requests keep the DSpark draft; INTARSIA_SPEC_DFLASH2_DEFAULT=0 loads the DSpark default alone) dflash: second draft (greedy reque
+[a3] greedy md5 256: off 380af8a5 default 380af8a5: EQUAL (main7: 380af8a5)
+[a3] done 09:51:07
+[window] stage done 2026-11-27 09:51:08 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-27 09:51:08
+[window] radiance answers 2026-11-27 09:51:18 (after 15 s)
+fleetq: #12569 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0

@@ -1,9 +1,21 @@
 # Inkling-2-Mini HIP spec default flips (lane ink-hip-specflip)
 
-Status (2026-11-27 00:33 EST): **flip A = PR #545**: on the final head `136b4dc16` the cpu suite (#12480) and the HIP gates (GA2 md5 /
-seeds / contexts, GS2 serve 16 / 16) pass; the Metal slot is pending (endor queue). **Flip B (b)** (DFlash2 alone, sampled requests drafting with it)
-**failed its pre-registered gate** (D2). **Coordinator 00:08: build (a)** (both drafters: greedy DFlash2 k4, sampled DSpark adaptive);
-its gate is pre-registered below ("Pre-registration: the (a) gate"), before any (a) window.
+Status (2026-11-27 01:27 EST): **flip A shipped** (PR #545, merged 896198dcc at 01:11). **Flip B not shipped.** Option (b) (DFlash2
+alone, sampled requests on it) failed its gate (D2). Option (a) (both drafters: greedy DFlash2 k4, sampled DSpark adaptive; branch
+`ink/hip-specflip-b`, no PR) met greedy GO (1.113), KV (-7.77 %), ids, seeds and acceptance-count equality, but **failed the
+pre-registered free-memory checks**: WA2's 64 MiB line (-87 / -88 MiB over 12 switches) and diagnostic WA4's 16 MiB line (a 38 MiB
+drop below request 10). WA4 shows zero drift over 59 switches: a fixed two-level alternation (greedy 9395 MiB, sampled 9433 MiB), not a
+creep. Under the rule, (a) stops there. WA3 (sampled contention ABBA, b16 serve) and the (a) Metal no-op slot were not run. The user
+decides in the morning.
+
+## Speed table: option (a), dual default / DSpark k5 (greedy GO; WA1b + WA2, n = 4 + 4, card 0, dualA5 vs specA2)
+
+| Cell | short | 1k | prose | chat | 4k | 16k | geomean |
+|---|---|---|---|---|---|---|---|
+| Ratio [95 % CI] | 1.191 [1.186-1.196] | 1.142 [1.134-1.150] | 1.048 [1.044-1.052] | 1.218 [1.213-1.223] | **0.993** [0.988-0.998] | 1.101 [1.097-1.105] | **1.113** |
+
+Decode tok/s overall (19 prompts, 256 tokens): dspark 108.7-109.3, dual 125.3-125.6. GO (>= 1.03, no upper bound < 0.99): **met**.
+Dual's verify counts equal DFlash2 k4 alone exactly (1265 / 5038 / 2935 per process). `raw/a-greedy-analysis.txt`.
 
 ## Speed table: confirmation ABBA, DFlash2 k4 / DSpark k5 (windows C1 + C2, card 1, binary `main7`)
 
@@ -158,6 +170,46 @@ tatooine's lane folder while the Mac worktree stayed on PR A for its cpu suite; 
   DFlash2 under the recipe key at k2 / k4 with `--spec off` ids at T 1.0 / 0.7, not vacuous, the DFlash2 table is used, no key keeps
   them plain), `recipe_ink_sampled_dflash` 3 / 3, `recipes_doc` 3 / 3, `inkling2_sampled_default` 2 / 2, cli `docs_env_vars` 2 / 2,
   core lib 284 / 284. Not yet the endor suite (gate 1).
+
+## Option (a) as built (PR B, branch `ink/hip-specflip-b`)
+
+- **Rule.** Where the recipe's DSpark default applies (no `--spec`, one sequence, one rank, no prefix store: Inkling-2 on HIP), the
+  recipe's `[tuning.hip] dflash2_draft = "Inkling-2-Mini-DFlash2"` is resolved (`load::dflash2_default_draft`: an absolute path, or a name
+  next to the checkpoint, `<checkpoint>/../<name>`; found = a DFlash2 `config.json` that `open_dflash` takes). Found and the checkpoint
+  holds its DSpark draft: DFlash2 loads as a **second draft** (`LoadOptions::dflash_alt`, k `dflash2_k` = 4) beside the DSpark draft
+  (k5). Greedy requests draft with DFlash2 k4, sampled requests with DSpark (flip A's `sampled_dflash` and adaptive table, unchanged).
+  Found but no DSpark draft: DFlash2 alone is the default (greedy drafts, sampled plain). Not found / not DFlash2 / fails to open, or
+  `INTARSIA_SPEC_DFLASH2_DEFAULT=0`: the DSpark default alone, PR A's load (DFlash2 not read). Never an error.
+- **Engine.** `Model` holds `dflash` (DSpark) and `dflash_alt` (DFlash2); each `SequenceState` holds the active draft state (`dflash`)
+  and the other one parked (`dflash_parked`, `dflash_alt_on` says which). `Seq::new` calls `Model::select_dflash(st, greedy)` for a
+  drafting request: a swap parks the old state, starts the incoming one over (empty; synced only on an empty sequence) and drops the
+  captured graphs (the target's taps go to the other draft's buffers). The existing resync rule then applies as after a turn that did
+  not draft (`DFLASH_RESYNC_REUSE_MAX` = 128: a short reuse re-prefills, a longer one runs that request without drafting). Only the
+  active draft ingests each pass, so holding both costs memory, not time. Every site that read `Model::dflash` for a sequence reads the
+  state's draft (`Model::dflash_of(st.dflash_alt_on)`: taps in the Inkling-2 forward, ingest, draft, host ingest); the plan dry run
+  records both drafts' passes; verify rows cover the larger k (k5 + 1).
+- **Memory.** The DFlash2 draft shares the DSpark draft's mxfp4 copy of the unembed (`INTARSIA_DSPARK_HEAD` and `INTARSIA_DFLASH2_HEAD`
+  both mxfp4 on HIP: the same rows of the same tensor through the same `quantize_host`, identical bits), about 0.25 GB not spent twice;
+  otherwise its own copy as before.
+- **Why a recipe field with a name next to the checkpoint** (the brief: no flag): the recipe already carries the per-backend default
+  (`mtp_default_k`, `sampled_dflash`), so the drafter's name and k sit beside them; the sibling rule finds the drafter wherever the model
+  directory is, as long as the drafter is downloaded beside it (tatooine: both in `/data/models/intarsia`), and an absolute path covers
+  other layouts (an HF cache, where snapshots are not siblings). An env path would be a flag in another form.
+- **Unchanged:** Metal, CUDA, cpu (no `dflash2_draft` there), `--spec off`, explicit `--spec`, `--max-batch` > 1 (the DSpark default is
+  off above one sequence, so neither draft loads: the batching engine takes plain steps as on main).
+- **Revert:** `INTARSIA_SPEC_DFLASH2_DEFAULT=0` (the DSpark default alone, flip A), or delete the two recipe lines.
+- **cpu tests** (`tests/inkling2_dflash2.rs`): the resolver (sibling / absolute found, `=0` off, missing / target / DSpark dirs fall back,
+  no default on metal / cuda / cpu); a fresh greedy request on the dual engine drafts exactly as DFlash2 k4 alone (same passes,
+  proposals, acceptances, ids) and a fresh sampled one exactly as DSpark k5 alone; one conversation of greedy / sampled turns (T 1.0,
+  0.6) emits `--spec off`'s ids; the dual load parks DFlash2's state and its context is <= the DSpark-only one, which is the same
+  without the second draft; DFlash2 alone keeps sampled requests plain; a DSpark second draft is refused.
+
+**(a) window plan (sent ~00:42 EST by the Mac clock; the message said 00:58), approved with changes 1-4 below:** control `specA2` (PR A). WA1 ~4:40: KV first (card 1; skip the speed
+part if worse than -10 %), card 0 greedy ABBA half 1 (dfl dual dual dfl), card 1 md5 off / default + 100 seeds T 1.0; WA2 ~3:50: card 0
+greedy ABBA half 2 (dual dfl dfl dual), card 1 100 seeds T 0.6 + 64-token md5; WA3 ~4:50: sampled ABBA both cards (T 1.0 / 0.7, n = 4,
+dual vs specA2 default), then b16 serve of the dual binary vs PR A's GS2 b16 replies. ~13:20 in all (lane ~41:57 of 45). Proposed
+deviation: the serve check for (a) is dual b16 = PR A b16 (b16 loads no drafter: unchanged from main), not dual solo vs b16 (a cold solo
+admission alone needs a 4th window, ~46:17 > 45); solo correctness = md5 + seeds.
 
 ## Pre-registration: the (a) gate (written 00:25 EST 11-27, before any (a) window; coordinator 00:08 as written above)
 
@@ -415,3 +467,400 @@ seeds / contexts pass, serve 16 / 16 not run (solo cold admission > 175 s); aske
 >
 > Metal binaries and the Metal slot go ahead as planned.
 
+**Lane to coordinator, ~00:42 EST (Mac clock; the message said 00:58):** the (a) window plan above (WA1 / WA2 / WA3, ~13:20) and the
+serve deviation.
+
+**Coordinator, 00:43 EST 11-27 (Mac clock; corrected from 00:59 by the coordinator), as written:**
+
+> Go on the (a) window plan once the dualA1 build and cpu tiny tests pass, with these changes:
+>
+> 1. Greedy control is specA2's default (DSpark k5), not DFlash2-only. The user approved flip B on the GO rule vs DSpark k5, so apply that rule to dual directly: mean of #541's six cells ≥ 1.03, and no cell's 95 % CI upper bound below 0.99. At 4k, dfl6 was 0.991 [0.987-0.995], so a 1 % dual-vs-dfl loss could break GO there; measuring vs dfl-only wouldn't catch that. Same ABBA shape (A=specA2, B=dual, split over WA1/WA2, n=4). Sampled stays as planned: dual vs specA2, every cell ≥ 0.99 by CI upper bound.
+> 2. Exact acceptance check (untimed, from existing runs where possible): on the greedy md5 prompts, dual's verify-pass and accepted-token counts must equal DFlash2-only k4 (`--spec dflash` k4, #541's dfl6 runs). On the 100 T 1.0 seeds, dual's counts must equal specA2's. That proves the shared mxfp4 unembed gives identical drafts and that parking doesn't change them. Any mismatch stops the flip.
+> 3. Mixed-switch test, because WA1-WA3 never switch request type in one process:
+>    - A cpu tiny test that alternates greedy and sampled requests on one engine, with ids equal `--spec off` and no panic on swap.
+>    - An untimed HIP run on card 1 in WA2: one process, about 8 requests alternating greedy and seeded-sampled over a shared prefix, ids equal off.
+> 4. Serve deviation approved: dual b16 = PR A GS2 b16, 16/16. b16 loads no drafter, and dual-solo correctness comes from md5 + seeds vs off. Record it in the results doc as a deviation with that reason.
+>
+> Ceiling stays 45:00. If a window voids or runs long and a rerun would cross 45, report before queuing. No window starts after 06:00.
+>
+> Write this go-ahead (00:59 EST, changes 1-4) into the results doc before queuing WA1.
+>
+> When you report, give: the GO table (dual / DSpark k5 with CI, six cells + mean), the sampled table, md5/seeds, acceptance-count equality, the mixed-switch result, KV numbers, PR number and head.
+
+**Coordinator correction (as written):** "record the (a) go-ahead as 00:43 EST, not 00:59. The Mac clock read 00:43 when I sent it, and
+your last message was stamped 00:58. Take timestamps for the results doc from `date` on the Mac." (Lane: from here on every time in this
+doc is the Mac's `date`.)
+
+**Deviation (approved, change 4): the (a) serve check** is the dual binary's `--max-batch 16` replies = PR A's GS2 b16 replies, 16 / 16,
+not dual solo vs b16: above one sequence the DSpark default is off, so no drafter loads (the batching engine is the one PR A and main
+run), and the dual solo engine's correctness is shown by its greedy md5 and seeds against `--spec off`.
+
+**How changes 1-3 are run (amends the pre-registration's item 2 and adds items 6-7, written before WA1):**
+- Greedy GO arms: `dspark` = `specA2` default (DSpark k5), `dual` = the (a) binary's default; WA1 card 0 A B B A (r1 r2), WA2 card 0
+  B A A B (r3 r4); `speed.py <dir> dspark "short=1-12,1k=13,4k=14,16k=15,prose=16-17,chat=5-12,code=3+18"`; GO = geometric mean of the
+  six cells >= 1.03 and no cell's CI upper bound < 0.99. Sampled: unchanged (dual / specA2 default, every cell's CI upper bound >= 0.99).
+- 6. **Acceptance counts equal** (any mismatch stops the flip): md5.json at 256 tokens, the dual default vs `specA2 --spec dflash
+  --spec-draft <DFlash2> --spec-k 4` (run in WA1 on card 1: no DFlash2-only md5 run exists from #541): `spec: verify passes / proposed /
+  accepted` and every per-prompt `spec[...]` line equal; 100 seeds at T 1.0: the dual default's `spec verify passes / proposed /
+  accepted` = GA2's specA2 default (265 / 408 / 123).
+- 7. **Mixed switch on HIP** (WA2, card 1, untimed): the seed harness with `INTARSIA_SS_TEMPS=0.0,1.0`, seeds 0..4 (8 requests in one
+  process, greedy and seeded sampled alternating over the same prompt, so every request swaps drafts), once with the short prompt
+  (reuse <= 128: the incoming draft re-prefills) and once with it repeated 12 times (reuse > 128: that request runs without drafting);
+  dual default vs no speculation at all (`INTARSIA_SPEC_DEFAULT=0`): ids equal, and the dual runs drafted (verify passes > 0).
+
+**WA1 (#12517, 00:54:18-00:57:00, 2:42; dualA2) partly void** (`raw/a1-dualA2/`, `raw/window-wa1-12517.log`): kept: greedy md5.json 256
+tokens off = dual default = DFlash2 k4 alone (`380af8a5`), acceptance dual = DFlash2 k4 alone (140 / 555 / 370, every per-prompt spec line
+equal). Void 1 (KV): the dual load at `--max-seq 1000000` ran out of memory in `LocalEngine::new`'s first `new_state` (hipMalloc of 335 MB:
+dualA2 allocated the DSpark state and a parked DFlash2 state, both at full capacity); fix dualA3: one draft state at a time
+(`select_dflash` frees the old state and allocates the other draft's; the KV budget still counts both drafts' per-token cost, so the swap
+always fits). Void 2 (seeds): 0 verify passes on both arms: the harness's default mode left `EngineOptions::spec_auto` false (the CLI sets
+it when no `--spec` is given), so no drafter loaded; fixed (dualA4 = dualA3's CLI, md5 `579b3042`, + the fixed harness), and the stage marks
+a default run without the DFlash2 line VOID. Lane to coordinator 01:01 (rerun plan ~44:09, stop rule: one more overrun or void -> stop and
+report).
+
+**Coordinator, 01:03 EST 11-27 (as written):**
+
+> Go on WA1b → WA2 → WA3 as planned (~44:09). Both fixes are sound, and the sampled acceptance compare against `INTARSIA_SPEC_DFLASH2_DEFAULT=0` on the same binary and harness path is fine as the like-for-like version of change 2.
+>
+> Since dualA3 now frees and reallocates the draft state and drops graphs on every greedy↔sampled switch, add two things to the untimed mixed-switch run on card 1 in WA2. No new window.
+> 1. Per-request wall time, plus the time to first token of the first request after each switch, so the morning report can state the switch cost (hipMalloc + graph re-capture + resync).
+> 2. Free VRAM (or the engine's own allocator stats) logged before the first request and after the last, with ≥ 8 switches in the run. It must not grow or creep toward OOM. A leak or creep stops the flip.
+>
+> Your stop rule stands: one more overrun or void and you stop and report rather than rerun. Write this note (01:03 EST) into the results doc.
+
+How it runs (written before WA1b): the mixed run is seeds 0..6 x T (0.0, 1.0), seeds outer: 12 requests, each one a switch (12 swaps, the
+first from the load's DSpark state); the harness prints per request its wall time and time to first token, and the backend's free memory
+(`Backend::info().free_mem`) before the first request and after the last. Pass: ids = no speculation; free memory after >= before minus
+64 MiB (allocator rounding); the switch cost is reported, not gated.
+
+**WA1b (#12522, 01:08:34-01:12:48, 4:14; dualA5 = CLI md5 `579b3042` (= dualA3), harness `f04734975`; `raw/a1-dualA5/`):** KV:
+capacity DSpark alone 177,504, both drafters **163,712 (-7.77 %)**, default context 4096 (gate 3: pass). Greedy md5.json 256: off = dual
+= DFlash2 k4 alone (`380af8a5`); acceptance dual = DFlash2 k4 alone (140 / 555 / 370, every per-prompt line equal). Seeds T 1.0: 100 / 100
+equal off; acceptance dual = DSpark alone (`INTARSIA_SPEC_DFLASH2_DEFAULT=0`) = 265 / 408 / 123 (also GA2's specA2 number), ids identical.
+GO ABBA half 1 (card 0, A B B A): dspark 109.26 / 108.87 tok/s overall, dual 125.43 / 125.28; dual's verify counts per process (1265 /
+5038 / 2935) = conf-k4's DFlash2 k4 alone.
+
+**Coordinator, 01:14 EST 11-27 (as written):**
+
+> #545 merged as 896198dcc (01:14 EST). *(Coordinator correction 01:21: merged at 01:11 EST, not 01:14.)* Metal no-op #12515 checked: md5 main = PR A for off and default (d93147da, 169/429/311 acceptance both), sampled default line off on Metal, tiny suites pass.
+>
+> For (a):
+> 1. Don't delete or reuse remote `ink/hip-specflip`. Further results-doc commits go on `ink/hip-specflip-b`, which must merge origin/main (896198dcc) before its PR.
+> 2. #546 (Metal DFlash2, opt-in) merges next. It lifts Metal's refusal of DFlash2 in model.rs, so after it lands only the recipe key keeps Metal off the DFlash2 default. Add a test that `dflash2_default_draft(recipe, "metal", …)` and "cuda" return NotSet. #546 also edits `crates/intarsia-models/tests/inkling2_dflash2.rs`, which (a) changes too, so expect a conflict there when you merge main after it lands.
+> 3. The (a) Metal no-op slot runs with the DFlash2 drafter present next to the checkpoint on endor (#12464 copied it there). The default must still load only DSpark k3 and greedy md5 must equal main's.
+>
+> No reply needed. Carry on with WA1b.
+
+**PR A Metal no-op slot (#12515, endor exclusive, 01:00:17-01:09:58, 9:41; `raw/metal-specA2/`):** greedy md5 (2 prompts) main
+`1bf40e29f` = PR A `8c4400fec` for `--spec off` and the default (`d93147da`, DSpark k3 169 / 429 / 311 both); the sampled default line
+says off on Metal; Metal tiny suites inkling2_sampled_default 2 / 2, inkling2_dspark_sampled 2 / 2 (3 ignored), inkling2_dspark_sampled_adapt
+2 / 2, inkling2_dspark 4 / 4. (#12509 before it exited at once: its process guard matched a shell line; the guard now matches only commands
+that start with an intarsia binary.)
+
+**WA2 (#12524, 01:13:34-01:17:26, 3:52; dualA5; `raw/a1-dualA5/`, `raw/window-wa2-12524.log`):**
+- GO ABBA half 2 (card 0, B A A B, r3 r4): dual 125.62 / 125.49 tok/s overall, dspark 108.81 / 108.72; counts per process as WA1b.
+- **Greedy GO (WA1b + WA2, n = 4 + 4, card 0; `raw/a-greedy/`, `raw/a-greedy-analysis.txt`), dual default / DSpark k5:** short **1.191**
+  [1.186-1.196], 1k **1.142** [1.134-1.150], prose **1.048** [1.044-1.052], chat **1.218** [1.213-1.223], 4k **0.993** [0.988-0.998],
+  16k **1.101** [1.097-1.105]; geometric mean of the six **1.113** (>= 1.03), no upper bound < 0.99: **GO passes** (ids identical in all 8
+  processes; code 1.304, not in the rule).
+- Seeds T 0.6: 100 / 100 equal off. Greedy 64 tokens: the stage printed DIFFER, wrongly: its compare split `generate`'s Debug list
+  (`[a, b, ..., z]`) on spaces, so the 64th id `150167]` did not equal `150167,`; ids 0-63 are equal in both prompts (checked by hand).
+- **Mixed switch (12 requests, each a draft switch on def): ids off = def (x1 and x12).** Free memory (`Backend::info().free_mem`, before
+  the first request / after the last): **def x1 9520 -> 9433 MiB (-87), def x12 9520 -> 9432 (-88)**; no speculation (off) x1 11400 ->
+  11338 (-62), x12 11400 -> 11352 (-48). **The pre-registered line (after >= before - 64 MiB) fails for def.** The off arm, which never
+  switches, also loses 48-62 MiB (first-use allocations), so the switch-related part is ~25-40 MiB over 12 switches; two points per run
+  cannot tell a one-time cost (both drafts' first graph captures) from a per-switch creep (a destroyed graph exec's memory kept by the HIP
+  runtime: `HipGraph::drop` calls hipGraphExecDestroy, and every switch drops and re-captures the graphs). Per the coordinator's rule
+  ("a leak or creep stops the flip") and the stop rule, **the flip stops here; WA3 not run.**
+- Switch cost (medians of requests 2-12): ttft def / off x1 53.1 / 53.8 ms, x12 274.0 / 270.8 ms (no measurable ttft cost); wall of a
+  greedy request after a switch (24 tokens): x1 466 ms vs 349 ms without speculation (the incoming draft re-prefills and the graphs
+  re-capture: slower than plain at this length), x12 443 ms vs 567 ms; sampled x1 423 / 418 ms, x12 585 / 599 ms. Def runs drafted (x1 95
+  passes, x12 49).
+
+Radiance: 28:37 (to GS2) + WA1 2:42 + WA1b 4:14 + WA2 3:52 = **39:25** of the 45 ceiling.
+
+**Lane to coordinator, 01:20 EST:** (a) stopped on the free-memory line; options: diagnostic / stop / raise the ceiling.
+
+**Coordinator, 01:21 EST 11-27 (as written):**
+
+> Option 3, in order: the diagnostic first, then WA3 only if it passes. Lane radiance ceiling raised to 47:00.
+>
+> 1. Diagnostic (card 1 alone, ~1:30): one process, 60 requests alternating greedy/sampled (59 switches), free memory after every request, plus a 60-request `--spec off` arm in its own process. Pre-register this in the results doc BEFORE queuing:
+>    - Warm-up is requests 1-10. Drift = free MiB at request 10 minus free MiB at request 60.
+>    - PASS if dual's drift ≤ off's drift + 8 MiB, and no request after 10 drops more than 16 MiB below the request-10 value.
+>    - FAIL: per-switch creep. (a) stops: record everything, push `ink/hip-specflip-b` with no PR. I report to the user in the morning.
+> 2. If PASS: WA3 as planned (sampled ABBA dual vs specA2, then the b16 serve). Same stop rule: a void or overrun past 47 means stop and report.
+> 3. The 64 MiB line stays failed on record. The diagnostic only decides whether the cause is a one-time first-capture cost or creep. Say that plainly in the doc.
+>
+> Greedy GO is met: 4k 0.993 [0.988-0.998], geomean 1.113. KV −7.77 % is inside what the user accepted (−9.9 %). In the doc, note the switch cost as a known limit: the first short greedy request after a switch is slower than no drafting (466 vs 349 ms at x1).
+>
+> Correction: #545 merged at 01:11 EST, not 01:14. Write this go-ahead (01:21 EST) into the results doc.
+
+**On record:** the pre-registered free-memory line (after >= before - 64 MiB over WA2's 12-switch run) **failed** (-87 / -88 MiB) and stays
+failed. The diagnostic below does not overturn it; it only decides whether the cause is a one-time first-capture cost or a per-switch creep.
+
+**Known limit (switch cost):** the first short greedy request after a sampled one is slower than not drafting: 466 ms vs 349 ms (24
+tokens, prompt x1: the incoming draft state starts empty, re-prefills, and the graphs re-capture); ttft is unchanged (53 ms).
+
+**Pre-registration: diagnostic WA4 (written 01:23 EST, before queuing; `raw/stage_a4.sh`, card 1 only, the other card idle):**
+- Arms, each one process, prompt x1, 24 tokens, 60 requests = seeds 0..30 x T (0.0, 1.0), seeds outer, so greedy and seeded sampled
+  alternate. `def` = the dual default (INTARSIA_SS_DEFAULT=1; every request is a draft switch: the load's state is DSpark's, request 1 is
+  greedy). `off` = no speculation (INTARSIA_SPEC_DEFAULT=0: no drafter loaded; the harness's equivalent of `--spec off`).
+- The harness logs `Backend::info().free_mem` (hipMemGetInfo) after every request. Requests are numbered 1-60 here (the log's
+  `request 0` is request 1). Warm-up = requests 1-10. Drift(arm) = free MiB after request 10 - free MiB after request 60.
+- **PASS** iff drift(def) <= drift(off) + 8 MiB **and** no request 11-60 of def is more than 16 MiB below def's request-10 value.
+  Otherwise **FAIL** (per-switch creep): (a) stops, everything recorded, `ink/hip-specflip-b` pushed with no PR.
+- Also required: ids def = off for all 60 (else void). The verdict is computed by the stage's own script (`[a4] VERDICT`).
+
+**WA4 (#12529, 01:24:00-01:25:15, 1:15; dualA6 = CLI `579b3042` + per-request free memory; `raw/a4-dualA6/`, `raw/window-wa4-12529.log`):**
+ids def = off for all 60 requests; def drafted (440 passes, 1473 proposed, 342 accepted). Free MiB after request 10 / 60: def 9433 / 9433
+(**drift 0**), off 11338 / 11338 (drift 0). After warm-up, def's greedy requests all sit at 9395 MiB (one at 9397) and its sampled
+requests all at 9433: two fixed levels 38 MiB apart (the active draft's state and graphs: DFlash2 larger than DSpark), with no movement
+over 59 switches. **VERDICT (pre-registered): FAIL**: drift 0 <= 0 + 8 holds, but the largest drop below request 10 is 38 MiB (> 16):
+request 10 is sampled, the high level, so every later greedy request reads as a 38 MiB drop. By the data this is a bounded alternation,
+not a per-switch creep. The rule's verdict stands: (a) stops, `ink/hip-specflip-b` pushed with no PR.
+
+Radiance: 39:25 + WA4 1:15 = **40:40** of the raised 47:00 ceiling.
+
+## New task: verify main on HIP (Part 1), then (a) prep (Part 2) (coordinator brief, 02:08 EST 11-27, as written)
+
+> New task, two parts. Part 1 is urgent.
+>
+> PART 1. Verify new main on HIP, the default path. It must start before 06:00 EST.
+> Main now has #545 (896198dcc, 01:11) and #546 (aa7beaa73, 01:51, Metal DFlash2 opt-in). #542 (overlap, opt-in, default off) is about to merge: my watcher marks it ready and merges once CI is green on edd4812e1. Wait until `gh pr view 542 --repo intarsiaml/intarsiaml --json mergeCommit` shows a merge commit (poll ≤ every 4 min), then build exactly that origin/main head ("main7").
+> - Why: #542 changes ink_attn/ink_mix/ink_route_fused/ink_tick.h/ik_runtime and scheduler.rs. Flip A plus #542 have never run together on a HIP GPU, and nobody has measured overlap-off solo speed against pre-#542 main.
+> - Pre-register in your results doc before queuing anything:
+>   - Bitwise on main7:
+>     - greedy md5.json default = off = 380af8a5 (256 tokens), plus the 64-token check;
+>     - 100 seeds at T 1.0, default = off;
+>     - b16 serve = solo, 16/16, solo first and alone with up to 240 s cold admission.
+>   - Speed ABBA, main7 vs specA2 (136b4dc16, already in `~/intarsiaml-ink-hip-specflip`):
+>     - solo plain decode at short / 4k / 16k;
+>     - default-spec decode at short / 1k / 4k / 16k;
+>     - prefill at 4k / 16k.
+>     - Report each ratio with its 95 % CI and n.
+>   - Pass rule: every bitwise check equal, and no default-path cell with a CI upper bound below 0.99. A miss means STOP and report to me; I'll decide on reverting #542.
+> - Radiance: a separate grant of ≤ 10 min total, outside your 47-min cap, in at most 2 windows of ≤ 5 min each. Prefer 1 if the admission fits. Same window rules: never cancel a running window, none starting after 06:00.
+> - You may use the main6 build in `~/intarsiaml-ink-hip-bpf` as a second baseline if useful. Don't delete anything there yet.
+> - Report as one table: main7 vs specA2, plus absolute tok/s for main7. It becomes the "now" column of the morning speed table.
+>
+> PART 2. (a) prep, only after Part 1 is reported. cpu and Metal only, no radiance windows, no PR.
+> 1. Merge origin/main (main7) into `ink/hip-specflip-b` in `.scratch/wt-a`. Expect a conflict in `crates/intarsia-models/tests/inkling2_dflash2.rs`: #546 added a `#[cfg(target_os = "macos")]` Metal arm in `backend()` and a bf16 draft-pass test. Keep both sides.
+> 2. Confirm 106ccd06f (or the merge) has tests that `dflash2_default_draft(recipe, "metal", …)` and "cuda" return NotSet. Add them if missing.
+> 3. Full cpu suite on endor (core, models incl. inkling2_dflash2 / dflash2_cpu / mtp / sampled tests / scheduler, cli docs_env_vars, server lib).
+> 4. The Metal no-op slot with the DFlash2 drafter present next to the checkpoint on endor:
+>    - greedy md5 main7 = (a) head for off and default;
+>    - the default still loads DSpark k3 only;
+>    - sampled drafting stays off on Metal;
+>    - Metal tiny suites pass.
+>    - Endor rules: exclusive slot ≤ 20 min, 45 s idle gaps, none after 07:00. Another lane (Metal sampled re-tune) shares endor, so fleetq orders it.
+> 5. Push `ink/hip-specflip-b`, still no PR. What will remain for the morning is WA3 alone (sampled contention ABBA + b16 serve, ~5 min radiance), if the user accepts the bounded 38 MiB swing.
+>
+> Write this brief (02:08 EST) into the results doc first. Report Part 1 as soon as it's done, then Part 2.
+
+(Lane, 02:09 EST: #542 still OPEN at head edd4812e1, no merge commit; origin/main aa7beaa73.)
+
+### Pre-registration: main7 check (written 02:13 EST, before queuing anything; main7 = origin/main once #542 shows a merge commit)
+
+Binaries: `main7` = the hip CLI of exactly that origin/main commit (`raw/prep_m7.sh`: `git archive` of the sha, synced to tatooine,
+built in the lane volume) + its seed harness exe; `specA2` = PR A head `136b4dc16` (md5 `8e927dd5`, already on tatooine). Two windows,
+each stage <= 285 s, <= 10 min of radiance in all, none starting after 06:00.
+
+**M1, bitwise + serve (`raw/stage_m7a.sh`; nothing timed):** card 0: `serve` main7 solo with no spec flags (the default), started first
+and alone, up to 240 s for its cold admission, then its 16 replies one at a time (`serve_bitwise.py solo`, SB_FIT=1). Card 1 meanwhile:
+1. greedy md5.json, 256 tokens, `--ignore-eos`: the default and `--spec off` must both give `380af8a5` (the ids lines' md5, as in every
+   earlier gate) and equal each other;
+2. the default at 64 tokens: its ids = the first 64 of `--spec off`'s, both prompts;
+3. 100 seeds at T 1.0 (24 tokens), main7's seed harness on GA2's path (`--spec dflash` with the checkpoint's DSpark draft, k5; WA1b showed
+   this path and the CLI default path give the same counts, 265 / 408 / 123): `INTARSIA_SPEC_SAMPLED_DFLASH=0` vs unset (the recipe's
+   sampled default): 100 / 100 identical, the default arm drafting (verify passes > 0);
+4. once solo answers and 1-3 are done: `serve --max-batch 16` main7 (cold admission), its 16 replies at once: **b16 = solo, 16 / 16**.
+   Also logged: the solo and b16 `loaded` lines (default contexts) and admission lines.
+
+**M2, speed (`raw/stage_m7b.sh`):** both cards at once, each its own ABBA of main7 (A) vs specA2 (B), fresh processes, greedy, 256
+tokens, EOS honoured. Card 0 reps r1 r2, card 1 r3 r4: **n = 4 rep pairs per mode** (pairs within a card).
+- default-spec decode (no spec flags; DSpark k5), `speed-m7d.json`: cells short (3 prompts: story, code, chat_multiturn_rnone), 1k, 4k,
+  16k: `speed.py logs/m7-def specA2 "short=1-3,1k=4,4k=5,16k=6"`;
+- plain decode (`--spec off`), `speed-m7p.json`: cells short, 4k, 16k: `speed.py logs/m7-off specA2 "short=1-3,4k=4,16k=5"`;
+- prefill 4k / 16k: `prefill_m7.py logs/m7-def main7 specA2 len4k len16k` (the default path), plus the plain runs' prefill (information);
+- ratio main7 / specA2: per (prompt, rep), geometric mean per cell, 95 % t-interval over the 4 rep pairs (t = 3.182). Absolute main7 tok/s
+  reported per cell (median over its processes).
+- Deviation (fit): 3 short prompts instead of 12 and no prose / chat / code cells, so both modes get n = 4 in one <= 5 min window.
+
+**Pass rule (the coordinator's):** every bitwise check in M1 equal, and no default-path cell (the four default-spec decode cells and the
+two default-path prefill cells) with a 95 % CI upper bound below 0.99. A miss: STOP, report to the coordinator (decision on reverting
+#542). The plain-decode cells are reported with the same CI; any with an upper bound below 0.99 is called out in the report.
+Order: M1 first; a bitwise difference stops before M2. If M1 voids (e.g. b16 not up in time), M2 still runs and the void part is reported
+unverified (no third window).
+
+**Coordinator, 02:14 EST 11-27 (as written):**
+
+> Coordinator 02:14 EST. Main7 plan approved as written: M1 bitwise + serve, M2 speed ABBA n=4, and your gated cells. The deviation (3 short prompts, prose/chat/code dropped) is fine for a regression check. Say it in the doc.
+>
+> One change: run the 100 seeds on the DEFAULT path, with no explicit spec flags, the same as a user request. New main's default is what we're verifying, so don't lean on WA1b's equivalence. If that costs extra time, keep GA2's path and say so.
+>
+> #542 state at 02:13: 5 of 6 checks are green, and only `cargo test (linux)` is still running. My watcher merges it the moment that check passes. I'll message you the merge SHA. Keep your poll as a backup. Write this message into the results doc.
+
+**Amendment to the main7 pre-registration (02:17, before queuing):**
+- M1 item 3 runs on the **default path**: the seed harness with `INTARSIA_SS_DEFAULT=1` (no spec flags: `EngineOptions::spec_auto`,
+  as the CLI sets it when no `--spec` is given; the recipe's DSpark default, sampled requests drafting by `sampled_dflash`). Arms: off =
+  `INTARSIA_SPEC_SAMPLED_DFLASH=0` (sampled requests plain), def = unset. A def run without the `DSpark default` load line is void. No
+  extra time.
+- main7 has no default-path mode in its harness (it came with this branch), so main7's seed-harness exe is built from main7's tree with
+  this branch's `crates/intarsia-models/tests/inkling2_sampled_real.rs` (test-only: the default mode, plus per-request timing and free
+  memory on stderr). The `main7` CLI binary is built from main7's tree as is (cargo does not compile test files into it).
+- The short-prompt deviation (3 prompts; no prose / chat / code cells) is fine for a regression check (coordinator 02:14).
+
+**Coordinator, 02:41 EST 11-27 (as written):**
+
+> Coordinator 02:41 EST: #542 merged at 02:41 EST as 4b629184c5ecf1ac2e89a97a1f4bd86f2f87fb69, with all 6 CI checks green. That commit is main7. Build it and run M1 and M2 as pre-registered and amended. Write this message into the results doc.
+
+**main7 build (#12544):** `intarsia-main7` md5 `d644af53f7e375d1fab88b96a72a96f1` from `git archive 4b629184c` (tree on tatooine checked:
+`scheduler.rs` = main7's, no `dflash2_draft` in `recipes/inkling2.toml`); seed harness exe = main7's crates + this branch's harness file.
+
+**M1 (#12546, 02:45:42-02:49:58, 4:16; `raw/m7a-main7/`, `raw/window-m1-12546.log`): all bitwise checks EQUAL.**
+- greedy md5.json 256 tokens: `--spec off` = default = **`380af8a5`** (default 122 tok/s, off 81.8); 64 tokens: the default's ids = the
+  first 64 of off's (both prompts).
+- 100 seeds at T 1.0 on the default path: off 100 / default 100 **identical 100**; the default drafted (265 passes, 408 proposed, 123
+  accepted: the same counts as PR A / GA2); off 0 passes.
+- serve: solo (card 0, no spec flags) up after **195 s** (cold admission: 38 kernels, **215 cases**, 0 cached; `context 4096 tokens`);
+  b16 (card 1) up after 32 s (23 kernels, 23 cases run, 111 cached from solo's run; `context 3285 tokens`); **b16 = solo, 16 / 16**.
+- Observation (not gated): main7's cold first-start admission is 215 cases / 195 s against PR A's 134 cases / ~120 s (GS2: solo alone).
+  The extra 15 kernels come with #542 / #546; only the first start on a new binary pays it (cached after).
+
+**M2 (#12547, 02:50:34-02:55:01, 4:27; `raw/m7-def/`, `raw/m7-off/`, `raw/m7-analysis.txt`, `raw/window-m2-12547.log`):** 16 / 16
+processes complete; ids identical across every arm and rep in both modes; verify counts identical per process (540 / 1579 / 800).
+
+| main7 (4b629184c) vs specA2 (136b4dc16) | ratio [95 % CI] | n | main7 tok/s (median) |
+|---|---|---|---|
+| default-spec decode, short (3 prompts) | **1.000** [0.999-1.000] | 4 | 98.37 |
+| default-spec decode, 1k | **1.000** [0.999-1.001] | 4 | 102.79 |
+| default-spec decode, 4k | **1.000** [0.999-1.002] | 4 | 117.40 |
+| default-spec decode, 16k | **1.000** [0.998-1.001] | 4 | 91.11 |
+| plain decode (`--spec off`), short (3 prompts) | 1.000 [1.000-1.001] | 4 | 83.65 |
+| plain decode, 4k | 1.000 [0.999-1.000] | 4 | 80.28 |
+| plain decode, 16k | 1.000 [1.000-1.000] | 4 | 75.26 |
+| prefill 4k (default path) | **1.000** [0.998-1.002] | 4 | 3467 |
+| prefill 16k (default path) | **1.000** [0.998-1.002] | 4 | 3272 |
+
+(Plain-run prefill: 4k 1.000 [0.999-1.001], 16k 1.000 [0.999-1.001], 3481 / 3279 tok/s.) The short cell here is 3 prompts (story, code,
+chat_multiturn_rnone): its absolute tok/s is not comparable with the 12-prompt short cell of the earlier tables (DSpark k5 there 109).
+
+**main7 verdict: PASS** (every bitwise check equal; no default-path cell with an upper bound below 0.99; the lowest upper bound is 0.999,
+and the plain cells are the same). Radiance for the main7 check: M1 4:16 + M2 4:27 = **8:43** of its 10:00 grant.
+
+
+### Part 2: (a) prep (started 02:58 EST, after Part 1 was reported at 02:57)
+
+1. **Merge done:** `origin/main` 4b629184c merged into `ink/hip-specflip-b` as `55f43e087` (a merge, no rebase). The conflict was in
+   `crates/intarsia-core/src/model/dflash.rs`, not in the test file: #546 added a Metal refusal of a quantised head copy at the head-kind
+   lookup, and this branch had moved that lookup into `dflash2_head_kind` (`let Some(kind) = dflash2_head_kind(b)? else { return Ok(None) }`).
+   Resolution: keep this branch's shape and put #546's Metal refusal inside `dflash2_head_kind`, so both callers (the greedy draft and
+   the second draft state) refuse `INTARSIA_DFLASH2_HEAD=mxfp4|fp8` on Metal. `crates/intarsia-models/tests/inkling2_dflash2.rs` merged
+   without a conflict and keeps both sides: the `#[cfg(target_os = "macos")]` Metal arm in `backend()` and #546's
+   `draft_pass_matches_host_reference`. No conflict markers left. Build and tests of the merge: item 3.
+2. **metal / cuda NotSet tests: present.** `recipe_dflash2_default_finds_the_drafter_or_falls_back` asserts `Dflash2Default::NotSet` for
+   metal, cuda and cpu both with no drafter and with the drafter beside the checkpoint (`inkling2_dflash2.rs` lines 690 and 699, commit
+   439433951). Nothing to add.
+3. Full cpu suite on endor: fleetq #12548 (queued 02:57 behind #12545, another lane's exclusive endor slot). It first builds the Metal CLIs
+   and tiny test exes of main7 (`mmain7`) and of the (a) head (`mdualC`), then runs `raw/cpu_tests_wt.sh`: core lib, scheduler, models
+   (all tests, incl. inkling2_dflash2, dflash2_cpu, mtp, the sampled tests), cli (incl. docs_env_vars), server lib.
+4. Metal no-op slot: `raw/metal_slot.sh` with `MAIN=mmain7 BR=mdualC` (exclusive, <= 20 min, 45 s idle gaps between run groups, none
+   after 07:00), after item 3.
+5. Push `ink/hip-specflip-b` (no PR) after items 3 and 4.
+
+**#12548 (03:04-03:05): exit 6, no cpu suite ran.** `mmain7` built (from the lane worktree checked out at main7; every workspace crate
+compiled). The (a) Metal build then failed in `intarsia-cli` (E0560: `LoadOptions` has no field `dflash_alt`), although the merged tree
+has the field. Cause: the lane worktree and `.scratch/wt-a` share `CARGO_TARGET_DIR` and have the same crate layout, so cargo gives their
+workspace crates the same unit hashes and checks freshness by mtime; wt-a's files (merge at ~02:57) were older than main7's build
+(03:04), so cargo reused main7's `intarsia-core` and only rebuilt cli and the Metal backend. Not a merge error. Fix: `metal_build_wt.sh`
+and `raw/cpu_tests_wt.sh` touch wt-a's tracked sources first, so every workspace crate is rebuilt from that tree. Earlier binaries
+checked: the PR A cpu suites (23:25, 23:43, 00:24) ran before any wt-a build into the shared target; `mmain2` / `mspecA2` / `mmain3`
+were built from the lane worktree after a checkout (changed files newer, so rebuilt). Only `mdualB` (01:21, after `mmain3` 01:15) may
+have had the same stale core. It was never run, and it is not used. #12549 (the Metal slot) then exited at its binary guard (no
+`mdualC`): nothing ran, the drafter link was never made.
+
+**Item 3, full cpu suite of the (a) head (#12551, 03:07:55-03:24:22; `raw/cpu-a-0ff0eb1e1-12551.log`): all green.** Head `0ff0eb1e1`
+(the merge plus docs); every workspace crate compiled from wt-a (checked in the build logs). core lib 283 passed, core scheduler 54,
+intarsia-models 635 (incl. inkling2_dflash2 with #546's `draft_pass_matches_host_reference`,
+`recipe_dflash2_default_finds_the_drafter_or_falls_back`, the two dual-load tests; dflash2_cpu; mtp; the sampled tests), intarsia-cli 208
+(incl. docs_env_vars), intarsia-server lib 71; 0 failed.
+
+**Item 4, the Metal no-op slot (#12553, exclusive, 03:24:22-03:40:50 = 16:28 of its 20 min; `raw/metal-dualC/`): PASS.**
+- The drafter sat beside the checkpoint for the slot: a symlink `snapshots/Inkling-2-Mini-DFlash2` to the copy fleetq #12464 put in
+  endor's HF cache (`models--incoai--Inkling-2-Mini-DFlash2`, 944 MB). The slot made it at start and removed it at exit (the link
+  only; no folder made or deleted).
+- greedy md5 (md5.json, 256 tokens, `--ignore-eos`): main7 `mmain7` (49a4d94b) and the (a) head `mdualC` (df3f03f9), `--spec off` and the
+  default: all four **`d93147da`** (= #12515's value); the default verify counts are the same for both (169 passes, 429 proposed, 311 accepted).
+- The default still loads DSpark k3 alone on Metal: one `dflash: draft of 3 layers ... block 7` line, the `[tuning.metal]` DSpark banner,
+  no DFlash2 or second-draft line.
+- Sampled default on Metal (T 1.0, seed 1): `sampled requests (temperature > 0): DFlash-family drafting off (default ...)`.
+- Metal tiny suites of the (a) head: inkling2_sampled_default 2/2, inkling2_dspark_sampled 2/2 (3 ignored), inkling2_dspark_sampled_adapt
+  2/2, inkling2_dspark 4/4, inkling2_dflash2 12/12; 0 failed. 45 s idle gaps sat between run groups (nothing timed).
+
+## WA3 (morning 11-27): user accepts the bounded 38 MiB swing
+
+**User, 11-27 morning (as written):** "Accept, run WA3"
+
+### Pre-registration: WA3 on the merged head (written 09:36 EST 11-27, before queuing either window; the dualM build #12567 was running)
+
+Deviations from the 00:42 plan, and why:
+- **Binary `dualM`** = the (a) head `e6e8b4ee5` (the main7 merge `55f43e087` plus docs), built fresh on tatooine (`raw/prep_a.sh dualM`).
+  `dualA5` / `dualA6` predate the main7 merge; the merged head (dual drafters + #542's HIP kernels and scheduler + #546) has never run on a GPU.
+- **Control `main7`** (origin/main `4b629184c`, md5 `d644af53`, already on tatooine), not `specA2`: main7 is the merge base of the (a)
+  head, so the ratio isolates the (a) change. M2 showed main7 = specA2 only for greedy default and plain decode; the sampled default was
+  never compared, so a specA2 control would mix #542 into the contention ratio.
+- **Two windows, not one.** The admission cache is keyed by the exe's size and mtime (`host_fingerprint`), so `dualM`'s b16 start is cold
+  (~134 cases, ~150 s with the load), and the sampled ABBA takes ~2:25 (D2: 2:23). One window would need ~5:10 > the 285 s cap. Each
+  window stays <= 285 s.
+  - **WA3s** (`PART=sampled`): the sampled contention ABBA as planned (card 0 T 1.0, card 1 T 0.7, 4 reps each, off pol / pol off /
+    pol off / off pol; arm off = main7 default, pol = dualM default). Out: `logs/a-sampled-dualM/`.
+  - **WA3b** (`PART=serve`, only if WA3s passes): card 0 `serve --max-batch 16` of dualM (cold admission, up to 200 s), its 16 replies at
+    once; card 1 meanwhile (untimed) greedy md5.json 256 tokens `--ignore-eos`, dualM `--spec off` vs its default (the DFlash2 k4 greedy
+    default). Out: `logs/a3-serve-dualM/`.
+
+Gate (every item must pass; one try each, no re-run hoping for a pass; a void or any miss: stop and report, no PR):
+1. **Sampled speed:** `speed3.py logs/a-sampled-dualM`: every cell's pol / off ratio (short pooled, 1k, 4k; and each prompt) at T 1.0 and
+   T 0.7 has a 95 % CI upper bound >= 0.99 (n = 4 rep pairs).
+2. **Sampled ids:** every process of one temperature emits the same ids (both arms, all reps; same seed).
+3. **b16:** dualM's 16 b16 replies = main7's M1 b16 replies, 16 / 16 (also compared with PR A's GS2 b16, information).
+4. **Greedy on the merged head:** dualM `--spec off` = dualM default, ids md5 equal and = `380af8a5` (main7's); the default line names DFlash2.
+
+**Build `dualM` (#12567, 09:36-09:41, cpu only):** `intarsia-dualM` md5 `704a6b208de5abd69837cad69ed0c229`, commit
+`e6e8b4ee5 0 uncommitted`; tatooine tiny tests of the head all green (inkling2_dflash2 12/12, inkling2_sampled_default 2/2,
+recipe_ink_sampled_dflash 3/3, recipes_doc 3/3, inkling2_dspark 4/4, inkling2_dspark_sampled 2/2, inkling2_dspark_sampled_adapt 2/2, mtp
+69/69, models lib 81, cli docs_env_vars 2/2, core lib 284; 0 failed).
+
+**WA3s (#12568, radiance down 09:45:04-09:48:06; stage 09:45:08-09:47:55, 2:47; `raw/a3s-dualM/`, `raw/window-wa3s-12568.log`): PASS.**
+16 / 16 processes rc 0; ids identical across all 8 processes of each temperature (both arms, all reps); verify counts identical across
+arms (T 1.0: 231 / 606 / 315 per process; T 0.7: 208 / 558 / 304). dualM's load line: `DFlash2 drafter ... (k 4): loaded beside the
+DSpark default`; main7: DSpark alone. `speed3.py` (dual = pol, main7 = off), n = 4 rep pairs:
+
+| dualM / main7, sampled default | short (pooled) | 1k | 4k |
+|---|---|---|---|
+| T 1.0 | 1.004 [0.995-1.012] | 1.001 [0.991-1.010] | 1.002 [0.980-1.025] |
+| T 0.7 | 1.001 [0.997-1.005] | 1.004 [0.994-1.015] | 1.004 [0.981-1.029] |
+
+Per prompt: T 1.0 short_b 1.003 [0.998-1.009], short_a 0.999 [0.989-1.008], short_c 1.010 [0.985-1.035]; T 0.7 short_b 0.999
+[0.991-1.006], short_a 1.003 [0.989-1.018], short_c 1.001 [0.984-1.017]. Lowest CI upper bound 1.005 (gate >= 0.99): **gate 1 pass,
+gate 2 pass.** Absolute sampled tok/s (main7 / dualM): T 1.0 short 88.66 / 88.97, 1k 77.24 / 77.29, 4k 106.46 / 106.68. (speed3.py's
+printed "section 3" rule is D2's, not this gate.)
+
+**WA3b (#12569, radiance down 09:49:05-09:51:18; stage 09:49:08-09:51:07, 1:59; `raw/a3b-dualM/`, `raw/window-wa3b-12569.log`): PASS.**
+- b16 serve of dualM (card 0): cold admission as predicted (23 kernels, **134 cases run, 0 cached**), up after 104 s (`loaded ... in
+  103.7s, context 3285 tokens`; no drafter line above one sequence). **16 / 16 replies = main7's M1 b16** and 16 / 16 = PR A's GS2 b16:
+  **gate 3 pass.**
+- Greedy on the merged head (card 1): md5.json 256 tokens, dualM `--spec off` **`380af8a5`** (81.90 tok/s) = dualM default
+  **`380af8a5`** (134.89 tok/s; `DFlash2 drafter ... (k 4): loaded beside the DSpark default`, second-draft line) = main7's. Default
+  verify counts 140 / 555 / 370 = WA1b's DFlash2 k4 alone and dual (every count equal): **gate 4 pass.**
+
+**WA3 verdict: PASS (gates 1-4).** Radiance for WA3: 3:02 + 2:13 = **5:15** in two windows (each stage <= 285 s). Next: PR B from
+`ink/hip-specflip-b` (user decision).
+
+**Greedy speed on the merged head (information, single runs, not a gate):** the 1.113 greedy GO was measured on the pre-merge `dualA5`
+vs specA2 (WA1b / WA2). On `dualM` only identity and sampled contention were gated. Consistency check, same card (1), same md5.json
+prompts, 256 tokens, each run beside a card-0 cold admission: default dualM 134.89 tok/s vs main7 122 (M1) ≈ 1.10; `--spec off` 81.90
+vs 81.82.
+
+**Merge of origin/main `eb2a7ffa8` (#547-#549, docs) into the branch (09:58 EST):** `git diff --stat e6e8b4ee5 HEAD -- crates kernels
+recipes` is empty, so `dualM` is the PR head's code.

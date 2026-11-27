@@ -664,3 +664,215 @@ fn runs_with_admitted_kernels_only() {
     }
     assert!(tel.snapshot().spec_proposed > 0, "the draft never proposed anything (vacuous test)");
 }
+
+// ------------------------------------------------------------------------------------------------------------------
+// lane ink-hip-specflip (flip B): the recipe's DFlash2 default (`[tuning.<backend>] dflash2_draft`), docs/results/2026-11-26-inkling2-hip-specflip.md
+// ------------------------------------------------------------------------------------------------------------------
+
+fn recipe_with(backend: &str, f: &dyn Fn(&mut intarsia_core::recipe::BackendTuning)) -> intarsia_core::recipe::Recipe {
+    let mut r = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
+    f(r.tuning.backends.entry(backend.to_string()).or_default());
+    r
+}
+
+#[test]
+fn recipe_dflash2_default_finds_the_drafter_or_falls_back() {
+    use intarsia_models::load::{dflash2_default_draft, Dflash2Default};
+    if target_dir().is_none() {
+        eprintln!("skipped: no tiny fixtures");
+        return;
+    }
+    let ink = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
+    assert_eq!(ink.dflash2_draft("hip"), Some("Inkling-2-Mini-DFlash2"), "recipes/inkling2.toml [tuning.hip] dflash2_draft");
+    assert_eq!(ink.dflash2_k("hip"), Some(4));
+    let dd = draft_dir();
+    let model_dir = dd.parent().unwrap().join("Inkling-2-Mini"); // need not exist: only its parent is read
+    for b in ["metal", "cuda", "cpu"] {
+        assert_eq!(dflash2_default_draft(&ink, b, &model_dir, None), Dflash2Default::NotSet, "{b}: no DFlash2 default");
+    }
+    // the key is per backend: with the drafter findable next to the checkpoint (as on endor, where it sits beside the snapshot), a recipe
+    // whose hip table names it still gives metal and cuda no DFlash2 default (once Metal takes DFlash2 drafts, lane ink-metal-dflash2,
+    // only the recipe key keeps its default DSpark)
+    let found = recipe_with("hip", &|t| t.dflash2_draft = Some(dd.file_name().unwrap().to_str().unwrap().to_string()));
+    let beside = dd.parent().unwrap().join("checkpoint");
+    assert!(matches!(dflash2_default_draft(&found, "hip", &beside, None), Dflash2Default::Found(..)), "hip finds the drafter beside the checkpoint");
+    for b in ["metal", "cuda", "cpu"] {
+        assert_eq!(dflash2_default_draft(&found, b, &beside, None), Dflash2Default::NotSet, "{b}: the drafter is there, but no {b} key");
+    }
+    let name = dd.file_name().unwrap().to_str().unwrap().to_string();
+    let sib = recipe_with("cpu", &|t| {
+        t.dflash2_draft = Some(name.clone());
+        t.dflash2_k = Some(4);
+    });
+    assert_eq!(dflash2_default_draft(&sib, "cpu", &model_dir, None), Dflash2Default::Found(dd.clone(), 4), "a sibling of the checkpoint");
+    assert_eq!(dflash2_default_draft(&sib, "cpu", &model_dir, Some("1")), Dflash2Default::Found(dd.clone(), 4));
+    assert_eq!(dflash2_default_draft(&sib, "cpu", &model_dir, Some("0")), Dflash2Default::Off, "INTARSIA_SPEC_DFLASH2_DEFAULT=0 reverts");
+    let abs = recipe_with("cpu", &|t| t.dflash2_draft = Some(dd.to_str().unwrap().to_string()));
+    assert_eq!(dflash2_default_draft(&abs, "cpu", Path::new("/nowhere/at/all"), None), Dflash2Default::Found(dd.clone(), BLOCK - 1), "absolute; k = block - 1");
+    // a missing drafter, or a directory that is not a DFlash2 draft: Missing (the DSpark default), never an error
+    let missing = recipe_with("cpu", &|t| t.dflash2_draft = Some("no-such-drafter".into()));
+    assert!(matches!(dflash2_default_draft(&missing, "cpu", &model_dir, None), Dflash2Default::Missing(..)));
+    let tgt = recipe_with("cpu", &|t| t.dflash2_draft = Some(target_dir().unwrap().to_str().unwrap().to_string()));
+    assert!(matches!(dflash2_default_draft(&tgt, "cpu", &model_dir, None), Dflash2Default::Missing(..)), "the target is no draft");
+    let ds = golden().join("inkling2-tiny-dspark");
+    if ds.join("config.json").exists() {
+        let r = recipe_with("cpu", &|t| t.dflash2_draft = Some(ds.to_str().unwrap().to_string()));
+        assert!(matches!(dflash2_default_draft(&r, "cpu", &model_dir, None), Dflash2Default::Missing(..)), "a DSpark checkpoint is no DFlash2 draft");
+    }
+}
+
+/// The tiny target with Inkling-2's DSpark draft (`golden/inkling2-tiny-dspark`, `ds`) and/or the DFlash2 draft (`dd`), on `recipe`:
+/// `ds` + `dd` = option (a)'s dual load (DSpark first, DFlash2 second at `k2`); verify passes for the larger k.
+fn dual_model(recipe: &intarsia_core::recipe::Recipe, ds: Option<&Path>, dd: Option<&Path>, k: usize, k2: usize) -> (Model, Arc<Telemetry>) {
+    let (_, dims) = recipe_dims();
+    let src = SafeTensors::open_dir(&target_dir().unwrap()).unwrap();
+    let open = |d: &Path| intarsia_models::load::open_dflash(Some(d), false).unwrap();
+    let (dflash, dflash_alt) = match (ds, dd) {
+        (Some(a), b) => (Some(open(a)), b.map(open)),
+        (None, b) => (b.map(open), None),
+    };
+    let draft = dflash.is_some();
+    let tel = Arc::new(Telemetry::new());
+    let dflash_alt_k = if dflash_alt.is_some() { k2 } else { 0 };
+    let opts = LoadOptions { max_seq: 256, prefill_chunk: 16, graphs: false, dflash, dflash_alt, dflash_alt_k, ..Default::default() };
+    let mut m = Model::load(backend(false), recipe, &dims, &src, &opts, tel.clone()).unwrap();
+    if draft {
+        m.enable_verify(k.max(dflash_alt_k) + 1).unwrap();
+        m.configure_plan(&Default::default(), Some(&*intarsia_backend_cpu::CpuBackend::arc())).unwrap();
+    }
+    (m, tel)
+}
+
+fn dual_engine(recipe: &intarsia_core::recipe::Recipe, ds: Option<&Path>, dd: Option<&Path>, k: usize, k2: usize) -> (LocalEngine, Arc<Telemetry>) {
+    let (m, tel) = dual_model(recipe, ds, dd, k, k2);
+    let spec = if ds.is_some() || dd.is_some() { SpecConfig { mode: SpecMode::Dflash, k, k_min: None } } else { SpecConfig::default() };
+    let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-ink-dual".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone()).unwrap();
+    (e, tel)
+}
+
+/// A request (`temperature` 0 = greedy) on `e`: its ids and the verify passes / proposed / accepted it added to `tel`.
+fn req_on(e: &LocalEngine, tel: &Telemetry, prompt: &[u32], n: usize, temperature: f32, seed: u64) -> (Vec<u32>, (u64, u64, u64)) {
+    let s0 = tel.snapshot();
+    let req = GenRequest { prompt: prompt.to_vec(), max_tokens: n, temperature, top_k: 0, top_p: 1.0, seed: Some(seed), ignore_eos: true, ..Default::default() };
+    let mut v = vec![];
+    e.generate(req, &mut |ev| match ev {
+        GenEvent::Token { id, .. } => v.push(id),
+        GenEvent::Error { message } => panic!("engine error: {message}"),
+        _ => {}
+    })
+    .unwrap();
+    let s1 = tel.snapshot();
+    (v, (s1.spec_steps - s0.spec_steps, s1.spec_proposed - s0.spec_proposed, s1.spec_accepted - s0.spec_accepted))
+}
+
+/// The DSpark draft's per-step gate and cut off (`INTARSIA_DSPARK_TAU=0`, `INTARSIA_DSPARK_CUT=0`, read at load, as
+/// `tests/ink_sampled`'s `gate_off`): on the tiny random model it would otherwise propose nothing, and the sampled checks would be vacuous.
+fn dspark_gate_off() {
+    static ONCE: Mutex<()> = Mutex::new(());
+    let _g = ONCE.lock().unwrap();
+    std::env::set_var("INTARSIA_DSPARK_TAU", "0");
+    std::env::set_var("INTARSIA_DSPARK_CUT", "0");
+}
+
+fn sampled_env_unset() -> bool {
+    let unset = ["INTARSIA_SPEC_SAMPLED_DFLASH", "INTARSIA_SPEC_SAMPLED_ADAPT"].iter().all(|v| std::env::var(v).map_or(true, |x| x.is_empty()));
+    if !unset {
+        eprintln!("skipped: run without INTARSIA_SPEC_SAMPLED_DFLASH / INTARSIA_SPEC_SAMPLED_ADAPT");
+    }
+    unset
+}
+
+/// Option (a) (lane ink-hip-specflip; coordinator 2026-11-27 00:08): both drafts loaded, a greedy request drafts with DFlash2 at its own
+/// k and a sampled one with DSpark (the recipe's `sampled_dflash`, flip A). A fresh request drafts exactly as the one-draft engine of its
+/// draft does (the same verify passes, proposals and acceptances: DFlash2 k2 for greedy, DSpark k for sampled). In one conversation,
+/// greedy -> sampled -> greedy -> sampled turns (each prompt extends the last reply, so the state reuses its prefix and swaps drafts)
+/// emit exactly `--spec off`'s ids, at T 1.0 and 0.6.
+#[test]
+fn dual_drafts_greedy_with_dflash2_sampled_with_dspark_and_keep_spec_off_ids() {
+    let ds = golden().join("inkling2-tiny-dspark");
+    if target_dir().is_none() || !ds.join("config.json").exists() || !sampled_env_unset() {
+        eprintln!("skipped: no tiny fixtures");
+        return;
+    }
+    dspark_gate_off();
+    let name = backend(false).name().to_string();
+    let r = recipe_with(&name, &|t| t.sampled_dflash = Some(true));
+    let dd = draft_dir();
+    let (k, k2) = (5usize, 4usize);
+    let (dual, dtel) = dual_engine(&r, Some(&ds), Some(&dd), k, k2);
+    let (off, otel) = dual_engine(&r, None, None, k, k2);
+    for p in prompts() {
+        // first requests of fresh engines: the dual engine drafts each with the draft of its kind, as the one-draft engine does
+        let (e1, t1) = dual_engine(&r, Some(&ds), Some(&dd), k, k2);
+        let (g1, t1g) = dual_engine(&r, None, Some(&dd), k2, 0);
+        let a = req_on(&e1, &t1, &p, 24, 0.0, 0);
+        let b = req_on(&g1, &t1g, &p, 24, 0.0, 0);
+        assert_eq!(a, b, "greedy: dual vs DFlash2 k{k2} alone, prompt {p:?}");
+        assert!(a.1 .0 > 0, "greedy request never drafted (vacuous)");
+        let (e2, t2) = dual_engine(&r, Some(&ds), Some(&dd), k, k2);
+        let (s1, t1s) = dual_engine(&r, Some(&ds), None, k, 0);
+        let a = req_on(&e2, &t2, &p, 24, 1.0, 7);
+        let b = req_on(&s1, &t1s, &p, 24, 1.0, 7);
+        assert_eq!(a, b, "sampled: dual vs DSpark k{k} alone, prompt {p:?}");
+        assert!(a.1 .0 > 0, "sampled request never drafted (vacuous)");
+        // one conversation, turns of both kinds, on the long-lived engines: ids = --spec off
+        let mut ctx = p.clone();
+        for (turn, (t, seed)) in [(0.0f32, 0u64), (1.0, 3), (0.0, 0), (0.6, 11), (1.0, 5)].into_iter().enumerate() {
+            let (x, _) = req_on(&dual, &dtel, &ctx, 20, t, seed);
+            let (y, _) = req_on(&off, &otel, &ctx, 20, t, seed);
+            assert_eq!(x, y, "turn {turn} T {t} seed {seed} prompt {p:?}");
+            ctx.extend_from_slice(&x);
+            ctx.extend_from_slice(&[17, 4, 250]);
+        }
+    }
+    let s = dtel.snapshot();
+    assert!(s.spec_steps > 0, "the conversation never drafted");
+    assert_eq!(otel.snapshot().spec_steps, 0);
+    eprintln!("dual conversation: passes {} proposed {} accepted {}", s.spec_steps, s.spec_proposed, s.spec_accepted);
+}
+
+/// Option (a)'s loads: the second draft adds its weights to the plan (the context shrinks or stays) and no second per-sequence state (one
+/// draft state at a time, `Model::select_dflash` replaces it); without it the load is the DSpark-only one (flip A: the same context). A DFlash2 draft alone (no
+/// DSpark draft) keeps sampled requests plain under the recipe key, greedy ones draft. A second draft that is not DFlash2 is refused.
+#[test]
+fn dual_load_adds_the_second_draft_only_when_given() {
+    let ds = golden().join("inkling2-tiny-dspark");
+    if target_dir().is_none() || !ds.join("config.json").exists() || !sampled_env_unset() {
+        eprintln!("skipped: no tiny fixtures");
+        return;
+    }
+    dspark_gate_off();
+    let name = backend(false).name().to_string();
+    let r = recipe_with(&name, &|t| t.sampled_dflash = Some(true));
+    let dd = draft_dir();
+    let (one, _) = dual_model(&r, Some(&ds), None, 5, 0);
+    let (two, _) = dual_model(&r, Some(&ds), Some(&dd), 5, 4);
+    assert!(!one.has_dflash_alt() && one.dflash_alt_k() == 0);
+    assert!(two.has_dflash_alt() && two.dflash_alt_k() == 4);
+    let (s1, s2) = (one.new_state().unwrap(), two.new_state().unwrap());
+    assert!(s1.dflash.is_some() && !s1.dflash_alt_on, "DSpark alone");
+    assert!(s2.dflash.is_some() && !s2.dflash_alt_on, "dual: the DSpark state first (one draft state at a time)");
+    // a swap replaces the state (the other draft's, empty) and back; without a second draft nothing happens
+    let mut s3 = two.new_state().unwrap();
+    assert!(two.select_dflash(&mut s3, true).unwrap() && s3.dflash_alt_on && s3.dflash.as_ref().is_some_and(|d| d.kv.len == 0 && d.synced));
+    assert!(!two.select_dflash(&mut s3, true).unwrap(), "already the second draft's");
+    assert!(two.select_dflash(&mut s3, false).unwrap() && !s3.dflash_alt_on && s3.dflash.is_some());
+    let mut s4 = one.new_state().unwrap();
+    assert!(!one.select_dflash(&mut s4, true).unwrap() && !s4.dflash_alt_on, "no second draft: no swap");
+    assert!(s2.cap <= s1.cap, "the second draft's weights come out of the KV budget ({} vs {})", s2.cap, s1.cap);
+    assert!(one.spec_sampled_dflash() && two.spec_sampled_dflash(), "sampled requests draft with DSpark in both");
+    let (again, _) = dual_model(&r, Some(&ds), None, 5, 0);
+    assert_eq!(again.new_state().unwrap().cap, s1.cap, "the DSpark-only load is deterministic");
+    // DFlash2 alone: sampled requests plain, greedy ones draft
+    let (m, _) = dual_model(&r, None, Some(&dd), 4, 0);
+    assert!(!m.has_dflash_alt() && !m.spec_sampled_dflash(), "a DFlash2 draft alone keeps sampled requests plain");
+    let (e, tel) = dual_engine(&r, None, Some(&dd), 4, 0);
+    assert_eq!(req_on(&e, &tel, &prompts()[0], 16, 1.0, 1).1 .0, 0, "a sampled request drafted with DFlash2 alone");
+    assert!(req_on(&e, &tel, &prompts()[0], 16, 0.0, 0).1 .0 > 0, "a greedy request did not draft with DFlash2 alone");
+    // the second draft must be DFlash2
+    let (_, dims) = recipe_dims();
+    let src = SafeTensors::open_dir(&target_dir().unwrap()).unwrap();
+    let open = |d: &Path| intarsia_models::load::open_dflash(Some(d), false).unwrap();
+    let opts = LoadOptions { max_seq: 256, prefill_chunk: 16, graphs: false, dflash: Some(open(&dd)), dflash_alt: Some(open(&ds)), dflash_alt_k: 4, ..Default::default() };
+    assert!(Model::load(backend(false), &r, &dims, &src, &opts, Arc::new(Telemetry::new())).is_err(), "a DSpark second draft");
+}

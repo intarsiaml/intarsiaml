@@ -1,0 +1,2 @@
+wall 14.16 s, aggregate 144.7 tok/s, latency median 13.91 s max 14.15 s, prompt tokens 19503, cached 0, ttft median 2.593 max 7.386990070343018, itl p50 0.0566 p99 0.5885
+conc: 16 replies, 2048 tokens -> /home/josef/intarsiaml-ink-hip-specflip/logs/a3-serve-dualM/b16.json

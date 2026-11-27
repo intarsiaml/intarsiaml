@@ -1,0 +1,72 @@
+== default-spec decode
+processes: 8 (8 complete, 7 prompts each); reps ['r1', 'r2', 'r3', 'r4']
+ids identical across every arm and rep: yes
+spec main7: verify passes 2160, proposed 6316, accepted 3200 (50.7 %, 2.48 tokens a pass), 4 processes
+spec specA2: verify passes 2160, proposed 6316, accepted 3200 (50.7 %, 2.48 tokens a pass), 4 processes
+
+| decode, arm / specA2 | short | 1k | 4k | 16k |
+|---|---:|---:|---:|---:|
+| main7 | **1.000** [0.999-1.000; boot 1.000-1.000] | **1.000** [0.999-1.001] | **1.000** [0.999-1.002] | **1.000** [0.998-1.001] |
+
+| decode tok/s, median [range] | short | 1k | 4k | 16k |
+|---|---:|---:|---:|---:|
+| main7 | 98.37 [98.13-98.55] | 102.79 [102.55-102.96] | 117.40 [117.14-117.68] | 91.11 [90.74-91.35] |
+| specA2 | 98.36 [98.16-98.59] | 102.75 [102.57-102.96] | 117.38 [117.11-117.56] | 91.09 [90.88-91.30] |
+
+per process (class geomean tok/s):
+  main7@r1: short 98.24 1k 102.62 4k 117.25 16k 90.94 | spec (540, 1579, 800)
+  main7@r2: short 98.13 1k 102.55 4k 117.14 16k 90.74 | spec (540, 1579, 800)
+  main7@r3: short 98.55 1k 102.96 4k 117.56 16k 91.28 | spec (540, 1579, 800)
+  main7@r4: short 98.50 1k 102.95 4k 117.68 16k 91.35 | spec (540, 1579, 800)
+  specA2@r1: short 98.20 1k 102.57 4k 117.11 16k 90.95 | spec (540, 1579, 800)
+  specA2@r2: short 98.16 1k 102.59 4k 117.21 16k 90.88 | spec (540, 1579, 800)
+  specA2@r3: short 98.59 1k 102.96 4k 117.56 16k 91.23 | spec (540, 1579, 800)
+  specA2@r4: short 98.52 1k 102.92 4k 117.54 16k 91.30 | spec (540, 1579, 800)
+
+tokens per verify pass (passes and accepted summed over the processes): | short | 1k | 4k | 16k |
+| main7 | 2.31 | 2.68 | 3.22 | 2.47 |
+| specA2 | 2.31 | 2.68 | 3.22 | 2.47 |
+
+prefill tok/s per class (median over processes of the class's summed tokens / summed ms): | short | 1k | 4k | 16k |
+| main7 | 592 | 2805 | 3467 | 3272 |
+| specA2 | 594 | 2805 | 3467 | 3273 |
+
+== plain decode (--spec off)
+processes: 8 (8 complete, 6 prompts each); reps ['r1', 'r2', 'r3', 'r4']
+ids identical across every arm and rep: yes
+spec main7: verify passes 0, proposed 0, accepted 0 (0.0 %, 0.00 tokens a pass), 4 processes
+spec specA2: verify passes 0, proposed 0, accepted 0 (0.0 %, 0.00 tokens a pass), 4 processes
+
+| decode, arm / specA2 | short | 4k | 16k |
+|---|---:|---:|---:|
+| main7 | **1.000** [1.000-1.001; boot 1.000-1.001] | **1.000** [0.999-1.000] | **1.000** [1.000-1.000] |
+
+| decode tok/s, median [range] | short | 4k | 16k |
+|---|---:|---:|---:|
+| main7 | 83.65 [83.50-83.77] | 80.28 [80.14-80.41] | 75.26 [75.15-75.38] |
+| specA2 | 83.61 [83.45-83.78] | 80.29 [80.18-80.43] | 75.28 [75.15-75.38] |
+
+per process (class geomean tok/s):
+  main7@r1: short 83.50 4k 80.17 16k 75.15 | spec (0, 0, 0)
+  main7@r2: short 83.53 4k 80.14 16k 75.15 | spec (0, 0, 0)
+  main7@r3: short 83.77 4k 80.40 16k 75.38 | spec (0, 0, 0)
+  main7@r4: short 83.77 4k 80.41 16k 75.38 | spec (0, 0, 0)
+  specA2@r1: short 83.50 4k 80.18 16k 75.15 | spec (0, 0, 0)
+  specA2@r2: short 83.45 4k 80.19 16k 75.18 | spec (0, 0, 0)
+  specA2@r3: short 83.71 4k 80.43 16k 75.37 | spec (0, 0, 0)
+  specA2@r4: short 83.78 4k 80.39 16k 75.38 | spec (0, 0, 0)
+
+tokens per verify pass (passes and accepted summed over the processes): | short | 4k | 16k |
+| main7 | - | - | - |
+| specA2 | - | - | - |
+
+prefill tok/s per class (median over processes of the class's summed tokens / summed ms): | short | 4k | 16k |
+| main7 | 596 | 3481 | 3279 |
+| specA2 | 596 | 3481 | 3281 |
+
+== prefill, default path
+prefill len4k: main7 / specA2 **1.000** [0.998-1.002] n 4; main7 tok/s median 3467
+prefill len16k: main7 / specA2 **1.000** [0.998-1.002] n 4; main7 tok/s median 3272
+== prefill, plain runs
+prefill len4k: main7 / specA2 **1.000** [0.999-1.001] n 4; main7 tok/s median 3481
+prefill len16k: main7 / specA2 **1.000** [0.999-1.001] n 4; main7 tok/s median 3279

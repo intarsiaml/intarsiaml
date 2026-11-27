@@ -1293,13 +1293,15 @@ impl Model {
         // only for a request that drafts (a sampled or plain request leaves its draft state inactive and never ingests)
         let drafting = st.dflash.as_ref().is_some_and(|d| d.active && d.synced);
         // (and a DFlash2 draft's, lane ink-dflash2: the same visits, one staging buffer per tap as `dflash_ingest` reads them)
-        let (ds_taps, ds_feat): (&[usize], &[Buffer]) = match self.dflash.as_ref().filter(|h| (h.dspark.is_some() || h.v2.is_some()) && drafting) {
+        // (lane ink-hip-specflip (a): the draft this state's `dflash` belongs to, the first or the second)
+        let dhead = self.dflash_of(st.dflash_alt_on);
+        let (ds_taps, ds_feat): (&[usize], &[Buffer]) = match dhead.filter(|h| (h.dspark.is_some() || h.v2.is_some()) && drafting) {
             Some(h) if t <= h.feat_rows => (&h.taps, &h.feat),
             Some(_) => return Err(Error::invalid(format!("inkling2: a pass of {t} rows is longer than the draft's tap buffers"))),
             None => (&[], &[]),
         };
         // where tap `ti` of this pass goes: DSpark's one tap-major buffer (`[taps * t, d]`), or the DFlash2 draft's own buffer `ti`
-        let per_tap = self.dflash.as_ref().is_some_and(|h| h.dspark.is_none());
+        let per_tap = dhead.is_some_and(|h| h.dspark.is_none());
         let tap_dst = |ti: usize| -> TensorRef {
             if per_tap {
                 TensorRef::new(ds_feat[ti].clone(), act, &[t, d])

@@ -1,0 +1,41 @@
+fleetq: #12529 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=150 BR=dualA6 bash ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/window.sh ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_a4.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_a4.sh; cap 150s; stopping radiance 2026-11-27 01:24:00
+[window] radiance stopped 2026-11-27 01:24:03 (inactive)
+[a4] start 01:24:03 BR dualA6 579b3042313332de02490c3a699dc373 43cd229352e41b02a1b09c53f996c0279e9ca0fa 0 uncommitted
+[a4] def rc 0 01:24:38 | DFlash2 drafter /models/Inkling-2-Mini-DFlash2 (k 4): loaded beside the DSpark default of recipe inkling2 on hip for greedy requests ([tuning.hip] dflash2_draft; sampled requests keep the DSpark draft; INTARSIA_SPEC_DFLASH2_DEFAULT=0 loads the DSpark default alone) free_mem before 9520 MiB free_mem after 9433 MiB (change -87 MiB) 60 requests in 26.2 s; spec verify passes 440 proposed 1473 accepted
+[a4]   def request 0 free 9402 MiB
+[a4]   def request 6 free 9395 MiB
+[a4]   def request 12 free 9395 MiB
+[a4]   def request 18 free 9395 MiB
+[a4]   def request 24 free 9397 MiB
+[a4]   def request 30 free 9395 MiB
+[a4]   def request 36 free 9395 MiB
+[a4]   def request 42 free 9395 MiB
+[a4]   def request 48 free 9395 MiB
+[a4]   def request 54 free 9395 MiB
+[a4]   def request 57 free 9433 MiB
+[a4]   def request 58 free 9395 MiB
+[a4]   def request 59 free 9433 MiB
+[a4] off rc 0 01:25:04 | free_mem before 11400 MiB free_mem after 11338 MiB (change -62 MiB) 60 requests in 21.3 s; spec verify passes 0 proposed 0 accepted 0 
+[a4]   off request 0 free 11340 MiB
+[a4]   off request 6 free 11338 MiB
+[a4]   off request 12 free 11338 MiB
+[a4]   off request 18 free 11338 MiB
+[a4]   off request 24 free 11338 MiB
+[a4]   off request 30 free 11338 MiB
+[a4]   off request 36 free 11338 MiB
+[a4]   off request 42 free 11338 MiB
+[a4]   off request 48 free 11338 MiB
+[a4]   off request 54 free 11338 MiB
+[a4]   off request 57 free 11338 MiB
+[a4]   off request 58 free 11338 MiB
+[a4]   off request 59 free 11338 MiB
+[a4] ids def = off (60)
+[a4] free after request 10 / 60: def 9433 / 9433 MiB (drift 0), off 11338 / 11338 (drift 0)
+[a4] def: largest drop below request 10 over requests 11-60: 38 MiB
+[a4] VERDICT FAIL (drift def 0 <= off 0 + 8: True; largest drop 38 <= 16: False)
+[a4] done 01:25:04
+[window] stage done 2026-11-27 01:25:05 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-27 01:25:05
+[window] radiance answers 2026-11-27 01:25:15 (after 15 s)
+fleetq: #12529 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

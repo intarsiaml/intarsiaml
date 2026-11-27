@@ -1,0 +1,12 @@
+
+running 1 test
+prefill chunk 2048 (recipe inkling2, hip)
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.3 s)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.5 s
+loaded in 5.0 s, INTARSIA_SPEC_SAMPLED_DFLASH=None, draft None
+100 requests in 37.2 s; spec verify passes 0 proposed 0 accepted 0
+test inkling2_sampled_dspark_real_model_runs ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 42.26s
+

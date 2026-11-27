@@ -1,0 +1,17 @@
+
+running 12 tests
+test draft_pass_in_bf16_on_the_backend_matches_host_reference ... ok
+test draft_pass_matches_host_reference ... ok
+test dual_drafts_greedy_with_dflash2_sampled_with_dspark_and_keep_spec_off_ids ... ok
+test dual_load_adds_the_second_draft_only_when_given ... ok
+test greedy_ids_equal_spec_off ... ok
+test inkling_load_checks_visit_taps_and_padded_vocab ... ok
+test partial_acceptance_keeps_ids_identical ... ok
+test recipe_dflash2_default_finds_the_drafter_or_falls_back ... ok
+test routes_by_config_and_parses_the_softcap ... ok
+test runs_with_admitted_kernels_only ... ok
+test taps_are_the_visit_partials_and_the_final_norm ... ok
+test taps_equal_the_dspark_drafts_taps ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 257.89s
+

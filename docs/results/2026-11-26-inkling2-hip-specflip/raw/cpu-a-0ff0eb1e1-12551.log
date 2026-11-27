@@ -1,0 +1,18 @@
+fleetq: #12551 running on endor: bash .scratch/part2b_endor.sh
+[p2b] Metal build (a) 0ff0eb1e1 03:07:55
+cli mdualC df3f03f9c2f674e11c936dad6b4bb43d 0ff0eb1e1e1cd3bd796ea0d34810387afea2453d
+  mt-mdualC-inkling2_sampled_default
+  mt-mdualC-inkling2_dspark_sampled
+  mt-mdualC-inkling2_dspark_sampled_adapt
+  mt-mdualC-inkling2_dspark
+  mt-mdualC-inkling2_dflash2
+[p2b] cpu suite 03:08:28
+[cpu] head 0ff0eb1e1 03:08:28
+[cpu] core-lib rc 0 | passed 283 failed 0 | 
+[cpu] core-scheduler rc 0 | passed 54 failed 0 | 
+[cpu] models rc 0 | passed 635 failed 0 | 
+[cpu] cli rc 0 | passed 208 failed 0 | 
+[cpu] server-lib rc 0 | passed 71 failed 0 | 
+[cpu] done 03:24:22 exit 0
+[p2b] done 03:24:22 exit 0
+fleetq: #12551 done (exit 0)

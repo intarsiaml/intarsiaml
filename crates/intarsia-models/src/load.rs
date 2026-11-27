@@ -818,6 +818,57 @@ fn dspark_default(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, 
     Some(if opts.spec_k_given { opts.spec.k } else { k })
 }
 
+/// What the recipe's DFlash2 default (`[tuning.<backend>] dflash2_draft`, lane ink-hip-specflip flip B) resolves to.
+#[derive(Debug, PartialEq)]
+pub enum Dflash2Default {
+    /// The recipe names no DFlash2 drafter for this backend.
+    NotSet,
+    /// `INTARSIA_SPEC_DFLASH2_DEFAULT=0`: the DSpark default.
+    Off,
+    /// Named but not usable here (the directory, why): the DSpark default, never an error.
+    Missing(PathBuf, String),
+    /// The drafter's directory and k.
+    Found(PathBuf, usize),
+}
+
+/// The recipe's DFlash2 drafter for `backend` beside the checkpoint `model_dir`: `env` is `INTARSIA_SPEC_DFLASH2_DEFAULT` (`0` turns the
+/// default off); the value is an absolute directory or a name next to the checkpoint (`<model_dir>/../<name>`, the parent of the path
+/// as given, symlinks kept); found = its config.json is a DFlash2 draft (`dflash_config`, `DFlash2DraftModel`) and `open_dflash` takes it.
+/// k: the recipe's `dflash2_k`, else the block's drafts.
+pub fn dflash2_default_draft(recipe: &intarsia_core::recipe::Recipe, backend: &str, model_dir: &Path, env: Option<&str>) -> Dflash2Default {
+    let Some(name) = recipe.dflash2_draft(backend) else { return Dflash2Default::NotSet };
+    if env.is_some_and(|v| v.trim() == "0") {
+        return Dflash2Default::Off;
+    }
+    let p = Path::new(name);
+    let d = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        let m = std::path::absolute(model_dir).unwrap_or_else(|_| model_dir.to_path_buf());
+        m.parent().map_or_else(|| p.to_path_buf(), |par| par.join(p))
+    };
+    let cfg = match std::fs::read(d.join("config.json")) {
+        Ok(b) => b,
+        Err(e) => return Dflash2Default::Missing(d, format!("config.json: {e}")),
+    };
+    let v: Value = match serde_json::from_slice(&cfg) {
+        Ok(v) => v,
+        Err(e) => return Dflash2Default::Missing(d, format!("config.json: {e}")),
+    };
+    let dflash2 = v.get("dflash_config").is_some()
+        && v.get("architectures").and_then(Value::as_array).is_some_and(|a| a.iter().any(|x| x.as_str() == Some("DFlash2DraftModel")));
+    if !dflash2 {
+        return Dflash2Default::Missing(d, "not a DFlash2 draft (dflash_config + DFlash2DraftModel)".into());
+    }
+    match open_dflash(Some(d.as_path()), false) {
+        Ok(dl) if dl.config.v2 && dl.config.spine.is_none() && dl.config.dspark.is_none() => {
+            Dflash2Default::Found(d, recipe.dflash2_k(backend).unwrap_or(dl.config.block.saturating_sub(1)).max(1))
+        }
+        Ok(_) => Dflash2Default::Missing(d, "not a DFlash2 draft".into()),
+        Err(e) => Dflash2Default::Missing(d, e.to_string()),
+    }
+}
+
 /// The checkpoint holds Inkling-2's DSpark draft: `mtp_config` in its config.json and `mtp.safetensors` beside it.
 fn dspark_draft_present(cfg: &Value, dir: &Path) -> bool {
     cfg.get("mtp_config").is_some() && dir.join("mtp.safetensors").exists()
@@ -978,11 +1029,59 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let dspark_opts: EngineOptions;
     let dflash2_ink_opts: EngineOptions;
     let dspark_dflt_opts: EngineOptions;
+    let dflash2_dflt_opts: EngineOptions;
     let mut opts = opts;
     let mut dspark_dflt = false;
+    // lane ink-hip-specflip (flip B, option (a); coordinator 2026-11-27 00:08): the recipe's DFlash2 drafter, when found, loads beside the
+    // DSpark default below: greedy requests draft with it (k `dflash2_k`), sampled ones keep the DSpark draft. Without the DSpark draft in
+    // the checkpoint it is the default alone (greedy requests draft with it, sampled ones stay plain). Not found, or
+    // INTARSIA_SPEC_DFLASH2_DEFAULT=0: the DSpark default alone, as before (DFlash2 not read)
+    let mut dflash2_alt: Option<(PathBuf, usize)> = None;
+    let mut dflash2_dflt = false;
+    if dspark_default(opts, &recipe, backend_name, backends.len(), local).is_some() {
+        match dflash2_default_draft(&recipe, backend_name, dir, std::env::var("INTARSIA_SPEC_DFLASH2_DEFAULT").ok().as_deref()) {
+            Dflash2Default::Found(d, k2) => {
+                let k2 = if opts.spec_k_given { opts.spec.k } else { k2 };
+                let kn = if opts.spec_k_given { " (k from --spec-k)" } else { "" };
+                if dspark_draft_present(&cfg, dir) {
+                    eprintln!(
+                        "DFlash2 drafter {} (k {k2}{kn}): loaded beside the DSpark default of recipe {} on {backend_name} for greedy requests \
+                         ([tuning.{backend_name}] dflash2_draft; sampled requests keep the DSpark draft; INTARSIA_SPEC_DFLASH2_DEFAULT=0 loads the \
+                         DSpark default alone)",
+                        d.display(),
+                        recipe.model.family
+                    );
+                    dflash2_alt = Some((d, k2));
+                } else {
+                    eprintln!(
+                        "--spec dflash --spec-draft {} --spec-k {k2}{kn}: the DFlash2 default of recipe {} on {backend_name} ([tuning.{backend_name}] \
+                         dflash2_draft; no DSpark draft in this checkpoint: greedy requests draft with DFlash2, sampled ones stay plain; \
+                         INTARSIA_SPEC_DFLASH2_DEFAULT=0 turns it off)",
+                        d.display(),
+                        recipe.model.family
+                    );
+                    let mut o = opts.clone();
+                    o.spec = intarsia_core::spec::SpecConfig { mode: intarsia_core::spec::SpecMode::Dflash, k: k2, k_min: None };
+                    o.spec_draft = Some(d);
+                    dflash2_dflt_opts = o;
+                    opts = &dflash2_dflt_opts;
+                    dflash2_dflt = true;
+                }
+            }
+            Dflash2Default::Off => {
+                eprintln!("DFlash2 drafter of recipe {} on {backend_name} off (INTARSIA_SPEC_DFLASH2_DEFAULT=0): the DSpark default alone", recipe.model.family)
+            }
+            Dflash2Default::Missing(d, why) => eprintln!(
+                "DFlash2 drafter of recipe {} on {backend_name} not loaded: {}: {why}; the DSpark default alone",
+                recipe.model.family,
+                d.display()
+            ),
+            Dflash2Default::NotSet => {}
+        }
+    }
     // brief 32 (user decision 5): Inkling-2 speculates with its own DSpark draft when no `--spec` is given, where the recipe sets
     // `[tuning.<backend>] mtp_default_k` (CUDA and Metal: k3; HIP: k5), one sequence at one rank; sampled requests take plain steps
-    if let Some(k) = dspark_default(opts, &recipe, backend_name, backends.len(), local) {
+    if let Some(k) = dspark_default(opts, &recipe, backend_name, backends.len(), local).filter(|_| !dflash2_dflt) {
         if dspark_draft_present(&cfg, dir) {
             eprintln!(
                 "--spec dflash --spec-draft <model dir> --spec-k {k}{}: the DSpark default of recipe {} on {backend_name} ([tuning.{backend_name}] \
@@ -1087,6 +1186,19 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         // a rank in another process (lane d2r): a dense MTP head runs whole on rank 0 (`serve_remote_rank` sets the same)
         mtp_whole: opts.load.mtp_whole || matches!(group, Group::Remote { .. }),
         dflash,
+        // lane ink-hip-specflip (a): the DFlash2 drafter beside the DSpark default (greedy requests); read here, after the target's
+        // checks; a drafter that fails to open now is skipped (one line), never an error
+        dflash_alt: match dflash2_alt.as_ref().filter(|_| dspark_dflt) {
+            Some((d, _)) => match open_dflash(Some(d.as_path()), false) {
+                Ok(dl) => Some(dl),
+                Err(e) => {
+                    eprintln!("DFlash2 drafter {} not loaded: {e}; the DSpark default alone", d.display());
+                    None
+                }
+            },
+            None => None,
+        },
+        dflash_alt_k: dflash2_alt.as_ref().map_or(0, |(_, k)| *k),
         // a model loaded to batch packs no P12 copies (its plan drops them; lane ink-hip-p12)
         batched: max_batch.value > 1,
         ..opts.load.clone()
@@ -1230,7 +1342,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
                 )));
             }
         }
-        model.enable_verify(opts.spec.verify_rows())?;
+        // (lane ink-hip-specflip (a): rows for the second draft's k too)
+        model.enable_verify(opts.spec.verify_rows().max(if model.has_dflash_alt() { model.dflash_alt_k() + 1 } else { 0 }))?;
     }
     // lane mx6: batched verify is resolved ONCE, before the plan (below) and used again for the engine's option, so the plan covers
     // exactly the passes the engine may run

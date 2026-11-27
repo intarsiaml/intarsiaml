@@ -1,0 +1,26 @@
+
+running 1 test
+prefill chunk 2048 (recipe inkling2, hip)
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.3 s)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.7 s
+loaded in 5.2 s, INTARSIA_SPEC_SAMPLED_DFLASH=None, draft None
+free_mem before 11400 MiB
+request 0 T 0 seed 0: wall 386.2 ms, ttft 90.7 ms
+request 1 T 1 seed 0: wall 450.9 ms, ttft 53.1 ms
+request 2 T 0 seed 1: wall 349.8 ms, ttft 54.4 ms
+request 3 T 1 seed 1: wall 485.3 ms, ttft 61.4 ms
+request 4 T 0 seed 2: wall 349.0 ms, ttft 53.7 ms
+request 5 T 1 seed 2: wall 451.4 ms, ttft 57.5 ms
+request 6 T 0 seed 3: wall 346.0 ms, ttft 53.8 ms
+request 7 T 1 seed 3: wall 384.2 ms, ttft 52.5 ms
+request 8 T 0 seed 4: wall 357.4 ms, ttft 65.9 ms
+request 9 T 1 seed 4: wall 377.4 ms, ttft 52.4 ms
+request 10 T 0 seed 5: wall 342.1 ms, ttft 51.6 ms
+request 11 T 1 seed 5: wall 373.7 ms, ttft 52.3 ms
+free_mem after 11338 MiB (change -62 MiB)
+12 requests in 4.7 s; spec verify passes 0 proposed 0 accepted 0
+test inkling2_sampled_dspark_real_model_runs ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.95s
+

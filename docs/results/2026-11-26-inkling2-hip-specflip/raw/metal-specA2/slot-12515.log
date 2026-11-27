@@ -1,0 +1,15 @@
+fleetq: #12515 running on endor: env MAIN=mmain2 BR=mspecA2 TAG=specA2 bash docs/results/2026-11-26-inkling2-hip-specflip/raw/metal_slot.sh
+[metal] start 01:00:17
+[metal] bin mmain2 086cf3166ebaa700474f3ccf22ffdbc0 1bf40e29fff941a998f10fe2f7c045cc92a5ad87
+[metal] bin mspecA2 c235cbeacb8643294402ba2a8c1b712b 8c4400fecfbf94109f6a29b5a99cb00bed16af47
+[metal] md5 mmain2 off rc 0 01:00:30 ids-md5 d93147da26f2e6b532dde683564b544b lines 2 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[metal] md5 mmain2 def rc 0 01:00:44 ids-md5 d93147da26f2e6b532dde683564b544b lines 2 | spec: verify passes=169 proposed=429 accepted=311 (acceptance 72.5%, 2.84 tokens per pass)
+[metal] md5 mspecA2 off rc 0 01:00:57 ids-md5 d93147da26f2e6b532dde683564b544b lines 2 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[metal] md5 mspecA2 def rc 0 01:01:11 ids-md5 d93147da26f2e6b532dde683564b544b lines 2 | spec: verify passes=169 proposed=429 accepted=311 (acceptance 72.5%, 2.84 tokens per pass)
+[metal] mspecA2 sampled default rc 0 01:01:21 | --spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on metal ([tuning.metal] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) --spec dflash on metal: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row) sampled requests (temperature > 0): DFlash-family drafting off (default; single sequence, one rank, seed-exact keyed rule) 
+[metal] mspecA2 tiny inkling2_sampled_default (metal) rc 0 01:02:26 | test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.62s | 
+[metal] mspecA2 tiny inkling2_dspark_sampled (metal) rc 0 01:03:57 | test result: ok. 2 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 90.62s | 
+[metal] mspecA2 tiny inkling2_dspark_sampled_adapt (metal) rc 0 01:06:28 | test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 150.23s | 
+[metal] mspecA2 tiny inkling2_dspark (metal) rc 0 01:09:58 | test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 209.94s | 
+[metal] done 01:09:58
+fleetq: #12515 done (exit 0)
