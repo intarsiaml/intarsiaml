@@ -1,0 +1,21 @@
+processes: 8 (8 complete, 7 prompts each); reps ['c0a', 'c0b', 'c1a', 'c1b']
+ids identical across every arm and rep: yes
+spec new: verify passes 0, proposed 0, accepted 0 (0.0 %, 0.00 tokens a pass), 4 processes
+
+| decode, arm / old | short | 4k | 16k |
+|---|---:|---:|---:|
+| new | **1.084** [1.082-1.087; boot 1.083-1.086] | **1.081** [1.080-1.082] | **1.075** [1.074-1.077] |
+
+| decode tok/s, median [range] | short | 4k | 16k |
+|---|---:|---:|---:|
+| new | 83.69 [83.56-83.99] | 80.35 [80.21-80.52] | 75.31 [75.22-75.44] |
+
+per process (class geomean tok/s):
+  new@c0a: short 83.59 4k 80.25 16k 75.23 | spec (0, 0, 0)
+  new@c0b: short 83.56 4k 80.21 16k 75.22 | spec (0, 0, 0)
+  new@c1a: short 83.99 4k 80.52 16k 75.44 | spec (0, 0, 0)
+  new@c1b: short 83.79 4k 80.45 16k 75.40 | spec (0, 0, 0)
+  old@c0a: short 77.06 4k 74.28 16k 70.02 | spec (0, 0, 0)
+  old@c0b: short 77.12 4k 74.24 16k 69.94 | spec (0, 0, 0)
+  old@c1a: short 77.32 4k 74.44 16k 70.09 | spec (0, 0, 0)
+  old@c1b: short 77.33 4k 74.41 16k 70.09 | spec (0, 0, 0)

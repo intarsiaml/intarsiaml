@@ -1,0 +1,11 @@
+MD5 comb dflt 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | up to 5 drafts | decode 730 ms (86.36 tok/s) | t+13s
+MD5 comb off 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 |  | decode 791 ms (79.65 tok/s) | t+21s
+MD5 comb dflt 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | up to 5 drafts | decode 2355 ms (108.27 tok/s) | t+34s
+MD5 comb off 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 |  | decode 3175 ms (80.32 tok/s) | t+45s
+[plain] new@c1a rc 0 t+79s | decode overall: 1785 tokens after the first, 21741 ms (82.10 tok/s)
+[plain] old@c1a rc 0 t+114s | decode overall: 1785 tokens after the first, 23567 ms (75.74 tok/s)
+[plain] old@c1b rc 0 t+149s | decode overall: 1785 tokens after the first, 23566 ms (75.75 tok/s)
+[plain] new@c1b rc 0 t+183s | decode overall: 1785 tokens after the first, 21782 ms (81.95 tok/s)
+MD5 main2 dflt 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | up to 3 drafts | decode 779 ms (80.91 tok/s) | t+194s
+MD5 main2 off 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 |  | decode 857 ms (73.52 tok/s) | t+201s
+[c1] done 18:32:25

@@ -1,0 +1,35 @@
+fleetq: #12264 running on tatooine-r9700, tatooine-r9700-2: bash -c 'ssh -o BatchMode=yes tatooine '"'"'test -x ~/intarsiaml-ink-hip-bpf/.scratch/bin/intarsia-b13 && test -x ~/intarsiaml-ink-hip-bpf/.scratch/bin/intarsia-main4'"'"' < /dev/null || { echo '"'"'binaries missing: no window'"'"'; exit 3; }; env VISITS=/opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/visits-w10.txt OUT=/opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/w10 CAP=272 LE_MIN=20 LE_MARGIN=6 BG=stage_w10bg.sh BG_CAP=245 bash /opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/serve_window.sh'
+[19:02:34] radiance down
+[19:02:34] background stage stage_w10bg.sh started (cap 245 s)
+[19:02:34] A1: start (main4; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[19:02:53] A1: up (IP 172.17.0.3 after 18s ; 253 s left)
+[19:03:04] A1 k1 r1: localeval exit 0 (242 s left): [localeval] 4 streams: aggregate 113.5 tok/s 
+[19:04:16] A1: wait /home/josef/intarsiaml-ink-hip-bpf/logs/w10/b13-primed exit 0 (170 s left)
+[19:04:18] A1: stopped: VRAM peak A1: card0 28495 MiB, card1 28610 MiB
+[19:04:18] B1: start (b13; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[19:04:35] B1: up (IP 172.17.0.3 after 17s ; 151 s left)
+[19:04:41] B1: bitwise conc:4:0 exit 0 (145 s left): wall 5.01 s, aggregate 102.3 tok/s, latency median 4.97 s max 5.0 s, prompt tokens 5241, cached 0, ttft median 1.5002 max 2.0245940685272217, itl p50 0.0234 p99 0.1173
+[19:04:46] B1: bitwise conc:4:1 exit 0 (140 s left): wall 5.06 s, aggregate 101.3 tok/s, latency median 5.03 s max 5.05 s, prompt tokens 5406, cached 0, ttft median 1.6109 max 2.067615032196045, itl p50 0.0236 p99 0.434
+[19:04:51] B1: bitwise conc:4:2 exit 0 (135 s left): wall 5.49 s, aggregate 93.2 tok/s, latency median 5.45 s max 5.49 s, prompt tokens 6778, cached 0, ttft median 1.6312 max 2.480686902999878, itl p50 0.0239 p99 0.5647
+[19:04:58] B1: bitwise conc:4:3 exit 0 (128 s left): wall 6.20 s, aggregate 82.6 tok/s, latency median 6.15 s max 6.19 s, prompt tokens 8327, cached 0, ttft median 2.314 max 3.2046279907226562, itl p50 0.0239 p99 0.5792
+[19:05:06] B1: bitwise conc:8:0 exit 0 (120 s left): wall 8.64 s, aggregate 118.5 tok/s, latency median 8.54 s max 8.63 s, prompt tokens 12019, cached 0, ttft median 1.9076 max 4.4976561069488525, itl p50 0.0334 p99 0.5927
+[19:05:16] B1: bitwise conc:8:1 exit 0 (110 s left): wall 9.14 s, aggregate 112.0 tok/s, latency median 9.02 s max 9.14 s, prompt tokens 13733, cached 0, ttft median 2.1029 max 5.040493011474609, itl p50 0.0332 p99 0.5932
+[19:05:32] B1: bitwise conc exit 0 (94 s left): wall 16.39 s, aggregate 125.0 tok/s, latency median 16.14 s max 16.38 s, prompt tokens 25752, cached 0, ttft median 3.3489 max 9.637734174728394, itl p50 0.0573 p99 0.6945
+[19:05:42] B1 k1 r1: localeval exit 0 (84 s left): [localeval] 4 streams: aggregate 113.8 tok/s 
+[19:05:54] B1 k2 r1: localeval exit 0 (72 s left): [localeval] 4 streams: aggregate 112.5 tok/s 
+[19:05:56] B1: stopped: VRAM peak B1: card0 28531 MiB, card1 20767 MiB
+[19:05:56] A2: start (main4; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[19:06:14] A2: up (IP 172.17.0.2 after 17s ; 52 s left)
+[19:06:25] A2 k2 r1: localeval exit 0 (41 s left): [localeval] 4 streams: aggregate 110.5 tok/s 
+[19:06:27] A2: stopped: VRAM peak A2: card0 28495 MiB, card1 57 MiB
+[19:06:27] visits done (39 s left)
+[19:06:27] waiting for the background stage
+[19:06:27] background stage ended: [bg] done 2026-11-26 19:05:56
+[19:06:38] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/hold.sh; cap 270s; stopping radiance 2026-11-26 19:02:30
+[window] radiance stopped 2026-11-26 19:02:34 (inactive)
+[window] stage done 2026-11-26 19:06:28 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 19:06:28
+[window] radiance answers 2026-11-26 19:06:38 (after 15 s)
+fleetq: #12264 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit $?
