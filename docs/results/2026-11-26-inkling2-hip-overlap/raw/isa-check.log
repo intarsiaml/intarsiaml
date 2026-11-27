@@ -6,3 +6,55 @@ fleetq: #12325 waiting (#3 in line): in line behind #12323 "ink-hip-i8: W2 retun
 fleetq:   #12323 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12323 set, or it will wait for #12323 to be released.
 fleetq: #12325 waiting (#2 in line): in line behind #12324 "ink-dflash2: hip build of the PR head (merged main a4c8f3b19), compile check" (claude-04c0e1cd) on tatooine-r9700
 fleetq:   #12324 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12324 set, or it will wait for #12324 to be released.
+fleetq: #12325 running on tatooine-r9700: ssh tatooine 'bash intarsiaml-ink-hip-bpf/.scratch/isa_check.sh'
+asm done
+ink_mix.hip: 28 kernels identical, 4 differ, 1 only in main, 1 only in the branch
+  DIFF _ZN12_GLOBAL__N_121ink_blend_gate_kernelILb1ELb1EEEvPK7ik_bf16S3_S3_PKfS5_PfS6_iiiiiNS_8GateNormE (5758 -> 5762 instructions)
+  DIFF _ZN12_GLOBAL__N_121ink_blend_gate_kernelILb1ELb0EEEvPK7ik_bf16S3_S3_PKfS5_PfS6_iiiiiNS_8GateNormE (5787 -> 5791 instructions)
+  DIFF _ZN12_GLOBAL__N_121ink_blend_gate_kernelILb0ELb1EEEvPK7ik_bf16S3_S3_PKfS5_PfS6_iiiiiNS_8GateNormE (1773 -> 1775 instructions)
+  DIFF _ZN12_GLOBAL__N_121ink_blend_gate_kernelILb0ELb0EEEvPK7ik_bf16S3_S3_PKfS5_PfS6_iiiiiNS_8GateNormE (1802 -> 1804 instructions)
+  ONLY-MAIN __hip_cuid_9477acf9c7e1fd7b
+  ONLY-BRANCH __hip_cuid_95ad2e3625058e4d
+ink_mix_rows.hip: 52 kernels identical, 4 differ, 1 only in main, 1 only in the branch
+  DIFF _ZN12_GLOBAL__N_121ink_blend_gate_kernelILb1ELb1EEEvPK7ik_bf16S3_S3_PKfS5_PfS6_iiiiiNS_8GateNormE (5758 -> 5762 instructions)
+  DIFF _ZN12_GLOBAL__N_121ink_blend_gate_kernelILb1ELb0EEEvPK7ik_bf16S3_S3_PKfS5_PfS6_iiiiiNS_8GateNormE (5787 -> 5791 instructions)
+  DIFF _ZN12_GLOBAL__N_121ink_blend_gate_kernelILb0ELb1EEEvPK7ik_bf16S3_S3_PKfS5_PfS6_iiiiiNS_8GateNormE (1773 -> 1775 instructions)
+  DIFF _ZN12_GLOBAL__N_121ink_blend_gate_kernelILb0ELb0EEEvPK7ik_bf16S3_S3_PKfS5_PfS6_iiiiiNS_8GateNormE (1802 -> 1804 instructions)
+  ONLY-MAIN __hip_cuid_32428b976a076dd2
+  ONLY-BRANCH __hip_cuid_b019274825337c14
+ink_mix_segs.hip: 53 kernels identical, 4 differ, 1 only in main, 1 only in the branch
+  DIFF _ZN12_GLOBAL__N_121ink_blend_gate_kernelILb1ELb1EEEvPK7ik_bf16S3_S3_PKfS5_PfS6_iiiiiNS_8GateNormE (5758 -> 5762 instructions)
+  DIFF _ZN12_GLOBAL__N_121ink_blend_gate_kernelILb1ELb0EEEvPK7ik_bf16S3_S3_PKfS5_PfS6_iiiiiNS_8GateNormE (5787 -> 5791 instructions)
+  DIFF _ZN12_GLOBAL__N_121ink_blend_gate_kernelILb0ELb1EEEvPK7ik_bf16S3_S3_PKfS5_PfS6_iiiiiNS_8GateNormE (1773 -> 1775 instructions)
+  DIFF _ZN12_GLOBAL__N_121ink_blend_gate_kernelILb0ELb0EEEvPK7ik_bf16S3_S3_PKfS5_PfS6_iiiiiNS_8GateNormE (1802 -> 1804 instructions)
+  ONLY-MAIN __hip_cuid_5138ee3229015d33
+  ONLY-BRANCH __hip_cuid_a1fd9425c6c2237f
+ink_attn.hip: 27 kernels identical, 6 differ, 1 only in main, 1 only in the branch
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kILi1ELb1ELb0EEEvNSt11conditionalIXT1_ENS_5InkPRENS_4InkPEE4typeE (5007 -> 5013 instructions)
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kILi1ELb0ELb0EEEvNSt11conditionalIXT1_ENS_5InkPRENS_4InkPEE4typeE (5053 -> 5059 instructions)
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kILi2ELb1ELb0EEEvNSt11conditionalIXT1_ENS_5InkPRENS_4InkPEE4typeE (5880 -> 5886 instructions)
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kILi2ELb0ELb0EEEvNSt11conditionalIXT1_ENS_5InkPRENS_4InkPEE4typeE (5902 -> 5908 instructions)
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kILi3ELb1ELb0EEEvNSt11conditionalIXT1_ENS_5InkPRENS_4InkPEE4typeE (6472 -> 6478 instructions)
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kILi3ELb0ELb0EEEvNSt11conditionalIXT1_ENS_5InkPRENS_4InkPEE4typeE (6433 -> 6439 instructions)
+  ONLY-MAIN __hip_cuid_59a40049e5ef613a
+  ONLY-BRANCH __hip_cuid_b08877be168f0b19
+ink_attn_rows.hip: 5 kernels identical, 6 differ, 1 only in main, 1 only in the branch
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kILi1ELb1ELb1EEEvNSt11conditionalIXT1_ENS_5InkPRENS_4InkPEE4typeE (4868 -> 4874 instructions)
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kILi1ELb0ELb1EEEvNSt11conditionalIXT1_ENS_5InkPRENS_4InkPEE4typeE (4908 -> 4914 instructions)
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kILi2ELb1ELb1EEEvNSt11conditionalIXT1_ENS_5InkPRENS_4InkPEE4typeE (5660 -> 5666 instructions)
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kILi2ELb0ELb1EEEvNSt11conditionalIXT1_ENS_5InkPRENS_4InkPEE4typeE (5679 -> 5685 instructions)
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kILi3ELb1ELb1EEEvNSt11conditionalIXT1_ENS_5InkPRENS_4InkPEE4typeE (6239 -> 6244 instructions)
+  DIFF _ZN12_GLOBAL__N_114ink_attn_dec_kILi3ELb0ELb1EEEvNSt11conditionalIXT1_ENS_5InkPRENS_4InkPEE4typeE (6191 -> 6197 instructions)
+  ONLY-MAIN __hip_cuid_f77cd5c92610e1e4
+  ONLY-BRANCH __hip_cuid_4b77c062103b07c
+ink_route_fused.hip: 0 kernels identical, 1 differ, 2 only in main, 2 only in the branch
+  DIFF amdhsa.kernels (31 -> 32 instructions)
+  ONLY-MAIN _ZN12_GLOBAL__N_116ink_route_kernelEPK7ik_bf16S2_PKfPfiilififiS5_Pi
+  ONLY-MAIN __hip_cuid_ec7c299fc0f41e72
+  ONLY-BRANCH _ZN12_GLOBAL__N_116ink_route_kernelEPK7ik_bf16S2_PKfPfiilififiS5_Pii
+  ONLY-BRANCH __hip_cuid_15e3af47162dc416
+ik_runtime.hip: 3 kernels identical, 0 differ, 1 only in main, 1 only in the branch
+  ONLY-MAIN __hip_cuid_17d6b1ca67b190cd
+  ONLY-BRANCH __hip_cuid_2edccdad07f337fa
+total: 168 identical, 25 differ
+fleetq: #12325 done (exit 0)

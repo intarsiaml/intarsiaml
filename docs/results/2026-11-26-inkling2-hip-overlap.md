@@ -284,3 +284,13 @@ brief 3's 30:00; O4 (gates) plus 3 speed windows at <= 4:30 each fit in the rest
 | gate 3, admission (`kernels test --op`, o4) | conv_mix_bf16 532 cases ADMITTED, loop_blend_bf16 27 ADMITTED, ink_attn_decode_bf16 70 ADMITTED, ink_route_bf16 40 ADMITTED |
 
 Left for S1-S3's card 1: o4 `--spec off` and main5 DSpark md5, G2 short / long both, the poisoned run on o4, the solo server.
+
+### Same-ISA check (fleetq #12325, cpu slot; `raw/isa_check.sh`, `raw/isa_cmp.py`, log `raw/isa-check.log`)
+
+Device assembly (`hipcc --cuda-device-only -S`, build.rs's flags, gfx1201) of the 7 changed translation units, origin/main
+a4c8f3b19 vs o4, compared per kernel (instructions only): **168 kernels identical; the only differences are the three kernels whose
+ticket index changed**: `ink_blend_gate_kernel` (4 instantiations in each of ink_mix / ink_mix_rows / ink_mix_segs, +2..4
+instructions: the slot term of the counter address), `ink_attn_dec_k` (6 instantiations in ink_attn.hip and 6 in ink_attn_rows.hip,
++5..6 instructions: the slot from `flags` bits 24..27), and `ink_route_kernel` (one more argument, so its mangled name changed; its
+body differs by the slot index). `ik_runtime.hip` is host code only (3 identical, the new `ik_rt_stream_create_prio` is host).
+`__hip_cuid_*` are per-compile ids.
