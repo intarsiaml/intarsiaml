@@ -1,0 +1,15 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-sampled/.scratch/tat/w3.sh; cap 250s; stopping radiance 2026-11-26 15:16:04
+[window] radiance stopped 2026-11-26 15:16:08 (inactive)
+[w3] start 2026-11-26 15:16:08
+[w3] tiny br2: test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s | failed: inkling2_tiny_g1b_teacher_forced_bf16 inkling2_tiny_screen_keeps_batching inkling2_tiny_screened_head_one_row_only result: 
+[w3] tiny main: test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.79s | failed: inkling2_tiny_g1b_teacher_forced_bf16 inkling2_tiny_screen_keeps_batching inkling2_tiny_screened_head_one_row_only result: 
+[w3 c0] md5 main off rc 0 2026-11-26 15:16:39 | decode overall: 1510 tokens after the first, 19694 ms (76.67 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w3 c0] md5 main def rc 0 2026-11-26 15:17:04 | decode overall: 1510 tokens after the first, 13803 ms (109.40 tok/s) | spec: verify passes=508 proposed=1274 accepted=853 (acceptance 67.0%, 2.68 tokens per pass)
+[w3 c0] law arm 0 rc 0 2026-11-26 15:19:18 lines 978 | sampled requests (temperature > 0): DFlash-family drafting off (INTARSIA_SPEC_SAMPLED_DFLASH; single sequence, one rank, seed-exact keyed rule) budget reached at seed 489 978 requests in 125.0 s; spec verify passes 0 proposed 0 accepted 0 
+[w3 c1] md5 br2 off rc 0 2026-11-26 15:16:38 | decode overall: 1510 tokens after the first, 19648 ms (76.85 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w3 c1] md5 br2 def rc 0 2026-11-26 15:17:03 | decode overall: 1510 tokens after the first, 13725 ms (110.02 tok/s) | spec: verify passes=508 proposed=1274 accepted=853 (acceptance 67.0%, 2.68 tokens per pass)
+[w3 c1] law arm 1 rc 0 2026-11-26 15:19:18 lines 838 | sampled requests (temperature > 0): DFlash-family drafting on (INTARSIA_SPEC_SAMPLED_DFLASH; single sequence, one rank, seed-exact keyed rule) budget reached at seed 1000719 838 requests in 125.1 s; spec verify passes 1105 proposed 1456 accepted 344 
+[w3] done 2026-11-26 15:19:18
+[window] stage done 2026-11-26 15:19:19 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 15:19:19
+[window] radiance answers 2026-11-26 15:19:29 (after 15 s)

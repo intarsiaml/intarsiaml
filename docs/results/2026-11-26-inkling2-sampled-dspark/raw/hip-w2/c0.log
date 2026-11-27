@@ -1,0 +1,8 @@
+[w2 c0] off1 r1 rc 0 2026-11-26 15:01:09 | decode overall: 762 tokens after the first, 11114 ms (68.56 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w2 c0] on1 r1 rc 0 2026-11-26 15:01:32 | decode overall: 762 tokens after the first, 9490 ms (80.30 tok/s) | spec: verify passes=305 proposed=697 accepted=356 (acceptance 51.1%, 2.17 tokens per pass)
+[w2 c0] off07 r1 rc 0 2026-11-26 15:01:55 | decode overall: 762 tokens after the first, 11106 ms (68.61 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w2 c0] on07 r1 rc 0 2026-11-26 15:02:16 | decode overall: 762 tokens after the first, 9449 ms (80.65 tok/s) | spec: verify passes=299 proposed=669 accepted=353 (acceptance 52.8%, 2.18 tokens per pass)
+[w2 c0] on07 r2 rc 0 2026-11-26 15:02:37 | decode overall: 762 tokens after the first, 9436 ms (80.76 tok/s) | spec: verify passes=299 proposed=669 accepted=353 (acceptance 52.8%, 2.18 tokens per pass)
+[w2 c0] off07 r2 rc 0 2026-11-26 15:02:59 | decode overall: 762 tokens after the first, 11070 ms (68.84 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w2 c0] on1 r2 rc 0 2026-11-26 15:03:19 | decode overall: 762 tokens after the first, 9487 ms (80.32 tok/s) | spec: verify passes=305 proposed=697 accepted=356 (acceptance 51.1%, 2.17 tokens per pass)
+[w2 c0] off1 r2 rc 0 2026-11-26 15:03:41 | decode overall: 762 tokens after the first, 11053 ms (68.94 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)

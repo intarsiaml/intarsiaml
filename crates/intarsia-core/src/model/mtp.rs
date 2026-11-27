@@ -721,6 +721,27 @@ impl Model {
         }
     }
 
+    /// Lane ink-sampled: whether sampled requests draft with a DFlash-family draft (`--spec dflash`) on this model: `Some(v)` sets it,
+    /// `None` returns to `INTARSIA_SPEC_SAMPLED_DFLASH`. Read when a request starts (tests compare on and off in one process).
+    pub fn set_spec_sampled_dflash(&self, v: Option<bool>) {
+        let b = match v {
+            None => 0,
+            Some(false) => 1,
+            Some(true) => 2,
+        };
+        self.spec_sampled_dflash.store(b, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// [`Model::set_spec_sampled_dflash`], else `INTARSIA_SPEC_SAMPLED_DFLASH`, else the backend default
+    /// ([`crate::spec::sampled_dflash_default_for`]: off everywhere).
+    pub fn spec_sampled_dflash(&self) -> bool {
+        match self.spec_sampled_dflash.load(std::sync::atomic::Ordering::Relaxed) {
+            1 => false,
+            2 => true,
+            _ => crate::spec::sampled_dflash_from_env().unwrap_or_else(|| crate::spec::sampled_dflash_default_for(self.backend.name())),
+        }
+    }
+
     /// Rows the MTP queue can still take before a pass would overflow it (`--spec auto`: while the DFlash draft proposes, the
     /// head only queues).
     pub fn mtp_queue_room(&self, st: &SequenceState) -> usize {

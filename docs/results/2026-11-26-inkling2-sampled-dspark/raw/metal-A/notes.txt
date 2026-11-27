@@ -1,0 +1,3 @@
+killed arm0 95630 at 15:10:34, lines     1012
+11398 /opt/code/intarsiaml/.worktrees/ink-sampled/target/release/deps/inkling2_sampled_real-85a8ce2019f4ec10 --nocapture
+killed arm1 11398 at 15:23:53, lines     1834

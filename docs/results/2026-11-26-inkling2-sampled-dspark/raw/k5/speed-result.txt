@@ -1,0 +1,24 @@
+processes: 16, reps [1, 2, 3, 4]
+T 1.0: ids identical across 8 processes (on and off): yes
+T 0.7: ids identical across 8 processes (on and off): yes
+
+| T | class | off tok/s (mean) | on tok/s (mean) | on / off (geo mean) | 95 % CI | pairs | acceptance | tokens / pass |
+|---|---|---:|---:|---:|---|---:|---:|---:|
+| 1.0 | short | 75.86 | 83.83 | 1.105 | [1.092, 1.118] | 4 | 40.9 % | 2.16 |
+| 1.0 | 1k | 73.69 | 78.54 | 1.066 | [1.056, 1.076] | 4 | 44.4 % | 2.20 |
+| 1.0 | 4k | 72.59 | 106.68 | 1.470 | [1.451, 1.488] | 4 | 68.0 % | 3.36 |
+| 0.7 | short | 75.80 | 87.53 | 1.155 | [1.144, 1.165] | 4 | 44.4 % | 2.27 |
+| 0.7 | 1k | 73.88 | 77.62 | 1.051 | [1.043, 1.059] | 4 | 44.0 % | 2.17 |
+| 0.7 | 4k | 72.41 | 105.82 | 1.461 | [1.432, 1.492] | 4 | 73.2 % | 3.41 |
+
+per prompt: on / off (geo mean over reps), acceptance, tokens per pass
+  T 1.0 short_a  1.172 (4 pairs) | 41.6 %, 2.31
+  T 1.0 short_b  0.900 (4 pairs) | 27.5 %, 1.53
+  T 1.0 short_c  1.334 (4 pairs) | 49.4 %, 2.80
+  T 1.0 len1k    1.066 (4 pairs) | 44.4 %, 2.20
+  T 1.0 len4k    1.470 (4 pairs) | 68.0 %, 3.36
+  T 0.7 short_a  1.112 (4 pairs) | 37.6 %, 2.22
+  T 0.7 short_b  0.989 (4 pairs) | 38.8 %, 1.71
+  T 0.7 short_c  1.453 (4 pairs) | 55.6 %, 3.12
+  T 0.7 len1k    1.051 (4 pairs) | 44.0 %, 2.17
+  T 0.7 len4k    1.461 (4 pairs) | 73.2 %, 3.41

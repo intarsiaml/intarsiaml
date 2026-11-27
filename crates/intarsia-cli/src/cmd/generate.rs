@@ -108,6 +108,7 @@ fn run_ids(args: &GenerateArgs, engine: &dyn intarsia_core::engine::Engine, f: &
     let (mut toks, mut ms, mut ptoks, mut pms) = (0usize, 0f64, 0usize, 0f64);
     for (name, ids) in &prompts {
         engine.forward_script(&[]).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let t_before = engine.telemetry();
         let req = GenRequest {
             prompt: ids.clone(),
             max_tokens: args.max_tokens,
@@ -142,6 +143,20 @@ fn run_ids(args: &GenerateArgs, engine: &dyn intarsia_core::engine::Engine, f: &
             ptoks += prompt_tokens - cached_tokens;
             eprintln!("decode[{name}]: {completion_tokens} tokens, {decode_ms:.0} ms ({:.2} tok/s)", n as f64 / (decode_ms / 1e3).max(1e-9));
             eprintln!("prefill[{name}]: {} tokens, {prefill_ms:.0} ms", prompt_tokens - cached_tokens);
+        }
+        // this prompt's verify passes (lane ink-sampled: acceptance per prompt length)
+        let t_after = engine.telemetry();
+        let (passes, proposed, accepted) = (
+            t_after.spec_steps - t_before.spec_steps,
+            t_after.spec_proposed - t_before.spec_proposed,
+            t_after.spec_accepted - t_before.spec_accepted,
+        );
+        if passes > 0 {
+            eprintln!(
+                "spec[{name}]: verify passes={passes} proposed={proposed} accepted={accepted} (acceptance {:.1}%, {:.2} tokens per pass)",
+                100.0 * accepted as f64 / proposed.max(1) as f64,
+                (passes + accepted) as f64 / passes as f64
+            );
         }
     }
     eprintln!("decode overall: {toks} tokens after the first, {ms:.0} ms ({:.2} tok/s)", toks as f64 / (ms / 1e3).max(1e-9));
