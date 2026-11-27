@@ -16,6 +16,8 @@ if [ -n "${TESTS:-}" ]; then
   echo "== bf16 draft pass on metal rc $? | $(grep -aE '^test |test result' .scratch/metal/s3/draftpass-metal.txt | tr '\n' ' ')"
   cargo test --release -p intarsia-backend-metal --test dflash2 > .scratch/metal/s3/metal-dflash2-tests.txt 2>&1
   echo "== metal backend dflash2 tests rc $? | $(grep -aE '^test result' .scratch/metal/s3/metal-dflash2-tests.txt | tr '\n' ' ')"
+  # the binary is the merged head (#544 in): greedy ids again, 256 tokens (md5.json, --ignore-eos), off / default / k$K
+  NAME=s3-md5 PROMPTS=md5 TOK=256 IDLE=0 LIMIT=300 ARMS="off@r1 dspark@r1 dfl$K@r1" $R/slot.sh
 fi
 if [ "${ORDER:-a}" = a ]; then A="dspark@$R1 dfl$K@$R1 dfl$K@$R2 dspark@$R2"; else A="dfl$K@$R1 dspark@$R1 dspark@$R2 dfl$K@$R2"; fi
 NAME=${NAME:?} PROMPTS=speed TOK=256 IDLE=45 LIMIT=${LIMIT:-1000} ARMS="$A" $R/slot.sh

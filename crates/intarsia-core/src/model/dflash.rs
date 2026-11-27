@@ -329,6 +329,11 @@ pub(super) fn dflash2_head_copy(b: &dyn Backend, target: &dyn WeightSource, unem
         "" if b.name() == "hip" => "mxfp4",
         x => x,
     };
+    // Metal (lane ink-metal-dflash2) runs the draft on the target's own bf16 head (no copy); a quantised copy is neither default nor
+    // qualified there (no gate has run its kernels on Metal), so it is refused rather than tried
+    if b.name() == "metal" && matches!(v, "mxfp4" | "fp8") {
+        return Err(Error::Unsupported(format!("INTARSIA_DFLASH2_HEAD={v} on the metal backend (bf16 only: the draft uses the target's head there)")));
+    }
     let kind = match v {
         "mxfp4" => crate::quant::head::HeadQuant::Mxfp4,
         "fp8" => crate::quant::head::HeadQuant::Fp8,
