@@ -46,7 +46,7 @@ In substance, every rule kept:
 
 Later go-aheads from the coordinator are written below as they arrive.
 
-### Step 1: S3's three stalls are in the client path (endor, Wi-Fi, Tailscale), not in the engine (Mac only, 23:36-23:50)
+### Step 1: S3's three stalls are in the client path (endor, Wi-Fi, Tailscale), not in the engine (Mac only, 23:36-23:46)
 
 Scripts and outputs in `raw/`: `stalls.py` (multi-stream gap events vs arrivals, first tokens, prefill spans), `steps.py` (the decode
 step timeline), `srvitl.py` (the server's own ITL / step histograms per real level, from the 0.2 s poll), `coalesce.py`;
@@ -80,7 +80,7 @@ step timeline), `srvitl.py` (the server's own ITL / step histograms per real lev
 delay on endor (Wi-Fi + Tailscale + a loaded laptop), not the overlap; the engine's tail at 8 streams is the 150-250 ms bucket in
 all three windows. **Test.** Run the real prompts with the client on tatooine (the script and prompts unchanged, as the card-1 stages
 do) for both arms: the gaps under 5 ms must drop to 0 and the 8-stream B tail must match the server histogram. Recorded before
-any GPU run: 2026-11-26 23:50 EST. No engine instrumentation is needed: the server histogram plus the client's gaps decide it.
+any GPU run: 2026-11-26 23:46 EST. No engine instrumentation is needed: the server histogram plus the client's gaps decide it.
 
 ## Result (2026-11-26 ~21:45): overlap works and is bitwise, but gate 4 fails at 8 streams, so it ships opt-in
 
