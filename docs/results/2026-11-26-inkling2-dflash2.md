@@ -52,4 +52,6 @@ Work folders: Mac `.worktrees/ink-dflash2`; tatooine `~/intarsiaml-ink-dflash2`,
 
 ## Later messages from the coordinator
 
-(none yet)
+- **~19:10 EST, file ownership:** lane ink-hip-bpf (prefill overlap) now owns `kernels/hip/ink_mix.hip`, `kernels/hip/ink_attn.hip` and
+  `kernels/hip/ink_route_fused.hip`. Do not edit them; tell the coordinator first if the DFlash2 path seems to need a change there.
+  The batched-prefill / serve-scheduler code also stays with ink-hip-bpf. Everything else in the brief is unchanged.
