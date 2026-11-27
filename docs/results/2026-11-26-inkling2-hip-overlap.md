@@ -21,6 +21,9 @@ Speed, gate 4's paired windows S1 (AB), S2 (BA), S3 (AB): A = main5 (main a4c8f3
 | filler 8 | 0.964 [0.936, 0.993] | 0.994 [0.967, 1.020] | - | - | - | 1.068 |
 | filler 16 | 1.013 [0.997, 1.028] | 0.995 [0.989, 1.000] | - | - | - | 1.159 |
 
+Filler ITL (server histograms over each level, `itl_seg.py`, bucketed, `raw/filler-itl-s1-s3.txt`): the same in all 3 windows: ITL
+p99 bucket A 250-500 ms -> B 150-250 ms at 4 / 8 / 16 streams, 10-20 ms both at 1; ITL p50 the same bucket for A and B at every N.
+
 Absolute (mean of the 3 windows, A -> B): real ITL p99 at 8 0.597 -> 0.251 s, at 16 0.637 -> 0.244 s, at 4 0.157 -> 0.169 s;
 aggregate real 16 125.8 -> 124.5, filler 16 154.2 -> 153.3 tok/s.
 
@@ -41,6 +44,11 @@ too); hip tiny `inkling2_batch` 10/10 and `inkling2_packed` 6/6 on the PR-head t
 - **Not verified**: speed of the PR head itself (gate 4 measured o4; the merge adds only opt-in sampled-DSpark code, and o5's
   md5 / decode tok/s match o4's); the PR head binary with the flipped constant was built (`--features hip`) but not run on the GPU:
   its unset default takes the branch S4 ran with `INTARSIA_OVERLAP=0`. The cause of S3's three 0.34-0.41 s stalls with overlap on.
+  The 35B on HIP (batched serve) was not run on this branch: unchanged by code reading (overlap stays off for it, its stream 1
+  never gets the decode lane) and the cpu scheduler tests.
+- Files outside the three kernel files brief 3 assigned: `ink_attn_rows.hip` (one line: the ticket slot), `ik_runtime.{h,hip}`
+  (`ik_rt_stream_create_prio`), and the shared `device.rs` (side staging, decode lane) and `backend.rs` (`decode_lane`, default
+  no-op), plus the scheduler / engine / model files this lane owns.
 - unanimis capture a5bd873f-8f41-4794-85f4-5bd4dbdb2477; PR #542.
 
 ## Briefs received
