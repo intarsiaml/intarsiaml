@@ -1,0 +1,2 @@
+wall 4.96 s, aggregate 103.2 tok/s, latency median 4.85 s max 4.96 s, prompt tokens 5241, cached 0, ttft median 1.148 max 2.1321237087249756, itl p50 0.0234 p99 0.152
+conc:4:0: 4 replies, 512 tokens -> /home/josef/intarsiaml-ink-hip-bpf/logs/w0/poison-o6-bitwise-conc_4_0.json

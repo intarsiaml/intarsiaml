@@ -1,0 +1,3 @@
+[solo-o4] (o4, card 1) up after 116s (0 = not up) 2026-11-26 21:55:35: admission on plan shapes: 27 kernel(s) checked, 6 case(s) run, 106 cached loaded ink on hip (AMD Radeon Graphics) in 115.1s, context 4608 tokens 
+[solo-o4] intarsia_kv_tokens_capacity 4608 VRAM card1 21321 MiB
+[solo-o4] bitwise solo exit 0 2026-11-26 21:56:09: wall 33.94 s, aggregate 60.3 tok/s, latency median 2.0 s max 2.97 s, prompt tokens 25752, cached 0, ttft median 0.459 max 1.4025366306304932, itl p50 0.0122 p99 0.0247

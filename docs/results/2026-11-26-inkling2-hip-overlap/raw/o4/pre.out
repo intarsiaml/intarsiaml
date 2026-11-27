@@ -1,0 +1,7 @@
+[def-main5] (main5, card 0) up after 111s (0 = not up) 2026-11-26 20:28:13: admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 111.3s, context 3285 tokens 
+[def-main5] intarsia_kv_tokens_capacity 52560 VRAM card0 28098 MiB
+MD5 card0 main5 short 64 --spec off 04cdb28a6849728e8aa5be39bf65c07e rc 0 | prefill 101 ms (307.5 tok/s) | decode 761 ms (82.81 tok/s) [2026-11-26 20:28:20]
+MD5 card0 main5 short 256 --spec off 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | prefill 101 ms (308.0 tok/s) | decode 3064 ms (83.22 tok/s) [2026-11-26 20:28:29]
+MD5 card0 main5 4k 64 --spec off 2252566a5c54cf52cb564bd214c9af2b rc 0 | prefill 1374 ms (3076.4 tok/s) | decode 795 ms (79.25 tok/s) [2026-11-26 20:28:37]
+MD5 card0 main5 4k 256 --spec off 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | prefill 1372 ms (3081.1 tok/s) | decode 3185 ms (80.06 tok/s) [2026-11-26 20:28:48]
+[pre] done 2026-11-26 20:28:48

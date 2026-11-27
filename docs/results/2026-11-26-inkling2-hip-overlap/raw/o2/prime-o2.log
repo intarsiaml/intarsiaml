@@ -1,0 +1,10 @@
+[supervisor] started server pid 7
+prefill chunk 2048 (recipe inkling2, hip)
+pack12 off: the model is loaded to batch (--max-batch > 1); the bf16 weights serve every row
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.5 s
+admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+inkling2 packed prefill: on, up to 2048 rows per pass, segments of 17+ rows
+loaded ink on hip (AMD Radeon Graphics) in 101.1s, context 4608 tokens
+sampling defaults: temperature=1 top_p=1 top_k=0 (from /models/Inkling-2-Mini/generation_config.json; a request's own values win)
+intarsia server listening on http://0.0.0.0:8133

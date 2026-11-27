@@ -1,0 +1,2 @@
+wall 9.09 s, aggregate 112.7 tok/s, latency median 8.96 s max 9.08 s, prompt tokens 13805, cached 0, ttft median 2.0558 max 4.990886926651001, itl p50 0.0333 p99 0.5884
+conc:8:1:s2r1n8: 8 replies, 1024 tokens -> /opt/code/intarsiaml/.worktrees/ink-hip-overlap/docs/results/2026-11-26-inkling2-hip-overlap/raw/s2/A-reals2-r1-n8.json

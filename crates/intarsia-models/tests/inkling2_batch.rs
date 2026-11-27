@@ -126,6 +126,13 @@ fn pair(m: &Model, lens: &[usize]) -> (Vec<SequenceState>, Vec<SequenceState>) {
 fn step(m: &Model, solo: &mut [SequenceState], bat: &mut [SequenceState], which: &[usize], what: &str) {
     let ids: Vec<u32> = which.iter().map(|&s| tok(s, solo[s].len)).collect();
     let want: Vec<Vec<f32>> = which.iter().zip(&ids).map(|(&s, &id)| logits(m.forward(&mut solo[s], &[id], HeadMode::LastLogits, None).unwrap())).collect();
+    let lens: Vec<usize> = which.iter().map(|&s| solo[s].len).collect();
+    step_want(m, bat, which, &ids, &want, &lens, what);
+}
+
+/// The batched step of `which` on `m` (the model or its decode twin) against the solo rows `want`; `lens`: each sequence's
+/// length after the step.
+fn step_want(m: &Model, bat: &mut [SequenceState], which: &[usize], ids: &[u32], want: &[Vec<f32>], lens: &[usize], what: &str) {
     // the batch's states in `which` order
     let mut refs: Vec<&mut SequenceState> = Vec::new();
     {
@@ -135,13 +142,13 @@ fn step(m: &Model, solo: &mut [SequenceState], bat: &mut [SequenceState], which:
         }
     }
     let modes = vec![HeadMode::LastLogits; which.len()];
-    let got = m.forward_batch(&mut refs, &ids, &modes).unwrap();
-    for (k, (g, w)) in got.into_iter().zip(&want).enumerate() {
+    let got = m.forward_batch(&mut refs, ids, &modes).unwrap();
+    for (k, (g, w)) in got.into_iter().zip(want).enumerate() {
         let g = logits(g);
-        assert!(g == *w, "{what}: row {k} (sequence {}, position {}) differs from its solo step", which[k], solo[which[k]].len - 1);
+        assert!(g == *w, "{what}: row {k} (sequence {}, position {}) differs from its solo step", which[k], lens[k] - 1);
     }
-    for &s in which {
-        assert_eq!(bat[s].len, solo[s].len, "{what}: sequence {s} length");
+    for (&s, &l) in which.iter().zip(lens) {
+        assert_eq!(bat[s].len, l, "{what}: sequence {s} length");
     }
 }
 
@@ -159,6 +166,72 @@ fn inkling2_batch_equals_solo_2_5_16() {
         for k in 0..6 {
             step(&m, &mut solo, &mut bat, &which, &format!("{n} sequences, step {k}"));
         }
+    }
+}
+
+/// Lane ink-hip-overlap: the decode twin (`Model::decode_twin`: the same layers and weights, its own Inkling workspace, stream 1)
+/// steps every row bitwise as the solo step, for 1, 5 and 16 sequences; and while it steps, the model prefills other sequences on
+/// another thread (the overlap's two passes at once; on HIP, prefill calls of at most 16 rows run the ticketed kernels on stream 0
+/// beside the twin's on stream 1). The twin's rows and the prefilled states, heads and next steps are bitwise the run one at a time.
+#[test]
+fn inkling2_decode_twin_equals_solo_and_overlaps_prefill() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let m = load(&dir, 16);
+    let twin = m.decode_twin(16).unwrap();
+    let all = [1usize, 7, 8, 9, 12, 13, 3, 30, 17, 64, 5, 41, 2, 24, 50, 11];
+    for n in [1usize, 5, 16] {
+        let (mut solo, mut bat) = pair(&m, &all[..n]);
+        let which: Vec<usize> = (0..n).collect();
+        for k in 0..4 {
+            let ids: Vec<u32> = which.iter().map(|&s| tok(s, solo[s].len)).collect();
+            let want: Vec<Vec<f32>> =
+                which.iter().zip(&ids).map(|(&s, &id)| logits(m.forward(&mut solo[s], &[id], HeadMode::LastLogits, None).unwrap())).collect();
+            let lens: Vec<usize> = which.iter().map(|&s| solo[s].len).collect();
+            step_want(&twin, &mut bat, &which, &ids, &want, &lens, &format!("twin, {n} sequences, step {k}"));
+        }
+    }
+    // overlap: prefills of the lengths below (final calls of 1 .. 16 rows) on the model while the twin steps 16 sequences
+    let plens = [1usize, 2, 17, 18, 33, 47, 64, 70];
+    let pfill = |st: &mut SequenceState, seq: usize, len: usize| -> Vec<f32> {
+        let ids: Vec<u32> = (0..len).map(|i| tok(seq, i)).collect();
+        let mut last = Vec::new();
+        for c in ids.chunks(chunk()) {
+            last = logits(m.forward(st, c, HeadMode::LastLogits, None).unwrap());
+        }
+        last
+    };
+    let rounds = 12;
+    let (mut solo, mut bat) = pair(&m, &all);
+    let which: Vec<usize> = (0..all.len()).collect();
+    // one at a time first: the prefills, then the decode rows of every round (solo steps, the reference of both runs)
+    let mut ref_states: Vec<SequenceState> = plens.iter().map(|_| m.new_state().unwrap()).collect();
+    let ref_heads: Vec<Vec<f32>> = ref_states.iter_mut().zip(&plens).enumerate().map(|(k, (st, &l))| pfill(st, 100 + k, l)).collect();
+    let mut rounds_want = Vec::new();
+    for _ in 0..rounds {
+        let ids: Vec<u32> = which.iter().map(|&s| tok(s, solo[s].len)).collect();
+        let want: Vec<Vec<f32>> =
+            which.iter().zip(&ids).map(|(&s, &id)| logits(m.forward(&mut solo[s], &[id], HeadMode::LastLogits, None).unwrap())).collect();
+        let lens: Vec<usize> = which.iter().map(|&s| solo[s].len).collect();
+        rounds_want.push((ids, want, lens));
+    }
+    // then at once
+    let mut states: Vec<SequenceState> = plens.iter().map(|_| m.new_state().unwrap()).collect();
+    let heads = std::thread::scope(|sc| {
+        let h = sc.spawn(|| states.iter_mut().zip(&plens).enumerate().map(|(k, (st, &l))| pfill(st, 100 + k, l)).collect::<Vec<_>>());
+        for (r, (ids, want, lens)) in rounds_want.iter().enumerate() {
+            step_want(&twin, &mut bat, &which, ids, want, lens, &format!("twin beside a prefill, round {r}"));
+        }
+        h.join().unwrap()
+    });
+    for (k, (h, w)) in heads.iter().zip(&ref_heads).enumerate() {
+        assert!(h == w, "prefill {k} ({} tokens) beside the twin: its head differs from the prefill alone", plens[k]);
+    }
+    // the prefilled states: one more step each, solo, as the reference states take it
+    for (k, (st, rs)) in states.iter_mut().zip(ref_states.iter_mut()).enumerate() {
+        let id = tok(100 + k, st.len);
+        let a = logits(m.forward(st, &[id], HeadMode::LastLogits, None).unwrap());
+        let b = logits(m.forward(rs, &[id], HeadMode::LastLogits, None).unwrap());
+        assert!(a == b, "prefill {k} ({} tokens) beside the twin: its next step differs", plens[k]);
     }
 }
 

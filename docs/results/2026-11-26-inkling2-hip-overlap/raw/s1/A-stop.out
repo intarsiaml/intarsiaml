@@ -1,0 +1,5 @@
+VRAM peak A: card0 28531 MiB, card1 22710 MiB
+prefill chunk 2048 (recipe inkling2, hip)
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+inkling2 packed prefill: on, up to 2048 rows per pass, segments of 17+ rows
+loaded ink on hip (AMD Radeon Graphics) in 16.4s, context 4608 tokens

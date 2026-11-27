@@ -1,0 +1,32 @@
+[20:03:28] radiance down
+[20:03:28] background stage stage_o3bg.sh started (cap 250 s)
+[20:03:28] N3: start (b13; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[20:03:47] N3: up (IP 172.17.0.2 after 18s ; 253 s left)
+[20:03:56] N3: bitwise conc:8:0 exit 0 (244 s left): wall 8.62 s, aggregate 118.8 tok/s, latency median 8.52 s max 8.62 s, prompt tokens 12019, cached 0, ttft median 1.9411 max 4.4878599643707275, itl p50 0.0333 p99 0.5835
+[20:04:13] N3: bitwise conc exit 0 (227 s left): wall 16.37 s, aggregate 125.1 tok/s, latency median 16.03 s max 16.37 s, prompt tokens 25752, cached 0, ttft median 2.8793 max 9.699402809143066, itl p50 0.0577 p99 0.6334
+[20:05:10] N3: wait /home/josef/intarsiaml-ink-hip-bpf/logs/o3/o3-primed exit 0 (170 s left)
+[20:05:12] N3: stopped: VRAM peak N3: card0 28530 MiB, card1 28643 MiB
+[20:05:12] Y0: start (o3; INTARSIA_OVERLAP=1 INTARSIA_CB_TRACE=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[20:05:30] Y0: up (IP 172.17.0.2 after 18s ; 150 s left)
+[20:05:40] Y0: bitwise conc:8:0 exit 0 (140 s left): wall 8.67 s, aggregate 118.2 tok/s, latency median 8.51 s max 8.66 s, prompt tokens 12019, cached 0, ttft median 1.9753 max 4.641518831253052, itl p50 0.0331 p99 0.5852
+[20:05:57] Y0: bitwise conc exit 0 (123 s left): wall 16.53 s, aggregate 123.9 tok/s, latency median 16.03 s max 16.53 s, prompt tokens 25752, cached 0, ttft median 2.8894 max 10.163146018981934, itl p50 0.0577 p99 0.6144
+[20:05:58] Y0: stopped: VRAM peak Y0: card0 28562 MiB, card1 539 MiB
+[20:05:58] Y1: start (o3; INTARSIA_OVERLAP=1 INTARSIA_HIP_STREAM1_PRIORITY=high INTARSIA_CB_TRACE=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[20:06:16] Y1: up (IP 172.17.0.2 after 17s ; 104 s left)
+[20:06:26] Y1: bitwise conc:8:0 exit 0 (94 s left): wall 9.00 s, aggregate 113.7 tok/s, latency median 8.32 s max 9.0 s, prompt tokens 12019, cached 0, ttft median 1.8413 max 5.568764925003052, itl p50 0.0343 p99 0.1547
+[20:06:42] Y1: bitwise conc exit 0 (78 s left): wall 16.74 s, aggregate 122.3 tok/s, latency median 14.97 s max 16.74 s, prompt tokens 25752, cached 0, ttft median 3.0411 max 12.361976861953735, itl p50 0.0866 p99 0.2353
+[20:06:44] Y1: stopped: VRAM peak Y1: card0 28592 MiB, card1 57 MiB
+[20:06:44] Y2: start (o3; INTARSIA_OVERLAP=1 INTARSIA_HIP_STREAM1_PRIORITY=high INTARSIA_OVERLAP_PACE_MS=150 INTARSIA_CB_TRACE=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[20:07:02] Y2: up (IP 172.17.0.2 after 17s ; 58 s left)
+[20:07:11] Y2: bitwise conc:8:0 exit 0 (49 s left): wall 8.79 s, aggregate 116.5 tok/s, latency median 8.35 s max 8.79 s, prompt tokens 12019, cached 0, ttft median 1.7097 max 5.079239845275879, itl p50 0.0333 p99 0.2029
+[20:07:28] Y2: bitwise conc exit 0 (32 s left): wall 16.43 s, aggregate 124.7 tok/s, latency median 14.98 s max 16.43 s, prompt tokens 25752, cached 0, ttft median 2.6256 max 11.499429941177368, itl p50 0.0719 p99 0.2412
+[20:07:29] Y2: stopped: VRAM peak Y2: card0 28592 MiB, card1 57 MiB
+[20:07:29] visits done (31 s left)
+[20:07:29] waiting for the background stage
+[20:07:29] background stage ended: [bg] done 2026-11-26 20:05:25
+[20:07:41] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/hold.sh; cap 270s; stopping radiance 2026-11-26 20:03:24
+[window] radiance stopped 2026-11-26 20:03:28 (inactive)
+[window] stage done 2026-11-26 20:07:31 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 20:07:31
+[window] radiance answers 2026-11-26 20:07:41 (after 15 s)

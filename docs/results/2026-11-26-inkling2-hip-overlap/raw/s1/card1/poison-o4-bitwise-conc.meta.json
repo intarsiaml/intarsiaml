@@ -1,0 +1,17 @@
+{
+ "mode": "conc",
+ "n": 16,
+ "t0": 1795743645.7541444,
+ "t1": 1795743662.168794,
+ "wall_s": 16.415,
+ "completion_tokens": 2048,
+ "prompt_tokens": 25752,
+ "aggregate_tok_s": 124.8,
+ "latency_s_median": 14.96,
+ "latency_s_max": 16.41,
+ "cached_tokens": 0,
+ "ttft_s_median": 2.774,
+ "ttft_s_max": 11.48466944694519,
+ "itl_s_p50": 0.0574,
+ "itl_s_p99": 0.2037
+}

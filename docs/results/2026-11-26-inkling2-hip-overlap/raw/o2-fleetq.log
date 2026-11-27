@@ -1,0 +1,34 @@
+fleetq: #12293 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12287 "ink-hip-i8: sync + build cli + ink_i8 test binary (cpu only)" (claude-04c0e1cd) loads it
+fleetq:   #12287 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12287 set, or it will wait for #12287 to be released.
+fleetq: #12293 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12292 "ink-dflash2: hip build dfl5 (mxfp4 draft head default on hip)" (claude-04c0e1cd) loads it
+fleetq:   #12292 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12292 set, or it will wait for #12292 to be released.
+fleetq: #12293 running on tatooine-r9700, tatooine-r9700-2: bash -c 'ssh -o BatchMode=yes tatooine '"'"'test -x ~/intarsiaml-ink-hip-bpf/.scratch/bin/intarsia-o2 && test -x ~/intarsiaml-ink-hip-bpf/.scratch/bin/intarsia-b13'"'"' < /dev/null || { echo '"'"'binaries missing: no window'"'"'; exit 3; }; env VISITS=/opt/code/intarsiaml/.worktrees/ink-hip-overlap/docs/results/2026-11-26-inkling2-hip-overlap/raw/visits-o2.txt OUT=/opt/code/intarsiaml/.worktrees/ink-hip-overlap/docs/results/2026-11-26-inkling2-hip-overlap/raw/o2 CAP=272 LE_MIN=20 LE_MARGIN=6 BG=stage_o2bg.sh BG_CAP=250 bash /opt/code/intarsiaml/.worktrees/ink-hip-overlap/docs/results/2026-11-26-inkling2-hip-overlap/raw/serve_window.sh'
+[19:51:25] radiance down
+[19:51:25] background stage stage_o2bg.sh started (cap 250 s)
+[19:51:25] N2: start (b13; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[19:51:44] N2: up (IP 172.17.0.2 after 18s ; 253 s left)
+[19:51:53] N2: bitwise conc:8:0 exit 0 (244 s left): wall 8.62 s, aggregate 118.8 tok/s, latency median 8.52 s max 8.62 s, prompt tokens 12019, cached 0, ttft median 1.9367 max 4.5348289012908936, itl p50 0.0332 p99 0.5845
+[19:52:10] N2: bitwise conc exit 0 (227 s left): wall 16.29 s, aggregate 125.7 tok/s, latency median 15.94 s max 16.29 s, prompt tokens 25752, cached 0, ttft median 2.8058 max 9.601675033569336, itl p50 0.0576 p99 0.6292
+[19:52:29] N2 k1 r1: localeval exit 0 (208 s left): [localeval] 16 streams: aggregate 155.1 tok/s 
+[19:53:09] N2: wait /home/josef/intarsiaml-ink-hip-bpf/logs/o2/o2-primed exit 0 (168 s left)
+[19:53:10] N2: stopped: VRAM peak N2: card0 28530 MiB, card1 28643 MiB
+[19:53:10] P0: start (o2; INTARSIA_OVERLAP=1 INTARSIA_HIP_STREAM1_PRIORITY=high INTARSIA_CB_TRACE=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[19:53:29] P0: up (IP 172.17.0.2 after 18s ; 148 s left)
+[19:53:38] P0: bitwise conc:8:0 exit 0 (139 s left): wall 8.54 s, aggregate 119.9 tok/s, latency median 8.39 s max 8.54 s, prompt tokens 12019, cached 0, ttft median 1.909 max 4.533060073852539, itl p50 0.0333 p99 0.8566
+[19:53:54] P0: bitwise conc exit 0 (123 s left): wall 16.37 s, aggregate 125.1 tok/s, latency median 15.84 s max 16.37 s, prompt tokens 25752, cached 0, ttft median 2.8788 max 9.884387016296387, itl p50 0.0552 p99 0.7405
+[19:53:56] P0: stopped: VRAM peak P0: card0 28592 MiB, card1 28593 MiB
+[19:53:56] P3: start (o2; INTARSIA_OVERLAP=1 INTARSIA_HIP_STREAM1_PRIORITY=high INTARSIA_OVERLAP_PACE_MS=300 INTARSIA_CB_TRACE=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[19:54:15] P3: up (IP 172.17.0.2 after 18s ; 102 s left)
+[19:54:24] P3: bitwise conc:8:0 exit 0 (93 s left): wall 8.61 s, aggregate 118.9 tok/s, latency median 8.45 s max 8.61 s, prompt tokens 12019, cached 0, ttft median 1.9326 max 4.579183101654053, itl p50 0.0335 p99 0.8722
+[19:54:41] P3: bitwise conc exit 0 (76 s left): wall 16.29 s, aggregate 125.7 tok/s, latency median 15.74 s max 16.29 s, prompt tokens 25752, cached 0, ttft median 2.8008 max 10.024280071258545, itl p50 0.0572 p99 0.7283
+[19:54:42] P3: stopped: VRAM peak P3: card0 28591 MiB, card1 28593 MiB
+[19:54:42] visits done (75 s left)
+[19:54:42] waiting for the background stage
+[19:54:42] background stage ended: [bg] done 2026-11-26 19:54:03
+[19:54:53] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/hold.sh; cap 270s; stopping radiance 2026-11-26 19:51:21
+[window] radiance stopped 2026-11-26 19:51:25 (inactive)
+[window] stage done 2026-11-26 19:54:43 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 19:54:43
+[window] radiance answers 2026-11-26 19:54:53 (after 15 s)
+fleetq: #12293 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

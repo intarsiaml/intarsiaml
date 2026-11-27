@@ -1,0 +1,10 @@
+[bg] (1) prime o2, overlap on (X1's config) 2026-11-26 19:51:26
+[bg] prime-o2 (o2) up after 102s (0 = not up) 2026-11-26 19:53:08: admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 inkling2 packed prefill: on, up to 2048 rows per pass, segments of 17+ rows loaded ink on hip (AMD Radeon Graphics) in 101.1s, context 4608 tokens 
+[bg] (2) poisoned o2, overlap on (148 s left) 2026-11-26 19:53:08
+[bg] poison-o2 (o2) up after 18s (0 = not up) 2026-11-26 19:53:25: admission on plan shapes: 23 kernel(s) checked, 0 case(s) run, 134 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 inkling2 packed prefill: on, up to 2048 rows per pass, segments of 17+ rows loaded ink on hip (AMD Radeon Graphics) in 16.3s, context 4608 tokens 
+[bg] poison conc exit 0 2026-11-26 19:53:41: wall 16.31 s, aggregate 125.5 tok/s, latency median 15.79 s max 16.31 s, prompt tokens 25752, cached 0, ttft median 3.0437 max 10.039070129394531, itl p50 0.0564 p99 0.7288
+[bg] poison conc:4:0 exit 0 2026-11-26 19:53:46: wall 5.04 s, aggregate 101.6 tok/s, latency median 4.86 s max 5.04 s, prompt tokens 5241, cached 0, ttft median 1.1905 max 2.261688709259033, itl p50 0.0234 p99 0.1175
+[bg] poison conc:4:1 exit 0 2026-11-26 19:53:51: wall 5.01 s, aggregate 102.3 tok/s, latency median 4.96 s max 5.0 s, prompt tokens 5406, cached 0, ttft median 1.2928 max 2.1197986602783203, itl p50 0.0235 p99 0.1178
+[bg] poison conc:4:2 exit 0 2026-11-26 19:53:57: wall 5.53 s, aggregate 92.6 tok/s, latency median 5.36 s max 5.53 s, prompt tokens 6778, cached 0, ttft median 1.2793 max 2.673572301864624, itl p50 0.0241 p99 0.2171
+[bg] poison conc:4:3 exit 0 2026-11-26 19:54:03: wall 6.14 s, aggregate 83.5 tok/s, latency median 6.08 s max 6.13 s, prompt tokens 8327, cached 0, ttft median 1.9471 max 3.2176411151885986, itl p50 0.024 p99 0.76
+[bg] done 2026-11-26 19:54:03

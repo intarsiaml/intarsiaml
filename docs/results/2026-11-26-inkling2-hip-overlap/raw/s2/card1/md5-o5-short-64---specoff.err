@@ -1,0 +1,8 @@
+prefill chunk 2048 (recipe inkling2, hip)
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.4 s)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.8 s
+loaded Inkling-2-Mini on AMD Radeon Graphics in 5.4s: 24 layers, hidden 2304, act bf16, kv bf16, weights 14.97 GB, context 8192 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+prompt: 31 tokens
+finish=length prompt=31 (cached 0) completion=64 | prefill 115 ms (269.6 tok/s) | decode 758 ms (83.08 tok/s)
+steps=64 graph replays=63 (captures 1) eager decode steps=0 (profiled 0) top ops: off (pass --profile-every 16)

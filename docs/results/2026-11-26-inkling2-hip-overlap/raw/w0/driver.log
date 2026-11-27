@@ -1,0 +1,26 @@
+[00:00:37] radiance down
+[00:00:37] background stage stage_w0bg.sh started (cap 240 s)
+[00:00:37] W0P: start (o6; INTARSIA_OVERLAP=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[00:02:22] W0P: up (IP 172.17.0.2 after 103s ; 150 s left)
+[00:02:29] W0P: bitwise conc:4:0 exit 0 (143 s left): wall 4.98 s, aggregate 102.8 tok/s, latency median 4.87 s max 4.98 s, prompt tokens 5241, cached 0, ttft median 1.1625 max 2.133942127227783, itl p50 0.0235 p99 0.1568
+[00:02:35] W0P: bitwise conc:4:1 exit 0 (137 s left): wall 5.02 s, aggregate 101.9 tok/s, latency median 4.91 s max 5.02 s, prompt tokens 5406, cached 0, ttft median 1.2779 max 2.17946457862854, itl p50 0.0237 p99 0.1821
+[00:02:41] W0P: bitwise conc:4:2 exit 0 (131 s left): wall 5.50 s, aggregate 93.1 tok/s, latency median 5.35 s max 5.5 s, prompt tokens 6778, cached 0, ttft median 1.2841 max 2.641730785369873, itl p50 0.0241 p99 0.1839
+[00:02:48] W0P: bitwise conc:4:3 exit 0 (124 s left): wall 6.18 s, aggregate 82.8 tok/s, latency median 6.03 s max 6.18 s, prompt tokens 8327, cached 0, ttft median 1.9965 max 3.363635778427124, itl p50 0.0239 p99 0.1785
+[00:02:58] W0P: bitwise conc:8:0 exit 0 (114 s left): wall 8.65 s, aggregate 118.3 tok/s, latency median 8.24 s max 8.63 s, prompt tokens 12019, cached 0, ttft median 1.6366 max 4.873989105224609, itl p50 0.0336 p99 0.1916
+[00:03:08] W0P: bitwise conc:8:1 exit 0 (104 s left): wall 9.24 s, aggregate 110.9 tok/s, latency median 8.75 s max 9.23 s, prompt tokens 13733, cached 0, ttft median 1.8241 max 5.551118850708008, itl p50 0.0336 p99 0.1896
+[00:03:25] W0P: bitwise conc exit 0 (87 s left): wall 16.48 s, aggregate 124.3 tok/s, latency median 15.0 s max 16.47 s, prompt tokens 25752, cached 0, ttft median 2.6584 max 11.486541032791138, itl p50 0.0582 p99 0.2147
+[00:03:27] W0P: stopped: VRAM peak W0P: card0 28712 MiB, card1 28497 MiB
+[00:03:27] W0U: start (o6; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[00:03:45] W0U: up (IP 172.17.0.2 after 18s ; 67 s left)
+[00:03:56] W0U: bitwise conc:8:0 exit 0 (56 s left): wall 8.64 s, aggregate 118.5 tok/s, latency median 8.54 s max 8.63 s, prompt tokens 12019, cached 0, ttft median 1.9372 max 4.510856628417969, itl p50 0.0335 p99 0.5843
+[00:04:13] W0U: bitwise conc exit 0 (39 s left): wall 16.39 s, aggregate 125.0 tok/s, latency median 16.02 s max 16.38 s, prompt tokens 25752, cached 0, ttft median 2.8404 max 9.673879861831665, itl p50 0.0575 p99 0.625
+[00:04:15] W0U: stopped: VRAM peak W0U: card0 28530 MiB, card1 28593 MiB
+[00:04:15] visits done (37 s left)
+[00:04:15] waiting for the background stage
+[00:04:15] background stage ended: [bg] done 2026-11-27 00:04:04
+[00:04:26] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/hold.sh; cap 255s; stopping radiance 2026-11-27 00:00:33
+[window] radiance stopped 2026-11-27 00:00:37 (inactive)
+[window] stage done 2026-11-27 00:04:16 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-27 00:04:16
+[window] radiance answers 2026-11-27 00:04:26 (after 15 s)

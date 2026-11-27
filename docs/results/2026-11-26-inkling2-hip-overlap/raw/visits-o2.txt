@@ -1,0 +1,7 @@
+# name;bin;serve args (leading NAME=value = server env);actions (' && '-separated)
+# O2 (lane ink-hip-overlap): stream 1 at high priority (INTARSIA_HIP_STREAM1_PRIORITY=high, o2). Card 0: N2 (b13, no overlap):
+# real at 8 and 16, 16-stream 1k filler; waits for card 1's prime of o2. P0 (o2, overlap, priority high, pace 0, CB trace: the
+# steps' times beside chunks) and P3 (the same at pace 300 ms): real at 8 and 16. Card 1: prime, then gate 1's poisoned run.
+N2;b13;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc:8:0+conc && le:--sizes 1024 --gen 128 --reps 1 --concurrency 16@k1 && wait:/home/josef/intarsiaml-ink-hip-bpf/logs/o2/o2-primed:140
+P0;o2;INTARSIA_OVERLAP=1 INTARSIA_HIP_STREAM1_PRIORITY=high INTARSIA_CB_TRACE=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc:8:0+conc
+P3;o2;INTARSIA_OVERLAP=1 INTARSIA_HIP_STREAM1_PRIORITY=high INTARSIA_OVERLAP_PACE_MS=300 INTARSIA_CB_TRACE=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc:8:0+conc

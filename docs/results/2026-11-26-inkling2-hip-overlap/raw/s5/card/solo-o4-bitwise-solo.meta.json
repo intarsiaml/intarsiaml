@@ -1,0 +1,17 @@
+{
+ "mode": "solo",
+ "n": 16,
+ "t0": 1795748135.9617584,
+ "t1": 1795748169.9025555,
+ "wall_s": 33.941,
+ "completion_tokens": 2048,
+ "prompt_tokens": 25752,
+ "aggregate_tok_s": 60.3,
+ "latency_s_median": 2.0,
+ "latency_s_max": 2.97,
+ "cached_tokens": 0,
+ "ttft_s_median": 0.459,
+ "ttft_s_max": 1.4025366306304932,
+ "itl_s_p50": 0.0122,
+ "itl_s_p99": 0.0247
+}

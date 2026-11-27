@@ -1,0 +1,37 @@
+fleetq: #12353 waiting (#4 in line): in line behind #12347 "ink-hip-i8: W3 (4k accuracy both arms + plain short ABBA 4+4, R2U1 defaults)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12347 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12347 set, or it will wait for #12347 to be released.
+fleetq: #12353 waiting (#3 in line): in line behind #12349 "ink-sampled-adapt: W1 (md5, calibration, seeds)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12349 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12349 set, or it will wait for #12349 to be released.
+fleetq: #12353 waiting (#2 in line): in line behind #12352 "ink-dflash2: ABBA k4 w2 (b, r3 r4)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12352 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12352 set, or it will wait for #12352 to be released.
+fleetq: #12353 waiting (#1 in line): radiance-rank0 is also taken down by #12352 "ink-dflash2: ABBA k4 w2 (b, r3 r4)" (claude-04c0e1cd)
+fleetq:   #12352 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12352 set, or it will wait for #12352 to be released.
+fleetq: #12353 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 100% busy with work fleetq does not track
+fleetq: #12353 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12353 running on tatooine-r9700, tatooine-r9700-2: bash .scratch/window_s.sh 2
+[21:21:09] radiance down
+[21:21:09] background stage stage_s2bg.sh started (cap 240 s)
+[21:21:09] B: start (o4; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[21:21:27] B: up (IP 172.17.0.3 after 18s ; 232 s left)
+[21:21:33] B: real rep 1 N=4 exit 0 (226 s left): wall 5.03 s, aggregate 101.7 tok/s, latency median 4.92 s max 5.03 s, prompt tokens 5442, cached 0, ttft median 1.2808 max 2.1881611347198486, itl p50 0.0236 p99 0.1693
+[21:21:43] B: real rep 1 N=8 exit 0 (216 s left): wall 9.15 s, aggregate 112.0 tok/s, latency median 8.66 s max 9.14 s, prompt tokens 13805, cached 0, ttft median 1.7068 max 5.4418299198150635, itl p50 0.0333 p99 0.1932
+[21:21:59] B: real rep 1 N=16 exit 0 (200 s left): wall 16.42 s, aggregate 124.7 tok/s, latency median 15.0 s max 16.4 s, prompt tokens 25896, cached 0, ttft median 2.6733 max 11.485774993896484, itl p50 0.0597 p99 0.2558
+[21:22:34] B fill r1: localeval exit 0 (165 s left): [localeval] 1 streams: aggregate 62.0 tok/s [localeval] 4 streams: aggregate 115.3 tok/s [localeval] 8 streams: aggregate 140.3 tok/s [localeval] 16 streams: aggregate 153.2 tok/s 
+[21:22:36] B: stopped: VRAM peak B: card0 28593 MiB, card1 22636 MiB
+[21:22:36] A: start (main5; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[21:22:55] A: up (IP 172.17.0.3 after 19s ; 144 s left)
+[21:23:01] A: real rep 1 N=4 exit 0 (138 s left): wall 5.01 s, aggregate 102.3 tok/s, latency median 4.98 s max 5.0 s, prompt tokens 5442, cached 0, ttft median 1.5738 max 2.0210280418395996, itl p50 0.0234 p99 0.1137
+[21:23:10] A: real rep 1 N=8 exit 0 (129 s left): wall 9.09 s, aggregate 112.7 tok/s, latency median 8.96 s max 9.08 s, prompt tokens 13805, cached 0, ttft median 2.0558 max 4.990886926651001, itl p50 0.0333 p99 0.5884
+[21:23:27] A: real rep 1 N=16 exit 0 (112 s left): wall 16.37 s, aggregate 125.1 tok/s, latency median 16.05 s max 16.36 s, prompt tokens 25896, cached 0, ttft median 2.7618 max 9.640033960342407, itl p50 0.0577 p99 0.6256
+[21:24:00] A fill r1: localeval exit 0 (79 s left): [localeval] 1 streams: aggregate 61.8 tok/s [localeval] 4 streams: aggregate 113.5 tok/s [localeval] 8 streams: aggregate 139.6 tok/s [localeval] 16 streams: aggregate 153.9 tok/s 
+[21:24:02] A: stopped: VRAM peak A: card0 28531 MiB, card1 22636 MiB
+[21:24:02] visits done (77 s left)
+[21:24:02] waiting for the background stage
+[21:24:02] background stage ended: [bg] done 2026-11-26 21:23:48
+[21:24:14] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/hold.sh; cap 250s; stopping radiance 2026-11-26 21:21:05
+[window] radiance stopped 2026-11-26 21:21:09 (inactive)
+[window] stage done 2026-11-26 21:24:04 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 21:24:04
+[window] radiance answers 2026-11-26 21:24:14 (after 15 s)
+fleetq: #12353 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

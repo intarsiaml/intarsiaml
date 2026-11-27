@@ -1,0 +1,54 @@
+1795743555.359 fleetq: #12331 is done, not running; queueing separately
+1795743555.441 fleetq: #12337 expect ~2h00m, learned from 20 similar runs; pass --expect to set it
+1795743555.441 fleetq: #12337 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 89% busy with work fleetq does not track
+1795743574.423 fleetq: #12337 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 54% busy with work fleetq does not track
+1795743604.445 fleetq: #12337 running on tatooine-r9700: /opt/code/deepeval/.venv/bin/python3 -m localeval.cli speed --url http://tatooine:18132/v1 --model ink --sizes 1024 --gen 128 --reps 1 --concurrency 1,4,8,16 --label ink-hip-overlap-A-fill-r1 --recipe 'intarsia serve -m Inkling-2-Mini --backend hip --max-batch 16 --max-seq 4608 --kv-fraction 0.9 (tree main5)'
+1795743606.536 [localeval] calibrated: 22.4 tokens/sentence, 46 base tokens, ctx=4608
+1795743608.630 [localeval]   1024 tok rep 1/1: prompt=1038 ttft=0.38s prefill=2698 tok/s decode=75.6 tok/s peak=107.8 tok/s out=128
+1795743610.720 [localeval] 1 streams: aggregate 61.9 tok/s
+1795743615.260 [localeval] 4 streams: aggregate 113.2 tok/s
+1795743622.454 [localeval] 8 streams: aggregate 142.7 tok/s
+1795743635.730 [localeval] 16 streams: aggregate 154.5 tok/s
+1795743635.732 # localeval: adhoc — 2026-11-26T20:40
+1795743635.732 
+1795743635.732 - model: `ink` on ? (?), url `http://tatooine:18132/v1`
+1795743635.732 - thinking: default; run kind: speed; label: ink-hip-overlap-A-fill-r1
+1795743635.732 - harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git 2c5524c
+1795743635.732 - command: `/opt/code/deepeval/src/localeval/cli.py speed --url http://tatooine:18132/v1 --model ink --sizes 1024 --gen 128 --reps 1 --concurrency 1,4,8,16 --label ink-hip-overlap-A-fill-r1 --recipe intarsia serve -m Inkling-2-Mini --backend hip --max-batch 16 --max-seq 4608 --kv-fraction 0.9 (tree main5)`
+1795743635.732 - result file: `results/20261126-204004-adhoc-ink-hip-overlap-A-fill-r1/result.json`
+1795743635.732 
+1795743635.732 ## Launch recipe
+1795743635.732 
+1795743635.732 from inline command (secrets redacted):
+1795743635.732 
+1795743635.732 ````
+1795743635.732 intarsia serve -m Inkling-2-Mini --backend hip --max-batch 16 --max-seq 4608 --kv-fraction 0.9 (tree main5)
+1795743635.732 ````
+1795743635.732 
+1795743635.732 ## Speed sweep
+1795743635.732 
+1795743635.732 served `ink`, fingerprint `None`, ctx 4608, 1 reps, 128 forced output tokens
+1795743635.732 
+1795743635.732 | prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1795743635.732 |---:|---:|---:|---:|---:|---:|---:|---:|---:|
+1795743635.732 | 1038 | 0.39 | 2698 (2698–2698) | - | 75.6 (75.6–75.6) | 107.8 (107.8–107.8) | - | - | 128 |
+1795743635.732 
+1795743635.732 Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+1795743635.732 
+1795743635.732 Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+1795743635.732 
+1795743635.732 
+1795743635.732 | streams | aggregate decode tok/s | per-stream decode | TTFT s |
+1795743635.732 |---:|---:|---:|---:|
+1795743635.732 | 1 | 61.9 | 77.3 (77.3–77.3) | 0.42 |
+1795743635.732 | 4 | 113.2 | 40.1 (34.6–42.5) | 1.32 |
+1795743635.733 | 8 | 142.7 | 25.3 (20.3–31.1) | 2.06 |
+1795743635.733 | 16 | 154.5 | 13.6 (10.7–18.5) | 3.64 |
+1795743635.733 
+1795743635.733 ## Method
+1795743635.733 
+1795743635.733 Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+1795743635.733 
+1795743635.733 [localeval] saved /opt/code/deepeval/results/20261126-204004-adhoc-ink-hip-overlap-A-fill-r1/result.json
+1795743637.758 [localeval] logged to unanimis: 1c2700d8-4a5a-4c81-8426-95b2b6fd4b2f
+1795743637.887 fleetq: #12337 done (exit 0)

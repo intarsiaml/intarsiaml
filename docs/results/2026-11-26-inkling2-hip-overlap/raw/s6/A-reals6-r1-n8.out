@@ -1,0 +1,2 @@
+wall 8.62 s, aggregate 118.8 tok/s, latency median 8.52 s max 8.61 s, prompt tokens 12091, cached 0, ttft median 1.9417 max 4.5182273387908936, itl p50 0.0332 p99 0.5843
+conc:8:0:s6r1n8: 8 replies, 1024 tokens -> rc-s6-A-reals6-r1-n8.json
