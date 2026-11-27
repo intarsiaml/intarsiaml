@@ -47,6 +47,25 @@ pub fn matmul_p12_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, odt: 
     }
 }
 
+/// `MatmulI8` (lane ink-hip-i8): weight-like normal rows quantised per row (`i8row::quantize_host`, MSE-optimal clip); `odt` bf16 =
+/// `Matmul`, f32 = `Logits`. `adversarial` gives some rows a large outlier (a clipped row) and one all-zero row.
+pub fn matmul_i8_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, odt: DType, adversarial: bool) -> HostCall {
+    let mut w = rng.normal_vec(n * k, (k as f32).powf(-0.5));
+    if adversarial {
+        for r in 0..n {
+            match r % 7 {
+                0 => w[r * k + (r * 13) % k] *= 40.0,
+                3 => w[r * k..(r + 1) * k].iter_mut().for_each(|v| *v = 0.0),
+                5 => w[r * k + k - 1] = -w[r * k..(r + 1) * k].iter().fold(0f32, |a, v| a.max(v.abs())) * 3.0,
+                _ => {}
+            }
+        }
+    }
+    let (q, sc) = crate::quant::i8row::quantize_host(&w, n, k, true);
+    let x = rand_t(rng, DType::Bf16, &[m, k], 1.0);
+    HostCall { op: Op::MatmulI8, inputs: vec![x, q, sc], outputs: vec![OutSpec::new(odt, &[m, n])], attrs: OpAttrs::default() }
+}
+
 pub fn matmul_nvfp4_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, xdt: DType, odt: DType) -> HostCall {
     let q = nvfp4::random_rows(rng, n, k);
     let x = rand_t(rng, xdt, &[m, k], 1.0);
@@ -534,6 +553,28 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 }
                 for &m in &[1usize, 4, 16] {
                     push(format!("real unembed M={m} N=200058 K=2304 out=f32"), matmul_p12_case(&mut rng, m, 200058, 2304, DType::F32, false));
+                }
+            }
+        }
+        Op::MatmulI8 => {
+            // decode / verify rows 1..=16; small shapes with tails, then the real wo [2304, 3072] and unembed [200058, 2304]
+            let ms: &[usize] = if quick { &[1, 5] } else { &[1, 2, 3, 4, 7, 8, 9, 16] };
+            let shapes: &[(usize, usize)] = if quick { &[(64, 64), (37, 96)] } else { &[(64, 64), (37, 96), (130, 2304), (61, 3072)] };
+            for &m in ms {
+                for &(n, k) in shapes {
+                    for odt in [DType::Bf16, DType::F32] {
+                        for adv in [false, true] {
+                            push(format!("M={m} N={n} K={k} out={odt} adversarial={adv}"), matmul_i8_case(&mut rng, m, n, k, odt, adv));
+                        }
+                    }
+                }
+            }
+            if !quick {
+                for &m in &[1usize, 4, 16] {
+                    push(format!("real wo M={m} N=2304 K=3072 out=bf16"), matmul_i8_case(&mut rng, m, 2304, 3072, DType::Bf16, false));
+                }
+                for &m in &[1usize, 4, 16] {
+                    push(format!("real unembed M={m} N=200058 K=2304 out=f32"), matmul_i8_case(&mut rng, m, 200058, 2304, DType::F32, false));
                 }
             }
         }

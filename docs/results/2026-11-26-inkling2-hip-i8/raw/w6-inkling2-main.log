@@ -1,0 +1,152 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:370:9
+    |
+370 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+370 -     Ink(usize),
+370 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1387:4
+     |
+1387 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:373:9
+    |
+369 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+373 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `split_keys` is never used
+   --> crates/intarsia-backend-cuda/src/inkattn.rs:127:4
+    |
+127 | fn split_keys() -> i32 {
+    |    ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-hip` (lib) generated 6 warnings
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/inkling2.rs (/target/release/deps/inkling2-4591618c7e4a1464)
+
+running 18 tests
+test inkling2_tiny_chunk_scan ... ok
+test inkling2_tiny_chunked_and_decode_match_prefill_bitwise ... ok
+test inkling2_tiny_failed_pass_resets_the_sequence ... ok
+test inkling2_tiny_g1a_f32_vs_f64 ... ok
+test inkling2_tiny_g1b_teacher_forced_bf16 ... ok
+test inkling2_tiny_graph_decode_is_bitwise_the_eager_decode ... ok
+test inkling2_tiny_int8_row_real_weights_match_the_emulation ... ok
+test inkling2_tiny_interleaved_sequences_equal_solo ... ok
+test inkling2_tiny_launch_diff ... ok
+test inkling2_tiny_loads ... ok
+test inkling2_tiny_logits_dump ... ok
+test inkling2_tiny_no_kernel_refusal_names_the_op ... ok
+test inkling2_tiny_p12_forced_on ... ok
+test inkling2_tiny_rollback_by_length ... ok
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+test inkling2_tiny_verify_graph_replays_equal_decode_bitwise ... ok
+test inkling2_tiny_verify_rows_equal_decode_bitwise ... ok
+
+failures:
+
+---- inkling2_tiny_screen_keeps_batching stdout ----
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+pack12 off: batched plan (max-batch 4); 17 P12 tensors dropped, the bf16 weights serve solo and batched rows
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_tiny_screen_keeps_batching' panicked at crates/intarsia-models/tests/inkling2.rs:106:38:
+called `Result::unwrap()` on an `Err` value: NoKernel("3 op(s) of this model have no kernel on hip/gfx1201:\n  - head_screen: 1 shape(s) without a kernel, e.g. no kernel for head_screen on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - logits_gather: 1 shape(s) without a kernel, e.g. no kernel for logits_gather on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=Some(U8)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - screen_argmax: 1 shape(s) without a kernel, e.g. no kernel for screen_argmax on hip/gfx1201 (m=1 n=300 k=64 act=Some(F32) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- inkling2_tiny_screened_head_one_row_only stdout ----
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_tiny_screened_head_one_row_only' panicked at crates/intarsia-models/tests/inkling2.rs:106:38:
+called `Result::unwrap()` on an `Err` value: NoKernel("3 op(s) of this model have no kernel on hip/gfx1201:\n  - head_screen: 1 shape(s) without a kernel, e.g. no kernel for head_screen on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - logits_gather: 1 shape(s) without a kernel, e.g. no kernel for logits_gather on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=Some(U8)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - screen_argmax: 1 shape(s) without a kernel, e.g. no kernel for screen_argmax on hip/gfx1201 (m=1 n=300 k=64 act=Some(F32) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...")
+
+
+failures:
+    inkling2_tiny_screen_keeps_batching
+    inkling2_tiny_screened_head_one_row_only
+
+test result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.41s
+
+error: test failed, to rerun pass `-p intarsia-models --test inkling2`

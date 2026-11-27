@@ -1,0 +1,30 @@
+fleetq: #12347 waiting (#3 in line): in line behind #12344 "ink-dflash2: ABBA k4 w1 (a, r1 r2)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12344 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12344 set, or it will wait for #12344 to be released.
+fleetq: #12347 waiting (#2 in line): in line behind #12346 "ink-hip-overlap: sync + hip build o5 (merged head 1b35c6741)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12346 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12346 set, or it will wait for #12346 to be released.
+fleetq: #12347 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12346 "ink-hip-overlap: sync + hip build o5 (merged head 1b35c6741)" (claude-04c0e1cd) loads it
+fleetq:   #12346 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12346 set, or it will wait for #12346 to be released.
+fleetq: #12347 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12348 "ink-hip-i8: build models tests inkling2 + inkling2_batch (hip)" (claude-04c0e1cd) loads it
+fleetq:   #12348 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12348 set, or it will wait for #12348 to be released.
+fleetq: #12347 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 60% busy with work fleetq does not track
+fleetq: #12347 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 PROMPTS=short bash ~/intarsiaml-ink-hip-i8/.scratch/window.sh ~/intarsiaml-ink-hip-i8/docs/results/2026-11-26-inkling2-hip-i8/raw/stage_w3.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-i8/docs/results/2026-11-26-inkling2-hip-i8/raw/stage_w3.sh; cap 285s; stopping radiance 2026-11-26 21:08:04
+[window] radiance stopped 2026-11-26 21:08:08 (inactive)
+[stage] accuracy 4k main 21:08:08
+ACC main 4k exit 0 floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested golden gate: PASS 
+[stage] accuracy 4k i8 21:08:58
+ACC i8 4k exit 0 floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested golden gate: PASS 
+SPD main off-short 256 r1 9a27c21b6fdc4ea7700439c818e698d8 | decode 3063 ms (83.25 tok/s) | prefill 103 ms (302.4 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [21:10:08]
+SPD branch off-short 256 r1 51b358e2804ce910741d29bb6f86f5b9 | decode 2635 ms (96.76 tok/s) | prefill 99 ms (312.6 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [21:10:27]
+SPD branch off-short 256 r2 51b358e2804ce910741d29bb6f86f5b9 | decode 2633 ms (96.85 tok/s) | prefill 99 ms (313.7 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [21:10:46]
+SPD main off-short 256 r2 9a27c21b6fdc4ea7700439c818e698d8 | decode 3063 ms (83.25 tok/s) | prefill 103 ms (302.3 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [21:10:55]
+SPD main off-short 256 r3 9a27c21b6fdc4ea7700439c818e698d8 | decode 3064 ms (83.23 tok/s) | prefill 101 ms (307.3 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [21:11:04]
+SPD branch off-short 256 r3 51b358e2804ce910741d29bb6f86f5b9 | decode 2634 ms (96.83 tok/s) | prefill 100 ms (311.4 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [21:11:23]
+SPD branch off-short 256 r4 51b358e2804ce910741d29bb6f86f5b9 | decode 2634 ms (96.81 tok/s) | prefill 98 ms (315.0 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [21:11:43]
+SPD main off-short 256 r4 9a27c21b6fdc4ea7700439c818e698d8 | decode 3063 ms (83.26 tok/s) | prefill 103 ms (302.2 tok/s) | steps=256 graph replays=255 (captures 1) eager decode steps=0 [21:11:51]
+[stage] done 21:11:51
+[stage] done 21:11:51
+[window] stage done 2026-11-26 21:11:52 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 21:11:52
+[window] radiance answers 2026-11-26 21:12:02 (after 15 s)
+fleetq: #12347 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
