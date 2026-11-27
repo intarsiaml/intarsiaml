@@ -738,6 +738,15 @@ fn req_on(e: &LocalEngine, tel: &Telemetry, prompt: &[u32], n: usize, temperatur
     (v, (s1.spec_steps - s0.spec_steps, s1.spec_proposed - s0.spec_proposed, s1.spec_accepted - s0.spec_accepted))
 }
 
+/// The DSpark draft's per-step gate and cut off (`INTARSIA_DSPARK_TAU=0`, `INTARSIA_DSPARK_CUT=0`, read at load, as
+/// `tests/ink_sampled`'s `gate_off`): on the tiny random model it would otherwise propose nothing, and the sampled checks would be vacuous.
+fn dspark_gate_off() {
+    static ONCE: Mutex<()> = Mutex::new(());
+    let _g = ONCE.lock().unwrap();
+    std::env::set_var("INTARSIA_DSPARK_TAU", "0");
+    std::env::set_var("INTARSIA_DSPARK_CUT", "0");
+}
+
 fn sampled_env_unset() -> bool {
     let unset = ["INTARSIA_SPEC_SAMPLED_DFLASH", "INTARSIA_SPEC_SAMPLED_ADAPT"].iter().all(|v| std::env::var(v).map_or(true, |x| x.is_empty()));
     if !unset {
@@ -758,6 +767,7 @@ fn dual_drafts_greedy_with_dflash2_sampled_with_dspark_and_keep_spec_off_ids() {
         eprintln!("skipped: no tiny fixtures");
         return;
     }
+    dspark_gate_off();
     let name = backend(false).name().to_string();
     let r = recipe_with(&name, &|t| t.sampled_dflash = Some(true));
     let dd = draft_dir();
@@ -804,6 +814,7 @@ fn dual_load_adds_the_second_draft_only_when_given() {
         eprintln!("skipped: no tiny fixtures");
         return;
     }
+    dspark_gate_off();
     let name = backend(false).name().to_string();
     let r = recipe_with(&name, &|t| t.sampled_dflash = Some(true));
     let dd = draft_dir();
