@@ -15,3 +15,15 @@ others=$(pgrep -fl '^[^ ]*/intarsia[^ /]* (serve|generate)' | head -3)
 # DFlash2 k5 beside DSpark); dfl5 = #549's arm (DFlash2 alone, explicit)
 flags() { case $1 in off) echo "--spec off" ;; main|flip) echo "" ;; dfl5) echo "--spec dflash --spec-draft $D --spec-k 5" ;; esac; }
 envs() { case $1 in main) echo "INTARSIA_SPEC_DFLASH2_DEFAULT=0" ;; *) echo "" ;; esac; }
+# serve_start NAME ARM PORT "EXTRA FLAGS"  -> sets SPID (the time wrapper); log $O/s-NAME.{out,err}  (added for slot H)
+serve_start() {
+  local name=$1 arm=$2 port=$3 extra=$4
+  env $(envs $arm) /usr/bin/time -l $B serve -m $M --backend metal --no-supervisor --no-ui --port $port $(flags $arm) $extra > $O/s-$name.out 2> $O/s-$name.err &
+  SPID=$!
+}
+serve_stop() {
+  local c n=0; for c in $(pgrep -P $SPID 2>/dev/null); do kill -TERM $c; done
+  while kill -0 $SPID 2>/dev/null && [ $n -lt 40 ]; do sleep 0.5; n=$((n+1)); done
+  kill -0 $SPID 2>/dev/null && { for c in $(pgrep -P $SPID 2>/dev/null); do kill -KILL $c; done; echo "serve_stop: KILL needed"; }
+  wait $SPID 2>/dev/null
+}

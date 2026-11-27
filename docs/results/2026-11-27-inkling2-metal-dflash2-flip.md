@@ -39,6 +39,12 @@ One binary (this branch). Arms: `off` = `--spec off`; `main` = `INTARSIA_SPEC_DF
 
 Merge rule: G1-G4 PASS and no FLAG → PR, merge on green CI. A FAIL or FLAG → report to the user before merging.
 
+**G7 (added 2026-11-27 12:38 EST after slot G, before slot H):** the one path not tested with both drafts loaded is `serve` at one
+sequence (the default; `--max-batch` is opt-in) with multi-turn prefix reuse. #549's check 5 tested it with DFlash2 alone. Rule, as in #549's
+check 5 (script `raw/slotH.sh`, fleetq slot H): `serve --max-batch 1` with the flip default vs `--spec off`, each started twice; 2 chats x 3
+turns on the chat endpoint plus 2 x 3 turns as token-id extensions, greedy, 128 tokens. **PASS** if all 12 turns' ids are identical between
+the flip server and the off server at both starts, and `cached_tokens` shows reuse on turns 2 and 3. A FAIL blocks the merge.
+
 ## Results
 
 **Verdict: PASS. G1-G4 pass, and neither G5 nor G6 raised a FLAG.** Slot G was fleetq #12677, endor `--exclusive`, 12:18:31-12:32:24 EST, the
