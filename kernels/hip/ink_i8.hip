@@ -115,7 +115,8 @@ constexpr bool ru_many(int r, int u) { return (r == 1 || r == 2) && (u == 1 || u
 template <int M>
 RU gemv_ru() {
     // defaults from window 1 (fleetq #12302, docs/results/2026-11-26-inkling2-hip-i8.md): U >= 4 spills at 4 rows (wo 61 us against 16 at U = 2)
-    const RU d = M <= 4 ? RU{1, 2} : RU{2, 2};
+    // window 2 (fleetq #12323): at 8 / 16 rows R2 U2 spills (wo 58 / 85 us); R2 U1: 22 / 35 us (P12 28 / 45)
+    const RU d = M <= 4 ? RU{1, 2} : RU{2, 1};
     if (g_gemv_r < 0 || g_gemv_u < 0) return d;
     const bool ok = M <= 4 ? ru_few(g_gemv_r, g_gemv_u) : ru_many(g_gemv_r, g_gemv_u);
     return ok ? RU{g_gemv_r, g_gemv_u} : d;

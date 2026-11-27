@@ -20,7 +20,7 @@ int ik_ink_in_proj_i8_gemv(const ik_tensor* x, const ik_tensor* q, const ik_tens
 int ik_ink_in_proj_i8_gemv_rows(const ik_tensor* x, const ik_tensor* q, const ik_tensor* scales, ik_tensor* pq, ik_tensor* pk,
                                 ik_tensor* pv, void* stream);
 /* Test / bench hook (not a launcher): the launch shape. gemv_r / gemv_u: rows per wave and chunk loads in flight per lane of the
- * MatmulI8 kernel (M 1..4: R 1..2, U 1/2/4/8; M 5..16: R 1..2, U 1/2; anything else, or < 0, the default: 1,2 at 1..4 rows, 2,2 at
+ * MatmulI8 kernel (M 1..4: R 1..2, U 1/2/4/8; M 5..16: R 1..2, U 1/2; anything else, or < 0, the default: 1,2 at 1..4 rows, 2,1 at
  * 5..16); inproj_u: 1..5 chunk loads in flight per lane of the in-projection kernel, <= 0 the default (3 at one row, else 1). */
 void ik_hip_i8_set(int gemv_r, int gemv_u, int inproj_u);
 #ifdef __cplusplus

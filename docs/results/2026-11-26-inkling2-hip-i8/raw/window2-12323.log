@@ -1,0 +1,152 @@
+fleetq: #12323 waiting (#2 in line): in line behind #12322 "ink-hip-overlap: window O4 (gates on o4: default-config KV main5/o4, md5 spec off/DSpark, real 4/8/16 bitwise, tiny, admission)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12322 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12322 set, or it will wait for #12322 to be released.
+fleetq: #12323 waiting (#1 in line): radiance-rank0 is also taken down by #12322 "ink-hip-overlap: window O4 (gates on o4: default-config KV main5/o4, md5 spec off/DSpark, real 4/8/16 bitwise, tiny, admission)" (claude-04c0e1cd)
+fleetq:   #12322 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12322 set, or it will wait for #12322 to be released.
+fleetq: #12323 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 98% busy with work fleetq does not track
+fleetq: #12323 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12323 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 bash ~/intarsiaml-ink-hip-i8/.scratch/window.sh ~/intarsiaml-ink-hip-i8/docs/results/2026-11-26-inkling2-hip-i8/raw/stage_w2.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-i8/docs/results/2026-11-26-inkling2-hip-i8/raw/stage_w2.sh; cap 285s; stopping radiance 2026-11-26 20:30:34
+[window] radiance stopped 2026-11-26 20:30:38 (inactive)
+[stage] i8 correctness 20:30:38
+test i8_microbench ... skipping: I8_BENCH unset
+test i8_real_shapes_match_the_reference ... checked 168060 outputs
+test i8_small_shapes_tails_and_every_launch_shape ... checked 143616 outputs
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.91s
+[stage] microbench 20:30:39
+BENCH wo | 1 | matmul_p12_gemv (P12, main default) | 22.81 | 465.9 | 1.000
+BENCH wo | 1 | matmul_i8_gemv (i8) default | 14.77 | 480.0 | 1.545
+BENCH wo | 1 | matmul_i8_gemv (i8) R=1,U=1 | 15.36 | 461.3 | 1.485
+BENCH wo | 1 | matmul_i8_gemv (i8) R=1,U=2 | 14.79 | 479.2 | 1.542
+BENCH wo | 1 | matmul_i8_gemv (i8) R=1,U=4 | 15.73 | 450.6 | 1.450
+BENCH wo | 1 | matmul_i8_gemv (i8) R=1,U=8 | 16.94 | 418.3 | 1.346
+BENCH wo | 1 | matmul_i8_gemv (i8) R=2,U=1 | 15.69 | 451.7 | 1.454
+BENCH wo | 1 | matmul_i8_gemv (i8) R=2,U=2 | 14.80 | 479.0 | 1.542
+BENCH wo | 1 | matmul_i8_gemv (i8) R=2,U=4 | 14.88 | 476.1 | 1.532
+BENCH wo | 1 | matmul_i8_gemv (i8) R=2,U=8 | 17.71 | 400.3 | 1.288
+BENCH wo | 2 | matmul_p12_gemv (P12, main default) | 22.39 | 474.6 | 1.000
+BENCH wo | 2 | matmul_i8_gemv (i8) default | 15.42 | 459.5 | 1.452
+BENCH wo | 2 | matmul_i8_gemv (i8) R=1,U=1 | 16.40 | 432.1 | 1.365
+BENCH wo | 2 | matmul_i8_gemv (i8) R=1,U=2 | 15.52 | 456.7 | 1.443
+BENCH wo | 2 | matmul_i8_gemv (i8) R=1,U=4 | 16.14 | 439.1 | 1.387
+BENCH wo | 2 | matmul_i8_gemv (i8) R=1,U=8 | 17.63 | 401.9 | 1.270
+BENCH wo | 2 | matmul_i8_gemv (i8) R=2,U=1 | 16.99 | 417.0 | 1.318
+BENCH wo | 2 | matmul_i8_gemv (i8) R=2,U=2 | 14.95 | 474.2 | 1.498
+BENCH wo | 2 | matmul_i8_gemv (i8) R=2,U=4 | 16.03 | 442.3 | 1.397
+BENCH wo | 2 | matmul_i8_gemv (i8) R=2,U=8 | 82.72 | 85.7 | 0.271
+BENCH wo | 4 | matmul_p12_gemv (P12, main default) | 23.61 | 450.1 | 1.000
+BENCH wo | 4 | matmul_i8_gemv (i8) default | 16.18 | 438.0 | 1.459
+BENCH wo | 4 | matmul_i8_gemv (i8) R=1,U=1 | 18.97 | 373.6 | 1.245
+BENCH wo | 4 | matmul_i8_gemv (i8) R=1,U=2 | 16.26 | 435.8 | 1.452
+BENCH wo | 4 | matmul_i8_gemv (i8) R=1,U=4 | 61.00 | 116.2 | 0.387
+BENCH wo | 4 | matmul_i8_gemv (i8) R=1,U=8 | 72.17 | 98.2 | 0.327
+BENCH wo | 4 | matmul_i8_gemv (i8) R=2,U=1 | 19.25 | 368.2 | 1.227
+BENCH wo | 4 | matmul_i8_gemv (i8) R=2,U=2 | 17.43 | 406.6 | 1.355
+BENCH wo | 4 | matmul_i8_gemv (i8) R=2,U=4 | 56.00 | 126.6 | 0.422
+BENCH wo | 4 | matmul_i8_gemv (i8) R=2,U=8 | 171.27 | 41.4 | 0.138
+BENCH wo | 8 | matmul_p12_gemv_rows (P12, main default) | 28.01 | 379.5 | 1.000
+BENCH wo | 8 | matmul_i8_gemv_rows (i8) default | 57.87 | 122.5 | 0.484
+BENCH wo | 8 | matmul_i8_gemv_rows (i8) R=1,U=1 | 22.37 | 316.8 | 1.252
+BENCH wo | 8 | matmul_i8_gemv_rows (i8) R=1,U=2 | 23.23 | 305.1 | 1.206
+BENCH wo | 8 | matmul_i8_gemv_rows (i8) R=2,U=1 | 22.36 | 316.9 | 1.252
+BENCH wo | 8 | matmul_i8_gemv_rows (i8) R=2,U=2 | 57.78 | 122.7 | 0.485
+BENCH wo | 16 | matmul_p12_gemv_rows (P12, main default) | 44.85 | 237.0 | 1.000
+BENCH wo | 16 | matmul_i8_gemv_rows (i8) default | 85.17 | 83.2 | 0.527
+BENCH wo | 16 | matmul_i8_gemv_rows (i8) R=1,U=1 | 44.78 | 158.3 | 1.002
+BENCH wo | 16 | matmul_i8_gemv_rows (i8) R=1,U=2 | 189.26 | 37.4 | 0.237
+BENCH wo | 16 | matmul_i8_gemv_rows (i8) R=2,U=1 | 34.78 | 203.8 | 1.290
+BENCH wo | 16 | matmul_i8_gemv_rows (i8) R=2,U=2 | 85.08 | 83.3 | 0.527
+BENCH unembed | 1 | matmul_p12_logits_gemv (P12, main default) | 1100.98 | 628.9 | 1.000
+BENCH unembed | 1 | matmul_i8_logits_gemv (i8) default | 733.12 | 629.8 | 1.502
+BENCH unembed | 1 | matmul_i8_logits_gemv (i8) R=1,U=1 | 731.87 | 630.9 | 1.504
+BENCH unembed | 1 | matmul_i8_logits_gemv (i8) R=1,U=2 | 732.91 | 630.0 | 1.502
+BENCH unembed | 1 | matmul_i8_logits_gemv (i8) R=1,U=4 | 732.50 | 630.4 | 1.503
+BENCH unembed | 1 | matmul_i8_logits_gemv (i8) R=1,U=8 | 733.56 | 629.4 | 1.501
+BENCH unembed | 1 | matmul_i8_logits_gemv (i8) R=2,U=1 | 732.62 | 630.3 | 1.503
+BENCH unembed | 1 | matmul_i8_logits_gemv (i8) R=2,U=2 | 732.43 | 630.4 | 1.503
+BENCH unembed | 1 | matmul_i8_logits_gemv (i8) R=2,U=4 | 734.44 | 628.7 | 1.499
+BENCH unembed | 1 | matmul_i8_logits_gemv (i8) R=2,U=8 | 734.77 | 628.4 | 1.498
+BENCH unembed | 2 | matmul_p12_logits_gemv (P12, main default) | 1256.20 | 551.2 | 1.000
+BENCH unembed | 2 | matmul_i8_logits_gemv (i8) default | 733.41 | 629.6 | 1.713
+BENCH unembed | 2 | matmul_i8_logits_gemv (i8) R=1,U=1 | 732.46 | 630.4 | 1.715
+BENCH unembed | 2 | matmul_i8_logits_gemv (i8) R=1,U=2 | 733.42 | 629.6 | 1.713
+BENCH unembed | 2 | matmul_i8_logits_gemv (i8) R=1,U=4 | 738.07 | 625.6 | 1.702
+BENCH unembed | 2 | matmul_i8_logits_gemv (i8) R=1,U=8 | 735.61 | 627.7 | 1.708
+BENCH unembed | 2 | matmul_i8_logits_gemv (i8) R=2,U=1 | 738.07 | 625.6 | 1.702
+BENCH unembed | 2 | matmul_i8_logits_gemv (i8) R=2,U=2 | 734.13 | 629.0 | 1.711
+BENCH unembed | 2 | matmul_i8_logits_gemv (i8) R=2,U=4 | 736.61 | 626.8 | 1.705
+BENCH unembed | 2 | matmul_i8_logits_gemv (i8) R=2,U=8 | 4999.84 | 92.3 | 0.251
+BENCH unembed | 4 | matmul_p12_logits_gemv (P12, main default) | 1280.81 | 540.6 | 1.000
+BENCH unembed | 4 | matmul_i8_logits_gemv (i8) default | 804.43 | 574.0 | 1.592
+BENCH unembed | 4 | matmul_i8_logits_gemv (i8) R=1,U=1 | 761.39 | 606.4 | 1.682
+BENCH unembed | 4 | matmul_i8_logits_gemv (i8) R=1,U=2 | 839.39 | 550.1 | 1.526
+BENCH unembed | 4 | matmul_i8_logits_gemv (i8) R=1,U=4 | 4486.91 | 102.9 | 0.285
+BENCH unembed | 4 | matmul_i8_logits_gemv (i8) R=1,U=8 | 5282.57 | 87.4 | 0.242
+BENCH unembed | 4 | matmul_i8_logits_gemv (i8) R=2,U=1 | 764.58 | 603.9 | 1.675
+BENCH unembed | 4 | matmul_i8_logits_gemv (i8) R=2,U=2 | 753.69 | 612.6 | 1.699
+BENCH unembed | 4 | matmul_i8_logits_gemv (i8) R=2,U=4 | 3385.01 | 136.4 | 0.378
+BENCH unembed | 4 | matmul_i8_logits_gemv (i8) R=2,U=8 | 11644.39 | 39.7 | 0.110
+BENCH unembed | 8 | matmul_p12_logits_gemv_rows (P12, main default) | 1443.90 | 479.5 | 1.000
+BENCH unembed | 8 | matmul_i8_logits_gemv_rows (i8) default | 3528.05 | 130.9 | 0.409
+BENCH unembed | 8 | matmul_i8_logits_gemv_rows (i8) R=1,U=1 | 1483.96 | 311.1 | 0.973
+BENCH unembed | 8 | matmul_i8_logits_gemv_rows (i8) R=1,U=2 | 1757.31 | 262.8 | 0.822
+BENCH unembed | 8 | matmul_i8_logits_gemv_rows (i8) R=2,U=1 | 1001.52 | 461.0 | 1.442
+BENCH unembed | 8 | matmul_i8_logits_gemv_rows (i8) R=2,U=2 | 3521.34 | 131.1 | 0.410
+BENCH unembed | 16 | matmul_p12_logits_gemv_rows (P12, main default) | 2117.45 | 327.0 | 1.000
+BENCH unembed | 16 | matmul_i8_logits_gemv_rows (i8) default | 5307.07 | 87.0 | 0.399
+BENCH unembed | 16 | matmul_i8_logits_gemv_rows (i8) R=1,U=1 | 3277.48 | 140.9 | 0.646
+BENCH unembed | 16 | matmul_i8_logits_gemv_rows (i8) R=1,U=2 | 14456.48 | 31.9 | 0.146
+BENCH unembed | 16 | matmul_i8_logits_gemv_rows (i8) R=2,U=1 | 2120.75 | 217.7 | 0.998
+BENCH unembed | 16 | matmul_i8_logits_gemv_rows (i8) R=2,U=2 | 5331.49 | 86.6 | 0.397
+BENCH in_proj | 1 | ink_in_proj_p12_gemv (P12, main default) | 55.11 | 544.0 | 1.000
+BENCH in_proj | 1 | ink_in_proj_i8_gemv (i8) default | 35.06 | 570.3 | 1.572
+BENCH in_proj | 1 | ink_in_proj_i8_gemv (i8) u=1 | 35.72 | 559.9 | 1.543
+BENCH in_proj | 1 | ink_in_proj_i8_gemv (i8) u=2 | 35.48 | 563.6 | 1.553
+BENCH in_proj | 1 | ink_in_proj_i8_gemv (i8) u=3 | 35.14 | 569.0 | 1.568
+BENCH in_proj | 1 | ink_in_proj_i8_gemv (i8) u=4 | 36.52 | 547.6 | 1.509
+BENCH in_proj | 1 | ink_in_proj_i8_gemv (i8) u=5 | 35.38 | 565.2 | 1.558
+BENCH in_proj | 2 | ink_in_proj_p12_gemv (P12, main default) | 54.27 | 552.5 | 1.000
+BENCH in_proj | 2 | ink_in_proj_i8_gemv (i8) default | 36.21 | 552.2 | 1.499
+BENCH in_proj | 2 | ink_in_proj_i8_gemv (i8) u=1 | 36.24 | 551.7 | 1.498
+BENCH in_proj | 2 | ink_in_proj_i8_gemv (i8) u=2 | 36.11 | 553.8 | 1.503
+BENCH in_proj | 2 | ink_in_proj_i8_gemv (i8) u=3 | 36.21 | 552.3 | 1.499
+BENCH in_proj | 2 | ink_in_proj_i8_gemv (i8) u=4 | 40.11 | 498.5 | 1.353
+BENCH in_proj | 2 | ink_in_proj_i8_gemv (i8) u=5 | 37.63 | 531.3 | 1.442
+BENCH in_proj | 4 | ink_in_proj_p12_gemv (P12, main default) | 55.80 | 537.4 | 1.000
+BENCH in_proj | 4 | ink_in_proj_i8_gemv (i8) default | 37.28 | 536.4 | 1.497
+BENCH in_proj | 4 | ink_in_proj_i8_gemv (i8) u=1 | 37.57 | 532.2 | 1.485
+BENCH in_proj | 4 | ink_in_proj_i8_gemv (i8) u=2 | 40.14 | 498.2 | 1.390
+BENCH in_proj | 4 | ink_in_proj_i8_gemv (i8) u=3 | 41.95 | 476.6 | 1.330
+BENCH in_proj | 4 | ink_in_proj_i8_gemv (i8) u=4 | 200.02 | 100.0 | 0.279
+BENCH in_proj | 4 | ink_in_proj_i8_gemv (i8) u=5 | 173.56 | 115.2 | 0.321
+BENCH in_proj | 8 | ink_in_proj_p12_gemv_rows (P12, main default) | 63.29 | 473.8 | 1.000
+BENCH in_proj | 8 | ink_in_proj_i8_gemv_rows (i8) default | 57.19 | 349.7 | 1.107
+BENCH in_proj | 8 | ink_in_proj_i8_gemv_rows (i8) u=1 | 56.98 | 351.0 | 1.111
+BENCH in_proj | 8 | ink_in_proj_i8_gemv_rows (i8) u=2 | 74.87 | 267.1 | 0.845
+BENCH in_proj | 8 | ink_in_proj_i8_gemv_rows (i8) u=3 | 184.49 | 108.4 | 0.343
+BENCH in_proj | 8 | ink_in_proj_i8_gemv_rows (i8) u=4 | 356.08 | 56.2 | 0.178
+BENCH in_proj | 8 | ink_in_proj_i8_gemv_rows (i8) u=5 | 319.38 | 62.6 | 0.198
+BENCH in_proj | 16 | ink_in_proj_p12_gemv_rows (P12, main default) | 134.41 | 223.1 | 1.000
+BENCH in_proj | 16 | ink_in_proj_i8_gemv_rows (i8) default | 147.02 | 136.0 | 0.914
+BENCH in_proj | 16 | ink_in_proj_i8_gemv_rows (i8) u=1 | 146.77 | 136.2 | 0.916
+BENCH in_proj | 16 | ink_in_proj_i8_gemv_rows (i8) u=2 | 657.41 | 30.4 | 0.204
+BENCH in_proj | 16 | ink_in_proj_i8_gemv_rows (i8) u=3 | 884.57 | 22.6 | 0.152
+BENCH in_proj | 16 | ink_in_proj_i8_gemv_rows (i8) u=4 | 2018.33 | 9.9 | 0.067
+BENCH in_proj | 16 | ink_in_proj_i8_gemv_rows (i8) u=5 | 1504.87 | 13.3 | 0.089
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 7.52s
+[stage] md5 main 20:30:47
+MD5 main short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 761 ms (82.79 tok/s) | 
+[stage] md5 i8 20:30:54
+MD5 i8 short 64 04cdb28a6849728e8aa5be39bf65c07e | decode 655 ms (96.22 tok/s) | lm_head as int8 + one f32 scale per row (200058 unembed rows x 2304, 0.46 GB of i8 copy for 1..=16 rows; INTARSIA_LMHEAD_QUANT = int8_row, 3.2 s) inkling2: attention projections quantised to int8_row at load (INTARSIA_INK_ATTN_QUANT = int8_row; changes outputs) inkling2: in_proj + wo as int8 + one f32 scale per row (INTARSIA_INK_ATTN_QUANT = int8_row; changes outputs): 0.647 GB of i8 copies for 1..=16 rows (decode / verify), bf16(q * scale) kept for prefill 
+[stage] accuracy short main 20:31:11
+ACC main short exit 0 floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested golden gate: PASS 
+[stage] accuracy short i8 20:31:29
+ACC i8 short exit 0 floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested golden gate: PASS 
+[stage] accuracy long main 20:31:56
+ACC main long exit 0 floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested golden gate: PASS 
+[stage] accuracy long i8 20:32:20
+ACC i8 long exit 0 floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested golden gate: PASS 
+[stage] done 20:32:53
+[window] stage done 2026-11-26 20:32:54 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 20:32:54
+[window] radiance answers 2026-11-26 20:33:04 (after 15 s)
+fleetq: #12323 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
