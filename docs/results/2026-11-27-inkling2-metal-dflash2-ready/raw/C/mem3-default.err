@@ -1,0 +1,42 @@
+--spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on metal ([tuning.metal] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe inkling2, metal)
+prefill chunk: long-prompt chunk off (INTARSIA_INK_LONG_CHUNK=1 turns it on: 4096 rows from 4097 tokens)
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.46 GB + bounds, cap 64, 0.8 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.4 s)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.0 s
+dspark: Markov fold [200058 x 256] in 3.6 s
+dspark: draft head mxfp4 [200058 x 2304] in 0.1 s
+dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 3.7 s
+--spec dflash on metal: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)
+speculative decoding: Dflash, up to 3 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_p12_gemv_rows ink_attn_decode=ink_attn_decode_bf16 matmul_p12=matmul_p12_gemv_rows conv_mix=conv_mix_bf16 ink_route=ink_route_bf16 moe_experts=moe_experts_situ_bf16_rows attn_res_mix=attn_res_mix_bf16 loop_blend=loop_blend_bf16 moe_experts_mxfp8=moe_experts_mxfp8_bf16_rows hc_pre=hc_pre_bf16 matmul=matmul_bf16_gemv qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 matmul=matmul_bf16_gemv_rows matmul=matmul_bf16_nax attn_decode=attn_decode_bf16_splitkv add=add_bf16 silu_glu=silu_glu_bf16 matmul_mxfp4=matmul_mxfp4_gemv logits=logits_bf16_gemv matmul_mxfp4=matmul_mxfp4_gemv_rows logits=logits_bf16 attn_decode=attn_decode_bf16_window matmul_p12=matmul_p12_logits_gemv_rows argmax=argmax_f32
+sampled requests (temperature > 0): DFlash-family drafting off (default; single sequence, one rank, seed-exact keyed rule)
+loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 7.7s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.41 GB, context 615670 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel gumbel_argmax_f32
+INTARSIA_INK_HEAD_SCREEN: gathers through the serving head kernel 'matmul_p12_logits_gemv'
+INTARSIA_INK_HEAD_SCREEN: first screened head step served (1 row)
+ids[code]: [149862, 150003, 149934, 196982, 220, 17, 25, 198, 149860, 149862, 150583, 152486, 198, 149862, 149887, 149900, 149881, 150354, 7, 17, 11, 150167, 7, 77, 145054, 15, 13, 20, 8, 196986, 220, 16, 8, 25, 198, 149860, 149862, 150003, 149934, 196996, 149900, 197010, 220, 15, 25, 198, 149861, 149862, 150583, 152486, 198, 149862, 150583, 151663, 68019, 1719, 220, 46389, 62, 1764, 82, 7, 77, 25]
+decode[code]: 64 tokens, 721 ms (87.42 tok/s)
+prefill[code]: 101 tokens, 711 ms
+spec[code]: verify passes=22 proposed=54 accepted=37 (acceptance 68.5%, 2.68 tokens per pass)
+decode overall: 63 tokens after the first, 721 ms (87.42 tok/s)
+prefill overall: 101 tokens, 711 ms (142.0 tok/s)
+spec: verify passes=22 proposed=54 accepted=37 (acceptance 68.5%, 2.68 tokens per pass)
+        9.31 real        74.78 user         2.56 sys
+         33119879168  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             2085133  page reclaims
+                   3  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+               30593  involuntary context switches
+        433997913587  instructions retired
+        331330515747  cycles elapsed
+         44102752072  peak memory footprint

@@ -1,0 +1,4 @@
+Error: loading /Users/josef/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots/b85c3cfa615fc413cc9af3379f491b963f3b586a
+
+Caused by:
+    unsupported: --spec dflash with the batching engine (use --max-batch 1)

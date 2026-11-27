@@ -1,0 +1,18 @@
+fleetq: #12538 running on endor: bash docs/results/2026-11-27-inkling2-metal-sampled-retune/raw/metal/cal.sh c1
+start 02:16:36 out /opt/code/intarsiaml/.worktrees/ink-metal-sampled2/.scratch/metal/cal-c1 | 96e679cba82bab555046033c8d2acc64
+off-1 rc 0 02:17:46 | decode overall: 762 tokens after the first, 10020 ms (76.05 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+po-2 rc 0 02:18:51 | decode overall: 762 tokens after the first, 10387 ms (73.36 tok/s) | spec: verify passes=6 proposed=16 accepted=15 (acceptance 93.8%, 3.50 tokens per pass)
+po-3 rc 0 02:19:57 | decode overall: 762 tokens after the first, 10293 ms (74.03 tok/s) | spec: verify passes=6 proposed=16 accepted=15 (acceptance 93.8%, 3.50 tokens per pass)
+off-4 rc 0 02:21:02 | decode overall: 762 tokens after the first, 10037 ms (75.92 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+fixtr rc 0 02:22:07 | decode overall: 762 tokens after the first, 9269 ms (82.21 tok/s) | spec: verify passes=294 proposed=601 accepted=308 (acceptance 51.2%, 2.05 tokens per pass)
+poltr rc 0 02:23:11 | decode overall: 762 tokens after the first, 9089 ms (83.83 tok/s) | spec: verify passes=182 proposed=395 accepted=240 (acceptance 60.8%, 2.32 tokens per pass)
+s11-t1.0 rc 0 02:23:34 | decode overall: 762 tokens after the first, 12866 ms (59.23 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+s11-t0.7 rc 0 02:23:59 | decode overall: 762 tokens after the first, 13023 ms (58.51 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+s13-t1.0 rc 0 02:24:26 | decode overall: 762 tokens after the first, 14736 ms (51.71 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+s13-t0.7 rc 0 02:24:51 | decode overall: 762 tokens after the first, 13842 ms (55.05 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+s17-t1.0 rc 0 02:25:16 | decode overall: 762 tokens after the first, 13866 ms (54.95 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+s17-t0.7 rc 0 02:25:41 | decode overall: 762 tokens after the first, 13920 ms (54.74 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+s19-t1.0 rc 0 02:26:06 | decode overall: 762 tokens after the first, 13602 ms (56.02 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+s19-t0.7 rc 0 02:26:31 | decode overall: 762 tokens after the first, 13489 ms (56.49 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+end 02:26:31 (595 s)
+fleetq: #12538 done (exit 0)

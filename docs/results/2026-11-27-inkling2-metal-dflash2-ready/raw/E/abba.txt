@@ -1,0 +1,5 @@
+processes ['dfl5@r1', 'dfl5@r2', 'dspark@r1', 'dspark@r2'] | ids identical across all: True
+count                    dspark [77.21, 77.08] dfl5 [77.1, 77.32] ratio per rep [0.999, 1.003] geo 1.001
+story                    dspark [77.29, 76.98] dfl5 [77.12, 76.97] ratio per rep [0.998, 1.0] geo 0.999
+chat_reasoning_rnone     dspark [77.2, 76.82] dfl5 [76.92, 77.2] ratio per rep [0.996, 1.005] geo 1.001
+geometric mean of the 3 prompts: 1.000; min prompt 0.999
