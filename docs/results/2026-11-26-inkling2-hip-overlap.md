@@ -46,6 +46,20 @@ In substance, every rule kept:
 
 Later go-aheads from the coordinator are written below as they arrive.
 
+- **Coordinator, 23:59 EST 11-26** (received 23:56 by this lane's `date`; as written):
+  "The gate-4 amendment is OK: regate S6-S8 with the real-prompt client running on tatooine. Thresholds, shapes and order stay
+  unchanged, and the endor-client FAIL stays on record next to the new result.
+  Conditions:
+  1. **Report both clients' views.** For each window and both arms, also report the server's own ITL histogram and p99. That way the
+     client move can be seen not to change the engine-side picture.
+  2. **Re-report the ungated metrics with the new client:** ITL p90 and TTFT max, which the endor client showed at 1.3-2.1x and
+     1.07-1.21x. Report them even if they still look bad. The user decides default-on in the morning, and those numbers matter to
+     that decision.
+  3. **Keep the client off the GPU cards.** Pin it to a few CPU cores away from the server's busy threads if that is easy, and record
+     where it ran. Keep the same client placement for both arms.
+  The rest of your brief still applies: radiance <= 15 min, behind the flip lane; the Metal and Qwen-HIP no-op gates; #542 stays a
+  draft with `INK_OVERLAP_DEFAULT = false`."
+
 ### Step 1: S3's three stalls are in the client path (endor, Wi-Fi, Tailscale), not in the engine (Mac only, 23:36-23:46)
 
 Scripts and outputs in `raw/`: `stalls.py` (multi-stream gap events vs arrivals, first tokens, prefill spans), `steps.py` (the decode

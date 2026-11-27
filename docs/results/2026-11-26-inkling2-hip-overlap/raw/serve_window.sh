@@ -92,8 +92,18 @@ while IFS=';' read -r name bin sargs largs; do
           # (no prefix shared between the levels of a visit), an untagged level's rep 1 the plain prompts (compared with solo)
           off=$(( (r - 1 + ${REAL_OFF:-0}) % (16 / n) )); nz=""; { (( r > 1 )) || [ -n "$rtag" ]; } && nz=":${rtag}r${r}n${n}"
           mt > "$OUT/$name-real$rtag-r$r-n$n.t0"
+          if [ -n "${REAL_REMOTE:-}" ]; then
+            # lane ink-hip-overlap2 (gate-4 amendment): the client on tatooine's host, pinned to the cores REAL_REMOTE lists, against
+            # the container's own address (no fwd.py, no Tailscale, no Wi-Fi); the files come back under the same names
+            rf=rc-$(basename "$OUT")-$name-real$rtag-r$r-n$n
+            to 120 ssh -o BatchMode=yes "$T" "cd $RR/logs/serve && taskset -c $REAL_REMOTE python3 $RR/.scratch/serve_bitwise.py http://$ip:8132/v1 conc:$n:$off$nz $rf.json > $rf.out 2>&1; rc=\$?; cat $rf.out; exit \$rc" < /dev/null > "$OUT/$name-real$rtag-r$r-n$n.out" 2>&1
+            rc=$?
+            scp -q -o BatchMode=yes "$T:intarsiaml-ink-hip-bpf/logs/serve/$rf.json" "$OUT/$name-real$rtag-r$r-n$n.json" < /dev/null
+            scp -q -o BatchMode=yes "$T:intarsiaml-ink-hip-bpf/logs/serve/$rf.meta.json" "$OUT/$name-real$rtag-r$r-n$n.meta.json" < /dev/null
+          else
           to 120 python3 "$SD/serve_bitwise.py" "http://$T:$PORT/v1" "conc:$n:$off$nz" "$OUT/$name-real$rtag-r$r-n$n.json" < /dev/null > "$OUT/$name-real$rtag-r$r-n$n.out" 2>&1
           rc=$?
+          fi
           mt > "$OUT/$name-real$rtag-r$r-n$n.t1"
           echo "$r $n $(cat "$OUT/$name-real$rtag-r$r-n$n.t0") $(cat "$OUT/$name-real$rtag-r$r-n$n.t1")" >> "$OUT/$name-levels.txt"
           say "$name: real rep $r N=$n exit $rc ($(left) s left): $(head -n 1 "$OUT/$name-real$rtag-r$r-n$n.out")"
@@ -107,8 +117,16 @@ while IFS=';' read -r name bin sargs largs; do
         if (( $(left) < 30 )); then say "$name: SKIP bitwise $m: $(left) s left"; continue; fi
         ms=${m//:/_}
         mt > "$OUT/$name-bw-$ms.t0"
+        if [ -n "${REAL_REMOTE:-}" ]; then  # lane ink-hip-overlap2: as real: above, the client on tatooine
+          rf=rc-$(basename "$OUT")-$name-bitwise-$ms
+          to $(( $(left) - 10 )) ssh -o BatchMode=yes "$T" "cd $RR/logs/serve && taskset -c $REAL_REMOTE python3 $RR/.scratch/serve_bitwise.py http://$ip:8132/v1 $m $rf.json > $rf.out 2>&1; rc=\$?; cat $rf.out; exit \$rc" < /dev/null > "$OUT/$name-bitwise-$ms.out" 2>&1
+          brc=$?
+          scp -q -o BatchMode=yes "$T:intarsiaml-ink-hip-bpf/logs/serve/$rf.json" "$OUT/$name-bitwise-$ms.json" < /dev/null
+          scp -q -o BatchMode=yes "$T:intarsiaml-ink-hip-bpf/logs/serve/$rf.meta.json" "$OUT/$name-bitwise-$ms.meta.json" < /dev/null
+        else
         to $(( $(left) - 10 )) python3 "$SD/serve_bitwise.py" "http://$T:$PORT/v1" "$m" "$OUT/$name-bitwise-$ms.json" < /dev/null > "$OUT/$name-bitwise-$ms.out" 2>&1
         brc=$?
+        fi
         mt > "$OUT/$name-bw-$ms.t1"
         say "$name: bitwise $m exit $brc ($(left) s left): $(head -n 1 "$OUT/$name-bitwise-$ms.out")"
       done ;;
