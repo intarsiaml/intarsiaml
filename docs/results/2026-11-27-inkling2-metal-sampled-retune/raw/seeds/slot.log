@@ -1,0 +1,12 @@
+fleetq: #12545 waiting (#1 in line): endor is held exclusively by #12543 "ink-metal-sampled2: gate G2 T 0.7, seeds 7 23 29 x off/fix/pol" (claude-04c0e1cd)
+fleetq:   #12543 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12543 set, or it will wait for #12543 to be released.
+fleetq: #12545 running on endor: env POLSTR=d=0.237,r=0.236/0.418/0.583,g=0.95,margin=0.05,drop=0.05,probe=3,hold=8,hold_max=64 bash docs/results/2026-11-27-inkling2-metal-sampled-retune/raw/metal/seeds_md5.sh s1
+start 02:53:14 out /opt/code/intarsiaml/.worktrees/ink-metal-sampled2/.scratch/metal/seeds-s1 | test binary /opt/code/intarsiaml/.worktrees/ink-metal-sampled2/target/release/deps/inkling2_sampled_real-85a8ce2019f4ec10 | pol string: d=0.237,r=0.236/0.418/0.583,g=0.95,margin=0.05,drop=0.05,probe=3,hold=8,hold_max=64
+seeds arm 0 rc 0 02:58:45 lines      200 | 0 device-draw passes, 0 stops, 0 resumes | 200 requests in 323.0 s; spec verify passes 0 proposed 0 accepted 0
+seeds arm 1 rc 0 03:04:15 lines      200 | 700 device-draw passes, 197 stops, 6 resumes | 200 requests in 321.5 s; spec verify passes 700 proposed 1068 accepted 252
+seeds T 1: off 100 on 100 shared 100 identical 100
+seeds T 0.6: off 100 on 100 shared 100 identical 100
+greedy off rc 0 ids-md5 3d3dfa555ced67743d4be5fb8ebda5c0 lines 7 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+greedy def rc 0 ids-md5 3d3dfa555ced67743d4be5fb8ebda5c0 lines 7 | spec: verify passes=168 proposed=379 accepted=238 (acceptance 62.8%, 2.42 tokens per pass)
+end 03:04:41
+fleetq: #12545 done (exit 0)

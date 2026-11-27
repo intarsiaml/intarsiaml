@@ -1,11 +1,63 @@
 # Inkling-2 sampled DSpark on Metal: held-out retune of the adaptive draft length (lane ink-metal-sampled2)
 
-Branch `ink/metal-sampled2`, from origin/main `aa7beaa73`. Opt-in on Metal; no default changes. Status: in progress (method pre-registered below
-before the first Metal slot; results are filled in as they arrive).
+Branch `ink/metal-sampled2`, from origin/main `aa7beaa73`, merged with origin/main `4b629184c` before the PR (docs only; no code or recipe change). Metal sampled drafting stays opt-in.
 
-## Result
+## Result (2026-11-27 03:10 EST): **the gate FAILS on Metal, clause 1, `short_b`, and the miss is structural, not noise**
 
-(to be written when the measurements are in)
+Clauses 2, 3 and 4 pass. The story prompt `short_b` is at **0.946 [0.934-0.959] of plain sampling at T 1.0** (seeds 7 / 23 / 29: 0.945 / 0.952 / 0.942) and 0.971 [0.889-1.061] at T 0.7 (0.952 / 1.012 / 0.950). Fixed k3 is
+0.894 / 0.974 on the same seeds, so the policy recovers about half of the loss, but not up to 0.98. The cause is measured in the calibration slot: **a plain step of a request in the policy mode costs 3.1 % more than a plain step of an
+off request** (plainonly / off = 0.970, section 2.1: four tap copies and one stash copy per step, and no replayed decode graph, a reading of the code). A request that stops drafting at once therefore tops out at about 0.97, whatever the stop rule.
+No recipe string can lift that ceiling above 0.98; it needs an engine change (the request leaves the draft for good once drafting has failed), which this lane did not make (section 2.2, stage B).
+
+Metal, sampled decode, **gate seeds 7, 23, 29** (disjoint from the calibration seeds 11, 13, 17, 19; one process per arm, seed and temperature; ratio of tok/s, geometric mean over the 3 seeds, 95 % t-interval on the log ratios with t(2) = 4.303;
+policy string `d=0.237,r=0.236/0.418/0.583,g=0.95,margin=0.05,drop=0.05,probe=3,hold=8,hold_max=64`; `raw/speed-all.txt`):
+
+| T | class | off tok/s | fix / off (fixed k3) | pol / off | pol / fix | 0.98 x fix / off |
+|---|---|---:|---|---|---|---|
+| 1.0 | short | 77.73 | 1.106 [0.880-1.389] | **1.138** [0.908-1.427] | 1.029 [0.964-1.099] | 1.084 ok |
+| 1.0 | 1k | 74.86 | 1.093 [1.020-1.172] | **1.092** [1.031-1.156] | 0.999 [0.967-1.031] | 1.071 ok |
+| 1.0 | 4k | 72.68 | 1.427 [1.153-1.766] | **1.424** [1.138-1.782] | 0.998 [0.986-1.010] | 1.399 ok |
+| 0.7 | short | 77.85 | 1.273 [1.034-1.567] | **1.274** [1.037-1.565] | 1.001 [0.990-1.012] | 1.247 ok |
+| 0.7 | 1k | 75.21 | 1.086 [1.024-1.151] | **1.081** [0.955-1.223] | 0.995 [0.913-1.084] | 1.064 ok |
+| 0.7 | 4k | 73.27 | 1.379 [1.288-1.475] | **1.381** [1.280-1.490] | 1.001 [0.987-1.016] | 1.351 ok |
+
+| T | prompt | fix / off | pol / off | pol / fix | per seed pol / off (7, 23, 29) | clause 1 (>= 0.98) |
+|---|---|---|---|---|---|---|
+| 1.0 | short_b | 0.894 [0.784-1.020] | **0.946** [0.934-0.959] | 1.059 [0.939-1.193] | 0.945 0.952 0.942 | **FAIL** |
+| 1.0 | short_a | 1.159 [0.671-2.001] | 1.173 [0.690-1.996] | 1.012 [0.949-1.079] | 1.500 1.014 1.061 | ok |
+| 1.0 | short_c | 1.392 [0.946-2.048] | 1.398 [0.973-2.009] | 1.004 [0.978-1.031] | 1.515 1.526 1.181 | ok |
+| 1.0 | len1k | 1.093 [1.020-1.172] | 1.092 [1.031-1.156] | 0.999 [0.967-1.031] | 1.084 1.120 1.072 | ok |
+| 1.0 | len4k | 1.427 [1.153-1.766] | 1.424 [1.138-1.782] | 0.998 [0.986-1.010] | 1.283 1.500 1.501 | ok |
+| 0.7 | short_b | 0.974 [0.915-1.037] | **0.971** [0.889-1.061] | 0.996 [0.964-1.030] | 0.952 1.012 0.950 | **FAIL** (point estimate) |
+| 0.7 | short_a | 1.512 [0.696-3.284] | 1.529 [0.679-3.442] | 1.011 [0.974-1.050] | 1.851 1.048 1.841 | ok |
+| 0.7 | short_c | 1.538 [1.448-1.632] | 1.540 [1.455-1.630] | 1.002 [0.996-1.007] | 1.572 1.546 1.503 | ok |
+| 0.7 | len1k | 1.086 [1.024-1.151] | 1.081 [0.955-1.223] | 0.995 [0.913-1.084] | 1.106 1.118 1.020 | ok |
+| 0.7 | len4k | 1.379 [1.288-1.475] | 1.381 [1.280-1.490] | 1.001 [0.987-1.016] | 1.414 1.395 1.334 | ok |
+
+Calibration seeds (11, 13, 17, 19) have no measured speed A/B (their traces fed the replay); their in-sample replayed numbers are in section 2.2 and are not part of the verdict. The replay was 2.5-3.7 % optimistic on `short_b`
+(0.983 / 0.998 predicted at T 1.0 / 0.7 against 0.946 / 0.971 measured).
+
+## Gate verdict, per clause (fixed in advance, section 1.2)
+
+| clause | Metal (endor) |
+|---|---|
+| 1. every prompt pol / off >= 0.98, `short_b` included, T 1.0 and 0.7 | **FAIL**: `short_b` 0.946 (T 1.0) and 0.971 (T 0.7). The other eight cells pass (lowest 1.081); 4 of 10 cells are also strict (CI lower bound >= 0.98) |
+| 2. each class >= 0.98 x fixed-k3 ratio | **PASS**, all six cells (closest: T 0.7 1k 1.081 vs 1.064; T 1.0 4k 1.424 vs 1.399). Gain form (pol - 1 >= 0.98 (fix - 1)): five of six; T 0.7 1k misses by 0.3 points (+0.081 vs +0.084) |
+| 3. seeded ids identical to `--spec off`, 100 seeds x T 1.0 / 0.6 | **PASS**: 100 / 100 shared and identical at both temperatures (24 tokens, k3, the gate string; policy arm 700 verify passes, 197 stops, 6 resumes; #543 managed 35 seeds), plus all 18 speed processes (every arm of a seed and temperature emits the same ids) |
+| 4. greedy ids identical to main, 7 prompts x 64 tokens | **PASS**: `--spec off` and the default (DSpark k3) both `ids-md5 3d3dfa555ced67743d4be5fb8ebda5c0` (7 lines), default 168 passes, 62.8 % acceptance. Same binary as main `aa7beaa73` (no code change), so "equal to main" is the same run; prompts are a reconstruction (section 1.1), so the hash is not comparable with #543's |
+
+**Overall: FAIL on Metal (clause 1, `short_b`).** No recipe change is made and the PR is docs only. Metal sampled drafting stays off by default and opt-in. The candidate string above is measured to be no worse than fixed k3 in any class
+and is 5 points better than fixed k3 on `short_b` at T 1.0, but it is not recommended as a Metal default.
+
+**Not verified:** 128-token single-process cells on 3 seeds are noisy (the `short` class interval at T 1.0 spans 0.91-1.43 because `short_a` / `short_c` swing between seeds); the old recipe string was not re-measured on the gate seeds;
+measurements are on main `aa7beaa73`, the PR merges main `4b629184c` (#542, HIP and the scheduler; not re-measured on Metal); the plain-step tax's mechanism (graph replay vs eager encode, tap copies) is a reading of the code, not measured
+beyond the 3 % itself; the reconstructed `speed.json` differs from #543's by one id in `short_a`.
+
+## What would make Metal pass (next lane, not done here)
+
+1. **Remove the plain-step tax of the policy mode** (the real lever). Either let a request that has failed its probes leave the draft for the rest of the request (`d.active = false`, `seq.spec_on = false`; plain steps are then the off request's, 1.0), or record the decode graph with the tap copies so a drafting request's plain steps replay it.
+   The replay, with a stop-after-the-first-failed-probe rule (`giveup=1`, in sim only), predicts an in-sample score of 1.012 (against 1.002 for the gate string) with `short_b` 0.990 / 1.023; the engine part is a few lines in `Seq::prepare_with` plus the multi-turn resync check (`DFLASH_RESYNC_REUSE_MAX`).
+2. Re-run the same gate on seeds 7, 23, 29 (this doc's harness: `raw/metal/gate.sh`, `raw/sim2.py`, `raw/speed4.py`), ~35 min of exclusive endor time.
 
 ## 0. Brief (verbatim from the coordinator, 2026-11-27 02:07 EST, condensed only by dropping the tool-use boilerplate)
 
@@ -158,4 +210,14 @@ cost 1.0 and not 1.031) reaches an in-sample score of 1.0124 (`raw/cal/gridB.txt
 
 The string goes to the gate unchanged: `INTARSIA_SPEC_SAMPLED_ADAPT=d=0.237,r=0.236/0.418/0.583,g=0.95,margin=0.05,drop=0.05,probe=3,hold=8,hold_max=64`. Expectation recorded before the gate: `short_b` is the cell most likely to miss 0.98.
 
-## 3. Gate slots
+## 3. Gate slots (fleetq #12542 G1 T 1.0 02:33:50-02:43:37, 9 min 47 s; #12543 G2 T 0.7 02:43:37-02:53:13, 9 min 36 s; #12545 S 02:53:14-03:04:41, 11 min 27 s)
+
+Binary `intarsia-b1` (main `aa7beaa73`) for all three arms; the pol arm's startup line shows the string parsed as given (`g=0.95 ... margin=0.05,drop=0.05,probe=3,hold=8,hold_max=64`, no `ignored`). 45 s idle before every process;
+macmon: every process above 65 W for at most 1.5 s (`off` 24-25 W mean, `fix` / `pol` 28-29 W, one `off` process, seed 29 T 1.0, averaged only 17 W: not flagged by the pre-registered rules, its tok/s are in line with the other `off` processes). Raw: `raw/gate-g1/`,
+`raw/gate-g2/` (merge both directories and run `speed4.py DIR --macmon` for `raw/speed-all.txt`), `raw/seeds/`.
+
+Metal exclusive time used: C 10 min 45 s (including the 50 s aborted #12537) + G1 9:47 + G2 9:36 + S 11:27 = **41 min 35 s** of the 60 min budget.
+
+## 4. Merge
+
+origin/main `4b629184c` (#542) merged into the branch before the PR. The change set of #542 on shared code (`model/inkling2.rs`, `model.rs`, `scheduler.rs`, `engine/batch.rs`) is HIP / scheduler work; Metal numbers above were taken before the merge.

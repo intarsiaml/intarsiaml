@@ -1,0 +1,59 @@
+fleetq: #12542 running on endor: env POLSTR=d=0.237,r=0.236/0.418/0.583,g=0.95,margin=0.05,drop=0.05,probe=3,hold=8,hold_max=64 bash docs/results/2026-11-27-inkling2-metal-sampled-retune/raw/metal/gate.sh g1 1.0 1
+start 02:33:50 out /opt/code/intarsiaml/.worktrees/ink-metal-sampled2/.scratch/metal/gate-g1 | off/fix 96e679cba82bab555046033c8d2acc64 pol 96e679cba82bab555046033c8d2acc64 | pol string: d=0.237,r=0.236/0.418/0.583,g=0.95,margin=0.05,drop=0.05,probe=3,hold=8,hold_max=64
+off1 s7 rc 0 02:34:55 | decode overall: 762 tokens after the first, 9992 ms (76.26 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+fix1 s7 rc 0 02:35:59 | decode overall: 762 tokens after the first, 8487 ms (89.79 tok/s) | spec: verify passes=273 proposed=593 accepted=354 (acceptance 59.7%, 2.30 tokens per pass)
+pol1 s7 rc 0 02:37:03 | decode overall: 762 tokens after the first, 8382 ms (90.91 tok/s) | spec: verify passes=236 proposed=530 accepted=332 (acceptance 62.6%, 2.41 tokens per pass)
+fix1 s23 rc 0 02:38:06 | decode overall: 762 tokens after the first, 8579 ms (88.82 tok/s) | spec: verify passes=265 proposed=558 accepted=345 (acceptance 61.8%, 2.30 tokens per pass)
+pol1 s23 rc 0 02:39:10 | decode overall: 762 tokens after the first, 8561 ms (89.01 tok/s) | spec: verify passes=232 proposed=508 accepted=318 (acceptance 62.6%, 2.37 tokens per pass)
+off1 s23 rc 0 02:40:15 | decode overall: 762 tokens after the first, 10043 ms (75.88 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+pol1 s29 rc 0 02:41:19 | decode overall: 762 tokens after the first, 9189 ms (82.93 tok/s) | spec: verify passes=217 proposed=455 accepted=260 (acceptance 57.1%, 2.20 tokens per pass)
+off1 s29 rc 0 02:42:32 | decode overall: 762 tokens after the first, 10160 ms (75.00 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+fix1 s29 rc 0 02:43:37 | decode overall: 762 tokens after the first, 9421 ms (80.88 tok/s) | spec: verify passes=284 proposed=598 accepted=306 (acceptance 51.2%, 2.08 tokens per pass)
+end 02:43:37 (587 s)
+processes: 9, seeds [7, 23, 29]
+T 1.0 seed 7: ids identical across 3 processes (all arms): yes
+T 1.0 seed 23: ids identical across 3 processes (all arms): yes
+T 1.0 seed 29: ids identical across 3 processes (all arms): yes
+
+| T | class | off tok/s | fix tok/s | pol tok/s | fix / off | pol / off | pol / fix | acc., tok/pass, plain tokens: fix / pol |
+|---|---|---:|---:|---:|---|---|---|---|
+| 1.0 | short | 77.73 | 86.24 | 88.76 | **1.106** [0.880-1.389] | **1.138** [0.908-1.427] | **1.029** [0.964-1.099] | 60.3 %, 2.17, 108 / 66.5 %, 2.41, 168 |
+| 1.0 | 1k | 74.86 | 81.88 | 81.75 | **1.093** [1.020-1.172] | **1.092** [1.031-1.156] | **0.999** [0.967-1.031] | 51.7 %, 2.09, 20 / 52.5 %, 2.06, 20 |
+| 1.0 | 4k | 72.68 | 103.93 | 103.73 | **1.427** [1.153-1.766] | **1.424** [1.138-1.782] | **0.998** [0.986-1.010] | 78.5 %, 3.00, 14 / 78.5 %, 3.00, 14 |
+| 0.7 | short | nan | nan | nan | - | - | - | - / - |
+| 0.7 | 1k | nan | nan | nan | - | - | - | - / - |
+| 0.7 | 4k | nan | nan | nan | - | - | - | - / - |
+
+| T | prompt | fix / off | pol / off | pol / fix | per seed pol / off | acc., tok/pass, plain tokens: fix / pol |
+|---|---|---|---|---|---|---|
+| 1.0 | short_b | **0.894** [0.784-1.020] | **0.946** [0.934-0.959] | **1.059** [0.939-1.193] | 7:0.945 23:0.952 29:0.942 | 39.4 %, 1.53, 52 / 40.4 %, 1.55, 107 |
+| 1.0 | short_a | **1.159** [0.671-2.001] | **1.173** [0.690-1.996] | **1.012** [0.949-1.079] | 7:1.500 23:1.014 29:1.061 | 73.0 %, 2.51, 46 / 72.3 %, 2.55, 51 |
+| 1.0 | short_c | **1.392** [0.946-2.048] | **1.398** [0.973-2.009] | **1.004** [0.978-1.031] | 7:1.515 23:1.526 29:1.181 | 65.1 %, 2.59, 8 / 67.3 %, 2.56, 8 |
+| 1.0 | len1k | **1.093** [1.020-1.172] | **1.092** [1.031-1.156] | **0.999** [0.967-1.031] | 7:1.084 23:1.120 29:1.072 | 51.7 %, 2.09, 20 / 52.5 %, 2.06, 20 |
+| 1.0 | len4k | **1.427** [1.153-1.766] | **1.424** [1.138-1.782] | **0.998** [0.986-1.010] | 7:1.283 23:1.500 29:1.501 | 78.5 %, 3.00, 14 / 78.5 %, 3.00, 14 |
+| 0.7 | short_b | - | - | - | - | - / - |
+| 0.7 | short_a | - | - | - | - | - / - |
+| 0.7 | short_c | - | - | - | - | - / - |
+| 0.7 | len1k | - | - | - | - | - / - |
+| 0.7 | len4k | - | - | - | - | - / - |
+
+pre-registered rule (results doc section 1.2):
+  1. every prompt pol / off >= 0.98 (point estimate): FAIL; lowest 0.946 T 1.0 short_b, 1.092 T 1.0 len1k, 1.173 T 1.0 short_a
+     strict (CI lower bound >= 0.98): 2 of 10 cells
+  2. T 1.0 short: pol / off 1.138 vs 0.98 x fix / off 1.084: ok; gain form +0.138 vs +0.104: ok
+  2. T 1.0 1k: pol / off 1.092 vs 0.98 x fix / off 1.071: ok; gain form +0.092 vs +0.091: ok
+  2. T 1.0 4k: pol / off 1.424 vs 0.98 x fix / off 1.399: ok; gain form +0.424 vs +0.419: ok
+  2. every class keeps >= 98 % of fixed k3's ratio: PASS
+  3 (speed processes). ids identical across all arms of a seed and temperature: PASS
+
+per process: GPU s above 65 W, mean GPU W (macmon, 250 ms samples), short / 1k / 4k tok/s
+  fix  T1  s7     1.5 s   28.5 W  94.26 83.22 95.10
+  off  T1  s7     1.2 s   23.9 W  78.13 75.65 73.56
+  pol  T1  s7     1.2 s   28.0 W  98.26 82.00 94.40
+  fix  T1  s23    1.5 s   28.9 W  86.88 84.04 109.31
+  off  T1  s23    1.2 s   24.7 W  77.84 75.03 73.02
+  pol  T1  s23    1.2 s   28.1 W  86.76 84.04 109.50
+  fix  T1  s29    1.5 s   28.9 W  77.59 78.38 107.38
+  off  T1  s29    0.2 s   17.3 W  77.23 73.90 71.47
+  pol  T1  s29    1.2 s   28.0 W  81.27 79.21 107.29
+fleetq: #12542 done (exit 0)
