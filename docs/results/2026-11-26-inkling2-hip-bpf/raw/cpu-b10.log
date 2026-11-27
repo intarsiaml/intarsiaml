@@ -1,0 +1,34 @@
+fleetq: #12238 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'S=~/intarsiaml-ink-hip-bpf/.scratch; cd ~/intarsiaml-ink-hip-bpf; bash $S/build.sh b10 m:inkling2_packed m:inkling2_batch m:inkling2 && bash $S/cpu_tests.sh core plan packed; for b in b9 b10; do echo "== kernels test cpu conv_mix $b"; INTARSIA_REPO=$PWD INTARSIA_TARGET_VOL=intarsia-cargo-target-ink-hip-bpf INTARSIA_CONTAINER_NAME=ink-hip-bpf-build deploy/tatooine/dev.sh /work/.scratch/bin/intarsia-$b kernels test --backend cpu --op conv_mix < /dev/null 2>&1 | grep -aiE "segs|admitted|reject|cases|error" | head -8; done; docker rm -f ink-hip-bpf-build > /dev/null 2>&1'
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 20.71s
+cli build exit 0
+e1b5c70ca60674664d93d72879041c30  .scratch/bin/intarsia-b10
+    Finished `release` profile [optimized] target(s) in 15.91s
+  Executable tests/inkling2_packed.rs (/target/release/deps/inkling2_packed-1ed2245ff98f9c1a)
+test inkling2_packed build exit 0
+    Finished `release` profile [optimized] target(s) in 0.93s
+  Executable tests/inkling2_batch.rs (/target/release/deps/inkling2_batch-4078c269fe83f39e)
+test inkling2_batch build exit 0
+    Finished `release` profile [optimized] target(s) in 1.39s
+  Executable tests/inkling2.rs (/target/release/deps/inkling2-4591618c7e4a1464)
+test inkling2 build exit 0
+== core exit 0
+test result: ok. 270 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 13.43s
+== plan exit 0
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+== packed exit 0
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.18s
+== kernels test cpu conv_mix b9
+  FAIL conv_mix       cpu_f32_conv_mix_segs  max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=false add=false sum=false N=0 Q=0 norm=false S=0 bf16  ERROR: invalid op call: kernel 'cpu_f32_conv_mix_segs' cannot run op 'conv_mix'
+  FAIL conv_mix       cpu_f32_conv_mix_segs  max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=false add=false sum=false N=2 Q=1 norm=true S=0 bf16  ERROR: invalid op call: kernel 'cpu_f32_conv_mix_segs' cannot run op 'conv_mix'
+  FAIL conv_mix       cpu_f32_conv_mix_segs  max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=false add=false sum=false N=3 Q=3 norm=true S=0 bf16  ERROR: invalid op call: kernel 'cpu_f32_conv_mix_segs' cannot run op 'conv_mix'
+  FAIL conv_mix       cpu_f32_conv_mix_segs  max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=false add=false sum=false N=1 Q=1 norm=false S=0 bf16  ERROR: invalid op call: kernel 'cpu_f32_conv_mix_segs' cannot run op 'conv_mix'
+  FAIL conv_mix       cpu_f32_conv_mix_segs  max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=false add=false sum=false N=2 Q=1 norm=false S=1 bf16  ERROR: invalid op call: kernel 'cpu_f32_conv_mix_segs' cannot run op 'conv_mix'
+  FAIL conv_mix       cpu_f32_conv_mix_segs  max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=false add=false sum=false N=3 Q=1 norm=false S=3 bf16  ERROR: invalid op call: kernel 'cpu_f32_conv_mix_segs' cannot run op 'conv_mix'
+  FAIL conv_mix       cpu_f32_conv_mix_segs  max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=false add=false sum=false N=3 Q=3 norm=false S=3 bf16  ERROR: invalid op call: kernel 'cpu_f32_conv_mix_segs' cannot run op 'conv_mix'
+  FAIL conv_mix       cpu_f32_conv_mix_segs  max_abs=0.000e0 rel_l2=0.000e0 T=1 C=64 pos0=0 res=true add=false sum=false N=0 Q=0 norm=false S=0 bf16  ERROR: invalid op call: kernel 'cpu_f32_conv_mix_segs' cannot run op 'conv_mix'
+== kernels test cpu conv_mix b10
+docker: Error response from daemon: Conflict. The container name "/ink-hip-bpf-build" is already in use by container "d40c62e0949d9a6053870b6980b3f84967d53cf3fb7ff06301f59c9c24b98890". You have to remove (or rename) that container to be able to reuse that name.
+fleetq: #12238 done (exit 1)
+exit 1

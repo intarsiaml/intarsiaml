@@ -1,0 +1,191 @@
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:370:9
+    |
+370 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+370 -     Ink(usize),
+370 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1386:4
+     |
+1386 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:344:9
+    |
+340 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+344 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `split_keys` is never used
+   --> crates/intarsia-backend-cuda/src/inkattn.rs:127:4
+    |
+127 | fn split_keys() -> i32 {
+    |    ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-hip` (lib) generated 6 warnings
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/inkling2_packed.rs (/target/release/deps/inkling2_packed-1ed2245ff98f9c1a)
+
+running 4 tests
+test inkling2_packed_engine_equals_solo_engine ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+pack12 off: batched plan (max-batch 4); 17 P12 tensors dropped, the bf16 weights serve solo and batched rows
+
+thread 'inkling2_packed_engine_equals_solo_engine' panicked at crates/intarsia-models/tests/inkling2_packed.rs:401:9:
+assertion `left == right` failed: request 0
+  left: ([296, 243, 231, 57, 16, 289, 218, 205, 100, 53, 101, 196, 143, 86, 258, 158, 49, 210, 106, 139, 94, 237, 222, 143], 24)
+ right: ([21, 66, 210, 18, 177, 271, 57, 219, 241, 286, 73, 66, 162, 126, 272, 137, 2, 35, 45, 215, 265, 149, 96, 17], 24)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test inkling2_packed_equals_solo_tiny ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+pack12 off: batched plan (max-batch 16); 17 P12 tensors dropped, the bf16 weights serve solo and batched rows
+
+thread 'inkling2_packed_equals_solo_tiny' panicked at crates/intarsia-models/tests/inkling2_packed.rs:188:9:
+assertion `left == right` failed: 2 x 17: segment 0 (20 rows at 0) head
+  left: [1062629489, 3224080265, 3216884980, 1088216257, 1078460155, 1086100946, 3214551453, 3232115150, 3233077230, 3206217229, 3235837073, 1082912743, 1079838623, 3227096974, 3218417801, 1057257632, 3234219009, 3231802683, 1076339030, 3229149716, 1088429109, 1082539381, 3212867178, 3212846756, 3221531384, 3231794273, 1077370043, 3220851735, 1071393395, 1063796057, 3221507689, 1084688802, 3216921407, 1053807099, 3213525981, 1080006719, 1068919300, 3232497039, 1057079625, 3236760997, 3222362941, 3230105400, 1077577522, 3229706324, 3198006997, 1040705678, 3224886016, 3200370054, 3226590858, 1082145539, 3221220990, 3225459332, 1083401366, 1082884598, 1073940724, 3225686188, 3205304539, 1082535520, 1079034221, 3227384269, 1076697840, 1059958822, 3187869293, 3229918504, 1084031950, 3218989272, 1087183709, 1088280398, 1078330229, 3204037450, 3208971547, 1066518587, 3225138441, 1078248002, 1090553282, 3220686154, 3223417803, 3223406650, 3225153143, 3206018444, 3227391772, 3186094456, 1090560637, 3222870977, 3207866245, 1077689003, 1072054078, 3228930580, 1065667408, 1084356482, 1065892913, 1080473455, 1079221358, 3235421803, 1060264606, 1080533867, 3202252068, 3231648004, 3231330344, 3234942406, 3222711301, 3207517636, 3220801490, 1078421328, 3232741938, 3192761790, 1082271858, 1084634211, 3229345543, 1084616363, 3225914521, 1079992162, 1054093003, 3221080175, 3225567736, 1082982080, 1092451845, 1069955270, 3227207342, 3223877069, 3192978828, 1070570515, 3217025092, 1069795219, 1085275652, 1068794702, 1088914009, 1077000358, 3223976165, 1000358400, 3240341107, 1085176735, 1071974692, 3229140540, 1080290528, 3237470781, 3197617716, 3211241426, 1074201842, 1084763965, 3242326285, 1088678472, 1072777462, 1084938102, 1069532558, 1064655334, 1065402152, 3241155372, 1066813893, 1076559778, 3232314929, 3224101938, 1079093256, 3202067027, 3235783316, 1082972619, 1070312566, 1032283042, 1080760567, 3222682204, 3229847379, 3214488538, 1083037893, 3235292972, 1059693837, 1013542143, 1082544953, 3233994947, 3230734150, 3231549630, 3224891935, 3214334124, 1077964815, 3234699845, 3200995893, 3221554670, 3222196789, 1067468748, 1084692551, 1083539766, 1087765245, 1085013404, 3219358148, 1071596296, 1090334518, 3228757286, 3230255224, 3208986748, 1076158281, 3238089801, 3226231429, 1076553142, 1057945821, 1054487470, 1072269509, 3224860479, 1055705034, 1068973656, 3215760704, 1068269751, 1054095547, 3225616445, 1082240590, 1049899563, 3238191958, 1062561503, 1070007062, 1086824978, 1068433504, 1084176852, 3234888829, 1071227630, 1076124594, 1037735892, 1074366596, 3220454220, 3218362673, 3216009603, 1049068210, 1083802783, 3214603408, 3238682079, 1084997557, 1062929527, 3201648582, 3218841168, 3208995926, 3222665232, 3213536873, 1084185320, 3232237217, 1085462456, 3216497412, 1079520763, 1093683648, 3208749769, 1024184700, 1085281218, 3198065037, 3218745052, 1078912516, 3223232508, 1083356599, 1074877801, 1057532754, 1087112790, 1065974545, 1075896847, 1082034536, 3230345064, 3228758226, 3225222295, 1084388277, 1072070041, 1060521881, 1073580545, 3222544267, 1040578777, 1058363210, 3215315785, 1073690529, 3211314920, 3227842867, 3238222094, 1070086203, 1088481011, 3208765208, 1081489130, 1079763558, 1050560064, 3228228304, 1081842776, 3212350194, 1082878839, 3183397944, 3213425028, 3224876692, 3193993947, 1090093397, 3235064934, 3224260698, 1077084391, 3204770186, 3230923292, 1066309402, 3239016826, 3227061453, 1067334119, 1064964944, 1081387033, 1050801990, 3197217345, 1057940366, 3216808112, 3229755598, 1084330269, 3212282628, 1069325319, 3223872263, 1079119475]
+ right: [3237384704, 3222981138, 1091175394, 1084507282, 3232131200, 1079492995, 3235346638, 3227989798, 1080983391, 1081830313, 1066941296, 1077243131, 1050711633, 1079033238, 3229583815, 1075720400, 1090788057, 1090034145, 3225394570, 3213226212, 1088476548, 1080943053, 1083505171, 1074583389, 1074612369, 1087300810, 3225819550, 1085938611, 3230411359, 3225296652, 3219902110, 1075812468, 1083400690, 3222280656, 1071979868, 1052730822, 1076325621, 1090142350, 3240565471, 3225394058, 1066777963, 3225027161, 3225690497, 1080675301, 1072134928, 3209664389, 1088772444, 3235499443, 3228139601, 1078407451, 3229786959, 1065136396, 3219803205, 1081647838, 1070251984, 1077596503, 3220698024, 3230136309, 1082934754, 3223118370, 1087332140, 3226934720, 1081104054, 1091804960, 1065183781, 3229795810, 3225381133, 1059445606, 1086127431, 1080002748, 3207111500, 1065892355, 1066715082, 1078414205, 1093161437, 1085762508, 3223735180, 3220186785, 3231367481, 3232845461, 3225974247, 1083712344, 1085427586, 1082935977, 1080604443, 3217674204, 1068633017, 3230991835, 1083907220, 3192995100, 1067112011, 1080459954, 1075250922, 3217657158, 1082287796, 1084908421, 1068274397, 1082460345, 3202941693, 1070859615, 3231294787, 3211076965, 1085087938, 3204001377, 1079757470, 3219886611, 1077859608, 3182560639, 1088530409, 3189162064, 1067663306, 1073031256, 3234653591, 3229200668, 1070642954, 3198565467, 1057180962, 3225789789, 3208172433, 3230275068, 3225918265, 1077649327, 3230674565, 1037452983, 3236547023, 1083598578, 1086039787, 3226413689, 3233726374, 3228547709, 3227984103, 1087136192, 1090481426, 1091917260, 1063278476, 1087436967, 3239109896, 3232636157, 1081218806, 1054039567, 1079026405, 3212556331, 3231005337, 1056300891, 1076935095, 1088735168, 3216047227, 3236283746, 1027348533, 3225112177, 3235033634, 3238657898, 3190478236, 3211399524, 1077815219, 1075139838, 3229555110, 3217626394, 1083305464, 3224220915, 3229583479, 3232903262, 1084444546, 3229777224, 3187503714, 1083492797, 1083593894, 3225745267, 3221856227, 3219744497, 3219677961, 1088009798, 3189449289, 3198707693, 3232564405, 1075957781, 1076349135, 3227615594, 3229718942, 1087299134, 3206717354, 1077948214, 3232862803, 1081799923, 1083208403, 3228069993, 1068615311, 3237842973, 1074098853, 3176908657, 1071656758, 1029632240, 1066971383, 1064510612, 3225615217, 1083771838, 3233344792, 3231183098, 1086125969, 1049643041, 3227693508, 3221561136, 1073061819, 1056976928, 1054009339, 1081209013, 3232046647, 3221202967, 1091814797, 3209686922, 1073192527, 3228334786, 3224244775, 3242618800, 1093204131, 3240095794, 1073793546, 1085461485, 1078822989, 1083064395, 3230768100, 3210496379, 3223739613, 1072102638, 1060585712, 1062925765, 3230864139, 3230247927, 1079468007, 1075865729, 3233028655, 1078943939, 3230308139, 3234112543, 1087363993, 1053192556, 1068150404, 1080666654, 1068378910, 3230758389, 3219191292, 3203811034, 3234303133, 3218143174, 3222002225, 1074314993, 1059451379, 1075471870, 1060354442, 1072617016, 1038702550, 1061341470, 3213531778, 1091907361, 3227451776, 1058979601, 1078700932, 1079655445, 3222383562, 3192026725, 1065881813, 1073813837, 1090945594, 3230346763, 1084286502, 1086474492, 3230578812, 3206256353, 3232211013, 1050941527, 3220114179, 1059766861, 1073368570, 3218831369, 1088386466, 1074659490, 3216363412, 3237421823, 3173436089, 3209900908, 3219142418, 1055544911, 1079109457, 3226534251, 3234677912, 3226396311, 1086537153, 3231979290, 1075552420, 3234850696, 1066290939, 1089658512, 3208090622, 3222666187, 3222420188, 3215453708, 1080724232, 3206835910, 3229750743, 3226253806]
+FAILED
+test inkling2_packed_intermediates_equal_solo ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+pack12 off: batched plan (max-batch 16); 17 P12 tensors dropped, the bf16 weights serve solo and batched rows
+tiny 2 x 20: DIFF final_hidden (segment 0: 20 rows at 0): 1276 of 1280 values differ, first at 0: -1.6328125 vs -2.28125
+tiny 2 x 20: DIFF final_hidden (segment 1: 20 rows at 0): 1280 of 1280 values differ, first at 0: -0.66796875 vs 0.83984375
+tiny 2 x 20: DIFF v00.attn_out (segment 0: 20 rows at 0): 1273 of 1280 values differ, first at 0: -0.016235352 vs -0.018920898
+tiny 2 x 20: DIFF v00.attn_out (segment 1: 20 rows at 0): 1272 of 1280 values differ, first at 0: -0.08544922 vs -0.083496094
+tiny 2 x 20: DIFF v00.attn_proj (segment 0: 20 rows at 0): 1275 of 1280 values differ, first at 0: -0.04296875 vs -0.05029297
+tiny 2 x 20: DIFF v00.attn_proj (segment 1: 20 rows at 0): 1212 of 1280 values differ, first at 0: -0.2265625 vs -0.22070313
+tiny 2 x 20: DIFF v00.expert_ids (segment 0: 20 rows at 0): 44 of 80 values differ, first at 9: 6 vs 12
+tiny 2 x 20: DIFF v00.expert_ids (segment 1: 20 rows at 0): 31 of 80 values differ, first at 3: 11 vs 1
+tiny 2 x 20: DIFF v00.expert_w (segment 0: 20 rows at 0): 80 of 80 values differ, first at 0: 2.3126142 vs 2.3067672
+tiny 2 x 20: DIFF v00.expert_w (segment 1: 20 rows at 0): 80 of 80 values differ, first at 0: 2.3699856 vs 2.4537022
+tiny 2 x 20: DIFF v00.mlp_in (segment 0: 20 rows at 0): 1260 of 1280 values differ, first at 1: -0.5625 vs -0.55078125
+tiny 2 x 20: DIFF v00.mlp_in (segment 1: 20 rows at 0): 1237 of 1280 values differ, first at 0: 0.46679688 vs 0.54296875
+tiny 2 x 20: DIFF v00.moe_out (segment 0: 20 rows at 0): 1269 of 1280 values differ, first at 0: -1.2265625 vs -1.2421875
+tiny 2 x 20: DIFF v00.moe_out (segment 1: 20 rows at 0): 1267 of 1280 values differ, first at 0: -0.075683594 vs -0.9453125
+tiny 2 x 20: DIFF v00.partial_out (segment 0: 20 rows at 0): 1276 of 1280 values differ, first at 0: -0.640625 vs -0.65234375
+tiny 2 x 20: DIFF v00.partial_out (segment 1: 20 rows at 0): 1276 of 1280 values differ, first at 0: -0.12402344 vs -0.5625
+tiny 2 x 20: DIFF v00.rel (segment 0: 20 rows at 0): 519 of 960 values differ, first at 32: 0.76171875 vs 0.47265625
+tiny 2 x 20: DIFF v00.rel (segment 1: 20 rows at 0): 471 of 960 values differ, first at 16: -0.32617188 vs 1.84375
+tiny 2 x 20: DIFF v00.router_logits (segment 0: 20 rows at 0): 320 of 320 values differ, first at 0: 1.2490554 vs 1.2747202
+tiny 2 x 20: DIFF v00.router_logits (segment 1: 20 rows at 0): 320 of 320 values differ, first at 0: -1.9748052 vs -1.9875915
+tiny 2 x 20: DIFF v00.router_sel (segment 0: 20 rows at 0): 320 of 320 values differ, first at 0: 0.9571363 vs 0.9615497
+tiny 2 x 20: DIFF v00.router_sel (segment 1: 20 rows at 0): 320 of 320 values differ, first at 0: 0.30187368 vs 0.3005119
+tiny 2 x 20: DIFF v01.attn_in_k (segment 0: 20 rows at 0): 1261 of 1280 values differ, first at 0: -1.0703125 vs -1.15625
+tiny 2 x 20: DIFF v01.attn_in_k (segment 1: 20 rows at 0): 1266 of 1280 values differ, first at 0: 0.703125 vs 0.044677734
+tiny 2 x 20: DIFF v01.attn_in_q (segment 0: 20 rows at 0): 1261 of 1280 values differ, first at 0: -1.0703125 vs -1.15625
+tiny 2 x 20: DIFF v01.attn_in_q (segment 1: 20 rows at 0): 1266 of 1280 values differ, first at 0: 0.703125 vs 0.044677734
+tiny 2 x 20: DIFF v01.attn_in_v (segment 0: 20 rows at 0): 1261 of 1280 values differ, first at 0: -1.0703125 vs -1.15625
+tiny 2 x 20: DIFF v01.attn_in_v (segment 1: 20 rows at 0): 1266 of 1280 values differ, first at 0: 0.703125 vs 0.044677734
+tiny 2 x 20: DIFF v01.attn_out (segment 0: 20 rows at 0): 1277 of 1280 values differ, first at 0: 0.06225586 vs 0.040283203
+tiny 2 x 20: DIFF v01.attn_out (segment 1: 20 rows at 0): 1276 of 1280 values differ, first at 0: 0.15332031 vs 0.20410156
+tiny 2 x 20: DIFF v01.attn_proj (segment 0: 20 rows at 0): 1276 of 1280 values differ, first at 0: 0.12792969 vs 0.08300781
+tiny 2 x 20: DIFF v01.attn_proj (segment 1: 20 rows at 0): 1278 of 1280 values differ, first at 0: 0.31640625 vs 0.41992188
+tiny 2 x 20: DIFF v01.expert_ids (segment 0: 20 rows at 0): 51 of 80 values differ, first at 6: 5 vs 12
+tiny 2 x 20: DIFF v01.expert_ids (segment 1: 20 rows at 0): 35 of 80 values differ, first at 13: 4 vs 5
+tiny 2 x 20: DIFF v01.expert_w (segment 0: 20 rows at 0): 80 of 80 values differ, first at 0: 2.2585187 vs 2.1746662
+tiny 2 x 20: DIFF v01.expert_w (segment 1: 20 rows at 0): 80 of 80 values differ, first at 0: 1.9182107 vs 1.9179434
+tiny 2 x 20: DIFF v01.k (segment 0: 20 rows at 0): 1270 of 1280 values differ, first at 0: 0.25390625 vs 0.26171875
+tiny 2 x 20: DIFF v01.k (segment 1: 20 rows at 0): 1272 of 1280 values differ, first at 0: 0.5859375 vs 0.3046875
+tiny 2 x 20: DIFF v01.mlp_in (segment 0: 20 rows at 0): 1263 of 1280 values differ, first at 0: -0.6484375 vs -0.65625
+tiny 2 x 20: DIFF v01.mlp_in (segment 1: 20 rows at 0): 1242 of 1280 values differ, first at 0: 0.8828125 vs 0.87890625
+tiny 2 x 20: 548 segment tensors compared, 532 differ
+
+thread 'inkling2_packed_intermediates_equal_solo' panicked at crates/intarsia-models/tests/inkling2_packed.rs:324:5:
+tiny 2 x 20: packed intermediates differ from solo (532 tensors)
+FAILED
+test inkling2_packed_refuses_what_cannot_pack ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+pack12 off: batched plan (max-batch 4); 17 P12 tensors dropped, the bf16 weights serve solo and batched rows
+ok
+
+failures:
+
+failures:
+    inkling2_packed_engine_equals_solo_engine
+    inkling2_packed_equals_solo_tiny
+    inkling2_packed_intermediates_equal_solo
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.68s
+
+error: test failed, to rerun pass `-p intarsia-models --test inkling2_packed`
+error: 1 target failed:
+    `-p intarsia-models --test inkling2_packed`

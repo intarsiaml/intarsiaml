@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/serve_bitwise.py", line 185, in <module>
+    main()
+  File "/opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/serve_bitwise.py", line 108, in main
+    ps = prompts()
+  File "/opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/serve_bitwise.py", line 33, in prompts
+    out = [(f, open(os.path.join(P, f + ".txt")).read()) for f in files]
+  File "/opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/serve_bitwise.py", line 33, in <listcomp>
+    out = [(f, open(os.path.join(P, f + ".txt")).read()) for f in files]
+FileNotFoundError: [Errno 2] No such file or directory: '/opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/../scripts/cmx/ids-prompts/short-0.txt'

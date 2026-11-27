@@ -1,0 +1,33 @@
+fleetq: #12210 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'S=~/intarsiaml-ink-hip-bpf/.scratch; SKIP_COMPILE=1 bash $S/isa.sh 2>&1 | grep -v "MISSING\|DIFF" | tail -12; SKIP_COMPILE=1 bash $S/isa.sh 2>&1 | grep -c "MISSING\|DIFF"; bash $S/build.sh b4 m:inkling2_packed m:inkling2_batch m:inkling2 && bash $S/cpu_tests.sh packed core'
+-rw-r--r-- 1 ubuntu ubuntu  18743466 Nov 26 21:35 branch-ink_mix_segs.s
+-rw-r--r-- 1 ubuntu ubuntu 107410229 Nov 26 21:35 branch-ink_moe.s
+-rw-r--r-- 1 ubuntu ubuntu   9773295 Nov 26 21:31 main-ink_mix.s
+-rw-r--r-- 1 ubuntu ubuntu  18664651 Nov 26 21:31 main-ink_mix_rows.s
+-rw-r--r-- 1 ubuntu ubuntu 107410229 Nov 26 21:33 main-ink_moe.s
+== ink_mix: main 31 kernels, branch 31 (0 new: [])
+  31 / 31 of main's kernels identical in the branch (instructions and descriptor)
+== ink_mix_rows: main 55 kernels, branch 55 (0 new: [])
+  55 / 55 of main's kernels identical in the branch (instructions and descriptor)
+== ink_moe: main 427 kernels, branch 427 (0 new: [])
+  427 / 427 of main's kernels identical in the branch (instructions and descriptor)
+== ink_mix_segs (new TU): 56 kernels, 24 SEG instantiations
+0
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.10s
+cli build exit 0
+df1e81195f0bbdad07129ca0eee0d0a2  .scratch/bin/intarsia-b4
+    Finished `release` profile [optimized] target(s) in 0.75s
+  Executable tests/inkling2_packed.rs (/target/release/deps/inkling2_packed-1ed2245ff98f9c1a)
+test inkling2_packed build exit 0
+    Finished `release` profile [optimized] target(s) in 0.06s
+  Executable tests/inkling2_batch.rs (/target/release/deps/inkling2_batch-4078c269fe83f39e)
+test inkling2_batch build exit 0
+    Finished `release` profile [optimized] target(s) in 0.06s
+  Executable tests/inkling2.rs (/target/release/deps/inkling2-4591618c7e4a1464)
+test inkling2 build exit 0
+== packed exit 0
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.55s
+== core exit 0
+test result: ok. 269 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 13.58s
+fleetq: #12210 done (exit 0)

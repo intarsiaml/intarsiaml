@@ -144,6 +144,17 @@ struct RowRt {
 struct RowArgsRT : RowArgs {
     RowRt rt;
 };
+// The segment-table form (lane ink-hip-bpf, `OpCall::segs`, packed prefill): the call's rows are consecutive segments of several
+// sequences; row t sits at position meta[t] of its segment, which starts at position meta[T + t] (the conv reads x rows from there
+// on, older positions from the segment's ring), ends at meta[2T + t], and has entry meta[3T + t] of the table (its ring, as RowRt).
+// Defined in kernels/hip/ink_mix_segs.hip's translation unit only (the SEG instantiations live there).
+struct RowArgsSEG;
+#ifdef IK_INK_MIX_SEGS_TU
+struct RowArgsSEG : RowArgs {
+    RowRt rt;
+    const int* meta;  // i32 [4, T]
+};
+#endif
 
 // The row kernel. FAST = false is the first form (loads where the arithmetic needs them); FAST = true issues every load of the row
 // (taps and ring rows of the conv, res / addend, the sources, the queries, the norm weights) up front, unrolled and without
@@ -156,8 +167,10 @@ struct RowArgsRT : RowArgs {
 // RT (`conv_mix_bf16_rows`, lane ink-hip-batch): row t is the T = 1 call of sequence t at position pos[t] on its own ring (table
 // entry rti of row t + roff): its conv history is its own x row (qp == p) and its ring (qp < p). Every other operand keeps the
 // call's row t (the planes, the mix and the blend are row-parallel). RT = false is the solo kernel.
-template <int NE, bool FAST, bool DPP, bool RT = false>
-__global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(std::conditional_t<RT, RowArgsRT, RowArgs> a) {
+// SEG (`conv_mix_bf16_segs`, lane ink-hip-bpf): row t is row meta[t] - meta[T + t] of its segment's solo call (RowArgsSEG); the
+// ring is written after the launch (every segment has more than 16 rows, so its solo call defers the write too).
+template <int NE, bool FAST, bool DPP, bool RT = false, bool SEG = false>
+__global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(std::conditional_t<SEG, RowArgsSEG, std::conditional_t<RT, RowArgsRT, RowArgs>> a) {
     __shared__ float red[32 * kNvMax];
     __shared__ float fin[kNvMax];
     __shared__ __attribute__((aligned(16))) ik_bf16 pl[2 * kFuseD];
@@ -188,9 +201,14 @@ __global__ void __launch_bounds__(kMaxThreads) ink_row_kernel(std::conditional_t
     float rv[NE], adv[NE], xcur[NE];
     float tv[8][NE], xr[8][NE];
     if constexpr (RT) a.ring = (ik_bf16*)(a.rt.rtab[(size_t)t * a.rt.rts + a.rt.rti] + a.rt.roff);
-    const int64_t pos0 = RT ? (int64_t)a.pos[t] - t : (a.pos ? (int64_t)*a.pos : a.pos0);
+    int64_t pos0 = RT ? (int64_t)a.pos[t] - t : (a.pos ? (int64_t)*a.pos : a.pos0);
+    int64_t own0 = RT ? pos0 + t : pos0;  // the first position the conv reads from x (the call's own rows), older ones from the ring
+    if constexpr (SEG) {
+        a.ring = (ik_bf16*)(a.rt.rtab[(size_t)a.meta[3 * T + t] * a.rt.rts + a.rt.rti] + a.rt.roff);
+        pos0 = (int64_t)a.meta[t] - t;
+        own0 = (int64_t)a.meta[T + t];
+    }
     const int64_t p = pos0 + t;
-    const int64_t own0 = RT ? p : pos0;  // the first position the conv reads from x (the call's own rows), older ones from the ring
     const bool fastconv = FAST && a.x && a.K <= 8;
     bool vr[8];
     if constexpr (FAST) {
@@ -812,8 +830,9 @@ int row_threads(int D, int* ne) {
 }  // namespace
 // The two switches are shared by this TU and ink_mix_rows.hip's (lane ink-hip-batch): one definition here, so ik_ink_mix_mode /
 // ik_ink_mix_dec set them for the solo and the row-table launches alike (each TU had its own copy before, and the setters reached only this one).
+// ink_mix_segs.hip's TU (lane ink-hip-bpf, packed prefill) reads the same switches.
 namespace ik_inkmix {
-#ifdef IK_INK_MIX_ROWS_TU
+#if defined(IK_INK_MIX_ROWS_TU) || defined(IK_INK_MIX_SEGS_TU)
 extern int g_mix_mask;
 extern int g_mix_dec;
 extern int g_fuse_rows;
@@ -879,13 +898,38 @@ int mix_mask() {
 }
 
 // `blocks` = the grid (rows, or rows * np for the fused blend); `rt`: the row-table form (conv_mix_bf16_rows)
-int launch_rows(const RowArgs& a, int blocks, hipStream_t st, const RowRt* rt = nullptr) {
+int launch_rows(const RowArgs& a, int blocks, hipStream_t st, const RowRt* rt = nullptr, const int* meta = nullptr) {
     if (blocks <= 0) return IK_OK;
     int ne = 0;
     const int th = row_threads(a.D, &ne);
     const int rows = a.fuse ? blocks / a.np : blocks;
     const bool fast = ((mix_mask() & 1) != 0 && rows <= kFastRowsMax) || (mix_mask() & 8) != 0;
     const bool dpp = (ik_hip_dec3_mask() & 1) != 0;
+#ifdef IK_INK_MIX_SEGS_TU
+    if (meta) {
+        // the segment-table form (conv_mix_bf16_segs): the same forms as the solo call, SEG instantiations
+        if (!rt) return IK_ERR_INVALID_ARG;
+        RowArgsSEG x;
+        static_cast<RowArgs&>(x) = a;
+        x.rt = *rt;
+        x.meta = meta;
+#define IK_ROW_SEG_CASE(N)                                                                        \
+    case N:                                                                                       \
+        if (fast && dpp) ink_row_kernel<N, true, true, false, true><<<blocks, th, 0, st>>>(x);    \
+        else if (fast) ink_row_kernel<N, true, false, false, true><<<blocks, th, 0, st>>>(x);     \
+        else if (dpp) ink_row_kernel<N, false, true, false, true><<<blocks, th, 0, st>>>(x);      \
+        else ink_row_kernel<N, false, false, false, true><<<blocks, th, 0, st>>>(x);              \
+        break;
+        switch (ne) {
+            IK_ROW_SEG_CASE(1) IK_ROW_SEG_CASE(2) IK_ROW_SEG_CASE(3) IK_ROW_SEG_CASE(4) IK_ROW_SEG_CASE(5) IK_ROW_SEG_CASE(6)
+            default: return IK_ERR_SHAPE;
+        }
+#undef IK_ROW_SEG_CASE
+        return ik_launch_status();
+    }
+#else
+    if (meta) return IK_ERR_UNSUPPORTED;  // the SEG instantiations live in ink_mix_segs.hip's translation unit only
+#endif
 #ifdef IK_INK_MIX_ROWS_TU
     if (rt) {
         // the row-table form (conv_mix_bf16_rows): the same forms as the solo call, RT instantiations
@@ -932,7 +976,7 @@ int chk_opt(const ik_tensor* t, int dtype, int ndim) { return absent(t) ? IK_OK 
 
 // the blend over the chunks of `a` (row kernel with msg set), then gemv / gate / norm into out [S,T,D]
 int run_blend(RowArgs a, const ik_tensor* down, const ik_tensor* gain, const ik_tensor* forget, const ik_tensor* norm, ik_tensor* out,
-              const ik_scratch* sc, hipStream_t st, const RowRt* rt = nullptr) {
+              const ik_scratch* sc, hipStream_t st, const RowRt* rt = nullptr, const int* meta = nullptr) {
     const int S = a.S, T = a.T, D = a.D;
     const int G = (int)down->shape[1];
     if (S < 1 || S > kSMax || G < 1 || G > kGMax || G % 8 != 0 || (2 * D) % 16 != 0) return IK_ERR_SHAPE;
@@ -957,9 +1001,9 @@ int run_blend(RowArgs a, const ik_tensor* down, const ik_tensor* gain, const ik_
             r.G = G;
             r.down = (const ik_bf16*)down->data;
             r.hbuf = b.h;
-            IK_TRY(launch_rows(r, rc * np, st, rt));
+            IK_TRY(launch_rows(r, rc * np, st, rt, meta));
         } else {
-            IK_TRY(launch_rows(r, rc, st, rt));
+            IK_TRY(launch_rows(r, rc, st, rt, meta));
             const dim3 hg((unsigned)((G + kHWaves - 1) / kHWaves), (unsigned)S, (unsigned)((rc + kHRows - 1) / kHRows));
             ink_ctl_gemv_kernel<<<hg, kHWaves * IK_WARP, 0, st>>>(b.pair, (const ik_bf16*)down->data, b.h, rc, 2 * D, G);
             IK_TRY(ik_launch_status());
@@ -1058,13 +1102,49 @@ int ring_after(const RowArgs& a, hipStream_t st) {
     return ik_launch_status();
 }
 
+#ifdef IK_INK_MIX_SEGS_TU
+// the segment-table form's arguments (conv_mix_bf16_segs): the segment rows meta i32 [4, T], the table [n, tstride, 8], the ring
+// carrier's offset; the ring write follows the row kernels (ring_segs)
+int seg_args(RowArgs* a, RowRt* rt, const ik_tensor* meta, const ik_tensor* tab, int64_t tstride, int64_t tindex, int64_t roff,
+             const int** mp) {
+    if (!meta || !meta->data || meta->dtype != IK_DTYPE_I32 || ik_numel(meta) != 4 * (int64_t)a->T) return IK_ERR_INVALID_ARG;
+    if (!tab || tab->ndim != 3 || tab->shape[0] < 1) return IK_ERR_INVALID_ARG;
+    IK_TRY(ik_check_tab(tab, tab->shape[0], tstride, tindex));
+    if (roff < 0 || (roff & 1)) return IK_ERR_INVALID_ARG;
+    a->pos = nullptr;
+    a->ring_now = 0;
+    rt->rtab = (const unsigned long long*)tab->data;
+    rt->rts = (int)tstride;
+    rt->rti = (int)tindex;
+    rt->roff = roff;
+    *mp = (const int*)meta->data;
+    return IK_OK;
+}
+
+// SEG: each row among the last Rr rows of its segment writes its ring row, after every read (the solo call's ring_after)
+__global__ void ink_ring_seg_kernel(const ik_bf16* __restrict__ x, int T, int D, int Rr, const int* __restrict__ meta, RowRt rt) {
+    const int t = blockIdx.y;
+    const int64_t p = meta[t], end = meta[2 * T + t];
+    if (p < end - Rr) return;
+    ik_bf16* ring = (ik_bf16*)(rt.rtab[(size_t)meta[3 * T + t] * rt.rts + rt.rti] + rt.roff);
+    for (int c = blockIdx.x * blockDim.x + threadIdx.x; c < D; c += gridDim.x * blockDim.x)
+        ring[(p % Rr) * D + c] = x[(int64_t)t * D + c];
+}
+
+int ring_segs(const RowArgs& a, const RowRt& rt, const int* meta, hipStream_t st) {
+    if (a.T == 0) return IK_OK;
+    ink_ring_seg_kernel<<<dim3((unsigned)((a.D + 255) / 256), (unsigned)a.T), 256, 0, st>>>(a.x, a.T, a.D, a.Rr, meta, rt);
+    return ik_launch_status();
+}
+#endif
+
 }  // namespace
 
 // The launchers. kernels/hip/ink_mix_rows.hip includes this file with IK_INK_MIX_ROWS_TU defined and defines the row-table launcher
 // (conv_mix_bf16_rows) in its own translation unit, so the RT instantiations of ink_row_kernel never share a module with the solo
 // kernels (lane ink-hip-batch: in one module the solo ink_attn_dec_k compiled differently from main; here both files keep main's).
 extern "C" {
-#ifndef IK_INK_MIX_ROWS_TU
+#if !defined(IK_INK_MIX_ROWS_TU) && !defined(IK_INK_MIX_SEGS_TU)
 
 /* the phase timestamps of the last row-kernel launch (INK_PROBE builds; IK_ERR_UNSUPPORTED otherwise): n values into out */
 int ik_ink_probe(unsigned long long* out, int n) {
@@ -1127,16 +1207,35 @@ int ik_attn_res_mix_bf16(const ik_tensor* src, const ik_tensor* last, const ik_t
 
 #endif  // IK_INK_MIX_ROWS_TU
 
-// ConvMix, solo (tab null) or the row-table form (tab: the batched step's row table, pos i32 [T], roff the ring carrier's offset)
+// the ring write of a ConvMix call: the deferred write of a solo / row-table call, each segment's of a segment-table call (meta)
+static int ring_done(const RowArgs& a, const RowRt& rt, const int* meta, hipStream_t st) {
+#ifdef IK_INK_MIX_SEGS_TU
+    if (meta) return ring_segs(a, rt, meta, st);
+#else
+    (void)rt;
+    if (meta) return IK_ERR_UNSUPPORTED;
+#endif
+    return ring_after(a, st);
+}
+
+// ConvMix, solo (tab null), the row-table form (tab: the batched step's row table, pos i32 [T], roff the ring carrier's offset) or
+// the segment-table form (meta: the segment rows i32 [4, T], tab: the segments' table)
 static int conv_mix_run(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* res, const ik_tensor* addend,
                         const ik_tensor* src, const ik_tensor* queries, const ik_tensor* norm, const ik_tensor* msg,
                         const ik_tensor* down, const ik_tensor* gain, const ik_tensor* forget, int64_t pos0, const ik_tensor* pos,
                         float eps, ik_tensor* y, ik_tensor* ring, ik_tensor* sum, ik_tensor* mix, const ik_scratch* scratch,
-                        const ik_tensor* tab, int64_t tstride, int64_t tindex, int64_t roff, void* stream) {
+                        const ik_tensor* tab, int64_t tstride, int64_t tindex, int64_t roff, void* stream,
+                        const ik_tensor* meta = nullptr) {
     RowArgs a;
     IK_TRY(conv_args(x, taps, res, addend, pos0, tab ? nullptr : pos, y, ring, sum, &a));
     RowRt rt = {};
-    if (tab) IK_TRY(rt_args(&a, &rt, pos, tab, tstride, tindex, roff));
+    const int* mp = nullptr;
+#ifdef IK_INK_MIX_SEGS_TU
+    if (meta) IK_TRY(seg_args(&a, &rt, meta, tab, tstride, tindex, roff, &mp));
+#else
+    if (meta) return IK_ERR_UNSUPPORTED;
+#endif
+    if (tab && !meta) IK_TRY(rt_args(&a, &rt, pos, tab, tstride, tindex, roff));
     const RowRt* rtp = tab ? &rt : nullptr;
     a.eps = eps;
     const int64_t T = a.T, D = a.D;
@@ -1165,8 +1264,8 @@ static int conv_mix_run(const ik_tensor* x, const ik_tensor* taps, const ik_tens
         a.msg = (const float*)msg->data;
         a.S = (int)S;
         // every chunk's row kernel reads the ring before the deferred write (in-kernel writes only when T + K - 1 <= Rr: one chunk)
-        IK_TRY(run_blend(a, down, gain, forget, norm, mix, scratch, st, rtp));
-        return ring_after(a, st);
+        IK_TRY(run_blend(a, down, gain, forget, norm, mix, scratch, st, rtp, mp));
+        return ring_done(a, rt, mp, st);
     }
     if (Q > 0) {
         IK_TRY(chk_opt(norm, IK_DTYPE_BF16, 2));
@@ -1175,11 +1274,11 @@ static int conv_mix_run(const ik_tensor* x, const ik_tensor* taps, const ik_tens
         if (a.norm) a.out_b = (ik_bf16*)mix->data;
         else a.out_f = (float*)mix->data;
     }
-    IK_TRY(launch_rows(a, (int)T, st, rtp));
-    return ring_after(a, st);
+    IK_TRY(launch_rows(a, (int)T, st, rtp, mp));
+    return ring_done(a, rt, mp, st);
 }
 
-#ifndef IK_INK_MIX_ROWS_TU
+#if !defined(IK_INK_MIX_ROWS_TU) && !defined(IK_INK_MIX_SEGS_TU)
 int ik_conv_mix_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* res, const ik_tensor* addend,
                      const ik_tensor* src, const ik_tensor* queries, const ik_tensor* norm, const ik_tensor* msg,
                      const ik_tensor* down, const ik_tensor* gain, const ik_tensor* forget, int64_t pos0, const ik_tensor* pos,

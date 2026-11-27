@@ -1,0 +1,8 @@
+# name;bin;serve args (leading NAME=value = server env);actions (' && '-separated)
+# W10 (#538's merge condition): b13 = the PR head's binary (packing default-on, 2048 rows; no INTARSIA_* env), main4 = 178d87ece,
+# both with the batch lane's B16 flags. Card 0: A1 (main4) 4-stream filler rep k1, waits for card 1's prime of b13; B1 (b13): the 16
+# real prompts at 4 (4 waves), 8 (2 waves) and 16 at once (compared with b13's solo server, card 1), then reps k1 and k2; A2 rep k2
+# (ABBA: A B B A). Card 1 (stage_w10bg.sh): prime b13, hip tiny inkling2_packed / inkling2_batch on b13, b13's solo server.
+A1;main4;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;le:--sizes 1024 --gen 128 --reps 1 --concurrency 4@k1 && wait:/home/josef/intarsiaml-ink-hip-bpf/logs/w10/b13-primed:130
+B1;b13;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc:4:0+conc:4:1+conc:4:2+conc:4:3+conc:8:0+conc:8:1+conc && le:--sizes 1024 --gen 128 --reps 1 --concurrency 4@k1 && le:--sizes 1024 --gen 128 --reps 1 --concurrency 4@k2
+A2;main4;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;le:--sizes 1024 --gen 128 --reps 1 --concurrency 4@k2

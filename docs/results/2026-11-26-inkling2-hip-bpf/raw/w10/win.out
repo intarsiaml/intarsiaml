@@ -1,0 +1,7 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/hold.sh; cap 270s; stopping radiance 2026-11-26 19:02:30
+[window] radiance stopped 2026-11-26 19:02:34 (inactive)
+[hold] holding 2026-11-26 19:02:34
+[hold] stop file seen 2026-11-26 19:06:27
+[window] stage done 2026-11-26 19:06:28 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 19:06:28
+[window] radiance answers 2026-11-26 19:06:38 (after 15 s)
