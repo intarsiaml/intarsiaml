@@ -66,4 +66,27 @@ radiance window.
 
 ## Results
 
-(pending)
+All four gates hold.
+
+| # | Result | Evidence |
+|---|---|---|
+| T1 | **PASS**: red fails on the tap assertion | `inkling2_dflash2.rs:435`: "tap 0 of the drafting state's plain step is not the eager step's (a decode graph recorded without the tap copies was replayed)", first draft (DFlash2 tiny, `seed5`), 0.35 s |
+| T2 | **PASS**: green passes, for both drafts | `graphs enabled true captures 3 replays 4`, DFlash2 tiny (`seed5`) and DSpark tiny (`golden/inkling2-tiny-dspark`), 0.46 s |
+| T3 | **PASS**: green, the whole `inkling2_dflash2` suite on HIP | `test result: ok. 13 passed; 0 failed`, 164.98 s. The stage's `timeout 120` returned 124, but the suite still ran to its end and printed the result. Likely cause: the test binary is PID 1 in the container (`env` execs it), and PID 1 ignores a SIGTERM it has no handler for. No FAILED line, no panic. |
+| T4 | **PASS**: cpu, fix build | `inkling2_dflash2` 13/13, `inkling2_dspark` 4/4, `inkling2_dspark_sampled` 2/2 (3 ignored), `inkling2_dspark_sampled_adapt` 2/2, `inkling2_sampled_default` 2/2, intarsia-core lib 284/284 (4 ignored) |
+
+Runs:
+
+- **Build:** fleetq #12730, `--load cpu`, radiance up, 16:11 to 16:22 EST. Test exes `t-red` md5 `1be2204c…` (`7fd1808e7`), `t-green` md5 `9bfbd42a…` (`3595a7f37`).
+- **GPU window:** fleetq #12736, `--takes-down radiance`, R9700 card 1. Radiance stopped at 16:22:58 and answered `/v1/models` again at 16:26:00: 3 min 2 s down. Script: `raw/window.sh` + `raw/stage.sh`, CAP 280 s.
+
+Scope of the fix:
+
+- **Models without a DFlash-family draft:** `decode_taps` is 0, so they keep their key and their recordings.
+- **Metal:** never reaches this code (`supports_graphs` is false).
+- **Qwen DFlash states (HIP, CUDA):** the byte also splits their recordings into drafting (1) and not drafting (0). Their forward
+  writes the taps whenever a draft head is loaded, with no gate on `d.active` (`model.rs`, the `head.taps` copy in the layer loop).
+  So both recordings hold the same copies. The only cost is one extra capture when a state changes drafting mode, and tokens and
+  taps do not change.
+
+Still not measured: the real-model acceptance (speed) recovered by the fix.
