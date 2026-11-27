@@ -304,7 +304,8 @@ Checks without a GPU (tatooine cpu slots):
 | W7 | #12246 | 17:48:25 -> 17:52:46 = **4:21** | speed R (b10 packing, 4096-row workspace) / A / B, tag w7 |
 | W8 | #12248 | 17:53:34 -> 17:57:23 = **3:49** | real-shape unit test (card 1, PRE), then speed A / R, tag w8 |
 | W9 | #12256 | 18:33:34 -> 18:37:43 = **4:09** | brief 2b: 4-stream filler reps (main4 vs b12), hip tiny tests at the PF2 default, knob-off B16 server, B16 defaults check |
-| **total** | 9 windows | **29:51** (brief 2 budget 30:00, each <= 5:00: longest 4:38) | radiance answered within 15 s after every window |
+| W10 | #12264 | 19:02:30 -> 19:06:38 = **4:08** | #538 merge condition: b13 (packing default, 2048 rows) 16 real at 4 / 8 / 16, hip tiny on b13, ABBA 2048 vs main4 (the coordinator's extra 6 min) |
+| **total** | 10 windows | **33:59** (30:00 + the coordinator's extra 6:00 for W10; each <= 5:00: longest 4:38) | radiance answered within 15 s after every window |
 
 ### W1 (b5): packed != solo on HIP
 
@@ -594,4 +595,32 @@ unit 7 / 7 (W8) ran on b10, whose base 6517d98f4 predates #536 (the blend fuse l
 shares). **Open on the merged base:** a packing-default server's 16 real prompts at 4 / 8 / 16 at once; brief 3's first window runs
 it (overlap off) before anything else. Not GPU-run with the default on: the hip tiny `inkling2_batch` / `inkling2` suites through a packing engine (the packed engine test `inkling2_packed_engine` is,
 5 / 5 on hip; cpu runs every suite with the default on, b13).
+
+### W10: #538's merge condition, on the PR head's binary
+
+b13 = the PR head's code (packing default-on, 2048 rows; md5 6805e842), **no `INTARSIA_*` env**, the batch lane's B16 flags
+(`--max-batch 16 --max-seq 4608 --kv-fraction 0.9`; the default 4096 / 0.5 cannot hold the 4253-token prompt at B16). main4 =
+178d87ece. Raw: `raw/w10/`, `raw/w10-fleetq.log`.
+
+1. **Packing-default serving, bitwise: 16 / 16 at 4 at once (4 waves: 4 / 4 each), 16 / 16 at 8 (2 waves: 8 / 8 each), 16 / 16 at
+   16 at once**, each reply equal to the solo server's (main3's solo replies from W4, which b10's solo server matched 16 / 16; b13's
+   own solo server on card 1 did not come up within the window: its solo load packs P12 copies, a config whose admission was not
+   cached). The 16-at-once replies also equal W9's knob-off b12 server's. Packing ran: 4 packed passes carrying 15 chunks.
+   Speed on the way (single runs): 16 at once 125.0 tok/s, TTFT p50 3.35 s, ITL p50 / p99 0.057 / 0.695 s.
+2. **hip tiny on b13, no env: `inkling2_packed` 5 / 5, `inkling2_batch` 9 / 9** (whose engine tests now pack by default).
+3. **ABBA pair at 2048 rows** (A = main4, B = b13), 4-stream filler (localeval `--sizes 1024 --gen 128 --concurrency 4`), pooled with
+   W6's single 2048-row pair:
+
+| pair (order) | A TTFT p50 s | B TTFT p50 s | B / A TTFT p50 | A agg tok/s | B agg tok/s | B / A agg |
+|---|---|---|---|---|---|---|
+| W6 (A, B) b10 vs main3 | 1.319 | 1.332 | 1.010 | 111.3 | 110.6 | 0.994 |
+| W10 k1 (A, B) b13 vs main4 | 1.308 | 1.343 | 1.027 | 113.5 | 113.8 | 1.003 |
+| W10 k2 (B, A) b13 vs main4 | 1.319 | 1.327 | 1.006 | 110.5 | 112.5 | 1.018 |
+| **pooled, n = 3** | | | **1.014 [0.987, 1.042]** | | | **1.005 [0.974, 1.036]** |
+
+   The interval's lower bound 0.987 <= 1.01: the 2048-row default meets the rule. At 2048 rows the 1k filler does not pack (two
+   1039-token prompts are more than 2048 rows), so equal speed is what is expected; the 2048-row default's gains are elsewhere (8 x
+   512 +28 %, real 16 at once +1.6 %; single runs, W6 / W7).
+4. Gates 1 and 2 of the condition pass: **#538 stays default-on at 2048 rows**; `INTARSIA_INK_PACK_ROWS=4096` plus `--kv-fraction
+   0.9` stays the documented opt-in.
 
