@@ -7,16 +7,17 @@
 # 2. Card 0 (after the KV verdict): greedy ABBA half (stage_ab_k.sh's prompts and protocol: speed.json, 256 tokens, greedy, EOS honoured):
 #    arms dfl = CTL --spec dflash --spec-draft <DFlash2> --spec-k 4 (DFlash2 alone), dual = BR default; ORDER a = dfl dual dual dfl
 #    (reps R1 R2), b = dual dfl dfl dual. Out: logs/a-greedy/<arm>@<rep>.err (speed.py <dir> dfl <classes>).
-# 3. Card 1 (after the KV): greedy md5 (md5.json, 256 tokens, --ignore-eos): BR --spec off / BR default, BR default at 64 tokens; then
-#    100 seeds (24 tokens) at T 1.0 and at T 0.6: BR with INTARSIA_SPEC_SAMPLED_DFLASH=0 vs BR default (INTARSIA_SS_DEFAULT=1: no --spec,
-#    the recipe default with both drafts).
+# 3. Card 1 (after the KV), the tasks in $C1 (default "md5 seeds1.0"; WA2: KV=0 C1="seeds0.6 md564"): md5 = greedy md5 (md5.json, 256
+#    tokens, --ignore-eos) BR --spec off / BR default; md564 = BR default at 64 tokens (vs the first 64 ids of md5's off run, same
+#    folder); seeds<T> = 100 seeds (24 tokens) at T: BR with INTARSIA_SPEC_SAMPLED_DFLASH=0 vs BR default (INTARSIA_SS_DEFAULT=1: no
+#    --spec, the recipe default with both drafts).
 set -uo pipefail
 REPO=$HOME/intarsiaml-ink-hip-specflip
 S=$REPO/.scratch
 RAW=$REPO/docs/results/2026-11-26-inkling2-hip-specflip/raw
 M=/models/Inkling-2-Mini
 D=/models/Inkling-2-Mini-DFlash2
-BR=${BR:?set BR}; CTL=${CTL:-specA2}; ORDER=${ORDER:-a}; R1=${R1:-r1}; R2=${R2:-r2}; SEEDS=${SEEDS:-1}; KV=${KV:-1}
+BR=${BR:?set BR}; CTL=${CTL:-specA2}; ORDER=${ORDER:-a}; R1=${R1:-r1}; R2=${R2:-r2}; KV=${KV:-1}; C1=${C1:-md5 seeds1.0}
 OUT=$REPO/logs/a1-$BR; G=$REPO/logs/a-greedy; mkdir -p "$OUT" "$G" "$S/prompts" "$S/home"
 cp "$RAW/speed.json" "$RAW/md5.json" "$S/prompts/"
 B=/work/.scratch/bin/intarsia-$BR; C=/work/.scratch/bin/intarsia-$CTL
@@ -76,14 +77,21 @@ cmp_seeds() {  # temp
 }
 speed > "$OUT/c0.log" 2>&1 &
 (
-  md5 off 256 "--spec off"; md5 def 256 ""; md5 def64 64 ""
-  if [ "$SEEDS" = 1 ]; then seeds off 1.0; seeds def 1.0; seeds off 0.6; seeds def 0.6; fi
+  for t in $C1; do
+    case $t in
+      md5) md5 off 256 "--spec off"; md5 def 256 "" ;;
+      md564) md5 def64 64 "" ;;
+      seeds*) seeds off ${t#seeds}; seeds def ${t#seeds} ;;
+    esac
+  done
 ) > "$OUT/c1.log" 2>&1 &
 wait
 cat "$OUT/c0.log" "$OUT/c1.log"
-o=$(cat "$OUT/md5-off.out" "$OUT/md5-off.err" | grep -a '^ids\[' | md5sum | cut -c1-32); d=$(cat "$OUT/md5-def.out" "$OUT/md5-def.err" | grep -a '^ids\[' | md5sum | cut -c1-32)
-echo "[a1] greedy md5 256: off $o default $d $([ "$o" = "$d" ] && echo EQUAL || echo DIFFER)"
-python3 - "$OUT" <<'EOF'
+if [ -s "$OUT/md5-def.err" ] && [ -s "$OUT/md5-off.err" ]; then
+  o=$(cat "$OUT/md5-off.out" "$OUT/md5-off.err" | grep -a '^ids\[' | md5sum | cut -c1-32); d=$(cat "$OUT/md5-def.out" "$OUT/md5-def.err" | grep -a '^ids\[' | md5sum | cut -c1-32)
+  echo "[a1] greedy md5 256: off $o default $d $([ "$o" = "$d" ] && echo EQUAL || echo DIFFER)"
+fi
+[ -s "$OUT/md5-def64.err" ] && [ -s "$OUT/md5-off.err" ] && python3 - "$OUT" <<'EOF'
 import sys, re
 from pathlib import Path
 d = Path(sys.argv[1])
@@ -98,5 +106,5 @@ off, d64 = ids(d / "md5-off.err"), ids(d / "md5-def64.err")
 eq = all(off.get(k, [])[:len(v)] == v and len(v) == 64 for k, v in d64.items()) and len(d64) == len(off) > 0
 print(f"[a1] greedy 64 tokens: default's ids = the first 64 of --spec off's ({len(d64)} prompts): {'EQUAL' if eq else 'DIFFER'}")
 EOF
-[ "$SEEDS" = 1 ] && { cmp_seeds 1.0; cmp_seeds 0.6; }
+for t in $C1; do case $t in seeds*) cmp_seeds ${t#seeds} ;; esac; done
 echo "[a1] done $(now) t+$(el)s"

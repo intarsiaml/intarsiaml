@@ -159,6 +159,46 @@ tatooine's lane folder while the Mac worktree stayed on PR A for its cpu suite; 
   them plain), `recipe_ink_sampled_dflash` 3 / 3, `recipes_doc` 3 / 3, `inkling2_sampled_default` 2 / 2, cli `docs_env_vars` 2 / 2,
   core lib 284 / 284. Not yet the endor suite (gate 1).
 
+## Option (a) as built (PR B, branch `ink/hip-specflip-b`)
+
+- **Rule.** Where the recipe's DSpark default applies (no `--spec`, one sequence, one rank, no prefix store: Inkling-2 on HIP), the
+  recipe's `[tuning.hip] dflash2_draft = "Inkling-2-Mini-DFlash2"` is resolved (`load::dflash2_default_draft`: an absolute path, or a name
+  next to the checkpoint, `<checkpoint>/../<name>`; found = a DFlash2 `config.json` that `open_dflash` takes). Found and the checkpoint
+  holds its DSpark draft: DFlash2 loads as a **second draft** (`LoadOptions::dflash_alt`, k `dflash2_k` = 4) beside the DSpark draft
+  (k5). Greedy requests draft with DFlash2 k4, sampled requests with DSpark (flip A's `sampled_dflash` and adaptive table, unchanged).
+  Found but no DSpark draft: DFlash2 alone is the default (greedy drafts, sampled plain). Not found / not DFlash2 / fails to open, or
+  `INTARSIA_SPEC_DFLASH2_DEFAULT=0`: the DSpark default alone, PR A's load (DFlash2 not read). Never an error.
+- **Engine.** `Model` holds `dflash` (DSpark) and `dflash_alt` (DFlash2); each `SequenceState` holds the active draft state (`dflash`)
+  and the other one parked (`dflash_parked`, `dflash_alt_on` says which). `Seq::new` calls `Model::select_dflash(st, greedy)` for a
+  drafting request: a swap parks the old state, starts the incoming one over (empty; synced only on an empty sequence) and drops the
+  captured graphs (the target's taps go to the other draft's buffers). The existing resync rule then applies as after a turn that did
+  not draft (`DFLASH_RESYNC_REUSE_MAX` = 128: a short reuse re-prefills, a longer one runs that request without drafting). Only the
+  active draft ingests each pass, so holding both costs memory, not time. Every site that read `Model::dflash` for a sequence reads the
+  state's draft (`Model::dflash_of(st.dflash_alt_on)`: taps in the Inkling-2 forward, ingest, draft, host ingest); the plan dry run
+  records both drafts' passes; verify rows cover the larger k (k5 + 1).
+- **Memory.** The DFlash2 draft shares the DSpark draft's mxfp4 copy of the unembed (`INTARSIA_DSPARK_HEAD` and `INTARSIA_DFLASH2_HEAD`
+  both mxfp4 on HIP: the same rows of the same tensor through the same `quantize_host`, identical bits), about 0.25 GB not spent twice;
+  otherwise its own copy as before.
+- **Why a recipe field with a name next to the checkpoint** (the brief: no flag): the recipe already carries the per-backend default
+  (`mtp_default_k`, `sampled_dflash`), so the drafter's name and k sit beside them; the sibling rule finds the drafter wherever the model
+  directory is, as long as the drafter is downloaded beside it (tatooine: both in `/data/models/intarsia`), and an absolute path covers
+  other layouts (an HF cache, where snapshots are not siblings). An env path would be a flag in another form.
+- **Unchanged:** Metal, CUDA, cpu (no `dflash2_draft` there), `--spec off`, explicit `--spec`, `--max-batch` > 1 (the DSpark default is
+  off above one sequence, so neither draft loads: the batching engine takes plain steps as on main).
+- **Revert:** `INTARSIA_SPEC_DFLASH2_DEFAULT=0` (the DSpark default alone, flip A), or delete the two recipe lines.
+- **cpu tests** (`tests/inkling2_dflash2.rs`): the resolver (sibling / absolute found, `=0` off, missing / target / DSpark dirs fall back,
+  no default on metal / cuda / cpu); a fresh greedy request on the dual engine drafts exactly as DFlash2 k4 alone (same passes,
+  proposals, acceptances, ids) and a fresh sampled one exactly as DSpark k5 alone; one conversation of greedy / sampled turns (T 1.0,
+  0.6) emits `--spec off`'s ids; the dual load parks DFlash2's state and its context is <= the DSpark-only one, which is the same
+  without the second draft; DFlash2 alone keeps sampled requests plain; a DSpark second draft is refused.
+
+**(a) window plan (sent 00:58, pending the coordinator's go):** control `specA2` (PR A). WA1 ~4:40: KV first (card 1; skip the speed
+part if worse than -10 %), card 0 greedy ABBA half 1 (dfl dual dual dfl), card 1 md5 off / default + 100 seeds T 1.0; WA2 ~3:50: card 0
+greedy ABBA half 2 (dual dfl dfl dual), card 1 100 seeds T 0.6 + 64-token md5; WA3 ~4:50: sampled ABBA both cards (T 1.0 / 0.7, n = 4,
+dual vs specA2 default), then b16 serve of the dual binary vs PR A's GS2 b16 replies. ~13:20 in all (lane ~41:57 of 45). Proposed
+deviation: the serve check for (a) is dual b16 = PR A b16 (b16 loads no drafter: unchanged from main), not dual solo vs b16 (a cold solo
+admission alone needs a 4th window, ~46:17 > 45); solo correctness = md5 + seeds.
+
 ## Pre-registration: the (a) gate (written 00:25 EST 11-27, before any (a) window; coordinator 00:08 as written above)
 
 (a) = both drafters loaded on HIP at one sequence: greedy requests draft with DFlash2 k4, sampled requests with DSpark (adaptive, flip A's
