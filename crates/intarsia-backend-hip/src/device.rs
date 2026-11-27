@@ -777,8 +777,16 @@ impl HipBackend {
         let mut s = self.streams.lock().unwrap();
         while s.len() <= id as usize {
             let mut h: *mut c_void = std::ptr::null_mut();
-            // SAFETY: valid out-pointer; the device is bound by the caller.
-            check("hipStreamCreate", unsafe { ffi::ik_rt_stream_create(&mut h) })?;
+            if s.len() == 1 && stream1_priority() {
+                // lane ink-hip-overlap (opt-in): the decode twin's stream at the device's greatest priority
+                let mut prio = 0;
+                // SAFETY: valid out-pointers; the device is bound by the caller.
+                check("hipStreamCreateWithPriority", unsafe { ffi::ik_rt_stream_create_prio(&mut h, &mut prio) })?;
+                eprintln!("hip: stream 1 at priority {prio} (INTARSIA_HIP_STREAM1_PRIORITY=high)");
+            } else {
+                // SAFETY: valid out-pointer; the device is bound by the caller.
+                check("hipStreamCreate", unsafe { ffi::ik_rt_stream_create(&mut h) })?;
+            }
             s.push(h as usize);
         }
         Ok(s[id as usize] as *mut c_void)
@@ -1689,4 +1697,12 @@ impl Backend for HipBackend {
         // SAFETY: `exec` is a live hipGraphExec_t owned by `g`.
         check("hipGraphLaunch", unsafe { ffi::ik_rt_graph_launch(g.exec as *mut c_void, s) })
     }
+}
+
+/// Lane ink-hip-overlap (`INTARSIA_HIP_STREAM1_PRIORITY=high`, opt-in): stream 1 (the decode twin's, R3d overlap; the
+/// tensor-parallel side stream otherwise) is created at the device's greatest priority, so its kernels go ahead of a prefill
+/// chunk's on stream 0. Unset: every stream at the default priority, as before. Scheduling only: no kernel changes.
+fn stream1_priority() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_HIP_STREAM1_PRIORITY").is_ok_and(|v| v.trim() == "high"))
 }

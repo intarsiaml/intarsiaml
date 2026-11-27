@@ -125,6 +125,17 @@ int ik_rt_stream_create(void** stream) {
     *stream = (void*)s;
     return (int)e;
 }
+/* lane ink-hip-overlap (INTARSIA_HIP_STREAM1_PRIORITY=high): a stream at the device's greatest priority; *prio gets it */
+int ik_rt_stream_create_prio(void** stream, int* prio) {
+    int least = 0, greatest = 0;
+    hipError_t e = hipDeviceGetStreamPriorityRange(&least, &greatest);
+    if (e != hipSuccess) return (int)e;
+    hipStream_t s = nullptr;
+    e = hipStreamCreateWithPriority(&s, hipStreamNonBlocking, greatest);
+    *stream = (void*)s;
+    *prio = greatest;
+    return (int)e;
+}
 int ik_rt_stream_sync(void* stream) { return (int)hipStreamSynchronize((hipStream_t)stream); }
 
 /* events (INTARSIA_HIP_TRACE): one marker per launch, successive deltas attribute stream time to kernels */

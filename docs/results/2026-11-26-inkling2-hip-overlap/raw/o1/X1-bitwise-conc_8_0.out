@@ -1,0 +1,2 @@
+wall 9.92 s, aggregate 103.2 tok/s, latency median 7.07 s max 9.92 s, prompt tokens 12019, cached 0, ttft median 2.1957 max 8.226640939712524, itl p50 0.0305 p99 0.3011
+conc:8:0: 8 replies, 1024 tokens -> /opt/code/intarsiaml/.worktrees/ink-hip-overlap/docs/results/2026-11-26-inkling2-hip-overlap/raw/o1/X1-bitwise-conc_8_0.json

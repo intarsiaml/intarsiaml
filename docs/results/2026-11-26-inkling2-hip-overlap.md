@@ -138,3 +138,52 @@ read of the head on stream 0).
 3. Packed in-flight prefill (`prefill_begin_packed`), scheduler: the overlap branch picks the packed set `prefill_packed` would.
 4. Default: on for Inkling-2 on HIP with `--max-batch` > 1 only if gates 1-4 pass; opt-in (`INTARSIA_OVERLAP=1`) until then.
 5. Gates on tatooine in windows of < 5 min (30 min in total).
+
+## 2. Build (branch `ink/hip-overlap`)
+
+- **Inkling decode twin** (`model/inkling2.rs` `InkModel::twin`, `model/batch.rs` `decode_twin`): the layers are behind an `Arc`
+  (shared, read-only once loaded; the batched load drops the P12 copies before any twin exists), visits / queries / norms cloned,
+  its own `InkWs` of `max(rows, BATCH_MAX_ROWS)` rows (zero-filled on stream 0, then a stream-0 sync before the twin launches on
+  stream 1). A batched Inkling load has no DSpark head (the DSpark default needs `--max-batch 1`), so `decode_twin`'s refusals do
+  not apply.
+- **Per-stream ticket slots** (`kernels/hip/ink_tick.h`, new): `g_gate_ctr`, `ink_dec_tick` and `g_route_ctr` hold
+  `kInkTickSlots = 8` copies; a launch uses the copy of its (device, HIP stream), handed out in first-launch order per device (as
+  `moe_sync_slot` does for `g_moe_sync`). The gate kernel gets the slot in `GateNorm.slot`, InkAttnDecode in `flags` bits 24..27 of
+  its launch's copy of `InkP` (0 for the first stream of a device, so the solo and the cache-write passes' arguments stay main's
+  bytes), the fused route as a new last argument. More than 8 streams on a device (a long test process) share slot 0 (main's
+  single array) with a warning.
+- **Packed pass in flight** (`engine/batch.rs` `prefill_begin_pack` / `prefill_end_pack`, `ink_pack_run`; `scheduler.rs`
+  `pack_pick` / `pack_finish` / `overlap_decode`): with overlap, the packed pass `prefill_one` would run (same pick, same chunks) runs
+  on the prefill thread with its slots' states moved out, as a single chunk does; only where `busy_chunk == solo_chunk` (a first
+  chunk's size then does not depend on the decode rows). `pack_rows_max` no longer turns packing off when a twin exists (Inkling).
+- **Pace knob** `INTARSIA_OVERLAP_PACE_MS` (default 0): the least time between the starts of two decode steps while a chunk is in
+  flight. **Metric** `intarsia_batch_overlap_steps_total`.
+- cpu (tatooine, fleetq #12278 / #12280): `intarsia-core` lib 270 + `tests/scheduler.rs` 54 (new
+  `batched_equals_solo_randomized_with_overlap_and_packing`: pace 0 / 300 us, B 2 / 4 / 8, packed passes in flight), `inkling2` 17,
+  `inkling2_batch` 10 (new `inkling2_decode_twin_equals_solo_and_overlaps_prefill`), `inkling2_packed` 6 (new
+  `inkling2_overlap_engine_equals_solo_engine`, pace 0 / 2 ms), `docs_env_vars` 2, `intarsia-server` lib 71: all pass.
+
+## 3. Windows
+
+### O1 (fleetq #12281; radiance down 19:34:35 - 19:38:39 = 4:04)
+
+Card 0: N1 = b13 (#538's head, packing default, no overlap), X1 = o1 `INTARSIA_OVERLAP=1` (pace 0), X2 = o1 overlap pace 150 ms;
+all `--max-batch 16 --max-seq 4608 --kv-fraction 0.9`. Card 1: o1's admission (overlap on: 23 kernels, 134 cases, 0 cached, pass),
+hip tiny `inkling2_batch` 10 / 10 (the twin test: rows == solo, and a prefill on the model beside the twin's steps, calls of 1 .. 16
+rows on stream 0 running the ticketed kernels) and `inkling2_packed` 6 / 6 (overlap engine: 138 / 60 decode phases beside chunks
+in flight at pace 0 / 2 ms, packed passes in flight).
+
+Bitwise vs W4's solo replies: X1 conc:8:0 8/8, conc:8:1 8/8, conc (16) 16/16; X2 conc:8:0 8/8, conc 16/16; N1 conc 16/16.
+
+| arm (1 rep each) | real 8 (conc:8:0) agg / TTFT p50 / ITL p99 | real 16 agg / TTFT p50 / TTFT max / ITL p99 | filler 1k x 8 agg |
+|---|---|---|---|
+| N1 b13 | 117.1 / 1.93 s / 0.581 s | 125.7 / 2.81 / 9.66 / 0.622 | 140.3 |
+| X1 overlap pace 0 | 103.2 / 2.20 / 0.301 | 105.2 / 4.49 / 16.15 / 0.336 | 89.6 |
+| X2 overlap pace 150 | 118.4 / 1.94 / 0.570 | 123.2 / 2.83 / 10.50 / 0.568 | - |
+
+Reading: unpaced overlap halves ITL p99 (-46 % at 16, -48 % at 8) but costs 16 % aggregate and +60 % TTFT p50 at 16 real, and 36 %
+filler aggregate (decode steps 676 -> 1460 for the same tokens: many small steps beside each chunk, each reading the weights). At
+pace 150 the cost is gone and so is most of the gain (ITL p99 -9 %). The poll log (decode steps every 0.2 s) and the replies' gaps
+show why the knob does little: a decode step beside a chunk takes ~0.3 s (vs 33-58 ms alone), longer than the pace, so pace 150
+leaves ~2 steps per chunk and each waits behind the chunk's kernels. HIP streams here are created at the default priority
+(`hipStreamCreateWithFlags(.., NonBlocking)`), not high as on CUDA, so the twin's kernels queue with the chunk's.

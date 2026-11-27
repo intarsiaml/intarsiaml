@@ -1945,6 +1945,10 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
             if out.stepped {
                 self.metrics.lock().unwrap().overlap_steps += 1;
+                if self.cfg.trace_stderr {
+                    let us = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_micros());
+                    eprintln!("cb-trace-us t={us} OverlapStep {{ iter: {}, decoding: {}, step_us: {} }}", self.iter, out.decoding, t0.elapsed().as_micros());
+                }
             }
             *stepped |= out.stepped;
             if out.fatal {

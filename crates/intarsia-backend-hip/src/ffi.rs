@@ -78,6 +78,7 @@ extern "C" {
     pub fn ik_rt_memcpy_d2d(dst: *mut c_void, src: *const c_void, n: usize, stream: S) -> c_int;
     pub fn ik_rt_memset(dst: *mut c_void, value: c_int, n: usize, stream: S) -> c_int;
     pub fn ik_rt_stream_create(stream: *mut S) -> c_int;
+    pub fn ik_rt_stream_create_prio(stream: *mut S, prio: *mut c_int) -> c_int;
     pub fn ik_rt_stream_sync(stream: S) -> c_int;
     pub fn ik_rt_event_create(ev: *mut S) -> c_int;
     pub fn ik_rt_event_record(ev: S, stream: S) -> c_int;

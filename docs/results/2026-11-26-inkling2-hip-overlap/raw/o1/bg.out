@@ -1,0 +1,12 @@
+[bg] (1) prime o1, overlap on (X1's config) 2026-11-26 19:34:41
+[bg] prime-o1 (o1) up after 102s (0 = not up) 2026-11-26 19:36:23: admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 inkling2 packed prefill: on, up to 2048 rows per pass, segments of 17+ rows loaded ink on hip (AMD Radeon Graphics) in 101.7s, context 4608 tokens 
+[bg] (2) tiny inkling2_batch on o1 (143 s left) 2026-11-26 19:36:23
+[bg] tiny batch exit 0 2026-11-26 19:36:31
+[bg tiny batch] test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.72s
+[bg] (2) tiny inkling2_packed on o1 (135 s left) 2026-11-26 19:36:31
+[bg] tiny packed exit 0 2026-11-26 19:36:36
+[bg tiny packed] overlap, pace 0 ms: 138 decode phases beside chunks in flight, 2 packed passes
+[bg tiny packed] overlap, pace 2 ms: 60 decode phases beside chunks in flight, 1 packed passes
+[bg tiny packed] test inkling2_packed_equals_solo_real ... ok
+[bg tiny packed] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.72s
+[bg] done 2026-11-26 19:36:36
