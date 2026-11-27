@@ -210,6 +210,20 @@ traced fixed-k3 calibration process (seed 11, T 1.0) and the same 15 % rule for 
 speed A/B as W2 with k3 and **3 reps per arm** (not 4: 24 timed processes with 45 s gaps do not fit 30 min), Latin-square orders
 per temperature (off fix pol / fix pol off / pol off fix).
 
+**Amendments before any window (2026-11-26 ~20:30 EST, after #535 merged as `aee06201c`; nothing measured yet):**
+
+- Binaries: branch `ad3` = this branch with `origin/main` merged (`56ec7c465`+); main `main6` = `aee06201c`. Greedy md5 is ad3 vs main6.
+- The fixed-k arm is **main6** with `INTARSIA_SPEC_SAMPLED_DFLASH=1` (coordinator: "your fixed-k5 arm is main itself now"), on both
+  backends; off and policy run on ad3. (`INTARSIA_SPEC_SAMPLED_ADAPT=0` on ad3 is the same code path: `Seq::adapt` stays `None`.)
+- W1 adds a third traced calibration run per card, the policy at seed 11: the offline replay must reproduce its passes / proposed /
+  accepted exactly (checks the Python port of `AdaptK` in `raw/sim.py`). Seeds at 24 tokens (not 32), budget 90 s, so that 100 seeds
+  x 2 temperatures fit; the summary counts shared seeds per temperature.
+- W2: three arms x 4 reps = 12 processes per card do not fit a 5-min window (~25 s per process in #535's k5 refresh). W2 runs **3
+  reps per arm**, card 0 all of T 1.0, card 1 all of T 0.7, a Latin square per rep (off fix pol / fix pol off / pol off fix): 9
+  processes per card, every (off, fix, pol) triple of a rep on one card. Pairs per ratio: 3 (95 % t-interval with t(2) = 4.303).
+- Metal slot: one traced fixed-k3 calibration process only (no drafts run; P from its empty calls); 3 reps per arm as W2, both
+  temperatures inside each rep.
+
 **Analysis** (`raw/speed3.py`, from #535's `speed.py`): per arm pair, the ratio of pooled tok/s (sum of tokens / sum of time over the
 class's prompts), geomean over reps, 95 % t-interval over the paired log ratios (pairs within a rep), per class and per prompt;
 acceptance, tokens per pass and plain-step tokens per arm; ids identical across all processes of a temperature.
