@@ -24,7 +24,8 @@
 //!
 //! On an Inkling-2 target (lane ink-dflash2, `incoai/Inkling-2-Mini-DFlash2`): the taps are target *visits* (`target_layer_ids`
 //! 5, 23, 41 = the partial entering those visits, 48 = the final-norm output, as for the model's own DSpark draft; the reference
-//! aliases its DFlash capture to the DSpark capture), the block rows embed with the target's raw `embed` table, the drafts' logits
+//! aliases its DFlash capture to the DSpark capture), the block rows are the target's embedding output `rms(embed[id],
+//! embed_norm)` (the reference embeds with the target's embedding module; raw rows accept nothing), the drafts' logits
 //! are the target unembed's first `unpadded_vocab_size` rows (the reference's valid vocabulary; the codebooks keep the padded
 //! rows), and the selector's scores are softcapped after its correction (`selector_softcap_mode = "after_correction"`).
 
@@ -196,9 +197,10 @@ pub(super) struct Draft2 {
     /// A DSpine draft (`model/dspine.rs`): the code bridge, its tables and the tail. Then `layers` have no conv, `selector` is `None`
     /// and `cand` is the tail's `head_topk`.
     pub(super) spine: Option<Box<super::dspine::Spine>>,
-    /// Lane ink-dflash2 probe knob (`INTARSIA_DFLASH2_EMBED_NORM=1`, Inkling-2 targets only, off by default): the block rows are
-    /// `rms(embed[id], embed_norm)` (the target's own first step, as its DSpark draft embeds the anchor) instead of the raw
-    /// `embed[id]` the generic DFlash path (and, by its code, the reference) feeds. Draft numerics only.
+    /// Inkling-2 targets (lane ink-dflash2): the block rows are `rms(embed[id], embed_norm)`, the target's own embedding output
+    /// (its first step, as its DSpark draft embeds the anchor), not the raw `embed[id]` rows of the generic DFlash path. On by
+    /// default: window 1 measured 0 of 616 drafts accepted with the raw rows, 51 % (4.57 tokens a pass) with the norm.
+    /// `INTARSIA_DFLASH2_EMBED_NORM=0` feeds the raw rows (diagnosis only). Draft numerics only.
     pub(super) embed_norm: bool,
 }
 
@@ -428,7 +430,7 @@ pub(super) fn load2(
         None
     };
     let win_split = std::env::var("INTARSIA_DFLASH_WIN_SPLIT").map_or(true, |v| v.trim() != "0");
-    let embed_norm = dims.ink.is_some() && spine_cfg.is_none() && std::env::var("INTARSIA_DFLASH2_EMBED_NORM").is_ok_and(|v| v.trim() == "1");
+    let embed_norm = dims.ink.is_some() && spine_cfg.is_none() && std::env::var("INTARSIA_DFLASH2_EMBED_NORM").map_or(true, |v| v.trim() != "0");
     let spine = match spine_cfg {
         Some(sc) => Some(Box::new(super::dspine::load_spine(dl, sc, b, dims, add_bytes, rows, act)?)),
         None => None,

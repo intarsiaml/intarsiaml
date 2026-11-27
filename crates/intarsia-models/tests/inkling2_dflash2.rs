@@ -7,7 +7,7 @@
 //! * The loader's Inkling checks (visit taps ending at the final norm, the padded vocab) and the softcap modes.
 //! * The taps: the DFlash2 draft's per-tap staging rows are bitwise the DSpark draft's tap-major rows of the same target pass (the
 //!   reference aliases its DFlash capture to the DSpark one; a wrong tap would only lower acceptance, nothing else catches it).
-//! * The draft pass on the Inkling target equals an f64 host reference (raw `embed` rows, mask, positions, window, the
+//! * The draft pass on the Inkling target equals an f64 host reference (block rows `rms(embed[id], embed_norm)`, mask, positions, window, the
 //!   unembed's real rows as the head, the selector with its softcap) at the existing DFlash2 test's tolerance.
 //! * Greedy output with the draft on equals `--spec off` (recurrent state rolled back through `SpecRows`), random and scripted
 //!   drafts, `--spec-k` 1 / 3 / 7, prompts longer than the prefill chunk and the draft's window; with admitted kernels only.
@@ -48,6 +48,8 @@ const DEPS: f64 = 1e-6;
 const SEL_RANK: usize = 8;
 const SEL_TOP: usize = 4;
 const CAP: f64 = 30.0;
+/// The tiny target's `rms_norm_eps` (its `embed_norm`).
+const TEPS: f64 = 1e-6;
 
 fn golden() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../golden")
@@ -374,8 +376,12 @@ fn mv(w: &[f64], n: usize, k: usize, x: &[f64]) -> Vec<f64> {
 }
 
 fn rms(x: &[f64], w: &[f64]) -> Vec<f64> {
+    rms_eps(x, w, DEPS)
+}
+
+fn rms_eps(x: &[f64], w: &[f64], eps: f64) -> Vec<f64> {
     let ms = x.iter().map(|v| v * v).sum::<f64>() / x.len() as f64;
-    let r = 1.0 / (ms + DEPS).sqrt();
+    let r = 1.0 / (ms + eps).sqrt();
     x.iter().zip(w).map(|(v, w)| v * r * w).collect()
 }
 
@@ -413,12 +419,12 @@ fn conv(x: &[Vec<f64>], dynr: &[Vec<f64>], base: &[f64]) -> Vec<Vec<f64>> {
 }
 
 /// The draft (as `tests/dflash2_cpu.rs`'s reference, z-lab's semantics) over a context of `feat.len()` rows and the block `ids`
-/// at positions `C ..`, the rows embedded with the target's raw `embed` table: the final normed rows.
-fn reference(dw: &Gen, embed: &[f64], feat: &[Vec<f64>], ids: &[u32]) -> Vec<Vec<f64>> {
+/// at positions `C ..`, the rows the target's embedding output `rms(embed[id], embed_norm)` (eps `TEPS`): the final normed rows.
+fn reference(dw: &Gen, embed: &[f64], embed_norm: &[f64], feat: &[Vec<f64>], ids: &[u32]) -> Vec<Vec<f64>> {
     let c = feat.len();
     let t = ids.len();
     let ctx: Vec<Vec<f64>> = feat.iter().map(|f| rms(&mv(dw.get("fc.weight"), H, TAPS.len() * H, f), dw.get("hidden_norm.weight"))).collect();
-    let mut x: Vec<Vec<f64>> = ids.iter().map(|&i| embed[i as usize * H..(i as usize + 1) * H].to_vec()).collect();
+    let mut x: Vec<Vec<f64>> = ids.iter().map(|&i| rms_eps(&embed[i as usize * H..(i as usize + 1) * H], embed_norm, TEPS)).collect();
     let (qd, kvd) = (DNH * DHD, DNKV * DHD);
     for l in 0..DLAYERS {
         let p = |s: &str| format!("layers.{l}.{s}");
@@ -499,6 +505,7 @@ fn draft_pass_matches_host_reference() {
     }
     // a context shorter than the window (every row sees all of it) and longer (row r keeps the last WINDOW - 1 - r)
     let embed = target_f64("model.llm.embed.weight");
+    let embed_norm = target_f64("model.llm.embed_norm.weight");
     let unembed = target_f64("model.llm.unembed.weight");
     assert_eq!((embed.len(), unembed.len()), (V_PAD * H, V_PAD * H));
     let dw = draft_weights(5);
@@ -517,7 +524,7 @@ fn draft_pass_matches_host_reference() {
         let got = m.dflash_last_hidden(BLOCK).unwrap();
         let mut ids = vec![MASK; BLOCK];
         ids[0] = next;
-        let want = reference(&dw, &embed, &feat, &ids);
+        let want = reference(&dw, &embed, &embed_norm, &feat, &ids);
         for r in 0..BLOCK {
             let num: f64 = got[r * H..(r + 1) * H].iter().zip(&want[r]).map(|(a, b)| (*a as f64 - b).powi(2)).sum();
             let e = (num / want[r].iter().map(|b| b * b).sum::<f64>()).sqrt();
