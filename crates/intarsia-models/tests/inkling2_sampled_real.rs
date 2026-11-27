@@ -81,7 +81,8 @@ fn inkling2_sampled_dspark_real_model_runs() {
         }
     };
     let t_load = std::time::Instant::now();
-    let loaded = intarsia_models::load_engine(&dir, backend(), &opts).unwrap();
+    let be = backend();
+    let loaded = intarsia_models::load_engine(&dir, be.clone(), &opts).unwrap();
     let e = loaded.engine;
     eprintln!(
         "loaded in {:.1} s, INTARSIA_SPEC_SAMPLED_DFLASH={:?}, draft {:?}",
@@ -92,6 +93,10 @@ fn inkling2_sampled_dspark_real_model_runs() {
     let prompt = e.tokenize("Once upon a time, in a small village by the sea, there lived", false).unwrap();
     let prompt = prompt.repeat(var("INTARSIA_SS_PROMPT_X").map_or(1, |v| v.parse().unwrap()));
     let mut f = out.map(|p| std::fs::OpenOptions::new().create(true).append(true).open(p).unwrap());
+    // lane ink-hip-specflip (coordinator 01:03): per-request wall time and time to first token on stderr, and the device's free memory
+    // before the first request and after the last (a draft swap frees and allocates a draft state: no creep)
+    let free0 = be.info().free_mem;
+    eprintln!("free_mem before {} MiB", free0 >> 20);
     let t0 = std::time::Instant::now();
     let mut n = 0usize;
     'all: for &(a, b) in &seeds {
@@ -112,8 +117,13 @@ fn inkling2_sampled_dspark_real_model_runs() {
                     ..Default::default()
                 };
                 let mut ids = Vec::new();
+                let tr = std::time::Instant::now();
+                let mut ttft = None;
                 e.generate(req, &mut |ev| match ev {
-                    GenEvent::Token { id, .. } => ids.push(id),
+                    GenEvent::Token { id, .. } => {
+                        ttft.get_or_insert_with(|| tr.elapsed());
+                        ids.push(id)
+                    }
                     GenEvent::Error { message } => panic!("engine error: {message}"),
                     _ => {}
                 })
@@ -121,6 +131,11 @@ fn inkling2_sampled_dspark_real_model_runs() {
                 // a held-back text tail goes out after the last token as one more `Token` event repeating the last id
                 assert!(ids.len() == tokens || (ids.len() == tokens + 1 && ids[tokens] == ids[tokens - 1]), "{ids:?}");
                 ids.truncate(tokens);
+                eprintln!(
+                    "request {n} T {t} seed {seed}: wall {:.1} ms, ttft {:.1} ms",
+                    tr.elapsed().as_secs_f64() * 1e3,
+                    ttft.map_or(f64::NAN, |d| d.as_secs_f64() * 1e3)
+                );
                 let line = format!("{t} {seed} {}", ids.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(" "));
                 match f.as_mut() {
                     Some(f) => writeln!(f, "{line}").unwrap(),
@@ -130,6 +145,8 @@ fn inkling2_sampled_dspark_real_model_runs() {
             }
         }
     }
+    let free1 = be.info().free_mem;
+    eprintln!("free_mem after {} MiB (change {:+} MiB)", free1 >> 20, (free1 as i64 - free0 as i64) >> 20);
     let s = e.telemetry();
     eprintln!(
         "{n} requests in {:.1} s; spec verify passes {} proposed {} accepted {}",

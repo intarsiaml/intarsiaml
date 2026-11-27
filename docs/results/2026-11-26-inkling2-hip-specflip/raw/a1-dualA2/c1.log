@@ -1,0 +1,5 @@
+[a1 c1] md5 off rc 0 t+39s 380af8a5e897bdbed231818477038f37 | decode overall: 510 tokens after the first, 6234 ms (81.81 tok/s) spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) 
+[a1 c1] md5 def rc 0 t+52s 380af8a5e897bdbed231818477038f37 | DFlash2 drafter /models/Inkling-2-Mini-DFlash2 (k 4): loaded beside the DSpark default of recipe inkling2 on hip for greedy requests ([tuning.hip] dflash2_draft; sampled requests keep the DSpark draft; INTARSIA_SPEC_DFLASH2_DEFAULT=0 loads the DSpark default alone) --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequen
+[a1 c1] md5 dfl4 rc 0 t+63s 380af8a5e897bdbed231818477038f37 | decode overall: 510 tokens after the first, 3769 ms (135.32 tok/s) spec: verify passes=140 proposed=555 accepted=370 (acceptance 66.7%, 3.64 tokens per pass) 
+[a1 c1] seeds off T 1.0 rc 0 t+106s lines 100 | 100 requests in 37.1 s; spec verify passes 0 proposed 0 accepted 0 
+[a1 c1] seeds def T 1.0 rc 0 t+148s lines 100 | 100 requests in 37.2 s; spec verify passes 0 proposed 0 accepted 0 

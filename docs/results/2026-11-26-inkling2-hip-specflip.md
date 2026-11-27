@@ -496,3 +496,28 @@ run), and the dual solo engine's correctness is shown by its greedy md5 and seed
   (reuse <= 128: the incoming draft re-prefills) and once with it repeated 12 times (reuse > 128: that request runs without drafting);
   dual default vs no speculation at all (`INTARSIA_SPEC_DEFAULT=0`): ids equal, and the dual runs drafted (verify passes > 0).
 
+**WA1 (#12517, 00:54:18-00:57:00, 2:42; dualA2) partly void** (`raw/a1-dualA2/`, `raw/window-wa1-12517.log`): kept: greedy md5.json 256
+tokens off = dual default = DFlash2 k4 alone (`380af8a5`), acceptance dual = DFlash2 k4 alone (140 / 555 / 370, every per-prompt spec line
+equal). Void 1 (KV): the dual load at `--max-seq 1000000` ran out of memory in `LocalEngine::new`'s first `new_state` (hipMalloc of 335 MB:
+dualA2 allocated the DSpark state and a parked DFlash2 state, both at full capacity); fix dualA3: one draft state at a time
+(`select_dflash` frees the old state and allocates the other draft's; the KV budget still counts both drafts' per-token cost, so the swap
+always fits). Void 2 (seeds): 0 verify passes on both arms: the harness's default mode left `EngineOptions::spec_auto` false (the CLI sets
+it when no `--spec` is given), so no drafter loaded; fixed (dualA4 = dualA3's CLI, md5 `579b3042`, + the fixed harness), and the stage marks
+a default run without the DFlash2 line VOID. Lane to coordinator 01:01 (rerun plan ~44:09, stop rule: one more overrun or void -> stop and
+report).
+
+**Coordinator, 01:03 EST 11-27 (as written):**
+
+> Go on WA1b → WA2 → WA3 as planned (~44:09). Both fixes are sound, and the sampled acceptance compare against `INTARSIA_SPEC_DFLASH2_DEFAULT=0` on the same binary and harness path is fine as the like-for-like version of change 2.
+>
+> Since dualA3 now frees and reallocates the draft state and drops graphs on every greedy↔sampled switch, add two things to the untimed mixed-switch run on card 1 in WA2. No new window.
+> 1. Per-request wall time, plus the time to first token of the first request after each switch, so the morning report can state the switch cost (hipMalloc + graph re-capture + resync).
+> 2. Free VRAM (or the engine's own allocator stats) logged before the first request and after the last, with ≥ 8 switches in the run. It must not grow or creep toward OOM. A leak or creep stops the flip.
+>
+> Your stop rule stands: one more overrun or void and you stop and report rather than rerun. Write this note (01:03 EST) into the results doc.
+
+How it runs (written before WA1b): the mixed run is seeds 0..6 x T (0.0, 1.0), seeds outer: 12 requests, each one a switch (12 swaps, the
+first from the load's DSpark state); the harness prints per request its wall time and time to first token, and the backend's free memory
+(`Backend::info().free_mem`) before the first request and after the last. Pass: ids = no speculation; free memory after >= before minus
+64 MiB (allocator rounding); the switch cost is reported, not gated.
+
