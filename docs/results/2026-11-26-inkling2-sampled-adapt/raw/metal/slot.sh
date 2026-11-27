@@ -37,7 +37,7 @@ if [ -z "${SKIP_SEEDS:-}" ]; then
   done
 fi
 if [ -z "${SKIP_TINY:-}" ]; then
-  env INTARSIA_INKLING2_BACKEND=metal timeout 180 $TT --test-threads=1 --nocapture > $O/tiny-adapt-metal.txt 2>&1
+  env INTARSIA_INKLING2_BACKEND=metal $TT --test-threads=1 --nocapture > $O/tiny-adapt-metal.txt 2>&1
   echo "tiny inkling2_dspark_sampled_adapt (metal) rc $? $(date +%T) | $(grep -aE '^test result' $O/tiny-adapt-metal.txt)"
 fi
 macmon pipe -i 250 > $O/macmon.jsonl 2>/dev/null &

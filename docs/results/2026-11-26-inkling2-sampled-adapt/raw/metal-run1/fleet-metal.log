@@ -1,0 +1,108 @@
+fleetq: #12360 running on endor: bash docs/results/2026-11-26-inkling2-sampled-adapt/raw/metal/slot.sh run1
+start 21:17:04 out /opt/code/intarsiaml/.worktrees/ink-sampled-adapt/.scratch/metal/run-run1 | 7f51c299ad4d88330921c305fa237fe6 ad4 | 0894595ee8c478409bf034960b1c1701 main6
+seeds arm 0 rc 0 21:19:07 lines       70 | 0 device-draw passes, 0 logits passes | 0 stops, 0 resumes | 70 requests in 111.3 s; spec verify passes 0 proposed 0 accepted 0
+seeds arm 1 rc 0 21:21:06 lines       70 | 124 device-draw passes, 0 logits passes | 79 stops, 11 resumes | 70 requests in 111.0 s; spec verify passes 124 proposed 204 accepted 50
+seeds T 1: off 35 on 35 shared 35 identical 35
+seeds T 0.6: off 35 on 35 shared 35 identical 35
+tiny inkling2_dspark_sampled_adapt (metal) rc 127 21:21:07 | 
+cal fixed k3 T 1.0 rc 0 21:22:11 | decode overall: 762 tokens after the first, 8645 ms (88.15 tok/s) | spec: verify passes=289 proposed=620 accepted=357 (acceptance 57.6%, 2.24 tokens per pass)
+cal drafts T 1.0 rc 0 21:23:19 | decode overall: 762 tokens after the first, 12991 ms (58.66 tok/s)
+backend metal, K 3; runs [('0', '1.0'), ('drafts', '1.0')]
+D (keyed draft, fixed run) median 3.223 ms (n 326); drafts run: step median 16.926 ms, draft median 3.304 ms -> P 13.622 ms
+  pass with 1 drafts: n 81, cycle median 20.056 ms -> r_1 = 0.236
+  pass with 2 drafts: n 43, cycle median 22.538 ms -> r_2 = 0.418
+  pass with 3 drafts: n 104, cycle median 24.783 ms -> r_3 = 0.583
+built-in d 0.24, r [0.32, 0.51, 0.7]; measured d 0.237, r 1:0.236 2:0.418 3:0.583
+15 % rule: MEASURED TABLE (r_1 0.236 vs 0.32; r_2 0.418 vs 0.51; r_3 0.583 vs 0.7)
+measured table: d=0.237,r=0.236/0.418/0.583
+
+replay of fixed k on the drafts run's proposals vs the fixed run (passes / proposed / accepted; ms predicted vs decode ms):
+  T 1.0 warm     replay 60/139/54 measured 60/139/54 same; 1611 ms predicted vs 1598 measured (1.008)
+  T 1.0 short_b  replay 54/81/38 measured 54/81/38 same; 1738 ms predicted vs 1713 measured (1.015)
+  T 1.0 short_a  replay 51/118/63 measured 51/118/63 same; 1398 ms predicted vs 1362 measured (1.026)
+  T 1.0 short_c  replay 40/103/81 measured 40/103/81 same; 1050 ms predicted vs 1037 measured (1.012)
+  T 1.0 len1k    replay 46/90/50 measured 44/88/50 DIFFERENT; 1547 ms predicted vs 1605 measured (0.964)
+  T 1.0 len4k    replay 40/91/71 measured 40/91/71 same; 1190 ms predicted vs 1329 measured (0.895)
+replay check: NOT exact
+
+policy replay, table d=0.237, r=[0.236, 0.418, 0.583] (other parameters built-in):
+| T | prompt | fix / off | pol / off | pol / fix | pol passes, accepted, plain steps | stops / holds / resumes |
+|---|---|---:|---:|---:|---|---|
+| 1.0 | short_b | 0.995 | 0.987 | 0.992 | 12, 7, 108 | 3 / 4 / 2 |
+| 1.0 | short_a | 1.238 | 1.240 | 1.002 | 53, 62, 12 | 0 / 0 / 0 |
+| 1.0 | short_c | 1.648 | 1.648 | 1.000 | 40, 81, 6 | 0 / 0 / 0 |
+| 1.0 | len1k | 1.118 | 1.131 | 1.011 | 32, 41, 54 | 2 / 1 / 1 |
+| 1.0 | len4k | 1.454 | 1.452 | 0.999 | 36, 68, 23 | 1 / 1 / 0 |
+  T 1.0 short: fix / off 1.240, pol / off 1.236, pol / (0.99 x fix) 1.007
+  T 1.0 1k: fix / off 1.118, pol / off 1.131, pol / (0.99 x fix) 1.022
+  T 1.0 4k: fix / off 1.454, pol / off 1.452, pol / (0.99 x fix) 1.009
+  lowest prompt pol / off 0.987; defaults miss the 0.99 bars at [('1.0', 'short_b')]: grid
+grid best: min prompt 1.017 at ADAPT=g=0.85,margin=0.0,drop=0.0,probe=3,hold=8,hold_max=32
+| T | prompt | fix / off | pol / off | pol / fix | pol passes, accepted, plain steps | stops / holds / resumes |
+|---|---|---:|---:|---:|---|---|
+| 1.0 | short_b | 0.995 | 1.017 | 1.022 | 23, 17, 87 | 2 / 3 / 2 |
+| 1.0 | short_a | 1.238 | 1.246 | 1.007 | 53, 62, 12 | 0 / 0 / 0 |
+| 1.0 | short_c | 1.648 | 1.648 | 1.000 | 40, 81, 6 | 0 / 0 / 0 |
+| 1.0 | len1k | 1.118 | 1.128 | 1.008 | 30, 40, 57 | 2 / 1 / 1 |
+| 1.0 | len4k | 1.454 | 1.467 | 1.009 | 30, 65, 32 | 1 / 1 / 0 |
+  T 1.0 short: fix / off 1.240, pol / off 1.254
+  T 1.0 1k: fix / off 1.118, pol / off 1.128
+  T 1.0 4k: fix / off 1.454, pol / off 1.467
+adapt string: d=0.237,r=0.236/0.418/0.583,g=0.85,margin=0.0,drop=0.0,probe=3,hold=8,hold_max=32
+policy arm: INTARSIA_SPEC_SAMPLED_ADAPT=d=0.237,r=0.236/0.418/0.583,g=0.85,margin=0.0,drop=0.0,probe=3,hold=8,hold_max=32d=0.237,r=0.236/0.418/0.583,g=0.85,margin=0.0,drop=0.0,probe=3,hold=8,hold_max=32
+off1 r1 rc 0 21:24:26 | decode overall: 762 tokens after the first, 10137 ms (75.17 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+fix1 r1 rc 0 21:25:31 | decode overall: 762 tokens after the first, 8920 ms (85.43 tok/s) | spec: verify passes=299 proposed=650 accepted=345 (acceptance 53.1%, 2.15 tokens per pass)
+pol1 r1 rc 0 21:26:35 | decode overall: 762 tokens after the first, 8915 ms (85.48 tok/s) | spec: verify passes=216 proposed=471 accepted=275 (acceptance 58.4%, 2.27 tokens per pass)
+off07 r1 rc 0 21:27:40 | decode overall: 762 tokens after the first, 10170 ms (74.93 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+fix07 r1 rc 0 21:28:44 | decode overall: 762 tokens after the first, 8767 ms (86.92 tok/s) | spec: verify passes=304 proposed=674 accepted=359 (acceptance 53.3%, 2.18 tokens per pass)
+pol07 r1 rc 0 21:29:49 | decode overall: 762 tokens after the first, 8930 ms (85.33 tok/s) | spec: verify passes=196 proposed=445 accepted=266 (acceptance 59.8%, 2.36 tokens per pass)
+fix1 r2 rc 0 21:30:53 | decode overall: 762 tokens after the first, 8904 ms (85.58 tok/s) | spec: verify passes=299 proposed=650 accepted=345 (acceptance 53.1%, 2.15 tokens per pass)
+pol1 r2 rc 0 21:31:57 | decode overall: 762 tokens after the first, 8916 ms (85.46 tok/s) | spec: verify passes=216 proposed=471 accepted=275 (acceptance 58.4%, 2.27 tokens per pass)
+off1 r2 rc 0 21:33:03 | decode overall: 762 tokens after the first, 10323 ms (73.81 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+fix07 r2 rc 0 21:34:08 | decode overall: 762 tokens after the first, 9397 ms (81.09 tok/s) | spec: verify passes=304 proposed=674 accepted=359 (acceptance 53.3%, 2.18 tokens per pass)
+pol07 r2 rc 0 21:35:13 | decode overall: 762 tokens after the first, 9291 ms (82.01 tok/s) | spec: verify passes=196 proposed=445 accepted=266 (acceptance 59.8%, 2.36 tokens per pass)
+off07 r2 rc 0 21:36:20 | decode overall: 762 tokens after the first, 10443 ms (72.97 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+pol1 r3 rc 0 21:37:25 | decode overall: 762 tokens after the first, 9247 ms (82.40 tok/s) | spec: verify passes=216 proposed=471 accepted=275 (acceptance 58.4%, 2.27 tokens per pass)
+off1 r3 rc 0 21:38:33 | decode overall: 762 tokens after the first, 10645 ms (71.58 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+fix1 r3 rc 0 21:39:39 | decode overall: 762 tokens after the first, 9341 ms (81.58 tok/s) | spec: verify passes=299 proposed=650 accepted=345 (acceptance 53.1%, 2.15 tokens per pass)
+pol07 r3 rc 0 21:40:44 | decode overall: 762 tokens after the first, 9256 ms (82.32 tok/s) | spec: verify passes=196 proposed=445 accepted=266 (acceptance 59.8%, 2.36 tokens per pass)
+off07 r3 rc 0 21:41:50 | decode overall: 762 tokens after the first, 10503 ms (72.55 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+fix07 r3 rc 0 21:42:55 | decode overall: 762 tokens after the first, 9020 ms (84.47 tok/s) | spec: verify passes=304 proposed=674 accepted=359 (acceptance 53.3%, 2.18 tokens per pass)
+end 21:42:55 (1551 s)
+processes: 18, reps [1, 2, 3]
+T 1.0: ids identical across 9 processes (all arms): yes
+T 0.7: ids identical across 9 processes (all arms): yes
+
+| T | class | off tok/s | fix tok/s | pol tok/s | fix / off | pol / off | pol / fix | acc., tok/pass, plain tokens: fix / pol |
+|---|---|---:|---:|---:|---|---|---|---|
+| 1.0 | short | 75.61 | 85.12 | 86.47 | **1.126** [1.069-1.185] | **1.144** [1.101-1.187] | **1.016** [0.997-1.035] | 52.7 %, 2.11, 69 / 57.0 %, 2.24, 146 |
+| 1.0 | 1k | 73.09 | 81.18 | 82.07 | **1.111** [1.090-1.132] | **1.123** [1.083-1.164] | **1.011** [0.980-1.043] | 50.9 %, 2.17, 23 / 55.1 %, 2.10, 24 |
+| 1.0 | 4k | 70.20 | 92.08 | 95.25 | **1.312** [1.266-1.360] | **1.358** [1.253-1.472] | **1.035** [0.987-1.084] | 72.6 %, 2.68, 17 / 85.1 %, 3.10, 34 |
+| 0.7 | short | 75.36 | 83.71 | 85.38 | **1.110** [0.974-1.264] | **1.133** [1.111-1.155] | **1.021** [0.913-1.141] | 52.6 %, 2.13, 62 / 58.1 %, 2.34, 149 |
+| 0.7 | 1k | 72.65 | 78.80 | 76.93 | **1.085** [1.076-1.094] | **1.059** [1.033-1.085] | **0.976** [0.955-0.998] | 46.8 %, 2.04, 11 / 53.6 %, 2.12, 57 |
+| 0.7 | 4k | 70.90 | 101.05 | 95.17 | **1.425** [1.411-1.439] | **1.342** [1.323-1.361] | **0.942** [0.932-0.952] | 86.0 %, 3.06, 17 / 85.3 %, 3.06, 32 |
+
+| T | prompt | fix / off | pol / off | pol / fix | acc., tok/pass, plain tokens: fix / pol |
+|---|---|---|---|---|---|
+| 1.0 | short_b | **0.855** [0.797-0.918] | **0.939** [0.891-0.989] | **1.098** [1.078-1.118] | 36.2 %, 1.46, 60 / 30.0 %, 1.38, 116 |
+| 1.0 | short_a | **1.185** [1.116-1.260] | **1.101** [1.039-1.167] | **0.929** [0.919-0.939] | 45.7 %, 2.09, 6 / 44.0 %, 1.92, 27 |
+| 1.0 | short_c | **1.532** [1.494-1.571] | **1.538** [1.494-1.583] | **1.004** [0.978-1.031] | 69.6 %, 2.82, 3 / 72.5 %, 2.76, 3 |
+| 1.0 | len1k | **1.111** [1.090-1.132] | **1.123** [1.083-1.164] | **1.011** [0.980-1.043] | 50.9 %, 2.17, 23 / 55.1 %, 2.10, 24 |
+| 1.0 | len4k | **1.312** [1.266-1.360] | **1.358** [1.253-1.472] | **1.035** [0.987-1.084] | 72.6 %, 2.68, 17 / 85.1 %, 3.10, 34 |
+| 0.7 | short_b | **0.923** [0.771-1.105] | **0.944** [0.923-0.967] | **1.023** [0.874-1.197] | 53.1 %, 1.69, 44 / 58.8 %, 1.77, 104 |
+| 0.7 | short_a | **1.034** [0.943-1.133] | **1.063** [1.035-1.092] | **1.029** [0.962-1.100] | 37.3 %, 1.91, 16 / 42.9 %, 2.00, 43 |
+| 0.7 | short_c | **1.534** [1.381-1.704] | **1.543** [1.532-1.554] | **1.006** [0.906-1.117] | 71.3 %, 2.91, 2 / 71.1 %, 2.84, 2 |
+| 0.7 | len1k | **1.085** [1.076-1.094] | **1.059** [1.033-1.085] | **0.976** [0.955-0.998] | 46.8 %, 2.04, 11 / 53.6 %, 2.12, 57 |
+| 0.7 | len4k | **1.425** [1.411-1.439] | **1.342** [1.323-1.361] | **0.942** [0.932-0.952] | 86.0 %, 3.06, 17 / 85.3 %, 3.06, 32 |
+
+pre-registered rule (results doc section 3):
+  1. every prompt pol / off >= 0.98: FAIL (lowest 0.939 at T 1.0 short_b)
+  2. T 1.0 short: pol / off 1.144 vs 0.98 x fix / off 1.103: ok
+  2. T 1.0 1k: pol / off 1.123 vs 0.98 x fix / off 1.089: ok
+  2. T 1.0 4k: pol / off 1.358 vs 0.98 x fix / off 1.286: ok
+  2. T 0.7 short: pol / off 1.133 vs 0.98 x fix / off 1.087: ok
+  2. T 0.7 1k: pol / off 1.059 vs 0.98 x fix / off 1.063: FAIL
+  2. T 0.7 4k: pol / off 1.342 vs 0.98 x fix / off 1.397: FAIL
+  2. every class keeps >= 98 % of fixed k's ratio: FAIL
+  3 (speed processes). ids identical across all arms: PASS
+fleetq: #12360 done (exit 0)

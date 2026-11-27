@@ -1,0 +1,41 @@
+fleetq: #12356 waiting (#5 in line): in line behind #12352 "ink-dflash2: ABBA k4 w2 (b, r3 r4)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12352 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12352 set, or it will wait for #12352 to be released.
+fleetq: #12356 waiting (#4 in line): in line behind #12353 "ink-hip-overlap: window S2 (paired speed BA: o4 vs main5; card 1 o5 md5 + solo servers o4 / o5)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12353 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12353 set, or it will wait for #12353 to be released.
+fleetq: #12356 waiting (#3 in line): in line behind #12354 "ink-hip-i8: W4 (plain decode + prefill, 4k ABBA 4+4, 16k 2+2)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12354 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12354 set, or it will wait for #12354 to be released.
+fleetq: #12356 waiting (#2 in line): in line behind #12355 "ink-hip-overlap: window S3 (paired speed AB: main5 vs o4; card 1 pace 0/150/300 on merged o5, batched bitwise)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12355 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12355 set, or it will wait for #12355 to be released.
+fleetq: #12356 waiting (#1 in line): radiance-rank0 is also taken down by #12355 "ink-hip-overlap: window S3 (paired speed AB: main5 vs o4; card 1 pace 0/150/300 on merged o5, batched bitwise)" (claude-04c0e1cd)
+fleetq:   #12355 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12355 set, or it will wait for #12355 to be released.
+fleetq: #12356 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 100% busy with work fleetq does not track
+fleetq: #12356 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12356 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 64% busy with work fleetq does not track
+fleetq: #12356 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=282 ADAPT='"'"'d=0.234,r=0.273/0.498/0.69/0.985/1.211,g=0.95,margin=0.0,drop=0.05,probe=1,hold=16,hold_max=64'"'"' bash ~/intarsiaml-ink-sampled-adapt/.scratch/tat/window.sh ~/intarsiaml-ink-sampled-adapt/.scratch/tat/w2.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-sampled-adapt/.scratch/tat/w2.sh; cap 282s; stopping radiance 2026-11-26 21:33:34
+[window] radiance stopped 2026-11-26 21:33:38 (inactive)
+[w2] 8c94480aaf81716fa10a376ff0bd71e2  /home/josef/intarsiaml-ink-sampled-adapt/.scratch/bin/intarsia-ad4 e8f623794d9d01145e0d82b6ce86f41c  /home/josef/intarsiaml-ink-sampled-adapt/.scratch/bin/intarsia-main6  ADAPT=d=0.234,r=0.273/0.498/0.69/0.985/1.211,g=0.95,margin=0.0,drop=0.05,probe=1,hold=16,hold_max=64
+[w2] speed 2026-11-26 21:33:38
+[w2 c0] off1 r1 rc 0 2026-11-26 21:34:01 | decode overall: 762 tokens after the first, 10198 ms (74.72 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w2 c0] fix1 r1 rc 0 2026-11-26 21:34:23 | decode overall: 762 tokens after the first, 9064 ms (84.07 tok/s) | spec: verify passes=294 proposed=846 accepted=369 (acceptance 43.6%, 2.26 tokens per pass)
+[w2 c0] pol1 r1 rc 0 2026-11-26 21:34:44 | decode overall: 762 tokens after the first, 8907 ms (85.55 tok/s) | spec: verify passes=231 proposed=606 accepted=315 (acceptance 52.0%, 2.36 tokens per pass)
+[w2 c0] fix1 r2 rc 0 2026-11-26 21:35:05 | decode overall: 762 tokens after the first, 9200 ms (82.83 tok/s) | spec: verify passes=294 proposed=846 accepted=369 (acceptance 43.6%, 2.26 tokens per pass)
+[w2 c0] pol1 r2 rc 0 2026-11-26 21:35:26 | decode overall: 762 tokens after the first, 8960 ms (85.04 tok/s) | spec: verify passes=231 proposed=606 accepted=315 (acceptance 52.0%, 2.36 tokens per pass)
+[w2 c0] off1 r2 rc 0 2026-11-26 21:35:47 | decode overall: 762 tokens after the first, 10243 ms (74.39 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w2 c0] pol1 r3 rc 0 2026-11-26 21:36:08 | decode overall: 762 tokens after the first, 8832 ms (86.28 tok/s) | spec: verify passes=231 proposed=606 accepted=315 (acceptance 52.0%, 2.36 tokens per pass)
+[w2 c0] off1 r3 rc 0 2026-11-26 21:36:29 | decode overall: 762 tokens after the first, 10323 ms (73.82 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w2 c0] fix1 r3 rc 0 2026-11-26 21:36:50 | decode overall: 762 tokens after the first, 9161 ms (83.18 tok/s) | spec: verify passes=294 proposed=846 accepted=369 (acceptance 43.6%, 2.26 tokens per pass)
+[w2 c1] off07 r1 rc 0 2026-11-26 21:34:01 | decode overall: 762 tokens after the first, 10179 ms (74.86 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w2 c1] fix07 r1 rc 0 2026-11-26 21:34:22 | decode overall: 762 tokens after the first, 8837 ms (86.23 tok/s) | spec: verify passes=283 proposed=799 accepted=374 (acceptance 46.8%, 2.32 tokens per pass)
+[w2 c1] pol07 r1 rc 0 2026-11-26 21:34:43 | decode overall: 762 tokens after the first, 8821 ms (86.39 tok/s) | spec: verify passes=208 proposed=558 accepted=304 (acceptance 54.5%, 2.46 tokens per pass)
+[w2 c1] fix07 r2 rc 0 2026-11-26 21:35:03 | decode overall: 762 tokens after the first, 8958 ms (85.06 tok/s) | spec: verify passes=283 proposed=799 accepted=374 (acceptance 46.8%, 2.32 tokens per pass)
+[w2 c1] pol07 r2 rc 0 2026-11-26 21:35:24 | decode overall: 762 tokens after the first, 8931 ms (85.32 tok/s) | spec: verify passes=208 proposed=558 accepted=304 (acceptance 54.5%, 2.46 tokens per pass)
+[w2 c1] off07 r2 rc 0 2026-11-26 21:35:45 | decode overall: 762 tokens after the first, 10353 ms (73.60 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w2 c1] pol07 r3 rc 0 2026-11-26 21:36:06 | decode overall: 762 tokens after the first, 8868 ms (85.93 tok/s) | spec: verify passes=208 proposed=558 accepted=304 (acceptance 54.5%, 2.46 tokens per pass)
+[w2 c1] off07 r3 rc 0 2026-11-26 21:36:27 | decode overall: 762 tokens after the first, 10398 ms (73.28 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w2 c1] fix07 r3 rc 0 2026-11-26 21:36:47 | decode overall: 762 tokens after the first, 9157 ms (83.22 tok/s) | spec: verify passes=283 proposed=799 accepted=374 (acceptance 46.8%, 2.32 tokens per pass)
+[w2] done 2026-11-26 21:36:50
+[window] stage done 2026-11-26 21:36:51 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 21:36:51
+[window] radiance answers 2026-11-26 21:37:01 (after 15 s)
+fleetq: #12356 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

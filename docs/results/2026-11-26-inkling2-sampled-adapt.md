@@ -3,6 +3,21 @@
 Branch `ink/sampled-adapt`, stacked on `ink/sampled-dspark` (PR #535, head `f472a25ac`).
 Opt-in only; no default changes. Whether sampled speculation becomes default-on is the user's call.
 
+## Result (2026-11-26 ~21:55 EST; details in sections 4-8)
+
+Sampled decode, on / off ratio (fixed = main's fixed k, adaptive = this PR's policy; 3 paired reps, 95 % CI in section 5 / 6):
+
+| backend, T | short fixed | short adaptive | 1k fixed | 1k adaptive | 4k fixed | 4k adaptive | `short_b` fixed | `short_b` adaptive |
+|---|---|---|---|---|---|---|---|---|
+| HIP, 1.0 | 1.101 | 1.172 | 1.049 | 1.042 | 1.488 | 1.466 | 0.896 | **0.981** |
+| HIP, 0.7 | 1.143 | 1.163 | 1.046 | 1.068 | 1.456 | 1.458 | 0.982 | 0.991 |
+| Metal, 1.0 | 1.126 | 1.144 | 1.111 | 1.123 | 1.312 | 1.358 | 0.855 | **0.939** |
+| Metal, 0.7 | 1.110 | 1.133 | 1.085 | 1.059 | 1.425 | 1.342 | 0.923 | **0.944** |
+
+Gate (fixed in advance): HIP meets all four clauses on the point estimates (lowest prompt 0.981); **Metal fails clauses 1 and 2** (`short_b` 0.939 / 0.944;
+T 0.7 1k and 4k at 98 % of fixed k3's gain: 1.059 vs 1.063, 1.342 vs 1.397). Seeded ids and greedy ids are identical on both backends. Section 7 has the table
+per clause. No default changed; sampled DSpark stays opt-in.
+
 ## 0. Brief (verbatim from the coordinator, 2026-11-26 ~20:00 EST)
 
 > You are lane **ink-sampled-adapt** in the intarsiaml repo (Rust inference engine, `/opt/code/intarsiaml`). The coordinator (me) wrote this brief on 2026-11-26 at about 20:00 EST. Write this brief, and any later message from me, into your results doc first: context compaction loses messages.
@@ -298,7 +313,142 @@ Raw: `raw/w1/` (copied from tatooine `logs/w1/`), `raw/w1/sim.txt`.
   `docs_env_vars` 2/2, core lib 280/280 (4 ignored). Found on the way: the merge of main left two `BackendTuning { .. }` literals in
   `crates/intarsia-models/tests/mtp.rs` without `sampled_adapt` (test target did not compile); fixed (`3d2175adb`).
 
-## Parked 2026-11-26 20:40 (coordinator: Claude Desktop restart)
+## 5. HIP window W2 (2026-11-26 21:33:3x-21:37:01, radiance down about 3 min 30 s, fleetq #12356; binaries as W1)
+
+Arms: off = ad4 (`INTARSIA_SPEC_SAMPLED_DFLASH` unset), fix = main6 (main `aee06201c`, fixed k5) with `=1`, pol = ad4 with `=1` and
+`INTARSIA_SPEC_SAMPLED_ADAPT=d=0.234,r=0.273/0.498/0.69/0.985/1.211,g=0.95,margin=0.0,drop=0.05,probe=1,hold=16,hold_max=64`. `speed.json`, 128
+tokens, seed 7, recipe default (DSpark k5, cut 0.5), 3 reps per arm, Latin square per rep, card 0 all of T 1.0, card 1 all of T 0.7. Ratios are
+geomeans over the 3 paired reps with a 95 % t-interval (t(2) = 4.303); raw: `raw/w2/`, analysis `raw/speed3.py`.
+
+| T | class | off tok/s | fix tok/s | pol tok/s | fix / off | pol / off | pol / fix | acc., tok/pass, plain tokens: fix / pol |
+|---|---|---:|---:|---:|---|---|---|---|
+| 1.0 | short | 76.10 | 83.77 | 89.17 | **1.101** [1.098-1.103] | **1.172** [1.137-1.207] | **1.064** [1.034-1.095] | 40.9 %, 2.16, 53 / 52.2 %, 2.31, 104 |
+| 1.0 | 1k | 74.18 | 77.85 | 77.31 | **1.049** [1.030-1.069] | **1.042** [1.003-1.083] | **0.993** [0.961-1.026] | 44.4 %, 2.20, 26 / 46.8 %, 2.04, 27 |
+| 1.0 | 4k | 72.19 | 107.46 | 105.85 | **1.488** [1.381-1.604] | **1.466** [1.360-1.580] | **0.985** [0.963-1.007] | 68.0 %, 3.36, 6 / 68.0 %, 3.36, 6 |
+| 0.7 | short | 76.28 | 87.17 | 88.75 | **1.143** [1.130-1.155] | **1.163** [1.137-1.191] | **1.018** [0.985-1.052] | 44.4 %, 2.27, 47 / 51.8 %, 2.48, 143 |
+| 0.7 | 1k | 73.86 | 77.25 | 78.87 | **1.046** [1.034-1.058] | **1.068** [1.032-1.104] | **1.021** [0.982-1.061] | 44.0 %, 2.17, 38 / 51.1 %, 2.10, 41 |
+| 0.7 | 4k | 72.96 | 106.24 | 106.36 | **1.456** [1.397-1.517] | **1.458** [1.390-1.529] | **1.001** [0.942-1.064] | 73.2 %, 3.41, 11 / 73.2 %, 3.41, 11 |
+
+| T | prompt | fix / off | pol / off | pol / fix | acc., tok/pass, plain tokens: fix / pol |
+|---|---|---|---|---|---|
+| 1.0 | short_b | **0.896** [0.886-0.906] | **0.981** [0.931-1.034] | **1.095** [1.048-1.143] | 27.5 %, 1.53, 40 / 34.1 %, 1.64, 91 |
+| 1.0 | short_a | **1.172** [1.138-1.206] | **1.188** [1.166-1.209] | **1.014** [0.985-1.043] | 41.6 %, 2.31, 9 / 47.1 %, 2.19, 9 |
+| 1.0 | short_c | **1.323** [1.283-1.364] | **1.431** [1.373-1.492] | **1.082** [1.060-1.104] | 49.4 %, 2.80, 4 / 63.7 %, 2.80, 4 |
+| 1.0 | len1k | **1.049** [1.030-1.069] | **1.042** [1.003-1.083] | **0.993** [0.961-1.026] | 44.4 %, 2.20, 26 / 46.8 %, 2.04, 27 |
+| 1.0 | len4k | **1.488** [1.381-1.604] | **1.466** [1.360-1.580] | **0.985** [0.963-1.007] | 68.0 %, 3.36, 6 / 68.0 %, 3.36, 6 |
+| 0.7 | short_b | **0.982** [0.959-1.006] | **0.991** [0.970-1.014] | **1.009** [0.980-1.039] | 38.8 %, 1.71, 31 / 16.7 %, 1.33, 123 |
+| 0.7 | short_a | **1.100** [1.077-1.124] | **1.095** [1.055-1.137] | **0.995** [0.946-1.048] | 37.6 %, 2.22, 14 / 39.4 %, 2.06, 18 |
+| 0.7 | short_c | **1.434** [1.396-1.474] | **1.526** [1.494-1.559] | **1.064** [1.036-1.093] | 55.6 %, 3.12, 2 / 67.5 %, 3.12, 2 |
+| 0.7 | len1k | **1.046** [1.034-1.058] | **1.068** [1.032-1.104] | **1.021** [0.982-1.061] | 44.0 %, 2.17, 38 / 51.1 %, 2.10, 41 |
+| 0.7 | len4k | **1.456** [1.397-1.517] | **1.458** [1.390-1.529] | **1.001** [0.942-1.064] | 73.2 %, 3.41, 11 / 73.2 %, 3.41, 11 |
+
+pre-registered rule (results doc section 3):
+  1. every prompt pol / off >= 0.98: PASS (lowest 0.981 at T 1.0 short_b)
+  2. T 1.0 short: pol / off 1.172 vs 0.98 x fix / off 1.079: ok
+  2. T 1.0 1k: pol / off 1.042 vs 0.98 x fix / off 1.028: ok
+  2. T 1.0 4k: pol / off 1.466 vs 0.98 x fix / off 1.459: ok
+  2. T 0.7 short: pol / off 1.163 vs 0.98 x fix / off 1.120: ok
+  2. T 0.7 1k: pol / off 1.068 vs 0.98 x fix / off 1.025: ok
+  2. T 0.7 4k: pol / off 1.458 vs 0.98 x fix / off 1.427: ok
+  2. every class keeps >= 98 % of fixed k's ratio: PASS
+  3 (speed processes). ids identical across all arms: PASS
+
+Caveat that applies to every row: all reps of a cell run the same seed (7), so the intervals measure timing noise only, not variation between
+sampled continuations. The same prompt at seed 11 (W1 calibration) gave fixed-k5 `short_b` 0.938 at T 1.0 (replay) against 0.896 measured at seed 7.
+
+## 6. Metal slot (endor `--exclusive`, fleetq #12360, 21:17:04-21:42:55 = 25 min 51 s; ad4 `7f51c299` = `d23914b2d` source, main6 `0894595e`)
+
+Recipe default DSpark k3, cut 0.5, device sampler (Gumbel) for plain-temperature requests; 45 s GPU-idle gap before each timed process;
+macmon at 250 ms (`raw/metal-run1/speed/speed-macmon.txt` has the per-process GPU power: off arms 22-25 W mean, fix 26-29 W, pol 27 W; no arm
+sat above 65 W for more than 1.8 s, so none was power-throttled by its own history). Same arms and design as W2 (3 reps, Latin square per rep,
+both temperatures inside each rep). Raw: `raw/metal-run1/`.
+
+- **Seed equality:** 70 requests per arm fitted the 110 s seed budget (the harness is slower on Metal), so 35 seeds per temperature, not
+  100: T 1.0 35 / 35 identical, T 0.6 35 / 35 identical (off vs the policy; the policy arm made 79 stops / 11 resumes, 124 device-draw verify
+  passes). Also identical ids across all 9 speed processes of each temperature. The tiny `inkling2_dspark_sampled_adapt` suite on Metal (run
+  after the slot, because the slot script's `timeout` does not exist on macOS, rc 127, fixed in `raw/metal/slot.sh`; fleetq #12367): 2 / 2.
+- **Greedy md5 on Metal (fleetq #12369, `raw/metal-run1/md5-metal.txt`):** main6 and ad4, `--spec off` and the default (DSpark k3), 7 prompts x 64
+  tokens: all four `ids[...]` hashes `617b2717999004d7100222ecf7b285f6`; the default arm 172 passes, 59.8 % acceptance on both binaries.
+- **Cost table (15 % rule, one traced fixed-k3 and one `drafts` process, seed 11, T 1.0):** D 3.22 ms, P 13.62 ms, d = 0.237 (built-in 0.24);
+  cycle m = 1 / 2 / 3: 20.06 / 22.54 / 24.78 ms, r = 0.236 / 0.418 / 0.583 (built-in 0.32 / 0.51 / 0.70, all > 15 % lower): measured table. Replay check on Metal:
+  not exact for 1k (replay 46 / 90 / 50 passes / proposed / accepted vs measured 44 / 88 / 50; the other five runs exact): Metal's draft is not
+  deterministic given the context. Defaults missed the bars (`short_b` 0.987), the grid ran and picked `g=0.85, margin=0, drop=0, probe=3,
+  hold=8, hold_max=32` (predicted `short_b` 1.017 in-sample).
+- **Policy arm:** `INTARSIA_SPEC_SAMPLED_ADAPT=d=0.237,r=0.236/0.418/0.583,g=0.85,margin=0.0,drop=0.0,probe=3,hold=8,hold_max=32`.
+
+| T | class | off tok/s | fix tok/s | pol tok/s | fix / off | pol / off | pol / fix | acc., tok/pass, plain tokens: fix / pol |
+|---|---|---:|---:|---:|---|---|---|---|
+| 1.0 | short | 75.61 | 85.12 | 86.47 | **1.126** [1.069-1.185] | **1.144** [1.101-1.187] | **1.016** [0.997-1.035] | 52.7 %, 2.11, 69 / 57.0 %, 2.24, 146 |
+| 1.0 | 1k | 73.09 | 81.18 | 82.07 | **1.111** [1.090-1.132] | **1.123** [1.083-1.164] | **1.011** [0.980-1.043] | 50.9 %, 2.17, 23 / 55.1 %, 2.10, 24 |
+| 1.0 | 4k | 70.20 | 92.08 | 95.25 | **1.312** [1.266-1.360] | **1.358** [1.253-1.472] | **1.035** [0.987-1.084] | 72.6 %, 2.68, 17 / 85.1 %, 3.10, 34 |
+| 0.7 | short | 75.36 | 83.71 | 85.38 | **1.110** [0.974-1.264] | **1.133** [1.111-1.155] | **1.021** [0.913-1.141] | 52.6 %, 2.13, 62 / 58.1 %, 2.34, 149 |
+| 0.7 | 1k | 72.65 | 78.80 | 76.93 | **1.085** [1.076-1.094] | **1.059** [1.033-1.085] | **0.976** [0.955-0.998] | 46.8 %, 2.04, 11 / 53.6 %, 2.12, 57 |
+| 0.7 | 4k | 70.90 | 101.05 | 95.17 | **1.425** [1.411-1.439] | **1.342** [1.323-1.361] | **0.942** [0.932-0.952] | 86.0 %, 3.06, 17 / 85.3 %, 3.06, 32 |
+
+| T | prompt | fix / off | pol / off | pol / fix | acc., tok/pass, plain tokens: fix / pol |
+|---|---|---|---|---|---|
+| 1.0 | short_b | **0.855** [0.797-0.918] | **0.939** [0.891-0.989] | **1.098** [1.078-1.118] | 36.2 %, 1.46, 60 / 30.0 %, 1.38, 116 |
+| 1.0 | short_a | **1.185** [1.116-1.260] | **1.101** [1.039-1.167] | **0.929** [0.919-0.939] | 45.7 %, 2.09, 6 / 44.0 %, 1.92, 27 |
+| 1.0 | short_c | **1.532** [1.494-1.571] | **1.538** [1.494-1.583] | **1.004** [0.978-1.031] | 69.6 %, 2.82, 3 / 72.5 %, 2.76, 3 |
+| 1.0 | len1k | **1.111** [1.090-1.132] | **1.123** [1.083-1.164] | **1.011** [0.980-1.043] | 50.9 %, 2.17, 23 / 55.1 %, 2.10, 24 |
+| 1.0 | len4k | **1.312** [1.266-1.360] | **1.358** [1.253-1.472] | **1.035** [0.987-1.084] | 72.6 %, 2.68, 17 / 85.1 %, 3.10, 34 |
+| 0.7 | short_b | **0.923** [0.771-1.105] | **0.944** [0.923-0.967] | **1.023** [0.874-1.197] | 53.1 %, 1.69, 44 / 58.8 %, 1.77, 104 |
+| 0.7 | short_a | **1.034** [0.943-1.133] | **1.063** [1.035-1.092] | **1.029** [0.962-1.100] | 37.3 %, 1.91, 16 / 42.9 %, 2.00, 43 |
+| 0.7 | short_c | **1.534** [1.381-1.704] | **1.543** [1.532-1.554] | **1.006** [0.906-1.117] | 71.3 %, 2.91, 2 / 71.1 %, 2.84, 2 |
+| 0.7 | len1k | **1.085** [1.076-1.094] | **1.059** [1.033-1.085] | **0.976** [0.955-0.998] | 46.8 %, 2.04, 11 / 53.6 %, 2.12, 57 |
+| 0.7 | len4k | **1.425** [1.411-1.439] | **1.342** [1.323-1.361] | **0.942** [0.932-0.952] | 86.0 %, 3.06, 17 / 85.3 %, 3.06, 32 |
+
+pre-registered rule (results doc section 3):
+  1. every prompt pol / off >= 0.98: FAIL (lowest 0.939 at T 1.0 short_b)
+  2. T 1.0 short: pol / off 1.144 vs 0.98 x fix / off 1.103: ok
+  2. T 1.0 1k: pol / off 1.123 vs 0.98 x fix / off 1.089: ok
+  2. T 1.0 4k: pol / off 1.358 vs 0.98 x fix / off 1.286: ok
+  2. T 0.7 short: pol / off 1.133 vs 0.98 x fix / off 1.087: ok
+  2. T 0.7 1k: pol / off 1.059 vs 0.98 x fix / off 1.063: FAIL
+  2. T 0.7 4k: pol / off 1.342 vs 0.98 x fix / off 1.397: FAIL
+  2. every class keeps >= 98 % of fixed k's ratio: FAIL
+  3 (speed processes). ids identical across all arms: PASS
+
+## 7. Gate verdict (the four clauses, fixed in advance)
+
+| clause | HIP (R9700) | Metal (endor) |
+|---|---|---|
+| 1. every prompt pol / off >= 0.98, `short_b` included, both T | **pass** by the point estimate: lowest 0.981 (`short_b`, T 1.0; CI 0.931-1.034, so not statistically separated from 0.98 or from 1.0), next 0.991; fixed k5 had 0.896 | **FAIL**: `short_b` 0.939 at T 1.0 (CI 0.891-0.989), 0.944 at T 0.7 (CI 0.923-0.967); fixed k3 had 0.855 / 0.923. `short_a` T 1.0 1.101, others >= 1.04 |
+| 2. each class keeps >= 98 % of fixed-k's gain | **pass**, all six cells (closest: T 1.0 1k, pol 1.042 vs 0.98 x fix 1.028; T 1.0 4k 1.466 vs 1.459) | **FAIL**: T 0.7 1k 1.059 vs 1.063 (0.4 points short); T 0.7 4k 1.342 vs 1.397 (5.5 points short, pol / fix 0.942) |
+| 3. seeded ids identical to `--spec off` | **pass**: 100 seeds x T 1.0 / 0.6 (24 tokens, k5), plus all W2 processes | **pass** with fewer seeds: 35 x T 1.0 / 0.6 (k3, time-boxed), plus all slot speed processes |
+| 4. greedy ids identical to main | **pass**: 7 prompts x 64 tokens, `--spec off` and default, main6 vs ad4 | **pass**: same, Metal |
+
+**Overall: FAIL (Metal clauses 1 and 2).** HIP meets all four on the point estimates; the HIP margin on `short_b` is 0.001 and its interval
+reaches below 0.98, so "passes" means the fixed rule was met, not that every prompt is shown to be at least 0.98. Whether sampled drafting
+goes default-on is the user's call; this PR changes no default (the policy acts only with `INTARSIA_SPEC_SAMPLED_DFLASH=1`).
+
+### What the failing Metal cells show, and what would fix them
+
+- `short_b` on Metal: the arm took 8 verify passes and 116 plain steps in 127 tokens (acceptance 30 %), yet ran 6 % slower than off. The excess
+  over off is 80-150 ms of ~1.7 s per process. The speed arms were not traced, so its split is not measured; the likely source is the probes (3 draft calls
+  of ~3.3 ms each per probe, plus the full-cap explore calls) and the 8 verifies. The offline replay predicted 1.017 for this string on seed 11; seed 7's story drafts accepted less (36 % under
+  fixed k3 against 47 % at seed 11), so the grid's pick was fitted to a continuation that was kinder than the one measured. Fixed k3 on seed 7 lost
+  14 % (0.855), the policy 6 %: the direction is right, the size is not enough.
+- T 0.7 4k (pol / fix 0.942) and 1k (0.976): the policy took plain steps on requests that accept about 85 % (4k: 32 plain-step tokens vs 17 for fixed k3). Metal's
+  grid pick (g 0.85, drop 0, probe 3) stops on short noisy dips; HIP's pick (g 0.95, drop 0.05, probe 1, hold 16 / 64), replayed on Metal's seed-11 trace
+  with Metal's table, predicts `short_b` 0.988 pol / off and 1k 0.984 pol / fix on that one seed, i.e. no better in the replay, so the sim does not say that moving
+  to HIP's parameters fixes Metal. What the data say: the stop rule needs more evidence before it stops a request that has been accepting
+  well (a longer memory or a stop threshold on the low-acceptance run, not the rate alone) and a longer hold for a request that has stopped.
+  These are untested here; testing them needs a new Metal slot (this lane's one slot is spent) and a calibration on more than one seed.
+- Per-prompt gates on 128-token single-seed cells are noisy: fixed-k `short_b` on / off is 0.938 (seed 11, HIP replay) against 0.896 measured at seed 7, and 0.995 (seed 11, Metal replay) against 0.855 measured.
+  A fair per-prompt gate needs several seeds per prompt.
+
+## 8. The policy as built, knobs, revert
+
+- Code: `crates/intarsia-core/src/spec/adapt.rs` (`AdaptK`, `AdaptParams`, `AdaptMode`), hooked in `spec.rs` and the keyed path of `engine.rs`; tests in
+  `tests/inkling2_dspark_sampled_adapt.rs` (k = 0 sync through a stash overflow; seeded ids equal `--spec off` in table / aggressive / `drafts` modes) and 6 `spec::adapt` unit tests.
+- Knobs: env `INTARSIA_SPEC_SAMPLED_ADAPT` (`0` / `off` fixed k; `1` / `on`; `key=value,...` over the built-in table: `d`, `r`, `g`, `n0`, `a0`, `margin`, `drop`,
+  `probe`, `hold`, `hold_max`, `explore`; `drafts` diagnostic) and the recipe key `[tuning.<backend>] sampled_adapt` (same syntax; the variable wins); docs/tuning.md and docs/recipes.md rows.
+- Recipe defaults in this PR: `[tuning.hip]` the W2 string above, `[tuning.metal]` the slot's string above (failed the gate; opt-in feature, so no default behaviour changes either way).
+- Revert: `INTARSIA_SPEC_SAMPLED_ADAPT=0` (fixed k, PR #535's behaviour), or delete the recipe line (built-in table), or leave `INTARSIA_SPEC_SAMPLED_DFLASH` unset (plain sampling).
+- Draft state at k = 0: a plain step keeps the DSpark draft in sync (section 1.3): no change to the draft state was needed.
+
+## Parked 2026-11-26 20:40 (coordinator: Claude Desktop restart; superseded by sections 4-8, kept as the record of what was open then)
 
 - **Head:** `ink/sampled-adapt` local commit after `d23914b2d` (this section and `raw/` scripts on top); not pushed, no PR yet.
 - **Main merged:** yes, `origin/main` `aee06201c` (#535) merged in `56ec7c465` (one conflict in `docs/recipes.md`, resolved add-only).
