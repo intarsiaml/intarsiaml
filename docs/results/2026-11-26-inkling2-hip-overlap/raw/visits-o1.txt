@@ -1,0 +1,7 @@
+# name;bin;serve args (leading NAME=value = server env);actions (' && '-separated)
+# O1 (lane ink-hip-overlap, feasibility): b13 = #538's head (packing default-on, no overlap), o1 = overlap branch build 1. Card 0:
+# N1 (b13): the 16 real prompts at 8 (2 waves) and 16, then 8-stream 1k filler; then waits for card 1's prime of o1. X1 (o1,
+# INTARSIA_OVERLAP=1, pace 0): the same. X2 (o1, overlap, pace 150 ms): real at 8 and 16. Replies compare offline with W4's solo replies.
+N1;b13;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc:8:0+conc:8:1+conc && le:--sizes 1024 --gen 128 --reps 1 --concurrency 8@k1 && wait:/home/josef/intarsiaml-ink-hip-bpf/logs/o1/o1-primed:120
+X1;o1;INTARSIA_OVERLAP=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc:8:0+conc:8:1+conc && le:--sizes 1024 --gen 128 --reps 1 --concurrency 8@k1
+X2;o1;INTARSIA_OVERLAP=1 INTARSIA_OVERLAP_PACE_MS=150 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc:8:0+conc

@@ -65,6 +65,7 @@ extern "C" int ik_ink_attn_decode_bf16_rows(const ik_tensor* pq, const ik_tensor
     pr.rt.rti = (int)index;
     for (int j = 0; j < 4; ++j) pr.rt.roff[j] = roff[j];
     hipStream_t st = IK_STREAM(stream);
+    pr.flags |= ink_tick_slot(st) << F_SLOT_SHIFT;  // the ticket slot of this stream (lane ink-hip-overlap; 0 = main's bytes)
     const size_t tbb = (size_t)G * nb * 4;
     const dim3 grid(p.hk, gy, p.t);
     const bool dpp = (p.flags & F_DPP) != 0;

@@ -405,6 +405,41 @@ fn inkling2_packed_engine_equals_solo_engine() {
     assert!(mt.pack_passes > 0, "no packed prefill pass ran: {} passes, {} chunks", mt.pack_passes, mt.packed_chunks);
 }
 
+/// Lane ink-hip-overlap: the same with overlap (`BatchedOptions::overlap`: decode on the decode twin's stream while a prefill chunk
+/// or a packed pass is in flight on the model's), paced and unpaced: every request token for token as the one-sequence engine,
+/// and decode steps did run beside chunks in flight.
+#[test]
+fn inkling2_overlap_engine_equals_solo_engine() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let n = 9;
+    let solo = LocalEngine::new(load_on(&dir, backend(), 1, 64, 256), Arc::new(ByteCodec), meta(), Arc::new(Telemetry::new())).unwrap();
+    let want: Vec<(Vec<u32>, usize)> = requests(n)
+        .into_iter()
+        .map(|r| {
+            let flush = GenRequest { prompt: vec![95, 94, 93], max_tokens: 1, ignore_eos: true, ..Default::default() };
+            collect(&solo.submit(flush).unwrap());
+            collect(&solo.submit(r).unwrap())
+        })
+        .collect();
+    for pace_ms in [0u64, 2] {
+        let mut o = BatchedOptions::new(4, 256);
+        o.prefix_reuse = false;
+        o.pack_prefill = Some(true);
+        o.overlap = true;
+        o.overlap_pace_ms = pace_ms;
+        o.busy_chunk = 64;
+        let model = load_on(&dir, backend(), 4, 64, 256);
+        let eng = BatchedEngine::new(model, Arc::new(ByteCodec), meta(), Arc::new(Telemetry::new()), o).unwrap();
+        let rxs: Vec<_> = requests(n).into_iter().map(|r| eng.submit(r).unwrap()).collect();
+        for (i, (rx, w)) in rxs.iter().zip(&want).enumerate() {
+            assert_eq!(&collect(rx), w, "pace {pace_ms} ms, request {i}");
+        }
+        let mt = eng.metrics();
+        eprintln!("overlap, pace {pace_ms} ms: {} decode phases beside chunks in flight, {} packed passes", mt.overlap_steps, mt.pack_passes);
+        assert!(mt.overlap_steps > 0, "pace {pace_ms} ms: no decode step ran beside a chunk in flight: {mt:?}");
+    }
+}
+
 /// The cpu backend with the batch cap lifted to 16 (everything else forwarded, as `inkling2_batch.rs`'s wrapper does).
 struct Cap16 {
     inner: Arc<dyn Backend>,

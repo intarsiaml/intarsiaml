@@ -144,8 +144,9 @@ impl Model {
     /// before anything copies the model. An explicit `INTARSIA_INK_PACK12=1` is warned about and still kept off.
     fn drop_p12_for_batch(&mut self, max_rows: usize) {
         let mut n = usize::from(self.head_p12.take().is_some());
-        if let Some(ink) = self.ink.as_mut() {
-            for l in ink.layers.iter_mut() {
+        // before any decode twin shares the layers (`InkModel::twin`): the only owner may drop the copies
+        if let Some(layers) = self.ink.as_mut().and_then(|ink| std::sync::Arc::get_mut(&mut ink.layers)) {
+            for l in layers.iter_mut() {
                 n += usize::from(l.in_p12.take().is_some()) + usize::from(l.wo_p12.take().is_some());
             }
         }
@@ -1238,7 +1239,8 @@ impl Model {
             head_screen: None,
             layers: self.layers.clone(),
             gemma: None,
-            ink: None,
+            // lane ink-hip-overlap: an Inkling-2 twin shares the layers and weights and has its own Inkling workspace
+            ink: self.ink.as_ref().map(|ink| ink.twin(&*self.backend, mt, act, &self.ldims)).transpose()?,
             slot_specs: self.slot_specs.clone(),
             ws,
             telemetry: self.telemetry.clone(),

@@ -83,6 +83,9 @@ pub struct BatchedOptions {
     /// Prefill/decode overlap (R3d, `INTARSIA_OVERLAP`): batched decode runs on a decode twin of the model (own stream, own
     /// workspace) so a prefill chunk can be in flight beside the decode steps. Output is unchanged, bit for bit; CUDA only.
     pub overlap: bool,
+    /// Lane ink-hip-overlap (`INTARSIA_OVERLAP_PACE_MS`, default [`OVERLAP_PACE_MS_DEFAULT`]): with overlap, the least time between
+    /// the starts of two decode steps while a prefill chunk is in flight (0: back to back); see [`SchedulerConfig::overlap_pace`].
+    pub overlap_pace_ms: u64,
     /// Packed prefill (`INTARSIA_PACK_PREFILL=1` on, `=0` off): the next chunks of several waiting prompts run in one pass
     /// (`Model::forward_packed`) on a hybrid (recurrent) model; each prompt's state is its solo prefill's when every row-wise kernel is
     /// independent of the other rows of the call. `None` (unset): the backend's default (`Backend::pack_prefill_default`: on for
@@ -171,6 +174,9 @@ fn prefill_order_from(v: Option<&str>) -> PrefillOrder {
     })
 }
 
+/// Default [`BatchedOptions::overlap_pace_ms`]: decode steps back to back while a chunk is in flight (lane ink-hip-overlap).
+pub const OVERLAP_PACE_MS_DEFAULT: u64 = 0;
+
 impl BatchedOptions {
     /// The scheduler policy these options select, for a model whose prefill chunk is `solo_chunk`.
     pub fn scheduler_config(&self, solo_chunk: usize) -> SchedulerConfig {
@@ -188,6 +194,7 @@ impl BatchedOptions {
             prefill_order: self.prefill_order,
             prefill_age: self.prefill_age,
             prefix_herd: self.prefix_herd,
+            overlap_pace: std::time::Duration::from_millis(self.overlap_pace_ms),
             ..SchedulerConfig::default()
         }
     }
@@ -203,6 +210,10 @@ impl BatchedOptions {
             busy_chunk: BUSY_PREFILL_CHUNK,
             row_fault: None,
             overlap: std::env::var("INTARSIA_OVERLAP").map(|v| v == "1").unwrap_or(false),
+            overlap_pace_ms: std::env::var("INTARSIA_OVERLAP_PACE_MS")
+                .ok()
+                .and_then(|v| v.trim().parse().ok())
+                .unwrap_or(OVERLAP_PACE_MS_DEFAULT),
             pack_prefill: std::env::var("INTARSIA_PACK_PREFILL").ok().map(|v| v == "1"),
             pack_rows: std::env::var("INTARSIA_PACK_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(PACK_ROWS_DEFAULT),
             pack_half: std::env::var("INTARSIA_PACK_HALF").map(|v| v != "0").unwrap_or(true),
@@ -240,6 +251,8 @@ pub(crate) struct SlotModel {
     row_fault: Option<(usize, usize, u32)>,
     /// The prefill chunk running in the background (`BatchModel::prefill_begin`), if any.
     inflight: Option<Inflight>,
+    /// The packed prefill pass running in the background (`BatchModel::prefill_begin_pack`, lane ink-hip-overlap), if any.
+    inflight_pack: Option<InflightPack>,
     /// Lane bm phase B: drafting sequences verify in one batched pass ([`BatchModel::verify_step`]).
     batched_verify: bool,
     /// Lane mtp2s: [`BatchedOptions::verify_topk`] (with batched verify only).
@@ -267,6 +280,48 @@ struct Inflight {
     /// on the second (`false`: go on, `true`: abort).
     park: Option<(Receiver<()>, Sender<bool>)>,
     handle: std::thread::JoinHandle<(SequenceState, Result<Option<StepOut>>)>,
+}
+
+/// A packed prefill pass on its own thread (lane ink-hip-overlap): the states of its slots travel with it, as for [`Inflight`].
+struct InflightPack {
+    slots: Vec<usize>,
+    done: Arc<std::sync::atomic::AtomicBool>,
+    handle: std::thread::JoinHandle<(Vec<SequenceState>, Result<Vec<Option<StepOut>>>)>,
+}
+
+/// The Inkling-2 packed prefill of `items` (state, chunk, head, `whole_last` as for [`run_prefill`]), the body of
+/// `SlotModel::ink_prefill_pack` (and of the background pass, lane ink-hip-overlap): the chunks that may pack
+/// (`Model::ink_pack_item_ok`, at least two) in one pass (`Model::ink_prefill_packed`), every other one alone, as `prefill_chunk`
+/// runs it. Each state ends bitwise as its own `prefill_chunk` leaves it.
+fn ink_pack_run(model: &Model, items: &mut [(&mut SequenceState, &[u32], Option<HeadMode>, bool)]) -> Result<Vec<Option<StepOut>>> {
+    let mode = |m: Option<HeadMode>| m.unwrap_or(HeadMode::None);
+    let mut packable: Vec<usize> = (0..items.len()).filter(|&k| model.ink_pack_item_ok(&*items[k].0, items[k].1, mode(items[k].2))).collect();
+    let lens: Vec<usize> = packable.iter().map(|&k| items[k].1.len()).collect();
+    if packable.len() < 2 || model.ink_pack_layout(&lens).is_none() {
+        packable.clear();
+    }
+    let mut out: Vec<Option<Option<StepOut>>> = (0..items.len()).map(|_| None).collect();
+    if !packable.is_empty() {
+        let mut packed: Vec<(&mut SequenceState, &[u32], HeadMode)> = Vec::with_capacity(packable.len());
+        for (k, it) in items.iter_mut().enumerate() {
+            if packable.contains(&k) {
+                packed.push((&mut *it.0, it.1, mode(it.2)));
+            }
+        }
+        let res = model.ink_prefill_packed(&mut packed)?;
+        for (&k, o) in packable.iter().zip(res) {
+            out[k] = Some(match o {
+                StepOut::None => None,
+                o => Some(o),
+            });
+        }
+    }
+    for (k, it) in items.iter_mut().enumerate() {
+        if out[k].is_none() {
+            out[k] = Some(run_prefill(model, it.0, it.1, it.2, it.3)?);
+        }
+    }
+    Ok(out.into_iter().map(|o| o.expect("every chunk ran")).collect())
 }
 
 /// One prefill chunk of `st` (the body of [`BatchModel::prefill_chunk`], also what the background thread runs). `whole_last`: a
@@ -334,42 +389,19 @@ impl SlotModel {
     /// pass (`Model::ink_prefill_packed`), every other one alone, as `prefill_chunk` runs it. Each slot ends bitwise as its own
     /// `prefill_chunk` leaves it.
     fn ink_prefill_pack(&mut self, items: &[(usize, &[u32], Option<HeadMode>)]) -> Result<Vec<Option<StepOut>>> {
-        let mode = |m: Option<HeadMode>| m.unwrap_or(HeadMode::None);
         let mut seen = vec![false; self.states.len()];
         for &(slot, _, _) in items {
             if slot >= seen.len() || std::mem::replace(&mut seen[slot], true) {
                 return Err(Error::Other(format!("packed prefill names slot {slot} twice or out of range")));
             }
         }
-        let ok: Vec<bool> = items.iter().map(|&(slot, t, m)| self.model.ink_pack_item_ok(&self.states[slot], t, mode(m))).collect();
-        let mut packable: Vec<usize> = (0..items.len()).filter(|&k| ok[k]).collect();
-        let mut out: Vec<Option<Option<StepOut>>> = (0..items.len()).map(|_| None).collect();
-        let lens: Vec<usize> = packable.iter().map(|&k| items[k].1.len()).collect();
-        if packable.len() < 2 || self.model.ink_pack_layout(&lens).is_none() {
-            packable.clear();
+        let whole: Vec<bool> = items.iter().map(|&(slot, _, _)| self.store_slot[slot]).collect();
+        let mut by_slot: Vec<Option<&mut SequenceState>> = self.states.iter_mut().map(Some).collect();
+        let mut run: Vec<(&mut SequenceState, &[u32], Option<HeadMode>, bool)> = Vec::with_capacity(items.len());
+        for (&(slot, t, m), &w) in items.iter().zip(&whole) {
+            run.push((by_slot[slot].take().expect("distinct slots (checked above)"), t, m, w));
         }
-        if !packable.is_empty() {
-            let mut by_slot: Vec<Option<&mut SequenceState>> = self.states.iter_mut().map(Some).collect();
-            let mut packed: Vec<(&mut SequenceState, &[u32], HeadMode)> = Vec::with_capacity(packable.len());
-            for &k in &packable {
-                let (slot, t, m) = items[k];
-                let st = by_slot[slot].take().expect("distinct slots (checked above)");
-                packed.push((st, t, mode(m)));
-            }
-            let res = self.model.ink_prefill_packed(&mut packed)?;
-            for (&k, o) in packable.iter().zip(res) {
-                out[k] = Some(match o {
-                    StepOut::None => None,
-                    o => Some(o),
-                });
-            }
-        }
-        for (k, &(slot, t, m)) in items.iter().enumerate() {
-            if out[k].is_none() {
-                out[k] = Some(self.prefill_chunk(slot, t, m)?);
-            }
-        }
-        Ok(out.into_iter().map(|o| o.expect("every chunk ran")).collect())
+        ink_pack_run(&self.model, &mut run)
     }
 }
 
@@ -448,6 +480,59 @@ impl BatchModel for SlotModel {
     }
     fn prefill_done(&self) -> bool {
         self.inflight.as_ref().is_none_or(|f| f.done.load(std::sync::atomic::Ordering::Acquire))
+            && self.inflight_pack.as_ref().is_none_or(|f| f.done.load(std::sync::atomic::Ordering::Acquire))
+    }
+    fn overlap_pack(&self) -> bool {
+        // Inkling-2 (lane ink-hip-overlap): its packed pass runs on the thread as the plain chunk does
+        self.twin.is_some() && self.model.is_inkling()
+    }
+    fn prefill_begin_pack(&mut self, items: &[(usize, &[u32], Option<HeadMode>)]) -> Result<()> {
+        if self.inflight.is_some() || self.inflight_pack.is_some() {
+            return Err(Error::Other("a prefill chunk is already in flight".into()));
+        }
+        if !self.model.is_inkling() {
+            return Err(Error::Unsupported("a packed prefill pass in flight (Inkling-2 only)".into()));
+        }
+        let mut seen = vec![false; self.states.len()];
+        for &(slot, _, _) in items {
+            if slot >= seen.len() || std::mem::replace(&mut seen[slot], true) {
+                return Err(Error::Other(format!("packed prefill names slot {slot} twice or out of range")));
+            }
+        }
+        let slots: Vec<usize> = items.iter().map(|&(slot, _, _)| slot).collect();
+        let mut sts: Vec<SequenceState> = slots.iter().map(|&s| std::mem::replace(&mut self.states[s], self.model.placeholder_state())).collect();
+        let job: Vec<(Vec<u32>, Option<HeadMode>, bool)> = items.iter().map(|&(slot, t, m)| (t.to_vec(), m, self.store_slot[slot])).collect();
+        let model = self.model.clone();
+        let done = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = done.clone();
+        let spawned = std::thread::Builder::new().name("intarsia-prefill".into()).spawn(move || {
+            let r = {
+                let mut run: Vec<(&mut SequenceState, &[u32], Option<HeadMode>, bool)> =
+                    sts.iter_mut().zip(&job).map(|(st, (t, m, w))| (st, t.as_slice(), *m, *w)).collect();
+                ink_pack_run(&model, &mut run)
+            };
+            flag.store(true, std::sync::atomic::Ordering::Release);
+            (sts, r)
+        });
+        match spawned {
+            Ok(handle) => {
+                self.inflight_pack = Some(InflightPack { slots, done, handle });
+                Ok(())
+            }
+            Err(e) => Err(Error::Other(format!("cannot start the prefill thread: {e}"))),
+        }
+    }
+    fn prefill_end_pack(&mut self) -> Result<Vec<Option<StepOut>>> {
+        let f = self.inflight_pack.take().ok_or_else(|| Error::Other("no packed prefill pass in flight".into()))?;
+        match f.handle.join() {
+            Ok((sts, r)) => {
+                for (slot, st) in f.slots.into_iter().zip(sts) {
+                    self.states[slot] = st;
+                }
+                r
+            }
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
     }
     fn prefill_end(&mut self) -> Result<Option<StepOut>> {
         let f = self.inflight.take().ok_or_else(|| Error::Other("no prefill chunk in flight".into()))?;
@@ -563,8 +648,9 @@ impl BatchModel for SlotModel {
         self.model.tail_merge()
     }
     fn pack_rows_max(&self) -> usize {
-        if self.twin.is_none() && self.model.ink_pack_capable() && self.store.is_none() {
-            // Inkling-2 (lane ink-hip-bpf): its own packed pass (`Model::ink_prefill_packed`)
+        if self.model.ink_pack_capable() && self.store.is_none() {
+            // Inkling-2 (lane ink-hip-bpf): its own packed pass (`Model::ink_prefill_packed`); with the decode twin (lane
+            // ink-hip-overlap) the pass runs on the main model, inline or in flight (`prefill_begin_pack`)
             self.model.ink_pack_rows_max()
         } else if self.twin.is_none() && self.model.pack_capable() && self.states.iter().all(|s| s.has_recurrent()) {
             self.model.pack_rows_max()
@@ -1363,6 +1449,7 @@ impl BatchedEngine {
                 states,
                 row_fault: opts.row_fault,
                 inflight: None,
+                inflight_pack: None,
                 batched_verify,
                 verify_topk: batched_verify && opts.verify_topk,
                 pause_rows: opts.pause_rows,

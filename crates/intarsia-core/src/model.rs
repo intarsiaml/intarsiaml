@@ -3757,7 +3757,7 @@ impl Model {
         }
         let (d, esz) = (&self.dims, self.act.size_bytes());
         let mut w = vec![d.hidden * esz, d.n_heads * d.head_dim * esz, d.n_kv_heads * d.head_dim * esz, im.dims.top_k * 4];
-        for l in &im.layers {
+        for l in im.layers.iter() {
             w.extend([l.nq * esz, l.nk * esz, d.n_heads * l.relproj.shape[1] * esz]);
         }
         let need = |b: usize| 16 / gcd(b, 16);

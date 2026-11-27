@@ -1,0 +1,16 @@
+fleetq: #12278 waiting (#2 in line): in line behind #12277 "ink-sampled-k5: build br5 (f44766b2d) + main5 (85e14bbcb)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12277 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12277 set, or it will wait for #12277 to be released.
+fleetq: #12278 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash intarsiaml-ink-hip-bpf/.scratch/cpu_tests.sh sched core models docs server'
+== sched exit 0
+test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+== core exit 0
+test result: ok. 270 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 13.69s
+== models exit 101
+error[E0277]: `&&[Vec<f32>]` is not an iterator
+error[E0599]: `Zip<std::vec::IntoIter<StepOut>, &&[Vec<f32>]>` is not an iterator
+error: could not compile `intarsia-models` (test "inkling2_batch") due to 2 previous errors
+== docs exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+== server exit 0
+test result: ok. 71 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+fleetq: #12278 done (exit 101)

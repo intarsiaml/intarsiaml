@@ -115,6 +115,21 @@ pub trait BatchModel {
     fn prefill_end(&mut self) -> Result<Option<Self::Out>> {
         Err(Error::Unsupported("prefill overlap".into()))
     }
+    /// Overlap with packing (lane ink-hip-overlap): the packed pass [`BatchModel::prefill_pack`] would run can be the chunk in flight
+    /// ([`BatchModel::prefill_begin_pack`]). Default false: with overlap, chunks are in flight one at a time.
+    fn overlap_pack(&self) -> bool {
+        false
+    }
+    /// Start the packed pass [`BatchModel::prefill_pack`] runs for `items`, in the background, as [`BatchModel::prefill_begin`] does
+    /// for one chunk: at most one chunk or pass is in flight, and nothing may touch its slots until
+    /// [`BatchModel::prefill_end_pack`] returns. [`BatchModel::prefill_done`] covers it.
+    fn prefill_begin_pack(&mut self, _items: &[(usize, &[u32], Option<Self::Mode>)]) -> Result<()> {
+        Err(Error::Unsupported("packed prefill overlap".into()))
+    }
+    /// Wait for the packed pass in flight and return what [`BatchModel::prefill_pack`] would have returned.
+    fn prefill_end_pack(&mut self) -> Result<Vec<Option<Self::Out>>> {
+        Err(Error::Unsupported("packed prefill overlap".into()))
+    }
     /// Most rows a packed prefill pass ([`BatchModel::prefill_pack`]) can hold; 0 (default): the model cannot pack.
     fn pack_rows_max(&self) -> usize {
         0
@@ -450,6 +465,11 @@ pub struct SchedulerConfig {
     /// With [`PrefillOrder::Shortest`]: a prefilling sequence that was passed over this many prefill decisions in a row (a decision
     /// is one chunk or one packed pass) gets the next chunk before any shorter one (`INTARSIA_PREFILL_AGE`). At least 1.
     pub prefill_age: usize,
+    /// Lane ink-hip-overlap (`INTARSIA_OVERLAP_PACE_MS`): with overlap, the least time between the starts of two decode steps while a
+    /// prefill chunk is in flight; the scheduler waits for the chunk meanwhile (it may end sooner). Zero: steps back to back (each
+    /// step then shares the GPU with the chunk, which slows the chunk). The order of rows and chunks, and so every token, is the
+    /// same at any value.
+    pub overlap_pace: std::time::Duration,
 }
 
 /// Which prefilling sequence the scheduler gives the next prefill chunk (step 4). Only the order between requests changes: every
@@ -499,6 +519,7 @@ impl Default for SchedulerConfig {
             prefill_order: PrefillOrder::Fifo,
             prefill_age: PREFILL_AGE_DEFAULT,
             prefix_herd: false,
+            overlap_pace: std::time::Duration::ZERO,
         }
     }
 }
@@ -852,6 +873,9 @@ pub struct BatchMetrics {
     pub mixed_iterations: u64,
     /// Lane interleave: decode steps that ran while a prefill chunk was parked between layers (counted in `decode_steps` too).
     pub paused_steps: u64,
+    /// Overlap (R3d; lane ink-hip-overlap counts them): decode phases that ran while a prefill chunk or packed pass was in flight on
+    /// its own thread and stream.
+    pub overlap_steps: u64,
     /// Requests submitted and not yet holding a slot, now: still in the hand-off channel plus the FIFO queue. Live
     /// (read from the engine's queue counter when the snapshot is taken), not as of the last iteration.
     pub queue_depth: usize,
@@ -1395,35 +1419,49 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             did = true;
             chunked = true;
             self.note_decision(i);
-            let (slot, c, mode) = self.prefill_plan(i, n_decoding);
-            let id = c.id;
-            let begun = {
-                let tokens = self.active[i].seq.prompt()[c.pos..c.pos + c.len].to_vec();
-                self.model.set_prefill_chunk_rows(slot, self.active[i].seq.own_chunk().unwrap_or(c.chunk));
-                self.model.prefill_begin(slot, &tokens, mode)
-            };
-            let res = match begun {
-                Err(e) => Err(e),
-                Ok(()) => {
-                    loop {
-                        let out = self.decode_phase();
-                        if out.decoding > 0 {
-                            decoding_n = decoding_n.max(out.decoding);
+            // lane ink-hip-overlap: the packed pass `prefill_one` would run (the same pick, the same chunks) may be the one in flight;
+            // only where a first chunk's size does not depend on the decode rows (the other picks may start their prefill here)
+            let pack_ok = self.cfg.pack_prefill && self.model.overlap_pack() && self.cfg.busy_chunk == self.cfg.solo_chunk;
+            let packed = if pack_ok { self.pack_pick(i, n_decoding) } else { None };
+            if let Some(plans) = packed {
+                let begun = {
+                    let toks = self.pack_tokens(&plans);
+                    let items: Vec<(usize, &[u32], Option<M::Mode>)> =
+                        plans.iter().zip(&toks).map(|((_, slot, _, mode), t)| (*slot, t.as_slice(), *mode)).collect();
+                    self.model.prefill_begin_pack(&items)
+                };
+                let res = match begun {
+                    Err(e) => Err(e),
+                    Ok(()) => {
+                        if self.overlap_decode(&mut decoding_n, &mut stepped) {
+                            let _ = self.model.prefill_end_pack();
+                            return true;
                         }
-                        stepped |= out.stepped;
-                        if out.fatal {
+                        self.model.prefill_end_pack()
+                    }
+                };
+                self.pack_finish(plans, res);
+            } else {
+                let (slot, c, mode) = self.prefill_plan(i, n_decoding);
+                let id = c.id;
+                let begun = {
+                    let tokens = self.active[i].seq.prompt()[c.pos..c.pos + c.len].to_vec();
+                    self.model.set_prefill_chunk_rows(slot, self.active[i].seq.own_chunk().unwrap_or(c.chunk));
+                    self.model.prefill_begin(slot, &tokens, mode)
+                };
+                let res = match begun {
+                    Err(e) => Err(e),
+                    Ok(()) => {
+                        if self.overlap_decode(&mut decoding_n, &mut stepped) {
                             let _ = self.model.prefill_end();
                             return true;
                         }
-                        if out.decoding == 0 || self.model.prefill_done() {
-                            break;
-                        }
+                        self.model.prefill_end()
                     }
-                    self.model.prefill_end()
-                }
-            };
-            let i = self.index_of(id).expect("a prefilling request stays live while its chunk runs");
-            self.prefill_finish(i, c, res);
+                };
+                let i = self.index_of(id).expect("a prefilling request stays live while its chunk runs");
+                self.prefill_finish(i, c, res);
+            }
             self.pf_turn += 1;
             if self.failed.is_some() {
                 return true;
@@ -1894,6 +1932,36 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         true
     }
 
+    /// With a chunk (or packed pass) in flight: decode steps until it is done or nothing decodes, at most one step per
+    /// [`SchedulerConfig::overlap_pace`] (lane ink-hip-overlap; waiting for the chunk in between). True: a step failed fatally
+    /// (the caller ends the chunk and returns).
+    fn overlap_decode(&mut self, decoding_n: &mut usize, stepped: &mut bool) -> bool {
+        let pace = self.cfg.overlap_pace;
+        loop {
+            let t0 = Instant::now();
+            let out = self.decode_phase();
+            if out.decoding > 0 {
+                *decoding_n = (*decoding_n).max(out.decoding);
+            }
+            if out.stepped {
+                self.metrics.lock().unwrap().overlap_steps += 1;
+            }
+            *stepped |= out.stepped;
+            if out.fatal {
+                return true;
+            }
+            if out.decoding == 0 || self.model.prefill_done() {
+                return false;
+            }
+            while !pace.is_zero() && t0.elapsed() < pace {
+                if self.model.prefill_done() {
+                    return false;
+                }
+                std::thread::sleep(std::time::Duration::from_micros(250).min(pace.saturating_sub(t0.elapsed())));
+            }
+        }
+    }
+
     /// Run the next chunk of active request `i`. Returns true when this ended its prefill (first token taken or
     /// the request ended), so a following chunk of this iteration goes to the next prefilling request only from the
     /// next iteration on (one request's prefill completion per iteration).
@@ -1987,6 +2055,32 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
     /// queue with `pack_half`). `None`: nothing was packed
     /// and nothing changed, the caller runs the chunk alone. `Some(ended)`: the packed chunks ran and were accounted.
     fn prefill_packed(&mut self, i: usize, n_decoding: usize) -> Option<bool> {
+        let plans = self.pack_pick(i, n_decoding)?;
+        let results = {
+            let toks = self.pack_tokens(&plans);
+            let items: Vec<(usize, &[u32], Option<M::Mode>)> =
+                plans.iter().zip(&toks).map(|((_, slot, _, mode), t)| (*slot, t.as_slice(), *mode)).collect();
+            let _prof = crate::hostprof::span(crate::hostprof::Cat::Prefill);
+            crate::hostprof::prefilled();
+            self.model.prefill_pack(&items)
+        };
+        Some(self.pack_finish(plans, results))
+    }
+
+    /// The chunks of a packed pass (`plans`, from [`Scheduler::pack_pick`]): each request's tokens of its chunk.
+    fn pack_tokens(&self, plans: &[(RequestId, usize, Chunk, Option<M::Mode>)]) -> Vec<Vec<u32>> {
+        plans
+            .iter()
+            .map(|(id, _, c, _)| {
+                let j = self.index_of(*id).expect("a prefilling request stays live while its chunk runs");
+                self.active[j].seq.prompt()[c.pos..c.pos + c.len].to_vec()
+            })
+            .collect()
+    }
+
+    /// Which chunks a packed pass led by request `i` takes ([`Scheduler::prefill_packed`]), each planned (its solo chunk and head):
+    /// (request, slot, chunk, head). `None`: fewer than two fit, nothing changed.
+    fn pack_pick(&mut self, i: usize, n_decoding: usize) -> Option<Vec<(RequestId, usize, Chunk, Option<M::Mode>)>> {
         let (cap, min) = (self.model.pack_rows_max(), self.model.pack_min_rows());
         if cap == 0 {
             return None;
@@ -2021,20 +2115,11 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             let (slot, c, mode) = self.prefill_plan(j, n_decoding);
             plans.push((c.id, slot, c, mode));
         }
-        let results = {
-            let toks: Vec<Vec<u32>> = plans
-                .iter()
-                .map(|(id, _, c, _)| {
-                    let j = self.index_of(*id).expect("a prefilling request stays live while its chunk runs");
-                    self.active[j].seq.prompt()[c.pos..c.pos + c.len].to_vec()
-                })
-                .collect();
-            let items: Vec<(usize, &[u32], Option<M::Mode>)> =
-                plans.iter().zip(&toks).map(|((_, slot, _, mode), t)| (*slot, t.as_slice(), *mode)).collect();
-            let _prof = crate::hostprof::span(crate::hostprof::Cat::Prefill);
-            crate::hostprof::prefilled();
-            self.model.prefill_pack(&items)
-        };
+        Some(plans)
+    }
+
+    /// Account a packed pass's `results` (one per chunk of `plans`) and advance its requests; true when one ended its prefill.
+    fn pack_finish(&mut self, plans: Vec<(RequestId, usize, Chunk, Option<M::Mode>)>, results: Result<Vec<Option<M::Out>>>) -> bool {
         let n = plans.len();
         {
             let mut m = self.metrics.lock().unwrap();
@@ -2054,10 +2139,10 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             let Some(j) = self.index_of(id) else { continue };
             ended |= self.prefill_finish(j, c, res);
             if self.failed.is_some() {
-                return Some(true);
+                return true;
             }
         }
-        Some(ended)
+        ended
     }
 
     /// The next chunk of active request `i`: which tokens, whether it is the last, with what head. Starts the request's
