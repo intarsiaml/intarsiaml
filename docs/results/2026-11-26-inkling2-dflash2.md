@@ -175,9 +175,10 @@ the traces (window 2 DFlash2 k7, window 1 DSpark k5; traced runs, a few % slower
 Every process's ids are identical across arms and reps (19 prompts x 8 processes), and prompts 1-15 equal main `178d87ece`'s
 spec-default ids (lane ink-hip-combined `raw/c1/speed/new@c0a.err`; prompt 0, the warm-up, is a different prompt there).
 
-**Why long contexts lose:** DFlash2 accepts more at every length (3.64 vs 3.22 at 4k, 3.23 vs 2.47 at 16k), but its passes cost
-5-8 ms more, and the gap grows with context (+4.4 ms short, +5.0 ms 4k, +8.2 ms 16k). On HIP the verify rows run the row-exact
-kernels with one attention decode call per row (bitwise the single-row decode), so an 8-row verify reads the whole context 8 times;
+**Why long contexts lose (measured: the per-pass gap; inferred, not profiled: its cause):** DFlash2 accepts more at every length
+(3.64 vs 3.22 at 4k, 3.23 vs 2.47 at 16k), but its passes cost 4-8 ms more, and the gap grows with context (+4.4 ms short, +5.0 ms
+4k, +8.2 ms 16k). On HIP the verify rows run the row-exact kernels with one attention decode call per row (the load line says so;
+bitwise the single-row decode), so an 8-row verify most likely reads the whole context 8 times against DSpark's 3-4;
 the draft's own attention is windowed (2048) and does not grow. A batched, still-bitwise multi-row verify attention is the lever
 that would decide 4k / 16k; it belongs to the HIP verify lanes (ink-hip-spec / ink-hip-vrow ownership), not this one.
 
