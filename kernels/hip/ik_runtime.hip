@@ -125,7 +125,7 @@ int ik_rt_stream_create(void** stream) {
     *stream = (void*)s;
     return (int)e;
 }
-/* lane ink-hip-overlap (INTARSIA_HIP_STREAM1_PRIORITY=high): a stream at the device's greatest priority; *prio gets it */
+/* lane ink-hip-overlap (Backend::decode_lane): a stream at the device's greatest priority; *prio gets it */
 int ik_rt_stream_create_prio(void** stream, int* prio) {
     int least = 0, greatest = 0;
     hipError_t e = hipDeviceGetStreamPriorityRange(&least, &greatest);

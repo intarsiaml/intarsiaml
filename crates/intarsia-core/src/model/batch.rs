@@ -1176,6 +1176,10 @@ impl Model {
         if !self.peers.is_empty() || self.tp.world > 1 || self.mtp.is_some() || self.dflash.is_some() || self.gemma.is_some() {
             return Err(Error::Unsupported("decode twin: single-rank models without MTP or Gemma 4 layers".into()));
         }
+        if self.ink.is_some() {
+            // lane ink-hip-overlap: on HIP the twin's stream at the greatest priority with its own host staging, before its first use
+            self.backend.decode_lane(1);
+        }
         let (d, act) = (&self.ldims, self.act);
         let (qdim, kvdim, esz) = (d.n_heads * d.head_dim, d.n_kv_heads * d.head_dim, act.size_bytes());
         let mt = rows.max(Self::BATCH_MAX_ROWS);

@@ -3949,6 +3949,17 @@ impl Model {
         self.ink.is_some()
     }
 
+    /// Lane ink-hip-overlap: whether a batching engine runs prefill/decode overlap (R3d) when `INTARSIA_OVERLAP` is unset: Inkling-2
+    /// on HIP ([`inkling2::INK_OVERLAP_DEFAULT`]); every other model and backend keeps it opt-in.
+    pub fn overlap_default(&self) -> bool {
+        self.ink.is_some() && self.backend.name() == "hip" && inkling2::INK_OVERLAP_DEFAULT
+    }
+
+    /// Lane ink-hip-overlap: this model's `INTARSIA_OVERLAP_PACE_MS` default when the variable is unset; `None`: the engine's.
+    pub fn overlap_pace_default_ms(&self) -> Option<u64> {
+        self.ink.is_some().then_some(inkling2::INK_OVERLAP_PACE_MS_DEFAULT)
+    }
+
     /// Inkling-2 only (tests, lane ink-hip-bpf): [`Model::ink_prefill_packed`]'s pass over `items` with the oracle-named
     /// intermediates of [`Model::ink_dump`] collected over all rows of the pass (no head). Returns per item its rows `(lo, len)` in
     /// the pass and the tensors; commits every state.

@@ -80,12 +80,15 @@ pub struct BatchedOptions {
     /// (error-isolation tests put an invalid id into one row). Always `None` outside tests.
     #[doc(hidden)]
     pub row_fault: Option<(usize, usize, u32)>,
-    /// Prefill/decode overlap (R3d, `INTARSIA_OVERLAP`): batched decode runs on a decode twin of the model (own stream, own
-    /// workspace) so a prefill chunk can be in flight beside the decode steps. Output is unchanged, bit for bit; CUDA only.
-    pub overlap: bool,
-    /// Lane ink-hip-overlap (`INTARSIA_OVERLAP_PACE_MS`, default [`OVERLAP_PACE_MS_DEFAULT`]): with overlap, the least time between
-    /// the starts of two decode steps while a prefill chunk is in flight (0: back to back); see [`SchedulerConfig::overlap_pace`].
-    pub overlap_pace_ms: u64,
+    /// Prefill/decode overlap (R3d, `INTARSIA_OVERLAP=1` on, `=0` off): batched decode runs on a decode twin of the model (own
+    /// stream, own workspace) so a prefill chunk can be in flight beside the decode steps. Output is unchanged, bit for bit. `None`
+    /// (unset): the model's default (`Model::overlap_default`: on for Inkling-2 on HIP without a prefix store, lane
+    /// ink-hip-overlap; off elsewhere).
+    pub overlap: Option<bool>,
+    /// Lane ink-hip-overlap (`INTARSIA_OVERLAP_PACE_MS`): with overlap, the least time between the starts of two decode steps while
+    /// a prefill chunk is in flight (0: back to back); see [`SchedulerConfig::overlap_pace`]. `None` (unset): the model's default
+    /// (`Model::overlap_pace_default_ms`: 150 for Inkling-2), else [`OVERLAP_PACE_MS_DEFAULT`].
+    pub overlap_pace_ms: Option<u64>,
     /// Packed prefill (`INTARSIA_PACK_PREFILL=1` on, `=0` off): the next chunks of several waiting prompts run in one pass
     /// (`Model::forward_packed`) on a hybrid (recurrent) model; each prompt's state is its solo prefill's when every row-wise kernel is
     /// independent of the other rows of the call. `None` (unset): the backend's default (`Backend::pack_prefill_default`: on for
@@ -194,7 +197,7 @@ impl BatchedOptions {
             prefill_order: self.prefill_order,
             prefill_age: self.prefill_age,
             prefix_herd: self.prefix_herd,
-            overlap_pace: std::time::Duration::from_millis(self.overlap_pace_ms),
+            overlap_pace: std::time::Duration::from_millis(self.overlap_pace_ms.unwrap_or(OVERLAP_PACE_MS_DEFAULT)),
             ..SchedulerConfig::default()
         }
     }
@@ -209,11 +212,12 @@ impl BatchedOptions {
             spec_off_at: SPEC_OFF_AT_DEFAULT,
             busy_chunk: BUSY_PREFILL_CHUNK,
             row_fault: None,
-            overlap: std::env::var("INTARSIA_OVERLAP").map(|v| v == "1").unwrap_or(false),
-            overlap_pace_ms: std::env::var("INTARSIA_OVERLAP_PACE_MS")
-                .ok()
-                .and_then(|v| v.trim().parse().ok())
-                .unwrap_or(OVERLAP_PACE_MS_DEFAULT),
+            overlap: match std::env::var("INTARSIA_OVERLAP").ok().as_deref().map(str::trim) {
+                Some("1") => Some(true),
+                Some("0") => Some(false),
+                _ => None,
+            },
+            overlap_pace_ms: std::env::var("INTARSIA_OVERLAP_PACE_MS").ok().and_then(|v| v.trim().parse().ok()),
             pack_prefill: std::env::var("INTARSIA_PACK_PREFILL").ok().map(|v| v == "1"),
             pack_rows: std::env::var("INTARSIA_PACK_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(PACK_ROWS_DEFAULT),
             pack_half: std::env::var("INTARSIA_PACK_HALF").map(|v| v != "0").unwrap_or(true),
@@ -1351,6 +1355,11 @@ impl BatchedEngine {
 
         let solo_chunk = model.prefill_chunk().max(1);
         let mut cfg = opts.scheduler_config(solo_chunk);
+        if opts.overlap_pace_ms.is_none() {
+            if let Some(ms) = model.overlap_pace_default_ms() {
+                cfg.overlap_pace = std::time::Duration::from_millis(ms);
+            }
+        }
         if opts.pack_prefill.is_none() {
             // the prefix store turns the backend's default off (its requests never pack; `store_combinations` refuses the opt-in)
             cfg.pack_prefill = model.backend.pack_prefill_default();
@@ -1399,7 +1408,15 @@ impl BatchedEngine {
                 if model.device_sampling() { "on" } else { "off on this backend: whole rows" }
             );
         }
-        let twin = if opts.overlap {
+        // the prefix store keeps overlap off unless it is asked for (`store_combinations` refuses the opt-in)
+        let overlap = opts.overlap.unwrap_or_else(|| store.is_none() && model.overlap_default());
+        if overlap && opts.overlap.is_none() {
+            eprintln!(
+                "prefill/decode overlap: on (the default here; INTARSIA_OVERLAP=0 turns it off), decode steps at most every {} ms beside a chunk",
+                cfg.overlap_pace.as_millis()
+            );
+        }
+        let twin = if overlap {
             match model.decode_twin(opts.max_batch) {
                 Ok(t) => Some(t),
                 Err(e) => {
@@ -1480,7 +1497,7 @@ impl BatchedEngine {
 /// prefill default is turned off here, the backend's packed-prefill default in [`BatchedEngine::new`].
 fn store_combinations(model: &mut Model, opts: &BatchedOptions) -> Result<()> {
     let refuse = |what: &str| Err(Error::Unsupported(format!("the prefix store with --max-batch > 1 and {what} (unset it, or use --max-batch 1)")));
-    if opts.overlap {
+    if opts.overlap == Some(true) {
         return refuse("prefill/decode overlap (INTARSIA_OVERLAP=1)");
     }
     if opts.pack_prefill == Some(true) {

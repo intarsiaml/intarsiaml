@@ -411,6 +411,11 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Lane ink-hip-overlap: `stream` will carry a decode twin's batched steps (R3d overlap) beside prefill passes on stream 0. A
+    /// backend may create it at a higher priority and give it its own host staging; scheduling only, no numerics. Called before the
+    /// stream's first use. Default: nothing (CUDA creates every stream other than 0 at the highest priority anyway).
+    fn decode_lane(&self, _stream: StreamId) {}
+
     /// Touch these tensors' bytes (`budget` at most, in order) into a cache on `stream`, paced, writing nothing. A hint: the
     /// default does nothing.
     fn l2_prefetch(&self, _ranges: &[TensorRef], _budget: usize, _stream: StreamId) -> Result<()> {

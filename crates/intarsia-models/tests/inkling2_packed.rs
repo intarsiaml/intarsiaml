@@ -425,8 +425,8 @@ fn inkling2_overlap_engine_equals_solo_engine() {
         let mut o = BatchedOptions::new(4, 256);
         o.prefix_reuse = false;
         o.pack_prefill = Some(true);
-        o.overlap = true;
-        o.overlap_pace_ms = pace_ms;
+        o.overlap = Some(true);
+        o.overlap_pace_ms = Some(pace_ms);
         o.busy_chunk = 64;
         let model = load_on(&dir, backend(), 4, 64, 256);
         let eng = BatchedEngine::new(model, Arc::new(ByteCodec), meta(), Arc::new(Telemetry::new()), o).unwrap();

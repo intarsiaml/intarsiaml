@@ -197,6 +197,10 @@ pub struct HipBackend {
     /// download's stream sync (a prefill chunk's head read on stream 0 blocked the decode twin's copies on stream 1 until the
     /// chunk ended). Stream 0 keeps `staging`, as before.
     side_staging: Mutex<Vec<std::sync::Arc<Mutex<Option<Option<Staging>>>>>>,
+    /// Lane ink-hip-overlap: the streams marked by `Backend::decode_lane` (bit = StreamId < 64): created at the device's greatest
+    /// priority, with their own host staging (`side_staging`). Every other stream: the default priority and the shared staging,
+    /// as before.
+    decode_lanes: std::sync::atomic::AtomicU64,
     /// lane wg: dense fp8 weights rearranged into `Layout::Fp8Frag` by `relayout_fp8_frag` (count, bytes)
     relayout: (AtomicU64, AtomicU64),
     /// lane arx: the all-reduce push armed by the communicator for the next `matmul_mxfp4_a8_mma` launch on this device whose output is
@@ -567,6 +571,7 @@ impl HipBackend {
             capturing: AtomicBool::new(false),
             staging: Mutex::new(None),
             side_staging: Mutex::new(Vec::new()),
+            decode_lanes: std::sync::atomic::AtomicU64::new(0),
             relayout: (AtomicU64::new(0), AtomicU64::new(0)),
             push_arm: Mutex::new(None),
             spans: Mutex::new(SpanCache::new()),
@@ -779,9 +784,14 @@ impl HipBackend {
         check("hipSetDevice", unsafe { ffi::ik_rt_set_device(self.ordinal) })
     }
 
-    /// The staging of stream `id` other than 0 (`side_staging`, created on first use); `None` for stream 0 (`staging`).
+    /// Whether `Backend::decode_lane` marked stream `id`.
+    fn is_decode_lane(&self, id: StreamId) -> bool {
+        id < 64 && self.decode_lanes.load(Ordering::Relaxed) & (1u64 << id) != 0
+    }
+
+    /// The own staging of decode-lane stream `id` (`side_staging`, created on first use); `None` for every other stream (`staging`).
     fn side_staging(&self, id: StreamId) -> Option<std::sync::Arc<Mutex<Option<Option<Staging>>>>> {
-        if id == 0 {
+        if id == 0 || !self.is_decode_lane(id) {
             return None;
         }
         let mut v = self.side_staging.lock().unwrap();
@@ -795,12 +805,12 @@ impl HipBackend {
         let mut s = self.streams.lock().unwrap();
         while s.len() <= id as usize {
             let mut h: *mut c_void = std::ptr::null_mut();
-            if s.len() == 1 && stream1_priority() {
-                // lane ink-hip-overlap (opt-in): the decode twin's stream at the device's greatest priority
+            if self.is_decode_lane(s.len() as StreamId) {
+                // lane ink-hip-overlap: a decode twin's stream at the device's greatest priority (`Backend::decode_lane`)
                 let mut prio = 0;
                 // SAFETY: valid out-pointers; the device is bound by the caller.
                 check("hipStreamCreateWithPriority", unsafe { ffi::ik_rt_stream_create_prio(&mut h, &mut prio) })?;
-                eprintln!("hip: stream 1 at priority {prio} (INTARSIA_HIP_STREAM1_PRIORITY=high)");
+                eprintln!("hip: stream {} (decode lane) at priority {prio}", s.len());
             } else {
                 // SAFETY: valid out-pointer; the device is bound by the caller.
                 check("hipStreamCreate", unsafe { ffi::ik_rt_stream_create(&mut h) })?;
@@ -878,6 +888,16 @@ impl Backend for HipBackend {
 
     /// backend | device | gfx arch | HIP runtime and driver versions | kernel-pack arch | compiler | env knobs: anything
     /// that can change a kernel's numerics or its code generation invalidates cached admission results.
+    fn decode_lane(&self, stream: StreamId) {
+        if stream == 0 || stream >= 64 || !decode_lane_on() {
+            return;
+        }
+        self.decode_lanes.fetch_or(1u64 << stream, Ordering::Relaxed);
+        if self.streams.lock().unwrap().len() > stream as usize {
+            eprintln!("hip: stream {stream} already exists: the decode lane keeps the default priority (its own staging applies)");
+        }
+    }
+
     fn fingerprint(&self) -> String {
         format!(
             "hip|{}|{}|rt{}|drv{}|pack:{}|cc:{}|env:{}",
@@ -1719,10 +1739,10 @@ impl Backend for HipBackend {
     }
 }
 
-/// Lane ink-hip-overlap (`INTARSIA_HIP_STREAM1_PRIORITY=high`, opt-in): stream 1 (the decode twin's, R3d overlap; the
-/// tensor-parallel side stream otherwise) is created at the device's greatest priority, so its kernels go ahead of a prefill
-/// chunk's on stream 0. Unset: every stream at the default priority, as before. Scheduling only: no kernel changes.
-fn stream1_priority() -> bool {
+/// Lane ink-hip-overlap (`INTARSIA_HIP_DECODE_LANE`, default on): `0` ignores `Backend::decode_lane`, so a decode twin's stream
+/// is created at the default priority and shares stream 0's host staging (main's behaviour; a step beside a prefill chunk then
+/// waits for most of the chunk). Scheduling only: no kernel changes.
+fn decode_lane_on() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| std::env::var("INTARSIA_HIP_STREAM1_PRIORITY").is_ok_and(|v| v.trim() == "high"))
+    *ON.get_or_init(|| std::env::var("INTARSIA_HIP_DECODE_LANE").map_or(true, |v| v.trim() != "0"))
 }
