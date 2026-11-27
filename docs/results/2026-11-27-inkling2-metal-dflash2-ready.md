@@ -1,6 +1,6 @@
 # Inkling-2-Mini + DFlash2 k5 on Metal: readiness checks for a default flip (lane ink-metal-dflash2-ready, 2026-11-27)
 
-Status: **DONE 2026-11-27 04:30 EST. Verification only: no default, recipe or code change.** Every check passes except one FLAG (the draft's memory scales with
+Status: **DONE 2026-11-27 04:30 EST (check 5 added 04:40). Verification only: no default, recipe or code change.** Every check passes except one FLAG (the draft's memory scales with
 the context capacity); there is no failure. Branch `ink/metal-dflash2-ready` from origin/main `f25bb273a` (PR #546 in). Binary `br1` built from this tree before any doc
 commit (own target dir `target/`, sources touched first, build job #12556, md5 `49a4d94be3648ec35ed2c7128dd513cb`, every slot's first line logs it).
 Question for the user: is DFlash2 k5 (`--spec dflash --spec-draft <Inkling-2-Mini-DFlash2> --spec-k 5`, #546) safe to make Metal's greedy default for
@@ -16,6 +16,8 @@ Inkling-2-Mini (today DSpark k3, recipe `mtp_default_k`)? Speed is not re-measur
 | 2b' | Same with `INTARSIA_SPEC_SAMPLED_DFLASH=1` (opt-in sampled drafting with the DFlash2 draft) | same rule, reported apart | **PASS** | 190 / 190 equal; it drafts (906 verify passes at T 1.0, acceptance 30 %, 2.03 tokens per pass) |
 | 2c | Speed, information only, **greedy**: one ABBA on 3 short prompts, 45 s idle | FLAG if geo < 0.98 or any prompt < 0.95 | **no flag** | dfl5 / default: count 1.496, story 1.028, chat 1.280; geo **1.253**, min 1.028; ids equal |
 | 2c-s | Same ABBA, **sampled** (T 1.0, added rule) | same thresholds | **no flag** | geo **1.000**, min 0.999 (both arms plain steps, 0 verify passes); the unpaired T 1.0 gap of slot C (70.1 vs 75.9) was noise |
+| 5 | `serve --max-batch 1` with DFlash2 k5 vs `--spec off`: 2 chats x 3 turns (chat endpoint) + 2 x 3 turns (token-id extension), greedy, 128 tokens; prefix reuse | all 12 turns' ids identical between the servers; reuse conclusive | **PASS** | 12 / 12 turns identical, at both starts of each server; `cached_tokens` on turns 2 and 3: 93 / 256 and 300 / 468 (id mode), 30 / 47 and 27 / 43 (chat mode), equal on both servers |
+| 5s | `serve` start time (cold, then warm) | measured | see check 5 | dfl5: **131.5 s** then **4.6 s**; off: **4.6 s** then **4.6 s** (kernel admission is cached per case) |
 | 2d | Seed stream 0..19 x T 1.0 / 0.6 on one engine with prefix reuse, DFlash2 k5 draft vs own DSpark draft, `SAMPLED_DFLASH=0` (added rule) | 40 lines identical | **PASS** | 40 / 40 identical |
 | 3a | `--max-batch 4 --spec dflash` | record what happens | **refused loudly** | exit 1 after 0 s, before the weights load: "unsupported: --spec dflash with the batching engine (use --max-batch 1)" |
 | 3b | `--max-batch 4`, no `--spec`: 4 concurrent greedy = solo | all 4 equal | **PASS** | 4 / 4 equal, twice; no draft is loaded (no speculation line in the log), as with the DSpark default today |
@@ -72,7 +74,7 @@ Metal budget: <= 25 min of exclusive slots in all, each <= 15 min, none after 07
   (today's default draft). PASS iff the 40 lines of X and Y are identical (both take plain steps for sampled requests, so a difference would be a
   side effect of the DFlash2 draft's presence). The reference is the DSpark-loaded engine, not `--spec off`; 2b covers `--spec off`.
 
-**Check 5 (coordinator message 04:27, rule written 04:35 EST before slot F): `serve` with the draft, and KV prefix reuse across turns.**
+**Check 5 (coordinator message 04:27, rule written 04:28 EST before slot F): `serve` with the draft, and KV prefix reuse across turns.**
 Two servers, same binary `br1`, same settings, `--max-batch 1`, default `--max-seq`: `dfl5` = `--spec dflash --spec-draft <drafter> --spec-k 5` (the
 brief's `--spec dflash --spec-k 5`; the drafter path is needed for DFlash2) and `off` = `--spec off`. On each: (a) 2 chats of 3 turns through
 `/v1/chat/completions` (greedy, 128 tokens per turn, the assistant `content` of a turn is sent back as the next turn's assistant message, `return_token_ids`),
@@ -226,13 +228,40 @@ is 4096): it matters only for a user who raises `--max-seq` into the hundreds of
 - **First start of a new binary**: unchanged by this (serve's cold admission: 133 s measured for the `--max-batch 4` plan, > 120 s for the single-sequence one) except that the DFlash2 verify plan adds cases (flip lane saw
   38 kernels / 215 cases vs 23 / 134 for the DSpark-only plan on HIP, `STATE.md` 02:57; not measured on Metal here).
 
+## Check 5: `serve` with the draft, and KV prefix reuse across turns (coordinator addition, slot F, #12564, `raw/F/`)
+
+Rule: see the pre-registered section (written 04:28, before the slot). Servers: `serve --no-supervisor --no-ui --max-batch 1` (default `--max-seq`, context 4096),
+`dfl5` = `--spec dflash --spec-draft <DFlash2> --spec-k 5` (log: "speculative decoding: Dflash, up to 5 drafts per verify pass"; sampled drafting off) and
+`off` = `--spec off`; each started twice, one after the other, the same binary `br1`. Each start ran the same 12 turns.
+
+| start | seconds to the first answered `/v1/models` | `loaded ... in` | kernel admission line |
+|---|---|---|---|
+| dfl5, start 1 (cold) | **131.5** | 131.4 s | 42 kernels checked, **77 cases run**, 92 cached |
+| dfl5, start 2 | **4.6** | 4.2 s | 42 kernels checked, 0 cases run, 169 cached |
+| off, start 1 | **4.6** | 4.3 s | 32 kernels checked, 0 cases run, 95 cached |
+| off, start 2 | **4.6** | 4.2 s | 32 kernels checked, 0 cases run, 95 cached |
+
+**Does a second start pay the admission again? No.** `serve` runs the admission step at every start, but its results are cached per case (under
+`~/.cache/intarsia/admission/`): only a start that meets cases not yet in the cache pays, here the first dfl5 start of this binary (77 cases, 127 s of the
+131 s). The `off` plan was served entirely from the cache that start had written, and the repeat starts of both configs take 4.6 s. (My earlier
+phrase "cold kernel check at every start" was too broad: it is cold for the first start of a new binary / plan only. Slot A's `--spec off` start had not
+finished in 120 s because the cache of this new binary was empty, and the aborted start wrote nothing.)
+
+**Result: PASS.** All 12 turns' ids are identical between the `dfl5` and `off` servers at start 1 and at start 2, and the `dfl5` ids of start 1 equal those of
+start 2. Prefix reuse happened on both servers (`usage.prompt_tokens_details.cached_tokens`, identical on both): id mode (exact extension of the
+previous prompt + generated ids) turns 1 / 2 / 3: chat A 0 / 93 / 256 of 93 / 256 / 424 prompt tokens, chat B 0 / 300 / 468 of 300 / 468 / 631; chat mode
+(`/v1/chat/completions`): 0 / 30 / 47 of 31 / 47 / 66 and 0 / 27 / 43 of 29 / 44 / 60. In chat mode every assistant `content` was empty (the 128 tokens
+were spent in the reasoning block, which goes to `reasoning_content`), so those turns share only the user messages; the id-mode chats are the full-length
+reuse test. The greedy DFlash2 request after a reused prefix therefore gives the same ids as plain decoding on the same reused cache, for prefixes up to
+468 tokens (draft state re-sync after reuse is exercised). Not covered: reuse of 4k / 16k prefixes, and reuse across the sampled-request path.
+
 ## Not verified
 
 - Seeds 0..99 of one prompt with the DFlash2 draft loaded and `--spec off` as the reference: replaced by distinct prompts at one seed against `--spec off` (190) plus 20 seeds x 2 temperatures on one engine against the DSpark-loaded engine (40); no `--spec off` reference over a seed stream.
-- Anything on `serve` with a DFlash2 draft (admission of the DFlash2 verify plan on Metal, HTTP path, `serve`'s default context): the one slot that
-  would have cost 4+ min of cold admission per arm. The engine, sampler and decode path are the same as `generate`'s.
+- ~~Anything on `serve` with a DFlash2 draft~~ Closed by check 5 for `--max-batch 1` (the DFlash2 verify plan admits 42 kernels on Metal, HTTP path, greedy
+  multi-turn). Still open: a long-running server, `--prefix-store`, tool calls / structured output with the draft.
 - `--max-batch` > 1 with a draft (refused by design); a DFlash2 batch test (none exists).
-- **KV prefix reuse with the DFlash2 draft (a `serve` user's second turn).** `generate --prompt-ids` resets the sequence before each prompt, so neither
+- **(Closed by check 5 for prefixes up to 468 tokens; reuse at 4k / 16k is still open.) KV prefix reuse with the DFlash2 draft (a `serve` user's second turn).** `generate --prompt-ids` resets the sequence before each prompt, so neither
   #546 nor slots A to D exercised greedy DFlash2 across requests that share a prefix, and `crates/intarsia-models/tests/inkling2_dflash2.rs` has no
   reuse / resync case (grep: none; the draft's own cache is re-synced in `dflash.rs` around line 540). Slot E's seed stream (2d) reuses the prompt
   between requests but only with plain sampled steps. This is the top serve-path gap; the unmerged HIP flip branch adds such a test
@@ -246,8 +275,8 @@ is 4096): it matters only for a user who raises `--max-seq` into the hundreds of
 
 Exclusive endor slots (fleetq log times): #12557 (slot A: greedy md5 at 4k / 16k, then the aborted `serve` arms; 03:49:40-03:53:05, 3.4 min), #12558
 (slot C: sampled identity + memory, 03:55:10-04:01:18, 6.1 min), #12559 (slot D: refusal, greedy ABBA, `serve --max-batch 4`, 04:01:40-04:08:09,
-6.5 min), #12561 (slot E, stopped, 04:13:42-04:15:00, 1.3 min), #12562 (slot E2: sampled ABBA + 20-seed stream, 04:15:11-04:21:10, 6.0 min). **Total
-23.3 min** of the 25 min budget, each slot under 15 min, none after 07:00. cpu: #12556 (CLI build, 22 s), #12560 (test binary build, 16 s). Scripts and logs in `raw/` (`slotA.sh`,
+6.5 min), #12561 (slot E, stopped, 04:13:42-04:15:00, 1.3 min), #12562 (slot E2: sampled ABBA + 20-seed stream, 04:15:11-04:21:10, 6.0 min). #12564 (slot F, check 5, 04:28:10-04:32:03, 3.9 min). **Total
+27.2 min** (the coordinator raised the lane's limit to 40 min with check 5), each slot under 15 min, none after 07:00. cpu: #12556 (CLI build, 22 s), #12560 (test binary build, 16 s). Scripts and logs in `raw/` (`slotA.sh`,
 `slotC.sh`, `slotD.sh`, `lib.sh`, `client.py`, `md5.py`, `seedcmp.py`, `abba.py`, prompts); the cold-admission wait of slot A is
 `raw/A/s-off-killed-cold-admission.err`. `serve` also wrote admission-cache files under `~/.cache/intarsia/admission/` (the program's own cache).
 No drafter link or other folder was created; nothing outside this worktree was changed.

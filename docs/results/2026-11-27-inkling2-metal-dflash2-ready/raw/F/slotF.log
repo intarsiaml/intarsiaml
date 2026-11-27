@@ -1,0 +1,25 @@
+fleetq: #12564 running on endor: /opt/code/intarsiaml/.worktrees/ink-metal-dflash2-ready/docs/results/2026-11-27-inkling2-metal-dflash2-ready/raw/slotF.sh
+slot F start 04:28:11 binary md5 49a4d94be3648ec35ed2c7128dd513cb git 53511a985
+dfl5-start1 up after 131.5 s | loaded thinkingmachines/Inkling-2-Mini on metal (Apple M5 Max) in 131.4s, context 4096 tokens | admission: admission on plan shapes: 42 kernel(s) checked, 77 case(s) run, 92 cached|
+chat: {'chat0-t1': (128, 31, 0), 'chat0-t2': (128, 47, 30), 'chat0-t3': (128, 66, 47), 'chat1-t1': (128, 29, 0), 'chat1-t2': (128, 44, 27), 'chat1-t3': (128, 60, 43), 'ids0-t1': (128, 93, 0), 'ids0-t2': (128, 256, 93), 'ids0-t3': (128, 424, 256), 'ids1-t1': (128, 300, 0), 'ids1-t2': (128, 468, 300), 'ids1-t3': (128, 631, 468)}
+dfl5-start1 stopped t+147s
+dfl5-start2 up after 4.6 s | loaded thinkingmachines/Inkling-2-Mini on metal (Apple M5 Max) in 4.2s, context 4096 tokens | admission: admission on plan shapes: 42 kernel(s) checked, 0 case(s) run, 169 cached|
+chat: {'chat0-t1': (128, 31, 0), 'chat0-t2': (128, 47, 30), 'chat0-t3': (128, 66, 47), 'chat1-t1': (128, 29, 0), 'chat1-t2': (128, 44, 27), 'chat1-t3': (128, 60, 43), 'ids0-t1': (128, 93, 0), 'ids0-t2': (128, 256, 93), 'ids0-t3': (128, 424, 256), 'ids1-t1': (128, 300, 0), 'ids1-t2': (128, 468, 300), 'ids1-t3': (128, 631, 468)}
+dfl5-start2 stopped t+171s
+off-start1 up after 4.6 s | loaded thinkingmachines/Inkling-2-Mini on metal (Apple M5 Max) in 4.3s, context 4096 tokens | admission: admission on plan shapes: 32 kernel(s) checked, 0 case(s) run, 95 cached|
+chat: {'chat0-t1': (128, 31, 0), 'chat0-t2': (128, 47, 30), 'chat0-t3': (128, 66, 47), 'chat1-t1': (128, 29, 0), 'chat1-t2': (128, 44, 27), 'chat1-t3': (128, 60, 43), 'ids0-t1': (128, 93, 0), 'ids0-t2': (128, 256, 93), 'ids0-t3': (128, 424, 256), 'ids1-t1': (128, 300, 0), 'ids1-t2': (128, 468, 300), 'ids1-t3': (128, 631, 468)}
+off-start1 stopped t+200s
+off-start2 up after 4.6 s | loaded thinkingmachines/Inkling-2-Mini on metal (Apple M5 Max) in 4.2s, context 4096 tokens | admission: admission on plan shapes: 32 kernel(s) checked, 0 case(s) run, 95 cached|
+chat: {'chat0-t1': (128, 31, 0), 'chat0-t2': (128, 47, 30), 'chat0-t3': (128, 66, 47), 'chat1-t1': (128, 29, 0), 'chat1-t2': (128, 44, 27), 'chat1-t3': (128, 60, 43), 'ids0-t1': (128, 93, 0), 'ids0-t2': (128, 256, 93), 'ids0-t3': (128, 424, 256), 'ids1-t1': (128, 300, 0), 'ids1-t2': (128, 468, 300), 'ids1-t3': (128, 631, 468)}
+off-start2 stopped t+229s
+cmpchat /opt/code/intarsiaml/.worktrees/ink-metal-dflash2-ready/.scratch/F/chat-dfl5-start1.json vs /opt/code/intarsiaml/.worktrees/ink-metal-dflash2-ready/.scratch/F/chat-off-start1.json: turns 12 / 12, differ 0 []
+cached_tokens a: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+cached_tokens b: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+cmpchat /opt/code/intarsiaml/.worktrees/ink-metal-dflash2-ready/.scratch/F/chat-dfl5-start2.json vs /opt/code/intarsiaml/.worktrees/ink-metal-dflash2-ready/.scratch/F/chat-off-start2.json: turns 12 / 12, differ 0 []
+cached_tokens a: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+cached_tokens b: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+cmpchat /opt/code/intarsiaml/.worktrees/ink-metal-dflash2-ready/.scratch/F/chat-dfl5-start1.json vs /opt/code/intarsiaml/.worktrees/ink-metal-dflash2-ready/.scratch/F/chat-dfl5-start2.json: turns 12 / 12, differ 0 []
+cached_tokens a: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+cached_tokens b: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+slot F end 04:32:03 t+232s
+fleetq: #12564 done (exit 0)
