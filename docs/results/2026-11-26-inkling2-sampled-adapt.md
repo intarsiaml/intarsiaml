@@ -168,6 +168,7 @@ are not updated):
 | g, n0, a0 | 0.85, 1, 0.6 | same | same |
 | margin | 0.02 | same | same |
 | hold0, hold_max, explore | 8, 64, 8 | same | same |
+| drop, probe (amendment 2; g became 0.9) | 0, 2 | same | same |
 
 The hip table is the probe numbers above over P = 13.3 ms; the Metal one is d = 3.2 / 13.2 and a least-squares fit of #535's Metal slot
 B per-prompt totals with the draft fixed at 3.2 ms (first row +4.2 ms, later rows +2.5 ms).
@@ -223,6 +224,16 @@ per temperature (off fix pol / fix pol off / pol off fix).
   processes per card, every (off, fix, pol) triple of a rep on one card. Pairs per ratio: 3 (95 % t-interval with t(2) = 4.303).
 - Metal slot: one traced fixed-k3 calibration process only (no drafts run; P from its empty calls); 3 reps per arm as W2, both
   temperatures inside each rep.
+
+**Amendment 2 (2026-11-26 ~20:40 EST, before any window).** A synthetic replay (`raw/sim.py` on made-up traces) showed the first
+draft's weak spot: stopping and resuming used one threshold (`1 + margin`), the estimate's noise over ~7 calls is about +-0.2 in rate,
+so a prompt that pays (rate ~1.1) stops on a random dip, and one probe call moves the estimate too little to resume, while the hold
+doubles. Changes, all knobs: a separate stop threshold (`drop`: stop when the rate is below `1 - drop`; resume needs `1 + margin`),
+a probe of `probe` calls (the last decides), and `g` 0.9 (memory ~10 calls). Defaults now `g=0.9,margin=0.02,drop=0,probe=2,hold=8,
+hold_max=64,explore=8` (cost tables unchanged). The pre-registered grid becomes g {0.85, 0.9, 0.95} x margin {0, 0.02, 0.05} x drop
+{0, 0.05, 0.1} x probe {1, 2, 3} x hold0 {8, 16} x hold_max {32, 64} (324 settings), same objective and bars (every prompt >= 0.99 x off
+and every class >= 0.99 x fixed predicted, both temperatures; the highest predicted minimum per-prompt ratio wins); it runs on W1's
+seed-11 traces, so W2 (seed 7) and Metal test it out of sample.
 
 **Analysis** (`raw/speed3.py`, from #535's `speed.py`): per arm pair, the ratio of pooled tok/s (sum of tokens / sum of time over the
 class's prompts), geomean over reps, 95 % t-interval over the paired log ratios (pairs within a rep), per class and per prompt;

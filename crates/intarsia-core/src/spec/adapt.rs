@@ -7,8 +7,9 @@
 //! draft's own cut kept, at most `k`; an empty call is the draft and a plain step) and yields `1 + accepted` tokens. Per request,
 //! discounted counts estimate, for each row `j`, `q_j` = P(row j proposed) and `s_j` = P(row j proposed and accepted), so
 //! `T(k) = 1 + sum_{j<=k} s_j` and `C(k) = d + 1 + sum_{j<=k} q_j (r_j - r_{j-1})`. The next call drafts with the cap that maximises
-//! `T / C` if that beats a plain step by `margin`; otherwise the request takes `hold` plain steps (no draft call), then one probe call
-//! at the full cap, and decides again (`hold` doubles after each probe that does not resume drafting, up to `hold_max`).
+//! `T / C`; drafting stops when that rate falls below `1 - drop` (a plain step's is 1), and the request then takes `hold` plain steps
+//! (no draft call), then `probe` calls at the full cap, and resumes if the rate is at least `1 + margin` (else `hold` doubles, up to
+//! `hold_max`).
 //!
 //! The draft's context cache stays in sync through plain steps: every target pass stashes its tap row and the next draft call flushes the
 //! stash first (`Model::dflash_after_forward`, `dflash_draft_rank`), the path empty drafts and the back-off gate already take.
@@ -33,8 +34,12 @@ pub struct AdaptParams {
     /// `a0`: the prior's per-row acceptance (`q0_j = a0^(j-1)`, `s0_j = a0^j`: the draft proposes row `j` while the rows before it are
     /// accepted): a request starts at the full cap, as fixed k does.
     pub a0: f64,
-    /// `margin`: draft only when the best cap's predicted tokens per plain-step time is at least `1 + margin`.
+    /// `margin`: a probe resumes drafting when the best cap's predicted tokens per plain-step time is at least `1 + margin`.
     pub margin: f64,
+    /// `drop`: drafting stops when that rate falls below `1 - drop` (hysteresis with `margin`).
+    pub drop: f64,
+    /// `probe`: draft calls (at the full cap) of one probe, after which the probe resumes drafting or holds again.
+    pub probe: u32,
     /// `hold`: plain steps before the first probe call after drafting stopped.
     pub hold0: u32,
     /// `hold_max`: the most plain steps between two probe calls.
@@ -52,7 +57,7 @@ impl AdaptParams {
             "metal" => (0.24, vec![0.32, 0.51, 0.70]),
             _ => (0.26, vec![0.26, 0.47, 0.60, 0.75, 0.91]),
         };
-        AdaptParams { draft, rows, g: 0.85, n0: 1.0, a0: 0.6, margin: 0.02, hold0: 8, hold_max: 64, explore: 8 }
+        AdaptParams { draft, rows, g: 0.9, n0: 1.0, a0: 0.6, margin: 0.02, drop: 0.0, probe: 2, hold0: 8, hold_max: 64, explore: 8 }
     }
 
     /// `r_m`, the extra cost of a verify pass with `m` drafts ([`AdaptParams::rows`]), `r_0 = 0`.
@@ -67,7 +72,7 @@ impl AdaptParams {
     }
 
     /// `self` with the `key=value` pairs of `v` (comma-separated) applied: `d=0.26`, `r=0.26/0.47/0.60` (slash-separated), `g`, `n0`,
-    /// `a0`, `margin`, `hold`, `hold_max`, `explore`. Keys not given keep their value.
+    /// `a0`, `margin`, `drop`, `probe`, `hold`, `hold_max`, `explore`. Keys not given keep their value.
     pub fn apply(mut self, v: &str) -> Result<AdaptParams, String> {
         for kv in v.split(',').map(str::trim).filter(|s| !s.is_empty()) {
             let (k, x) = kv.split_once('=').ok_or_else(|| format!("`{kv}`: want key=value"))?;
@@ -85,16 +90,18 @@ impl AdaptParams {
                 "n0" => self.n0 = f()?,
                 "a0" => self.a0 = f()?,
                 "margin" => self.margin = f()?,
+                "drop" => self.drop = f()?,
+                "probe" => self.probe = u()?,
                 "hold" => self.hold0 = u()?,
                 "hold_max" => self.hold_max = u()?,
                 "explore" => self.explore = u()?,
-                other => return Err(format!("unknown key `{other}` (d, r, g, n0, a0, margin, hold, hold_max, explore)")),
+                other => return Err(format!("unknown key `{other}` (d, r, g, n0, a0, margin, drop, probe, hold, hold_max, explore)")),
             }
         }
-        if !(self.draft >= 0.0 && (0.0..1.0).contains(&self.g) && self.n0 > 0.0 && (0.0..=1.0).contains(&self.a0) && self.hold0 >= 1)
+        if !(self.draft >= 0.0 && (0.0..1.0).contains(&self.g) && self.n0 > 0.0 && (0.0..=1.0).contains(&self.a0) && self.hold0 >= 1 && self.probe >= 1)
             || self.rows.iter().any(|r| !(*r >= 0.0))
         {
-            return Err(format!("out of range: {self:?} (d >= 0, r >= 0, 0 <= g < 1, n0 > 0, 0 <= a0 <= 1, hold >= 1)"));
+            return Err(format!("out of range: {self:?} (d >= 0, r >= 0, 0 <= g < 1, n0 > 0, 0 <= a0 <= 1, hold >= 1, probe >= 1)"));
         }
         self.hold_max = self.hold_max.max(self.hold0);
         Ok(self)
@@ -104,13 +111,15 @@ impl AdaptParams {
     pub fn describe(&self) -> String {
         let r: Vec<String> = self.rows.iter().map(|r| format!("{r}")).collect();
         format!(
-            "d={},r={},g={},n0={},a0={},margin={},hold={},hold_max={},explore={}",
+            "d={},r={},g={},n0={},a0={},margin={},drop={},probe={},hold={},hold_max={},explore={}",
             self.draft,
             r.join("/"),
             self.g,
             self.n0,
             self.a0,
             self.margin,
+            self.drop,
+            self.probe,
             self.hold0,
             self.hold_max,
             self.explore
@@ -189,8 +198,8 @@ enum Phase {
     Draft,
     /// Plain steps without a draft call, this many left before the probe.
     Plain { left: u32 },
-    /// The next draft call is a probe at the full cap.
-    Probe,
+    /// Probing at the full cap: this many probe calls left (the last one decides).
+    Probe { left: u32 },
 }
 
 /// One request's policy state ([`AdaptParams`]).
@@ -211,7 +220,7 @@ pub struct AdaptK {
 pub enum AdaptEvent {
     /// Drafting stopped: the best cap `k` predicts `rate` (tokens per plain-step time); `hold` plain steps follow.
     Stop { k: usize, rate: f64, hold: u32 },
-    /// A probe call did not resume drafting: `hold` plain steps follow.
+    /// A probe did not resume drafting: `hold` plain steps follow.
     Hold { k: usize, rate: f64, hold: u32 },
     /// Drafting resumed after a probe.
     Resume { k: usize, rate: f64 },
@@ -267,10 +276,10 @@ impl AdaptK {
                 0
             }
             Phase::Plain { .. } => {
-                self.phase = Phase::Probe;
+                self.phase = Phase::Probe { left: self.p.probe };
                 k
             }
-            Phase::Probe => k,
+            Phase::Probe { .. } => k,
             Phase::Draft => {
                 if self.p.explore > 0 && (self.calls + 1) % self.p.explore == 0 {
                     k
@@ -292,19 +301,22 @@ impl AdaptK {
             self.s[i] = g * self.s[i] + f64::from(u8::from(accepted > i));
         }
         let (k, rate) = self.best();
-        let ok = rate >= 1.0 + self.p.margin;
-        match (self.phase, ok) {
-            (Phase::Draft, true) => None,
-            (_, true) => {
+        match self.phase {
+            Phase::Draft if rate < 1.0 - self.p.drop => {
+                self.phase = Phase::Plain { left: self.hold };
+                Some(AdaptEvent::Stop { k, rate, hold: self.hold })
+            }
+            Phase::Draft | Phase::Plain { .. } => None,
+            Phase::Probe { left } if left > 1 => {
+                self.phase = Phase::Probe { left: left - 1 };
+                None
+            }
+            Phase::Probe { .. } if rate >= 1.0 + self.p.margin => {
                 self.phase = Phase::Draft;
                 self.hold = self.p.hold0;
                 Some(AdaptEvent::Resume { k, rate })
             }
-            (Phase::Draft, false) => {
-                self.phase = Phase::Plain { left: self.hold };
-                Some(AdaptEvent::Stop { k, rate, hold: self.hold })
-            }
-            (_, false) => {
+            Phase::Probe { .. } => {
                 self.hold = self.hold.saturating_mul(2).min(self.p.hold_max);
                 self.phase = Phase::Plain { left: self.hold };
                 Some(AdaptEvent::Hold { k, rate, hold: self.hold })
@@ -482,7 +494,7 @@ mod tests {
 
     #[test]
     fn empty_calls_stop_drafting_then_probe_with_a_doubling_hold() {
-        let mut a = AdaptK::new(p(), 5);
+        let mut a = AdaptK::new(AdaptParams { probe: 1, ..p() }, 5);
         let mut calls = 0;
         while a.drafting() {
             let k = a.next(5);
@@ -530,9 +542,34 @@ mod tests {
     }
 
     #[test]
+    fn a_probe_of_two_calls_decides_on_its_last_call_and_drop_holds_drafting() {
+        let mut a = AdaptK::new(AdaptParams { probe: 2, hold0: 3, ..p() }, 5);
+        while a.drafting() {
+            let k = a.next(5);
+            a.record(k, 0, 0);
+        }
+        for _ in 0..3 {
+            assert_eq!(a.next(5), 0);
+        }
+        assert_eq!(a.next(5), 5);
+        assert_eq!(a.record(5, 0, 0), None, "the first probe call does not decide");
+        assert_eq!(a.next(5), 5);
+        assert!(matches!(a.record(5, 0, 0), Some(AdaptEvent::Hold { hold: 6, .. })));
+        // drop: a rate between 1 - drop and 1 keeps drafting
+        let mut b = AdaptK::new(AdaptParams { drop: 0.5, ..p() }, 5);
+        for _ in 0..20 {
+            let k = b.next(5);
+            b.record(k, 1, 0);
+        }
+        let (_, rate) = b.best();
+        assert!(rate < 1.0 && rate > 0.5, "{rate}");
+        assert!(b.drafting());
+    }
+
+    #[test]
     fn costly_rows_that_are_rarely_accepted_lower_the_cap() {
         // every call proposes 5 drafts, only the first is often accepted; rows cost a lot: the best cap is 1
-        let x = AdaptParams { draft: 0.05, rows: vec![0.1, 0.6, 1.1, 1.6, 2.1], explore: 0, ..p() };
+        let x = AdaptParams { draft: 0.05, rows: vec![0.1, 0.6, 1.1, 1.6, 2.1], explore: 0, probe: 1, ..p() };
         let mut a = AdaptK::new(x, 5);
         for i in 0..40 {
             let k = a.next(5);
