@@ -34,6 +34,11 @@ default-on. Status: @@STATUS@@
    change, CI), then microbench, accuracy, checks (command + result), radiance down per window, fleetq ids, PR link + head, a LOG.md
    row (add-only), the unanimis id, leftovers.
 
+3. 2026-11-26 ~20:10 EST (coordinator): #540 is merged as `a4c8f3b19`, which is main's tip now; it also has #538 (packed prefill
+   default-on with `--max-batch`). (1) Merge `origin/main` into `ink/hip-i8` so this PR's diff becomes int8-only. (2) Tell the
+   coordinator in the next report whether the Mac worktree `.worktrees/ink-q8`, the remote branch `ink/q8-study` and its `target/` folder
+   can be removed now, or whether scripts or data from them are still used; the coordinator touches none of them until answered.
+
 ## Format and contract
 
 Int8 weight `q [N, K]` (levels -127..=127) with one f32 scale per output row (`scales [N, 1]`), W8A16: `out[m, n] = rA(scale[n] *
