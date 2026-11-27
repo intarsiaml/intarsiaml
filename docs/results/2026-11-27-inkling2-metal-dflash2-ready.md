@@ -72,6 +72,16 @@ Metal budget: <= 25 min of exclusive slots in all, each <= 15 min, none after 07
   (today's default draft). PASS iff the 40 lines of X and Y are identical (both take plain steps for sampled requests, so a difference would be a
   side effect of the DFlash2 draft's presence). The reference is the DSpark-loaded engine, not `--spec off`; 2b covers `--spec off`.
 
+**Check 5 (coordinator message 04:27, rule written 04:35 EST before slot F): `serve` with the draft, and KV prefix reuse across turns.**
+Two servers, same binary `br1`, same settings, `--max-batch 1`, default `--max-seq`: `dfl5` = `--spec dflash --spec-draft <drafter> --spec-k 5` (the
+brief's `--spec dflash --spec-k 5`; the drafter path is needed for DFlash2) and `off` = `--spec off`. On each: (a) 2 chats of 3 turns through
+`/v1/chat/completions` (greedy, 128 tokens per turn, the assistant `content` of a turn is sent back as the next turn's assistant message, `return_token_ids`),
+and (b) 2 chats of 3 turns through `/v1/completions` with token-id prompts where turn k+1 = turn k's prompt ids + its generated ids + a fixed user-block of
+ids (an exact extension, `--ignore-eos`, so the reuse is as long as possible). PASS iff every turn's generated ids (12 turns per server: 6 chat-mode, 6 id-mode) are identical between the `dfl5` and `off` servers. Reuse evidence: `usage.prompt_tokens_details.cached_tokens` per turn; the check is
+conclusive only if turns 2 and 3 of the id-mode chats report `cached_tokens` > 0 on both servers (else INCONCLUSIVE, not PASS). Server start time: seconds
+from launch to the first answered `/v1/models` request, each start logged; each config is started twice (cold, then warm) to show whether a second start of
+the same binary pays the kernel admission again. Slot <= 15 min, started before 06:45, lane total <= 40 min of exclusive Metal.
+
 ## Deviations from the pre-registered rules (all forced by `serve` start-up cost; none relaxes a pass condition)
 
 - **`serve` admits kernels at every start (`for_serving`, `require_admitted`), and a new binary / plan starts cold.** Slot A's first `serve` arm
@@ -244,7 +254,15 @@ No drafter link or other folder was created; nothing outside this worktree was c
 
 ## Coordinator messages received
 
-(none received during the run)
+- **Coordinator, 2026-11-27 04:27 EST** (verbatim): "Your report is accepted. Write this message into the doc first. One addition closes the gap you ranked first.
+  Put the results on the same branch, so PR #549 updates, and keep it docs only. CHECK 5: serve with the draft, and KV prefix reuse across turns. Start
+  `intarsia serve` with `--spec dflash --spec-k 5`, then a second server with `--spec off`. Both run `--max-batch 1` with the same binary and settings. On each
+  server, run 2 multi-turn chats of 3 turns each (turn 2 and 3 reuse the earlier turns' KV prefix), greedy, 128 tokens per turn. Rule, written into the doc
+  before the slot: every turn's ids are identical between the two servers. Also log the prefix-reuse hit counts, to show reuse actually happened on both.
+  Use one exclusive slot of <= 15 min, starting before 06:45 EST. Total Metal for the lane goes up to <= 40 min. Also measure the serve start time on each
+  start you make. Your report said the cold kernel check runs at 'every start'. Say whether a second start of the same binary pays it again, or only the
+  first start. Give the seconds for each start. When it's done, push to the same branch, update the PR #549 body, and do NOT merge. Final report: <= 8 lines,
+  giving the check 5 result, the start times, the new head and Metal minutes."
 
 ## Log
 
