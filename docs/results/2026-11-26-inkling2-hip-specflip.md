@@ -660,3 +660,36 @@ Radiance: 39:25 + WA4 1:15 = **40:40** of the raised 47:00 ceiling.
 
 (Lane, 02:09 EST: #542 still OPEN at head edd4812e1, no merge commit; origin/main aa7beaa73.)
 
+### Pre-registration: main7 check (written 02:13 EST, before queuing anything; main7 = origin/main once #542 shows a merge commit)
+
+Binaries: `main7` = the hip CLI of exactly that origin/main commit (`raw/prep_m7.sh`: `git archive` of the sha, synced to tatooine,
+built in the lane volume) + its seed harness exe; `specA2` = PR A head `136b4dc16` (md5 `8e927dd5`, already on tatooine). Two windows,
+each stage <= 285 s, <= 10 min of radiance in all, none starting after 06:00.
+
+**M1, bitwise + serve (`raw/stage_m7a.sh`; nothing timed):** card 0: `serve` main7 solo with no spec flags (the default), started first
+and alone, up to 240 s for its cold admission, then its 16 replies one at a time (`serve_bitwise.py solo`, SB_FIT=1). Card 1 meanwhile:
+1. greedy md5.json, 256 tokens, `--ignore-eos`: the default and `--spec off` must both give `380af8a5` (the ids lines' md5, as in every
+   earlier gate) and equal each other;
+2. the default at 64 tokens: its ids = the first 64 of `--spec off`'s, both prompts;
+3. 100 seeds at T 1.0 (24 tokens), main7's seed harness on GA2's path (`--spec dflash` with the checkpoint's DSpark draft, k5; WA1b showed
+   this path and the CLI default path give the same counts, 265 / 408 / 123): `INTARSIA_SPEC_SAMPLED_DFLASH=0` vs unset (the recipe's
+   sampled default): 100 / 100 identical, the default arm drafting (verify passes > 0);
+4. once solo answers and 1-3 are done: `serve --max-batch 16` main7 (cold admission), its 16 replies at once: **b16 = solo, 16 / 16**.
+   Also logged: the solo and b16 `loaded` lines (default contexts) and admission lines.
+
+**M2, speed (`raw/stage_m7b.sh`):** both cards at once, each its own ABBA of main7 (A) vs specA2 (B), fresh processes, greedy, 256
+tokens, EOS honoured. Card 0 reps r1 r2, card 1 r3 r4: **n = 4 rep pairs per mode** (pairs within a card).
+- default-spec decode (no spec flags; DSpark k5), `speed-m7d.json`: cells short (3 prompts: story, code, chat_multiturn_rnone), 1k, 4k,
+  16k: `speed.py logs/m7-def specA2 "short=1-3,1k=4,4k=5,16k=6"`;
+- plain decode (`--spec off`), `speed-m7p.json`: cells short, 4k, 16k: `speed.py logs/m7-off specA2 "short=1-3,4k=4,16k=5"`;
+- prefill 4k / 16k: `prefill_m7.py logs/m7-def main7 specA2 len4k len16k` (the default path), plus the plain runs' prefill (information);
+- ratio main7 / specA2: per (prompt, rep), geometric mean per cell, 95 % t-interval over the 4 rep pairs (t = 3.182). Absolute main7 tok/s
+  reported per cell (median over its processes).
+- Deviation (fit): 3 short prompts instead of 12 and no prose / chat / code cells, so both modes get n = 4 in one <= 5 min window.
+
+**Pass rule (the coordinator's):** every bitwise check in M1 equal, and no default-path cell (the four default-spec decode cells and the
+two default-path prefill cells) with a 95 % CI upper bound below 0.99. A miss: STOP, report to the coordinator (decision on reverting
+#542). The plain-decode cells are reported with the same CI; any with an upper bound below 0.99 is called out in the report.
+Order: M1 first; a bitwise difference stops before M2. If M1 voids (e.g. b16 not up in time), M2 still runs and the void part is reported
+unverified (no third window).
+
