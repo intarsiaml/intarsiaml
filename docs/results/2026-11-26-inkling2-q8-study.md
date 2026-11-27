@@ -28,6 +28,35 @@ large (see the noise controls); the ranking rests on the error size, not on one-
    only if an arm passes G2 and G3 (not merged), final message with the arms table, the verdict and what a GPU kernel for the
    winner needs on HIP and Metal.
 
+2. 2026-11-26 ~19:45 EST (coordinator), after the PR: **Part 1, get #540 ready to merge.** The branch merged main at `80719483a`; main is
+   `85e14bbcb`, seven merges later, one is P12 (#533), which edits the same `model.rs` / `inkling2.rs` (`decide_load`, `pack12`,
+   `drop_p12_for_batch`, `LoadOptions`) and loads P12 by default on HIP. (1) Merge current origin/main (merge, not rebase). (2) Rerun
+   on endor through fleetq: the 8 head tests, the `inkling2` tiny suite, `intarsia-cli --test docs_env_vars` (an intarsia-cli target),
+   `intarsia-models --test recipes_doc`, and the C-short tensor-identity check against the earlier C run. (3) Confirm by test or code
+   path (file:line) that `fp8_row` / `int8_row` are still refused on any non-cpu backend now that P12 loads by default on HIP, and say
+   what happens when the env hook and `INTARSIA_INK_PACK12` both apply to the same tensor. (4) Push through fleetq, tell the coordinator the head.
+   **Part 2, brief 2: HIP int8 per-row (arm C) decode kernel, opt-in**, stacked on `ink/q8-study` as branch `ink/hip-i8`, worktree
+   `/opt/code/intarsiaml/.worktrees/ink-hip-i8`, tatooine folder `~/intarsiaml-ink-hip-i8`, docker volume
+   `intarsia-cargo-target-ink-hip-i8`; follow `.worktrees/hip-swarm/COMMON-1126.md` (windows, `HIP_VISIBLE_DEVICES=0` on `--host
+   tatooine-r9700`, radiance handling, trap + kill the process tree in window scripts, `env VAR=x cmd` in sh). Goal: opt-in int8-per-row
+   weights on HIP for the in-projection, `wo` and the unembed; replaces P12 on those tensors when enabled; lossy, never default-on, no
+   default changes. Placement: new files only following P12 (`kernels/hip/ink_i8.hip`, `crates/intarsia-backend-hip/src/inki8.rs`),
+   shared files add-only; keep off `kernels/hip/ink_mix.hip`, `ink_attn.hip`, `ink_route_fused.hip` and the serve scheduler (lane
+   ink-hip-bpf) and spec routing / `dflash*.rs` (lane ink-dflash2). Order: (1) cpu-side, no GPU: the kernel, the `MatmulI8` /
+   `InkInProj` per-row-scale contract, admission cases at the real shapes rows 1, 4, 16, 2048, the re-derived exact-unembed-screen
+   per-row bound for int8 (if hard, document: run without the screen under int8, or a looser bound). (2) First GPU window: kernel-only
+   microbench, <= 3 min radiance down, int8 GEMV vs P12 GEMV at the real shapes rows 1, 2, 4, 8, 16; **stop rule: if int8 is not at
+   least 10 % faster than P12 per call at rows 1 and 4, stop and report** (decode step about 13 ms against an 8.7 ms byte floor). (3) If
+   it continues: end-to-end greedy decode `--spec off` and spec default, short / 1k / 4k / 16k, int8 vs main (P12), ABBA 4 + 4 with a 95 %
+   CI of the ratio; prefill 4k / 16k must not get slower; an accuracy gate. **Accuracy gate (pre-registered):** the cpu G2 verdict does
+   not carry over (HIP's accepted G2 short is already 4.49e-3, over 4e-3, since the flash-prefill flip); gate on KL of HIP int8 against
+   HIP main on the G2 / G3 sets, short / long / 4k and confident-row misses, and the G3 absolute bounds (1.05e-2 / 1.65e-2 / 1.4e-2).
+   Pass = KL against main at or under the cpu C-vs-bf16 numbers (4.1e-3 / 4.6e-3 / 5.3e-3) plus 20 %, and G3 passes. Budget: radiance 20
+   min total, windows <= 5 min; two other lanes queue for tatooine windows, so do all cpu-side work before queueing a window; Metal out
+   of scope. Report: lead with the speed table (prefill 4k / 16k, decode short / 4k / 16k, plain and spec, main (P12) vs int8, %
+   change, CI), then microbench, accuracy, checks (command + result), radiance down per window, fleetq ids, PR link + head, a LOG.md
+   row (add-only), the unanimis id, leftovers.
+
 ## What was built
 
 | Piece | Where | Notes |
