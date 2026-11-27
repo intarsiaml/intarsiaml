@@ -1,0 +1,18 @@
+
+
+<think>
+Here's a thinking process:
+
+1.  **Understand User Request:**
+   - **Input:** A detailed architecture plan document for "IntarsiaML" (v0.2, dated 2026-10-12, with a status update note from 2026-10-25).
+   - **Task:** Summarize the document section by section, then list its open questions.
+   - **Constraints:** The summary should be concise but capture the essence of each section. The open questions should be derived from the document's content, particularly from the "planned", "partial", and "anti-goals" sections, as well as explicit gaps or future work mentioned.
+
+2.  **Analyze the Document Structure:**
+   The document has the following main sections:
+   - Header/Status Note (v0.2, Fable review, status markers)
+   - 0. Goals, honest targets, anti-goals
+   - 1. Language and build
+   - 2. System overview (mermaid diagram + description)
+   - 3. Kernel system (registry, ABI, packs, exactness, autotuner)
+

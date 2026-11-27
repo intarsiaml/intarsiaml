@@ -194,6 +194,23 @@ the branch are doc / script only.
 - One cell to watch: filler 1-stream TTFT p50 (n = 1 request per visit) B 0.455 s vs A 0.391 s (S1-S3: 0.389-0.418 both arms);
   B ran first in this window.
 
+### S7: regate rep 2, order AB (fleetq #12494; radiance down 00:20:09 - 00:23:29 = 3:20)
+
+`raw/window_r.sh 7` (BGCAP 175), raw `raw/s7/`, card 1 `raw/s7/card1/`.
+- A (main6) up after 18 s and B (o6 `=1`) after 17 s, both from cached admission; B: decode lane at -1, 210 overlap steps, no
+  "unavailable"; both KV 73728. Every cell exit 0. **B = A replies 4/4, 8/8, 16/16.**
+- Client path: **0 gaps under 5 ms, 0 late pairs** in all six real levels.
+- Server histogram p99 bucket, A -> B: real 4 (250, 500] ms -> (150, 250] ms; real 8 (0.5, 1] s -> (150, 250] ms; real 16 (0.5, 1] s
+  -> (150, 250] ms. Server p90: real 8 (35, 50] -> (100, 150] ms; real 16 (50, 75] -> (150, 250] ms.
+- Per-window B / A: ITL p99 0.404 / 0.309 / 0.333 (4 / 8 / 16); ITL p90 0.805 / **3.320** / 1.377; TTFT max 1.063 / 1.086 / 1.193;
+  aggregate 1.008 / 0.994 / 0.996.
+- **Card 1, the Qwen-on-HIP no-op (part 1)**, Qwen3.6-35B-A3B-NVFP4 in container `ink-hip-bpf-run2` (intarsiaml's own), `generate
+  --spec off --ignore-eos`, 256 tokens: **short df397a9b4285a03b77538ba05567f854 and 4k a368b17d386c2b3aa12d5659d90333ec for all four
+  of main6 unset, o6 unset, o6 `=1`, main6 `=1`** (the values lane ink-hip-dec3's window 6 recorded for main on 11-26); decode
+  167.2-168.1 tok/s short, 161.6-161.8 4k, 256 graph replays / 1 capture / 0 eager in every run. o6's solo server (`--max-seq 8192
+  --mem-budget 29`, first start: 31 kernels, 380 cases run) answered the 16 prompts one at a time; o6 `--max-batch 4` with
+  `INTARSIA_OVERLAP` unset (40 kernels, 46 run / 380 cached): **4 waves x 4/4 equal to the solo replies**, 0 overlap steps.
+
 ## Result (2026-11-26 ~21:45): overlap works and is bitwise, but gate 4 fails at 8 streams, so it ships opt-in
 
 Speed, gate 4's paired windows S1 (AB), S2 (BA), S3 (AB): A = main5 (main a4c8f3b19, #538 packing on), B = o4 (overlap on, pace
