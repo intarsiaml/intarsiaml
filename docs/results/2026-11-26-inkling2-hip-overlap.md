@@ -82,6 +82,43 @@ all three windows. **Test.** Run the real prompts with the client on tatooine (t
 do) for both arms: the gaps under 5 ms must drop to 0 and the 8-stream B tail must match the server histogram. Recorded before
 any GPU run: 2026-11-26 23:46 EST. No engine instrumentation is needed: the server histogram plus the client's gaps decide it.
 
+The endor path has one more hop: the Mac reaches the server through `fwd.py` on tatooine (a one-thread asyncio TCP relay,
+tatooine:18132 -> the container's 8132), started by `serve_ctl.sh`. The card-1 clients connect to the container's address directly.
+So "client path" here means endor's Python client + Wi-Fi + Tailscale + `fwd.py`; the test below bypasses all four.
+
+What the client path does **not** explain (engine costs, from the server histogram and section 3): at 4 streams B has 32-44 of
+~480 gaps in the (75, 250] ms buckets per window and A 0-3 (A instead has 7 chunk waits in (0.25, 1] s); a step beside a chunk is
+110-150 ms, so B's 4-stream ITL p99 (0.16-0.18 s) is above A's (0.11 s) when A's few chunk waits stay under the 1 % line. ITL p90
+1.3-2.1x and TTFT max 1.07-1.21x come from the same mechanism (decode steps share the GPU with the chunk). Only S3's 8-stream
+outliers come from the client path.
+
+Bound from the existing data (not the gate): at 8 and 16 streams, in all three windows, the server's B p99 sits in the
+(0.15, 0.25] s bucket and A's in (0.5, 1] s, so the server-side per-window ratio is at most 0.25 / 0.5 = 0.5.
+
+### Gate 4 amendment (2026-11-26 23:55 EST, written before any regate window)
+
+Gate 4 as pre-registered (endor client, S1-S3, o4 vs main5): **FAIL** at 8 streams; that verdict stands as recorded. The regate
+changes one thing, where the real-prompt client runs: `serve_bitwise.py` on tatooine's host against card 0's container address
+(`http://<ip>:8132/v1`), not on endor through `fwd.py`. Unchanged: the thresholds (a)-(c), the shapes (real 4 / 8 / 16, nonce per
+window, `REAL_OFF` = window index 0 / 1 / 2 as S1-S3; filler 1k x 1 / 4 / 8 / 16 by localeval from endor), card 0, `serve
+--max-batch 16 --max-seq 4608 --kv-fraction 0.9`, order AB / BA / AB, n = 3, mean and 95 % t interval of B / A per window.
+- A = main6 (origin/main 1bf40e29f); B = o6 (the merged head 408e902b9 or its doc-only descendants) with `INTARSIA_OVERLAP=1` (the PR's
+  default is off; `=1` is the measured config: pace 150 ms, the decode lane at priority -1). A B visit with no env would be A again.
+- Valid B visit: its log has "prefill/decode overlap: on" and "stream 1 (decode lane) at priority -1", and
+  `intarsia_batch_overlap_steps_total` > 0 at its end. Otherwise the window is void.
+- Kill rule for the step-1 hypothesis: if the tatooine-client B at 8 streams still shows a late pair or any gap under 5 ms, the
+  hypothesis is dead; then stop (no further speed windows) and report.
+- Reported side by side: ITL p90 and TTFT max (not gated), and the server-histogram p99 bucket per level.
+
+Radiance plan (15 min total, each window <= 5 min, none after 06:00, behind ink-hip-specflip's queued windows):
+- W0 (~4 min, checks + admission priming): card 0 o6 `=1` batched (primes o6) then the Inkling bitwise set (real 4 x 4/4, 2 x 8/8,
+  16/16 vs W4's solo replies; o6 unset 8/8 and 16/16); card 1 main6 batched (primes main6) 16/16, then o6 poisoned `=1` 16/16 and
+  4 x 4/4.
+- S6 (AB), S7 (BA), S8 (AB), ~3:10 each: card 0 the speed visits; card 1 in turn: Inkling greedy md5 o6 vs main6 (spec off and
+  the DSpark default, short / 4k, 64 / 256) and G2; the 35B no-op (Qwen3.6-35B-A3B-NVFP4, `generate --spec off` 256 tokens short /
+  4k: main6 and o6 each with `INTARSIA_OVERLAP` unset and `=1`; serve `--max-batch 4` at 4 streams vs the solo server, o6 unset /
+  `=1`, main6 `=1`); hip tiny `inkling2_batch` / `inkling2_packed` / `inkling2` on the o6 tree, the solo server if time is left.
+
 ## Result (2026-11-26 ~21:45): overlap works and is bitwise, but gate 4 fails at 8 streams, so it ships opt-in
 
 Speed, gate 4's paired windows S1 (AB), S2 (BA), S3 (AB): A = main5 (main a4c8f3b19, #538 packing on), B = o4 (overlap on, pace
