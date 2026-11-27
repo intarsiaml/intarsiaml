@@ -308,8 +308,8 @@ body differs by the slot index). `ik_runtime.hip` is host code only (3 identical
 - **Not verified**: gate 4 (no paired speed rep of o4 vs main5 yet: O3's single runs only); the poisoned run on o4 (o2's predates
   side_staging and the decode-lane hook); md5 of o4 `--spec off` and main5 DSpark; G2 short / long; the solo server on o4.
 - **Radiance for brief 3**: O1 4:04, O2 3:32, O3 4:17, O4 4:02 = 15:55, plus S1 (#12331), which fleetq started at 20:38:20 just
-  before the park; released at ~20:39, its tatooine window.sh (trap) restored radiance (active at 20:42:08). S1 data are partial
-  (A visit started only) and are not used. Left: about 10 min.
+  before the park; released at ~20:39, its tatooine window.sh (trap) restored radiance (active at 20:42:08). The Mac driver kept running to the
+  window's cap: both S1 visits (A, B) finished their real and filler runs (localeval #12337, #12338); not yet checked or summarised. Left: about 10 min.
 - **Logs**: Mac `docs/results/2026-11-26-inkling2-hip-overlap/raw/{o1,o2,o3,o4,s1}/`, `*-fleetq.log`, `isa-check.log`; tatooine
   `~/intarsiaml-ink-hip-bpf/logs/{o1,o2,o3,o4,s1,isa,serve}/`.
 - **Next step**: window S1 as specified (`raw/visits-s1.txt`, `raw/stage_s1bg.sh`; then S2 = BA with `stage_s2bg.sh`, S3 = AB with
