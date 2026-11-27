@@ -1,0 +1,74 @@
+
+running 1 test
+prefill chunk 2048 (recipe inkling2, hip)
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.3 s)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.4 s
+loaded in 4.9 s, INTARSIA_SPEC_SAMPLED_DFLASH=None, draft None
+free_mem before 11400 MiB
+request 0 T 0 seed 0: wall 381.8 ms, ttft 88.1 ms, free 11340 MiB
+request 1 T 1 seed 0: wall 377.7 ms, ttft 52.3 ms, free 11338 MiB
+request 2 T 0 seed 1: wall 342.3 ms, ttft 51.2 ms, free 11338 MiB
+request 3 T 1 seed 1: wall 371.2 ms, ttft 51.6 ms, free 11338 MiB
+request 4 T 0 seed 2: wall 340.6 ms, ttft 50.8 ms, free 11338 MiB
+request 5 T 1 seed 2: wall 369.0 ms, ttft 51.4 ms, free 11338 MiB
+request 6 T 0 seed 3: wall 339.2 ms, ttft 50.4 ms, free 11338 MiB
+request 7 T 1 seed 3: wall 367.4 ms, ttft 51.4 ms, free 11338 MiB
+request 8 T 0 seed 4: wall 338.9 ms, ttft 50.4 ms, free 11338 MiB
+request 9 T 1 seed 4: wall 364.7 ms, ttft 51.4 ms, free 11338 MiB
+request 10 T 0 seed 5: wall 338.9 ms, ttft 50.3 ms, free 11338 MiB
+request 11 T 1 seed 5: wall 365.5 ms, ttft 51.3 ms, free 11338 MiB
+request 12 T 0 seed 6: wall 339.3 ms, ttft 50.8 ms, free 11338 MiB
+request 13 T 1 seed 6: wall 368.5 ms, ttft 51.4 ms, free 11338 MiB
+request 14 T 0 seed 7: wall 339.4 ms, ttft 50.8 ms, free 11338 MiB
+request 15 T 1 seed 7: wall 370.9 ms, ttft 51.4 ms, free 11338 MiB
+request 16 T 0 seed 8: wall 339.2 ms, ttft 50.6 ms, free 11338 MiB
+request 17 T 1 seed 8: wall 370.1 ms, ttft 51.5 ms, free 11338 MiB
+request 18 T 0 seed 9: wall 339.3 ms, ttft 50.6 ms, free 11338 MiB
+request 19 T 1 seed 9: wall 368.1 ms, ttft 51.4 ms, free 11338 MiB
+request 20 T 0 seed 10: wall 339.2 ms, ttft 50.6 ms, free 11338 MiB
+request 21 T 1 seed 10: wall 371.6 ms, ttft 51.3 ms, free 11338 MiB
+request 22 T 0 seed 11: wall 339.5 ms, ttft 50.8 ms, free 11338 MiB
+request 23 T 1 seed 11: wall 369.4 ms, ttft 51.2 ms, free 11338 MiB
+request 24 T 0 seed 12: wall 339.3 ms, ttft 50.6 ms, free 11338 MiB
+request 25 T 1 seed 12: wall 371.7 ms, ttft 51.5 ms, free 11338 MiB
+request 26 T 0 seed 13: wall 339.4 ms, ttft 50.7 ms, free 11338 MiB
+request 27 T 1 seed 13: wall 367.9 ms, ttft 51.4 ms, free 11338 MiB
+request 28 T 0 seed 14: wall 339.4 ms, ttft 50.7 ms, free 11338 MiB
+request 29 T 1 seed 14: wall 370.9 ms, ttft 51.3 ms, free 11338 MiB
+request 30 T 0 seed 15: wall 339.4 ms, ttft 50.8 ms, free 11338 MiB
+request 31 T 1 seed 15: wall 369.4 ms, ttft 51.4 ms, free 11338 MiB
+request 32 T 0 seed 16: wall 339.4 ms, ttft 50.7 ms, free 11338 MiB
+request 33 T 1 seed 16: wall 368.1 ms, ttft 51.4 ms, free 11338 MiB
+request 34 T 0 seed 17: wall 339.7 ms, ttft 50.8 ms, free 11338 MiB
+request 35 T 1 seed 17: wall 367.6 ms, ttft 51.6 ms, free 11338 MiB
+request 36 T 0 seed 18: wall 339.6 ms, ttft 50.7 ms, free 11338 MiB
+request 37 T 1 seed 18: wall 371.1 ms, ttft 51.4 ms, free 11338 MiB
+request 38 T 0 seed 19: wall 339.6 ms, ttft 50.8 ms, free 11338 MiB
+request 39 T 1 seed 19: wall 373.8 ms, ttft 51.8 ms, free 11338 MiB
+request 40 T 0 seed 20: wall 339.7 ms, ttft 51.0 ms, free 11338 MiB
+request 41 T 1 seed 20: wall 370.8 ms, ttft 51.7 ms, free 11338 MiB
+request 42 T 0 seed 21: wall 339.5 ms, ttft 50.7 ms, free 11338 MiB
+request 43 T 1 seed 21: wall 368.1 ms, ttft 51.8 ms, free 11338 MiB
+request 44 T 0 seed 22: wall 339.4 ms, ttft 50.6 ms, free 11338 MiB
+request 45 T 1 seed 22: wall 368.7 ms, ttft 51.6 ms, free 11338 MiB
+request 46 T 0 seed 23: wall 339.6 ms, ttft 50.8 ms, free 11338 MiB
+request 47 T 1 seed 23: wall 367.7 ms, ttft 51.3 ms, free 11338 MiB
+request 48 T 0 seed 24: wall 339.6 ms, ttft 50.8 ms, free 11338 MiB
+request 49 T 1 seed 24: wall 365.9 ms, ttft 51.7 ms, free 11338 MiB
+request 50 T 0 seed 25: wall 339.4 ms, ttft 50.5 ms, free 11338 MiB
+request 51 T 1 seed 25: wall 365.8 ms, ttft 51.6 ms, free 11338 MiB
+request 52 T 0 seed 26: wall 339.9 ms, ttft 51.0 ms, free 11338 MiB
+request 53 T 1 seed 26: wall 370.9 ms, ttft 51.8 ms, free 11338 MiB
+request 54 T 0 seed 27: wall 340.0 ms, ttft 51.0 ms, free 11338 MiB
+request 55 T 1 seed 27: wall 371.3 ms, ttft 51.6 ms, free 11338 MiB
+request 56 T 0 seed 28: wall 339.7 ms, ttft 50.8 ms, free 11338 MiB
+request 57 T 1 seed 28: wall 368.9 ms, ttft 51.3 ms, free 11338 MiB
+request 58 T 0 seed 29: wall 339.8 ms, ttft 50.8 ms, free 11338 MiB
+request 59 T 1 seed 29: wall 375.4 ms, ttft 52.0 ms, free 11338 MiB
+free_mem after 11338 MiB (change -62 MiB)
+60 requests in 21.3 s; spec verify passes 0 proposed 0 accepted 0
+test inkling2_sampled_dspark_real_model_runs ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 26.32s
+

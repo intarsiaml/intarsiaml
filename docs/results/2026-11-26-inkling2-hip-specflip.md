@@ -1,9 +1,21 @@
 # Inkling-2-Mini HIP spec default flips (lane ink-hip-specflip)
 
-Status (2026-11-27 00:33 EST): **flip A = PR #545**: on the final head `136b4dc16` the cpu suite (#12480) and the HIP gates (GA2 md5 /
-seeds / contexts, GS2 serve 16 / 16) pass; the Metal slot is pending (endor queue). **Flip B (b)** (DFlash2 alone, sampled requests drafting with it)
-**failed its pre-registered gate** (D2). **Coordinator 00:08: build (a)** (both drafters: greedy DFlash2 k4, sampled DSpark adaptive);
-its gate is pre-registered below ("Pre-registration: the (a) gate"), before any (a) window.
+Status (2026-11-27 01:27 EST): **flip A shipped** (PR #545, merged 896198dcc at 01:11). **Flip B not shipped.** Option (b) (DFlash2
+alone, sampled requests on it) failed its gate (D2). Option (a) (both drafters: greedy DFlash2 k4, sampled DSpark adaptive; branch
+`ink/hip-specflip-b`, no PR) met greedy GO (1.113), KV (-7.77 %), ids, seeds and acceptance-count equality, but **failed the
+pre-registered free-memory checks**: WA2's 64 MiB line (-87 / -88 MiB over 12 switches) and diagnostic WA4's 16 MiB line (a 38 MiB
+drop below request 10). WA4 shows zero drift over 59 switches: a fixed two-level alternation (greedy 9395 MiB, sampled 9433 MiB), not a
+creep. Under the rule, (a) stops there. WA3 (sampled contention ABBA, b16 serve) and the (a) Metal no-op slot were not run. The user
+decides in the morning.
+
+## Speed table: option (a), dual default / DSpark k5 (greedy GO; WA1b + WA2, n = 4 + 4, card 0, dualA5 vs specA2)
+
+| Cell | short | 1k | prose | chat | 4k | 16k | geomean |
+|---|---|---|---|---|---|---|---|
+| Ratio [95 % CI] | 1.191 [1.186-1.196] | 1.142 [1.134-1.150] | 1.048 [1.044-1.052] | 1.218 [1.213-1.223] | **0.993** [0.988-0.998] | 1.101 [1.097-1.105] | **1.113** |
+
+Decode tok/s overall (19 prompts, 256 tokens): dspark 108.7-109.3, dual 125.3-125.6. GO (>= 1.03, no upper bound < 0.99): **met**.
+Dual's verify counts equal DFlash2 k4 alone exactly (1265 / 5038 / 2935 per process). `raw/a-greedy-analysis.txt`.
 
 ## Speed table: confirmation ABBA, DFlash2 k4 / DSpark k5 (windows C1 + C2, card 1, binary `main7`)
 
@@ -599,4 +611,14 @@ tokens, prompt x1: the incoming draft state starts empty, re-prefills, and the g
 - **PASS** iff drift(def) <= drift(off) + 8 MiB **and** no request 11-60 of def is more than 16 MiB below def's request-10 value.
   Otherwise **FAIL** (per-switch creep): (a) stops, everything recorded, `ink/hip-specflip-b` pushed with no PR.
 - Also required: ids def = off for all 60 (else void). The verdict is computed by the stage's own script (`[a4] VERDICT`).
+
+**WA4 (#12529, 01:24:00-01:25:15, 1:15; dualA6 = CLI `579b3042` + per-request free memory; `raw/a4-dualA6/`, `raw/window-wa4-12529.log`):**
+ids def = off for all 60 requests; def drafted (440 passes, 1473 proposed, 342 accepted). Free MiB after request 10 / 60: def 9433 / 9433
+(**drift 0**), off 11338 / 11338 (drift 0). After warm-up, def's greedy requests all sit at 9395 MiB (one at 9397) and its sampled
+requests all at 9433: two fixed levels 38 MiB apart (the active draft's state and graphs: DFlash2 larger than DSpark), with no movement
+over 59 switches. **VERDICT (pre-registered): FAIL**: drift 0 <= 0 + 8 holds, but the largest drop below request 10 is 38 MiB (> 16):
+request 10 is sampled, the high level, so every later greedy request reads as a 38 MiB drop. By the data this is a bounded alternation,
+not a per-switch creep. The rule's verdict stands: (a) stops, `ink/hip-specflip-b` pushed with no PR.
+
+Radiance: 39:25 + WA4 1:15 = **40:40** of the raised 47:00 ceiling.
 
