@@ -172,3 +172,31 @@ Q2 build the confirmation binary from main cd16cac1b now?
 >   - a missing drafter or the revert env gives a byte-identical load to main (same head count and same KV line);
 >   - a greedy turn followed by a sampled turn in one conversation keeps the ids equal to `--spec off`.
 > - The Metal no-op gate applies to PR B as well.
+
+**Lane to coordinator, ~22:55 EST (lane clock):** confirmation ABBA meets GO again; KV check 2 over 5 % (-9.9 % solo capacity with both
+drafters; default contexts unchanged): flip B stopped, (a) / (b) / (c) to the user.
+
+**Coordinator, 2026-11-26 ~23:55 EST (received ~23:13 by the lane clock; as written):**
+
+> **USER DECISION (23:55, verbatim): "Test DFlash2 sampled", option (b).** Under flip B, when the DFlash2 drafter is present, sampled requests draft with DFlash2 too. That leaves one drafter loaded, at −1.2 % capacity vs main. When DFlash2 is absent, the server behaves exactly like flip A (sampled DSpark adaptive). Option (a), two drafters, is not built now.
+>
+> **Order:**
+> 1. PR A (flip A) continues now, on its own. #543 merged as 3fb1b5f8d.
+> 2. **The sampled DFlash2 test.** Reuse #543's harness (`docs/results/2026-11-26-inkling2-sampled-adapt.md`, its `raw/` and `sim.py`).
+>    - Run DFlash2 k4 with the adaptive policy on HIP.
+>    - Calibrate the adapt table for DFlash2 from one trace window with `sim.py`. DSpark's table is likely wrong for DFlash2's acceptance.
+>    - Then take one measurement window: paired on/off (plain sampling), T 1.0 and T 0.7, prompt classes short / 1k / 4k plus `short_b`, n ≥ 3 reps.
+> 3. **Gate, pre-registered. Do not relax it:**
+>    1. Every prompt is ≥ 0.98 of plain sampling, `short_b` included, at both temperatures.
+>    2. Each class's on/off ratio is ≥ 0.98 × the DSpark-adaptive ratio from #543 on HIP:
+>       - T 1.0: short 1.172, 1k 1.042, 4k 1.466;
+>       - T 0.7: short 1.163, 1k 1.068, 4k 1.458.
+>       Without this, (b) could make sampled requests slower than flip A.
+>    3. 100 seeds at T 1.0 produce ids equal to `--spec off`.
+>    4. Greedy output is unchanged from your confirmed DFlash2 k4.
+> 4. **If the gate passes,** PR B is: DFlash2 k4 for greedy and for sampled (adaptive, with the DFlash2 table) when DFlash2 is found; otherwise DSpark as today.
+>    - Revert envs: one restores DSpark k5 for greedy, and A's switch still turns sampled drafting off.
+>    - Its gates are the ones in your brief, plus a fallback test with no drafter present.
+> 5. **If the gate fails,** go to (a), two drafters, per the plan the user saw. Before writing code, report the numbers to me in ≤ 6 lines. I will relay them and give the go.
+>
+> **Radiance:** a new 10 min for steps 2-3, on top of the 6:10 you have left, which stays reserved for the PR A / PR B gate window. That is 16:10 in all. Each window ≤ 5 min, none after 06:00. Metal stays at ≤ 15 min.
