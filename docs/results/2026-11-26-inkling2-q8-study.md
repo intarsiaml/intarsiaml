@@ -166,6 +166,17 @@ Reading:
 - **G2 short is a coin toss at the bound for e4m3, with margin for int8**: every e4m3 variant and the 2.5 % noise land at 4.1-5.6e-3 on
   the 4e-3 bound (none passes; the mean is 4.3e-3); int8 and noise below 1 % land at 1.4-3.5e-3 and pass in all twelve runs.
 
+### Interplay with P12 (coordinator brief 2, part 1)
+
+P12 loads by default on HIP now (#533); `fp8_row` / `int8_row` stay refused there, and they never meet P12 on one tensor:
+- In-projection and `wo`: `inkling2.rs` `load` sets `pack12 = p12::enabled(..) && attn_quant.is_none() && ...` (line 529), so **any** value of
+  `INTARSIA_INK_ATTN_QUANT` / the recipe key turns P12 off for these tensors (the pre-existing rule: "off with `INTARSIA_INK_ATTN_QUANT`"),
+  and `emulation_guard` (same function, line 540, before any weight is read) returns a load error for the row formats on any backend but cpu.
+- Unembed: `model.rs:1363` packs the P12 head only when `head_quant.is_none()`; the Inkling head with `INTARSIA_LMHEAD_QUANT` set goes
+  through `quant::head::load_rows`, whose first statement is `emulation_guard` (`head.rs:336`), so a row format on HIP is a load error
+  before the P12 decision matters.
+- Test: `quant::head::tests::row_study_formats_are_refused_off_the_cpu` (hip, metal, cuda refuse, cpu accepts, fp8 / mxfp4 untouched).
+
 ## Verdict
 
 **Pick int8 with one f32 scale per output row (arm C) as the 8-bit dense + unembed format.**
@@ -236,6 +247,7 @@ All on endor, `--load cpu`, `--mem 30` (4k runs 30 as well after #12149's update
 | #12149 | 4k: bf16, C, A, B (3658 / 2310 / 3183 / 2391 s) |
 | #12151 | `docs_env_vars` 2 / 2, `recipes_doc` 3 / 3, `intarsia-core` inkling2 lib tests 4 / 4 |
 | #12202 | push `ink/q8-study` |
+| #12272 | after merging origin/main `85e14bbcb` (P12 #533 included): build, head tests 9 / 9 (new: non-cpu refusal), `inkling2` tiny suite 17 / 17, `docs_env_vars` 2 / 2, `recipes_doc` 3 / 3, C short re-run tensor-identical to the first C run (24 / 24 tensors) |
 | #12263 | after merging origin/main (80719483a): build, head tests 8 / 8, `docs_env_vars` 2 / 2, `recipes_doc` 3 / 3, C short re-run tensor-identical to the pre-merge C |
 
 Raw self-goldens, logs and the scripts (`.scratch/acc.sh`, `.scratch/py/{confident,sgcmp,perprompt,summary}.py`, `.scratch/table.sh`) are

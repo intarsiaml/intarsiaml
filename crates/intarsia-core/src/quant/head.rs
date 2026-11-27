@@ -148,8 +148,13 @@ const CHUNK_ROWS: usize = 512;
 
 /// The per-row study formats exist only as host emulation (no GPU kernel): refuse them on any backend but the cpu reference.
 pub fn emulation_guard(kind: HeadQuant, backend: &dyn Backend) -> Result<()> {
-    if kind.is_row_emulated() && backend.name() != "cpu" {
-        return Err(Error::model(format!("{} is a cpu-reference accuracy study format (no {} kernel)", kind.name(), backend.name())));
+    emulation_guard_for(kind, backend.name())
+}
+
+/// [`emulation_guard`] on the backend's name (the part the tests can reach without a backend).
+pub fn emulation_guard_for(kind: HeadQuant, backend: &str) -> Result<()> {
+    if kind.is_row_emulated() && backend != "cpu" {
+        return Err(Error::model(format!("{} is a cpu-reference accuracy study format (no {backend} kernel)", kind.name())));
     }
     Ok(())
 }
@@ -418,6 +423,21 @@ mod tests {
         assert_eq!(HeadQuant::parse("INT8_ROW").unwrap(), Some(HeadQuant::Int8Row));
         assert!(HeadQuant::Fp8Row.is_row_emulated() && HeadQuant::Int8Row.is_row_emulated());
         assert!(!HeadQuant::Fp8.is_row_emulated() && !HeadQuant::Mxfp4.is_row_emulated());
+    }
+
+    #[test]
+    fn row_study_formats_are_refused_off_the_cpu() {
+        for kind in [HeadQuant::Fp8Row, HeadQuant::Int8Row, HeadQuant::Int8AmaxRow, HeadQuant::IdRow, HeadQuant::NoiseRow] {
+            assert!(emulation_guard_for(kind, "cpu").is_ok());
+            for b in ["hip", "metal", "cuda"] {
+                let e = emulation_guard_for(kind, b).unwrap_err().to_string();
+                assert!(e.contains("cpu-reference") && e.contains(b), "{e}");
+            }
+        }
+        // the real formats are not touched
+        for kind in [HeadQuant::Fp8, HeadQuant::Mxfp4] {
+            assert!(emulation_guard_for(kind, "hip").is_ok());
+        }
     }
 
     #[test]
