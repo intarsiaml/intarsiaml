@@ -749,3 +749,22 @@ chat_multiturn_rnone): its absolute tok/s is not comparable with the 12-prompt s
 **main7 verdict: PASS** (every bitwise check equal; no default-path cell with an upper bound below 0.99; the lowest upper bound is 0.999,
 and the plain cells are the same). Radiance for the main7 check: M1 4:16 + M2 4:27 = **8:43** of its 10:00 grant.
 
+
+### Part 2: (a) prep (started 02:58 EST, after Part 1 was reported at 02:57)
+
+1. **Merge done:** `origin/main` 4b629184c merged into `ink/hip-specflip-b` as `55f43e087` (a merge, no rebase). The conflict was in
+   `crates/intarsia-core/src/model/dflash.rs`, not in the test file: #546 added a Metal refusal of a quantised head copy at the head-kind
+   lookup, and this branch had moved that lookup into `dflash2_head_kind` (`let Some(kind) = dflash2_head_kind(b)? else { return Ok(None) }`).
+   Resolution: keep this branch's shape and put #546's Metal refusal inside `dflash2_head_kind`, so both callers (the greedy draft and
+   the second draft state) refuse `INTARSIA_DFLASH2_HEAD=mxfp4|fp8` on Metal. `crates/intarsia-models/tests/inkling2_dflash2.rs` merged
+   without a conflict and keeps both sides: the `#[cfg(target_os = "macos")]` Metal arm in `backend()` and #546's
+   `draft_pass_matches_host_reference`. No conflict markers left. Build and tests of the merge: item 3.
+2. **metal / cuda NotSet tests: present.** `recipe_dflash2_default_finds_the_drafter_or_falls_back` asserts `Dflash2Default::NotSet` for
+   metal, cuda and cpu both with no drafter and with the drafter beside the checkpoint (`inkling2_dflash2.rs` lines 690 and 699, commit
+   439433951). Nothing to add.
+3. Full cpu suite on endor: fleetq #12548 (queued 02:57 behind #12545, another lane's exclusive endor slot). It first builds the Metal CLIs
+   and tiny test exes of main7 (`mmain7`) and of the (a) head (`mdualC`), then runs `raw/cpu_tests_wt.sh`: core lib, scheduler, models
+   (all tests, incl. inkling2_dflash2, dflash2_cpu, mtp, the sampled tests), cli (incl. docs_env_vars), server lib.
+4. Metal no-op slot: `raw/metal_slot.sh` with `MAIN=mmain7 BR=mdualC` (exclusive, <= 20 min, 45 s idle gaps between run groups, none
+   after 07:00), after item 3.
+5. Push `ink/hip-specflip-b` (no PR) after items 3 and 4.
