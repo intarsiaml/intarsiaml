@@ -1,6 +1,7 @@
 # Lane ink-hip-overlap2 additions to stage_lib.sh (sourced after it, ON tatooine): card 1's own clients pinned away from card 0's
 # real-prompt client (BW_CPUS, default 4,5,16,17), and the Qwen3.6-35B-A3B-NVFP4 no-op helpers.
 BW_CPUS=${BW_CPUS:-4,5,16,17}
+SENV=${SENV:-}  # stage_lib.sh reads it under set -u (W0: an unset SENV stopped the first srv call)
 bw() {  # name mode...: serve_bitwise.py against the server srv started (IP), pinned to BW_CPUS
   local name=$1 m ms; shift
   for m in "$@"; do

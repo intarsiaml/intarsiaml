@@ -1,4 +1,5 @@
-# name;bin;serve args;actions -- window S8 (lane ink-hip-overlap2, gate-4 regate, order AB): A = main6 (origin/main
-# 1bf40e29f), B = o6 (merged head) with INTARSIA_OVERLAP=1; card 0; real 4 / 8 / 16 (nonce s8, client on tatooine) + the 1k filler sweep.
-A;main6;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;real:4,8,16:1:s8 && le:--sizes 1024 --gen 128 --reps 1 --concurrency 1,4,8,16@fill
+# name;bin;serve args;actions -- window S8 (lane ink-hip-overlap2, gate-4 regate, order BA; BA / AB / BA per the 00:06 go-ahead's
+# condition 1): A = main6 (origin/main 1bf40e29f), B = o6 (merged head) with INTARSIA_OVERLAP=1; card 0; real 4 / 8 / 16 (nonce s8,
+# client on tatooine) + the 1k filler sweep.
 B;o6;INTARSIA_OVERLAP=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;real:4,8,16:1:s8 && le:--sizes 1024 --gen 128 --reps 1 --concurrency 1,4,8,16@fill
+A;main6;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;real:4,8,16:1:s8 && le:--sizes 1024 --gen 128 --reps 1 --concurrency 1,4,8,16@fill

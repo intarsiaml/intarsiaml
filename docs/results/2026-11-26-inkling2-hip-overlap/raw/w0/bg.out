@@ -1,0 +1,13 @@
+/home/josef/intarsiaml-ink-hip-bpf/.scratch/stage_lib.sh: line 13: SENV: unbound variable
+grep: /home/josef/intarsiaml-ink-hip-bpf/logs/w0/w0-main6.log: No such file or directory
+[w0-main6] (main6, card 1) up after 0s (0 = not up) 2026-11-27 00:03:09: 
+[bg] W0P up: 1 2026-11-27 00:03:09
+[poison-o6] (o6, card 1) up after 18s (0 = not up) 2026-11-27 00:03:26: admission on plan shapes: 23 kernel(s) checked, 0 case(s) run, 134 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 16.4s, context 4608 tokens 
+[poison-o6] intarsia_kv_tokens_capacity 73728 VRAM card1 28496 MiB
+[poison-o6] bitwise conc exit 0 2026-11-27 00:03:42: wall 16.24 s, aggregate 126.1 tok/s, latency median 14.77 s max 16.23 s, prompt tokens 25752, cached 0, ttft median 2.6332 max 11.297905445098877, itl p50 0.0573 p99 0.2168
+[poison-o6] bitwise conc:4:0 exit 0 2026-11-27 00:03:47: wall 4.96 s, aggregate 103.2 tok/s, latency median 4.85 s max 4.96 s, prompt tokens 5241, cached 0, ttft median 1.148 max 2.1321237087249756, itl p50 0.0234 p99 0.152
+[poison-o6] bitwise conc:4:1 exit 0 2026-11-27 00:03:52: wall 5.00 s, aggregate 102.3 tok/s, latency median 4.89 s max 5.0 s, prompt tokens 5406, cached 0, ttft median 1.2658 max 2.173102855682373, itl p50 0.0236 p99 0.1784
+[poison-o6] bitwise conc:4:2 exit 0 2026-11-27 00:03:58: wall 5.48 s, aggregate 93.5 tok/s, latency median 5.33 s max 5.48 s, prompt tokens 6778, cached 0, ttft median 1.2848 max 2.6313047409057617, itl p50 0.024 p99 0.181
+[poison-o6] bitwise conc:4:3 exit 0 2026-11-27 00:04:04: wall 6.16 s, aggregate 83.1 tok/s, latency median 6.02 s max 6.16 s, prompt tokens 8327, cached 0, ttft median 1.9979 max 3.367518424987793, itl p50 0.0237 p99 0.1807
+intarsia_batch_overlap_steps_total 146
+[bg] done 2026-11-27 00:04:04

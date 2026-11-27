@@ -1,0 +1,2 @@
+wall 8.64 s, aggregate 118.5 tok/s, latency median 8.54 s max 8.63 s, prompt tokens 12019, cached 0, ttft median 1.9372 max 4.510856628417969, itl p50 0.0335 p99 0.5843
+conc:8:0: 8 replies, 1024 tokens -> rc-w0-W0U-bitwise-conc_8_0.json

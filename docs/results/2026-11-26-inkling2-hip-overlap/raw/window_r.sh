@@ -12,4 +12,4 @@ ssh -o BatchMode=yes tatooine 'test -x ~/intarsiaml-ink-hip-bpf/.scratch/bin/int
 if [ "$N" = w0 ]; then
   exec env VISITS=$R/visits-w0.txt OUT=$R/w0 CAP=255 REAL_REMOTE=$CPUS BG=stage_w0bg.sh BG_CAP=240 bash "$R/serve_window.sh"
 fi
-exec env VISITS=$R/visits-s$N.txt OUT=$R/s$N CAP=250 LE_MIN=20 LE_MARGIN=6 REAL_OFF=$(( N - 6 )) REAL_REMOTE=$CPUS BG=stage_s${N}bg.sh BG_CAP=235 bash "$R/serve_window.sh"
+exec env VISITS=$R/visits-s$N.txt OUT=$R/s$N CAP=250 LE_MIN=20 LE_MARGIN=6 REAL_OFF=$(( N - 6 )) REAL_REMOTE=$CPUS WAIT_STRICT=1 BG=stage_s${N}bg.sh BG_CAP=${BGCAP:-175} bash "$R/serve_window.sh"

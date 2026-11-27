@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
-# Card 1 of window S8 (lane ink-hip-overlap2): hip tiny suites on the o6 tree (inkling2_batch, inkling2_packed, inkling2), then
-# o6's solo server (W4's config: --max-seq 4608 --spec off, no --max-batch; its first start admits the P12 plan) with the 16 real
-# prompts one at a time, compared with W4's solo replies afterwards.
+# Card 1 of window S8 (lane ink-hip-overlap2): the Qwen-on-HIP no-op gate, part 2: Qwen3.6-35B-A3B-NVFP4 `--max-batch 4` at 4 at once
+# with INTARSIA_OVERLAP=1, o6 and main6 (vs S7's o6 solo server); then Inkling-2 G2 short / long on o6, and the hip tiny suites
+# inkling2_batch / inkling2_packed on the o6 tree.
 set -uo pipefail
 . "$HOME/intarsiaml-ink-hip-bpf/.scratch/stage_lib.sh"
 . "$HOME/intarsiaml-ink-hip-bpf/.scratch/stage_lib2.sh"
 L=$REPO/logs/s8; mkdir -p "$L"
-tiny 1 o6 inkling2_batch inkling2_packed inkling2
-if (( $(left) > 90 )); then
-  WAITS=$(( $(left) - 45 )) srv 1 solo-o6 o6 --max-seq 4608 --spec off
-  [ "$UP" != 0 ] && bw solo-o6 solo
-fi
+M=$Q
+for arm in "o6;q-b4o-o6" "main6;q-b4o-main6"; do
+  IFS=';' read -r b tag <<< "$arm"
+  (( $(left) < 40 )) && { echo "[$tag] SKIP ($(left) s left)"; continue; }
+  SENV="INTARSIA_OVERLAP=1" WAITS=60 srv 1 $tag $b --max-batch 4 --max-seq 8192 --mem-budget 29
+  [ "$UP" != 0 ] && { bw $tag conc:4:0 conc:4:1 conc:4:2 conc:4:3; curl -sf -m 5 "http://$IP:8133/metrics" | grep -E '^intarsia_batch_overlap_steps_total ' | sed "s/^/[$tag] /"; }
+  grep -aE "overlap|twin|decode lane" "$L/$tag.log" | head -3 | sed "s/^/[$tag log] /"
+  stop 1
+done
+M=/models/Inkling-2-Mini
+for g in short long; do g2 1 o6 $g; done
 stop 1
+tiny 1 o6 inkling2_batch inkling2_packed
 echo "[bg] done $(now)"

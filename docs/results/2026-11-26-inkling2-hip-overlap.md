@@ -59,6 +59,30 @@ Later go-aheads from the coordinator are written below as they arrive.
      where it ran. Keep the same client placement for both arms.
   The rest of your brief still applies: radiance <= 15 min, behind the flip lane; the Metal and Qwen-HIP no-op gates; #542 stays a
   draft with `INK_OVERLAP_DEFAULT = false`."
+- **Coordinator go-ahead, 00:06 EST 11-27** (sent as 00:10, corrected by the coordinator to 00:06; in substance, every condition
+  kept), answering this lane's 00:08 question (W0's card-1 main6 priming failed: `SENV` unbound in `stage_lib.sh` under `set -u`):
+  **option (a)**: keep AB / BA / AB; this lane's radiance cap raised to **16:00 total**; S6 <= 5:00 by itself. Conditions:
+  (1) main6's ~100 s admission priming must finish before S6's measured A run starts, in the same warm state o6 gets; if priming
+  would fall inside the measured period (an unprimed main6 would make main look slow and bias toward overlap), switch to (b)
+  BA / AB / BA and note why here; (2) fix the SENV-unbound stage bug before S6 so S7 / S8 cannot hit it, and check card 1's main6
+  server is actually up before the window starts; (3) hard stop: if the total would pass 16:00, finish the current window and stop,
+  no S9; never cancel a running window job; (4) write this go-ahead here now. Everything else unchanged: thresholds as
+  pre-registered, the endor-client FAIL stays on record, overlap stays opt-in.
+- **This lane's choice under condition 1 (00:14): (b), order BA / AB / BA.** Why: under AB, main6 cannot be primed *and* start in
+  the state o6 gets (a fresh process on a cached admission) inside S6's 5:00. Priming it before A (on either card) puts S6 at ~5:13
+  (4 s stop + ~105 s admission + 2 x ~89 s visits + ~26 s end / restart). Letting A's own first start admit (it answers /health only
+  after admission, so no measured request overlaps it) gives ~4:53 with <= 7 s left before the 270 s visit cap would cut B's filler,
+  and A's server would have run 134 admission cases before serving while o6's had not. Under BA, card 1 primes main6 while card 0
+  measures B (o6, primed in W0); B's visit ends with `wait:` for card 1's marker (server idle, after its measured cells) and
+  `WAIT_STRICT=1` skips A if the marker is missing (the window is then void), so both arms start from a cached admission. S6 ~3:50,
+  S7 / S8 ~3:20: about 14:25 in total with W0. Order balance: B goes first in 2 of 3 windows (A did under AB / BA / AB).
+- Validity rule correction (before S6): the engine prints "prefill/decode overlap: on ..." only when overlap is on **by default**
+  (`engine/batch.rs` ~1412, `opts.overlap.is_none()`); with `INTARSIA_OVERLAP=1` it prints nothing (W0P's log: none). The pace is
+  still 150 ms (`engine/batch.rs` ~1358: `overlap_pace_default_ms` applies whenever `INTARSIA_OVERLAP_PACE_MS` is unset). Valid B
+  visit therefore: "stream 1 (decode lane) at priority -1" in its log, no "overlap unavailable" line, and
+  `intarsia_batch_overlap_steps_total` > 0 at its end.
+- SENV fix (condition 2): `stage_lib2.sh` sets `SENV=${SENV:-}` before any `srv`; dry check on tatooine under `set -u` (no GPU):
+  sourced, `SENV=[]`. Card 1's main6 server coming up is checked inside S6 by the marker (written only once it answered).
 
 ### Step 1: S3's three stalls are in the client path (endor, Wi-Fi, Tailscale), not in the engine (Mac only, 23:36-23:46)
 
@@ -132,6 +156,27 @@ Radiance plan (15 min total, each window <= 5 min, none after 06:00, behind ink-
   the DSpark default, short / 4k, 64 / 256) and G2; the 35B no-op (Qwen3.6-35B-A3B-NVFP4, `generate --spec off` 256 tokens short /
   4k: main6 and o6 each with `INTARSIA_OVERLAP` unset and `=1`; serve `--max-batch 4` at 4 streams vs the solo server, o6 unset /
   `=1`, main6 `=1`); hip tiny `inkling2_batch` / `inkling2_packed` / `inkling2` on the o6 tree, the solo server if time is left.
+  (Superseded by the 00:06 go-ahead and the (b) choice above: S6 BA with card 1 priming main6 and Inkling md5; S7 AB with the 35B
+  md5 / solo / `--max-batch 4` unset; S8 BA with the 35B `=1` arms, G2, hip tiny.)
+
+Binaries (tatooine `~/intarsiaml-ink-hip-bpf/.scratch/bin/`, fleetq #12477, `raw/build6.sh`): **o6** = merged head 408e902b9
+(`--features hip`, md5 d6fa5dffedfd1488c908c1c7dfd3305a), **main6** = origin/main 1bf40e29f (`.scratch/main-src`, md5
+0aa06968fe983af300747aa4bd01b1bc); hip test builds `inkling2_batch` / `inkling2_packed` / `inkling2` for both trees. Later commits on
+the branch are doc / script only.
+
+### W0: checks + o6 priming (fleetq #12484; radiance down 00:00:33 - 00:04:26 = 3:53)
+
+`raw/window_r.sh w0`, raw `raw/w0/` (card 1 `raw/w0/card1/`). Real-prompt client on tatooine pinned to cores 10, 11, 22, 23
+(`taskset`; card 1's own client on 4, 5, 16, 17).
+- Card 0, o6 `INTARSIA_OVERLAP=1` (first start: admission 23 kernels, 134 cases run, up after 103 s; "stream 1 (decode lane) at
+  priority -1"; 216 decode steps beside chunks in flight): **conc:4 waves 0-3 4/4 each, conc:8 waves 0-1 8/8 each, 16 at once 16/16
+  equal to W4's solo replies.**
+- Card 0, o6 with `INTARSIA_OVERLAP` unset (the PR default = main's batching path; 0 overlap steps): **8/8 and 16/16 equal.**
+- Card 1, **o6 poisoned** (`INTARSIA_HIP_POISON=ff INTARSIA_OVERLAP=1`, cached admission, decode lane at -1, 146 overlap steps):
+  **16/16 at once and 4 x 4/4 equal.**
+- Card 1, main6's priming did **not** run: `stage_lib.sh` reads `SENV` under `set -u` and the first `srv` call had none (fixed).
+- Client path: all 14 tatooine-client runs above have **0 gaps under 5 ms and 0 late pairs**. Not gated, single runs: o6 `=1` real 8
+  ITL p99 0.192 / 0.190 s (waves 0 / 1), 16 at once 0.215 s; o6 unset 0.584 / 0.625 s.
 
 ## Result (2026-11-26 ~21:45): overlap works and is bitwise, but gate 4 fails at 8 streams, so it ships opt-in
 

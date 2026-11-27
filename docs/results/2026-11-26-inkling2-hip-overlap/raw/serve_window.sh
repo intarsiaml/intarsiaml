@@ -56,6 +56,7 @@ while IFS=';' read -r name bin sargs largs; do
   [ -z "$name" ] && continue
   case "$name" in \#*) continue ;; esac
   if (( $(left) < 45 )); then say "SKIP $name: $(left) s left"; continue; fi
+  if [ -n "${SKIP_REST:-}" ]; then say "SKIP $name: an earlier wait failed (WAIT_STRICT)"; continue; fi
   say "$name: start ($bin; $sargs)"
   if ! ssh -o BatchMode=yes "$T" "bash $RR/.scratch/serve_ctl.sh start $bin $name $sargs" < /dev/null > "$OUT/$name-start.out" 2>&1; then
     say "$name: server did not come up: $(tail -n 6 "$OUT/$name-start.out" | tr '\n' ' ')"
@@ -79,7 +80,10 @@ while IFS=';' read -r name bin sargs largs; do
              # admission primed on card 1, so the next visit's server finds it cached)
       wf=${largs#wait:}; wmax=${wf##*:}; wf=${wf%:*}; largs=none
       ssh -o BatchMode=yes "$T" "for i in \$(seq 1 $wmax); do [ -e $wf ] && exit 0; sleep 1; done; exit 1" < /dev/null
-      say "$name: wait $wf exit $? ($(left) s left)" ;;
+      wrc=$?
+      say "$name: wait $wf exit $wrc ($(left) s left)"
+      # lane ink-hip-overlap2: WAIT_STRICT=1: a failed wait (e.g. the next arm's binary not primed) skips every later visit
+      [ "$wrc" != 0 ] && [ -n "${WAIT_STRICT:-}" ] && { SKIP_REST=1; say "$name: wait failed: later visits skipped (WAIT_STRICT)"; } ;;
     real:*)  # real:<N,N,..>:<reps>: N of the 16 real prompts at once (serve_bitwise.py conc:N:OFF), rep by rep while time lasts;
              # rep 1 plain (its replies compare with the solo server's), later reps with a nonce in front; levels file for itl_seg.py
       spec=${largs#real:}; lv=${spec%%:*}; rest=${spec#*:}; nr=${rest%%:*}; rtag=""; [[ "$rest" == *:* ]] && rtag=${rest#*:}; largs=none
