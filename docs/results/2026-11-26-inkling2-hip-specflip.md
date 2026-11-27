@@ -711,3 +711,7 @@ unverified (no third window).
   memory on stderr). The `main7` CLI binary is built from main7's tree as is (cargo does not compile test files into it).
 - The short-prompt deviation (3 prompts; no prose / chat / code cells) is fine for a regression check (coordinator 02:14).
 
+**Coordinator, 02:41 EST 11-27 (as written):**
+
+> Coordinator 02:41 EST: #542 merged at 02:41 EST as 4b629184c5ecf1ac2e89a97a1f4bd86f2f87fb69, with all 6 CI checks green. That commit is main7. Build it and run M1 and M2 as pre-registered and amended. Write this message into the results doc.
+
