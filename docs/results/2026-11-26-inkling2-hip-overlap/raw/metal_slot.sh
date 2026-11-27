@@ -4,7 +4,7 @@
 #     its .commit says 1bf40e29f with a clean tree) vs o6 = this branch (.scratch/intarsia-metal-o6), `--spec off` and the default
 #     (DSpark); the 7 prompts of md5.json (lane ink-sampled-adapt's file: 6 short + 4k), 256 tokens, --ignore-eos: md5 of the ids
 #     lines and of each prompt's first 64 ids;
-# (2) the Metal tiny suites on the branch: inkling2_batch, inkling2 (INTARSIA_INKLING2_BACKEND=metal), executables built at
+# (2) the Metal tiny suites on the branch: inkling2_batch, inkling2_packed, inkling2 (INTARSIA_INKLING2_BACKEND=metal), built at
 #     0304d4ce8 (endor_build.sh, copied to .scratch/mt-o6-*), no build inside the slot.
 set -u
 : "${FLEETQ_JOB:?run under fleetq}"
@@ -37,7 +37,7 @@ for l in sys.stdin:
     print(" ".join(ids[:64]))' | md5 -q)
   echo "[metal] md5 $b $sp rc $rc ids256 $m256 first64 $m64 lines $(grep -ac '^ids\[' $f.err) $(date +%T) | $(grep -aE 'tok/s' $f.err | tail -1 | cut -c1-120)"
 done; done
-for t in inkling2_batch inkling2; do
+for t in inkling2_batch inkling2_packed inkling2; do
   x=$S/mt-o6-$t
   (( $(left) < 60 )) && { echo "[metal] tiny $t SKIP ($(left) s left)"; continue; }
   ( cd $W/crates/intarsia-models && env INTARSIA_INKLING2_BACKEND=metal timeout $(( $(left) - 20 )) "$x" --test-threads=1 ) > $S/metal-tiny-$t.txt 2>&1
