@@ -593,7 +593,11 @@ pub(super) fn load(
     let mut p12_stats = P12Stats::default();
     // lane ink-q8: the per-row 8-bit study formats are host emulation (dequantised f32 weights), cpu only; the nominal 8-bit bytes
     // of one layer's in-projection and wo, summed over the visits at the end
-    let row_emul = attn_quant.is_some_and(|k| k.is_row_emulated());
+    // lane ink-hip-i8: `int8_row` on a backend with the i8 kernels (HIP) loads REAL i8 weights instead: the in-projection and wo as i8 +
+    // row scales in the `in_p12` / `wo_p12` slots (decode / verify calls, 1..=16 rows), and the bf16 weight the codes mean as the
+    // resident weight for prefill and every call without an i8 kernel
+    let i8_real = attn_quant.is_some_and(|k| k.i8_real(b));
+    let row_emul = attn_quant.is_some_and(|k| k.is_row_emulated()) && !i8_real;
     if let Some(k) = attn_quant {
         crate::quant::head::emulation_guard(k, b)?;
     }
@@ -666,8 +670,16 @@ pub(super) fn load(
         let nk = ckv + if local { 0 } else { hk * kc };
         // per tensor class: the in-projection only where its P12 kernel is faster (`p12::pack_in_proj`)
         let in_p12 = if pack12 && crate::quant::p12::pack_in_proj(b.name()) { Some(p12_stats.pack(b, &stacked, nq + 2 * nk, d)?) } else { None };
+        let mut in_i8: Option<QTensor> = None;
         let in_w = match attn_quant {
             None => InkInW::Stacked(put(&stacked, wdt, &[nq + 2 * nk, d])?),
+            // real i8 weights (lane ink-hip-i8): the codes + row scales for decode, `bf16(q * scale)` as the stacked weight
+            Some(kind) if kind.i8_real(b) => {
+                let r = crate::quant::head::quantize_i8_rows(wdt, &stacked, d, 0, nq + 2 * nk)?;
+                qbytes.set(qbytes.get() + (r.q.len() + 4 * r.scales.len()) as u64);
+                in_i8 = Some(r.upload(b, nq + 2 * nk, d)?);
+                InkInW::Stacked(put(&r.deq_bf16, DType::Bf16, &[nq + 2 * nk, d])?)
+            }
             // per-row 8-bit study formats: each segment quantised row by row, dequantised to f32 (the kept segments exactly)
             Some(kind) if kind.is_row_emulated() => {
                 let es = wdt.size_bytes();
@@ -910,6 +922,22 @@ pub(super) fn load(
         let attn_sconv = sconv(&mut put, "attn_sconv")?;
         let mlp_sconv = sconv(&mut put, "mlp_sconv")?;
         let wo_p12 = if pack12 { Some(p12_stats.pack(b, src.bytes(&t("attn.wo_ud.weight"))?, d, h * dh)?) } else { None };
+        // real i8 wo (lane ink-hip-i8): codes + scales for decode, the dequantised bf16 weight as `wo`
+        let (wo_i8, wo_deq) = match attn_quant {
+            Some(kind) if kind.i8_real(b) => {
+                let name = t("attn.wo_ud.weight");
+                let info = src.info(&name).ok_or_else(|| Error::model(format!("tensor '{name}' not found in checkpoint")))?;
+                if info.shape != [d, h * dh] {
+                    return Err(Error::model(format!("tensor '{name}' is {:?}, expected [{d}, {}]", info.shape, h * dh)));
+                }
+                let r = crate::quant::head::quantize_i8_rows(info.dtype, src.bytes(&name)?, h * dh, 0, d)?;
+                qbytes.set(qbytes.get() + (r.q.len() + 4 * r.scales.len()) as u64);
+                let q = r.upload(b, d, h * dh)?;
+                let w = put(&r.deq_bf16, DType::Bf16, &[d, h * dh])?;
+                (Some(q), Some(w))
+            }
+            _ => (None, None),
+        };
         layers.push(InkLayer {
             local,
             first: li % ink.block == 0,
@@ -924,6 +952,7 @@ pub(super) fn load(
             wo: {
                 let name = t("attn.wo_ud.weight");
                 match attn_quant {
+                    Some(_) if wo_deq.is_some() => QTensor { format: crate::quant::BF16, n: d, k: h * dh, parts: vec![wo_deq.clone().unwrap()], act_quant: false, act_fp8: false },
                     None => {
                         let w = direct(&name, Some(&[d, h * dh]))?;
                         QTensor { format: crate::quant::BF16, n: d, k: h * dh, parts: vec![w], act_quant: false, act_fp8: false }
@@ -942,8 +971,8 @@ pub(super) fn load(
                     }
                 }
             },
-            in_p12,
-            wo_p12,
+            in_p12: in_p12.or(in_i8),
+            wo_p12: wo_p12.or(wo_i8),
             norm3,
             mlp_norm: direct(&t("mlp_norm.weight"), Some(&[d]))?.reshaped(&[1, d]),
             attn_sconv,
@@ -965,6 +994,13 @@ pub(super) fn load(
     let ws = InkWs::alloc(b, mt, act, dims, &ink, n_stack)?;
     let msg_q_all = if ink.looped() { Some(queries(&mut put, all_q4, 4 * n_core)?) } else { None };
     *bytes += qbytes.get();
+    if i8_real {
+        eprintln!(
+            "inkling2: in_proj + wo as int8 + one f32 scale per row (INTARSIA_INK_ATTN_QUANT = int8_row; changes outputs): {:.3} GB of i8 copies for 1..={} rows (decode / verify), bf16(q * scale) kept for prefill",
+            qbytes.get() as f64 / 1e9,
+            crate::quant::i8row::ROWS_MAX
+        );
+    }
     if row_emul {
         // nominal 8-bit bytes read per token: every visit reads its layer's in-projection and wo
         let (inp, wo) = visits.iter().fold((0u64, 0u64), |(a, w), v| (a + nominal[v.layer].0, w + nominal[v.layer].1));
@@ -1256,10 +1292,20 @@ impl Model {
         let mut x_ready = false;
         // only for a request that drafts (a sampled or plain request leaves its draft state inactive and never ingests)
         let drafting = st.dflash.as_ref().is_some_and(|d| d.active && d.synced);
-        let (ds_taps, ds_feat): (&[usize], &[Buffer]) = match self.dflash.as_ref().filter(|h| h.dspark.is_some() && drafting) {
+        // (and a DFlash2 draft's, lane ink-dflash2: the same visits, one staging buffer per tap as `dflash_ingest` reads them)
+        let (ds_taps, ds_feat): (&[usize], &[Buffer]) = match self.dflash.as_ref().filter(|h| (h.dspark.is_some() || h.v2.is_some()) && drafting) {
             Some(h) if t <= h.feat_rows => (&h.taps, &h.feat),
-            Some(_) => return Err(Error::invalid(format!("inkling2: a pass of {t} rows is longer than the DSpark tap buffers"))),
+            Some(_) => return Err(Error::invalid(format!("inkling2: a pass of {t} rows is longer than the draft's tap buffers"))),
             None => (&[], &[]),
+        };
+        // where tap `ti` of this pass goes: DSpark's one tap-major buffer (`[taps * t, d]`), or the DFlash2 draft's own buffer `ti`
+        let per_tap = self.dflash.as_ref().is_some_and(|h| h.dspark.is_none());
+        let tap_dst = |ti: usize| -> TensorRef {
+            if per_tap {
+                TensorRef::new(ds_feat[ti].clone(), act, &[t, d])
+            } else {
+                TensorRef::new(ds_feat[0].clone(), act, &[ds_taps.len() * t, d]).rows(ti * t, t)
+            }
         };
         let n_vis = im.visits.len();
         for (vi, v) in im.visits.iter().enumerate() {
@@ -1283,7 +1329,7 @@ impl Model {
             }
             // the DSpark draft's taps (`model/dspark.rs`): the partial entering visits 5, 23, 41 of every pass, tap-major in one buffer
             if let Some(ti) = ds_taps.iter().position(|&x| x == vi) {
-                self.ink_copy(&TensorRef::new(ds_feat[0].clone(), act, &[ds_taps.len() * t, d]).rows(ti * t, t), &partial)?;
+                self.ink_copy(&tap_dst(ti), &partial)?;
             }
             let ctrl = l.ctrl.as_ref();
             if looped && ctrl.is_none() {
@@ -1333,7 +1379,9 @@ impl Model {
                 // INTARSIA_INK_IN_PROJ_GEMV) where the backend admits it, else the bf16 stack (the same bits)
                 InkInW::Stacked(w) => {
                     let mut done = false;
-                    if let Some(p) = l.in_p12.as_ref().filter(|_| t <= crate::quant::p12::in_proj_rows_max(self.backend.name())) {
+                    // real i8 weights (lane ink-hip-i8) in the slot: 1..=i8row::DENSE_ROWS_MAX rows, so a verify pass (up to 16 rows) reads the
+                    // same i8 weights as a one-row decode step (rows-exact: spec on == spec off); P12 keeps its own limit
+                    if let Some(p) = l.in_p12.as_ref().filter(|p| t <= if p.format == crate::quant::i8row::I8ROW { crate::quant::i8row::DENSE_ROWS_MAX } else { crate::quant::p12::in_proj_rows_max(self.backend.name()) }) {
                         let mut c = OpCall::new(Op::InkInProj, vec![xs(nx), p.parts[0].clone(), p.parts[1].clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default());
                         c.exact_rows = self.verifying();
                         if self.registry.select(&c).is_ok() {
@@ -1508,7 +1556,7 @@ impl Model {
                 // INTARSIA_INK_VERIFY_P12) where the backend admits it, else wo as loaded (the same bits)
                 let mut done = false;
                 let wo_max = if self.verifying() && verify_p12(self.backend.name()) { crate::quant::p12::ROWS_MAX } else { crate::quant::p12::DENSE_ROWS_MAX };
-                if let Some(p) = l.wo_p12.as_ref().filter(|_| t <= wo_max) {
+                if let Some(p) = l.wo_p12.as_ref().filter(|p| t <= if p.format == crate::quant::i8row::I8ROW { crate::quant::i8row::DENSE_ROWS_MAX } else { wo_max }) {
                     let mut c = p.call(o.clone(), aproj.clone());
                     c.exact_rows = self.verifying();
                     if self.registry.select(&c).is_ok() {
@@ -1647,7 +1695,7 @@ impl Model {
         put("final_hidden".into(), out)?;
         // the DSpark draft's last tap: the final-norm output (`target_layer_ids` 48 = one past the last visit)
         if let Some(ti) = ds_taps.iter().position(|&x| x == n_vis) {
-            self.ink_copy(&TensorRef::new(ds_feat[0].clone(), act, &[ds_taps.len() * t, d]).rows(ti * t, t), out)?;
+            self.ink_copy(&tap_dst(ti), out)?;
         }
         if let Some(dm) = dump {
             dm.extend(extra);

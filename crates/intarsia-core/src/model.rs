@@ -828,6 +828,9 @@ pub struct Model {
     /// Sampled requests draft with a DFlash-family draft (lane ink-sampled, [`crate::spec::sampled_dflash_from_env`]): 0 =
     /// `INTARSIA_SPEC_SAMPLED_DFLASH`, 1 = off, 2 = on ([`Model::set_spec_sampled_dflash`]).
     spec_sampled_dflash: std::sync::atomic::AtomicU8,
+    /// Lane ink-sampled-adapt: the per-request draft length policy of sampled DFlash-family requests set by
+    /// [`Model::set_spec_sampled_adapt`] (tests); `None`: `INTARSIA_SPEC_SAMPLED_ADAPT`, the recipe, the built-in table.
+    spec_sampled_adapt: std::sync::Mutex<Option<crate::spec::AdaptMode>>,
     /// Dispatches of a speculative feedback step submitted before the previous token is read (`model/feedback.rs`).
     feedback_hold: usize,
     /// Opt-in prefill tail merge in rows (`INTARSIA_PREFILL_TAIL_MERGE`, already clamped; 0 = off). The workspace holds
@@ -1253,6 +1256,7 @@ impl Model {
             crate::quant::head::HeadQuant::resolve(env.as_deref(), recipe.lm_head_quant(backend.name()))?
         };
         let head_quant_note: std::cell::RefCell<Option<String>> = Default::default();
+        let head_i8: std::cell::RefCell<Option<QTensor>> = Default::default();
         let load_head = |vocab_par: bool| -> Result<Option<QTensor>> {
             if tp.rank != 0 && !vocab_par {
                 return Ok(None);
@@ -1270,6 +1274,30 @@ impl Model {
                     }
                     let t0 = std::time::Instant::now();
                     let all = &src.bytes(&nm)?[..dims.vocab * dims.hidden * i.dtype.size_bytes()];
+                    // real i8 weights (lane ink-hip-i8): the codes + row scales go to `head_p12`'s slot, the bf16 weight the codes mean is the head
+                    if kind.i8_real(&*backend) {
+                        if vocab_par {
+                            return Err(Error::model(format!("{}: int8_row with a vocabulary-sharded head is not supported", crate::quant::head::ENV)));
+                        }
+                        crate::quant::head::emulation_guard(kind, &*backend)?;
+                        let r = crate::quant::head::quantize_i8_rows(i.dtype, all, dims.hidden, 0, dims.vocab)?;
+                        let i8q = r.upload(&*backend, dims.vocab, dims.hidden)?;
+                        let deq = crate::backend::upload_new(&*backend, &r.deq_bf16)?;
+                        weights_bytes.set(weights_bytes.get() + (r.deq_bf16.len() + r.q.len() + 4 * r.scales.len()) as u64);
+                        let note = format!(
+                            "lm_head as int8 + one f32 scale per row ({} unembed rows x {}, {:.2} GB of i8 copy for 1..={} rows; {} = int8_row, {:.1} s)",
+                            dims.vocab,
+                            dims.hidden,
+                            (r.q.len() + 4 * r.scales.len()) as f64 / 1e9,
+                            crate::quant::i8row::ROWS_MAX,
+                            crate::quant::head::ENV,
+                            t0.elapsed().as_secs_f64()
+                        );
+                        eprintln!("{note}");
+                        *head_quant_note.borrow_mut() = Some(note);
+                        *head_i8.borrow_mut() = Some(i8q);
+                        return Ok(Some(dense(TensorRef::new(deq, DType::Bf16, &[dims.vocab, dims.hidden]), dims.vocab)));
+                    }
                     let q = crate::quant::head::load_rows(kind, b, i.dtype, all, dims.vocab, 0, dims.vocab, dims.hidden)?;
                     weights_bytes.set(weights_bytes.get() + q.weight_bytes() as u64);
                     if kind.is_row_emulated() {
@@ -1385,6 +1413,8 @@ impl Model {
                     Some(q)
                 }
             }
+            // the i8 copy of the unembed (lane ink-hip-i8, `INTARSIA_LMHEAD_QUANT=int8_row` on a backend with the kernels)
+            (Some(_), Some(_)) if head_i8.borrow().is_some() && !vocab_par => head_i8.borrow_mut().take(),
             _ => None,
         };
 
@@ -1871,9 +1901,17 @@ impl Model {
                 if tp.world > 1 {
                     return Err(Error::Unsupported("tensor parallelism of Inkling-2".into()));
                 }
-                // the model's own DSpark draft (`--spec dflash --spec-draft <model dir>`, `model/dspark.rs`) is the one drafter it takes
-                if opts.mtp || opts.dflash.as_ref().is_some_and(|d| d.config.dspark.is_none()) {
-                    return Err(Error::Unsupported("speculative drafters other than its DSpark draft (--spec dflash --spec-draft <model dir>) on Inkling-2".into()));
+                // the model's own DSpark draft (`--spec dflash --spec-draft <model dir>`, `model/dspark.rs`), and on HIP (and cpu) a
+                // DFlash2 draft (lane ink-dflash2, `--spec dflash --spec-draft <incoai/Inkling-2-Mini-DFlash2 dir>`, `model/dflash2.rs`)
+                let dflash2 = |d: &dflash::DflashLoad| d.config.v2 && d.config.spine.is_none() && d.config.dspark.is_none() && !d.dcoco;
+                let other = opts.dflash.as_ref().is_some_and(|d| d.config.dspark.is_none() && !dflash2(d));
+                if opts.mtp || other {
+                    return Err(Error::Unsupported(
+                        "speculative drafters other than its DSpark draft (--spec dflash --spec-draft <model dir>) or a DFlash2 draft on Inkling-2".into(),
+                    ));
+                }
+                if opts.dflash.as_ref().is_some_and(dflash2) && !matches!(b.name(), "hip" | "cpu") {
+                    return Err(Error::Unsupported(format!("a DFlash2 draft on Inkling-2 on the {} backend (hip and cpu only, lane ink-dflash2)", b.name())));
                 }
                 let ic = recipe.layer.other.get("ink").ok_or_else(|| Error::model("recipe [layer.ink] missing"))?;
                 let field = |k: &str| ic.get(k).and_then(|v| v.as_str()).map(String::from).ok_or_else(|| Error::model(format!("recipe [layer.ink] needs '{k}'")));
@@ -1996,6 +2034,12 @@ impl Model {
                 // a split draft takes its logits on each rank's vocabulary shard of the group's head (lane dh): no whole copy
                 if vocab_par && !dflash_tp {
                     head.full_head = load_head(false)?;
+                }
+                // lane ink-dflash2: an Inkling-2 DFlash2 draft's logits on its own quantised copy of the unembed's real rows
+                // (`INTARSIA_DFLASH2_HEAD`, as the DSpark draft's `INTARSIA_DSPARK_HEAD`): mxfp4 by default on HIP, `bf16` = the target's
+                // head as the reference does. Draft numerics only (the proposals), never the output.
+                if head.v2.is_some() && dims.ink.is_some() {
+                    head.full_head = dflash::dflash2_head_copy(b, src, &unembed, dims, &|n| weights_bytes.set(weights_bytes.get() + n))?.or(head.full_head);
                 }
                 Some(head)
             }
@@ -2289,6 +2333,7 @@ impl Model {
             spec_pipe: std::sync::atomic::AtomicU8::new(0),
             spec_sampled: std::sync::atomic::AtomicU8::new(0),
             spec_sampled_dflash: std::sync::atomic::AtomicU8::new(0),
+            spec_sampled_adapt: std::sync::Mutex::new(None),
             feedback_hold,
             tail_merge,
             // the recipe chunk also when an Inkling-2 packed-prefill workspace is larger than it (lane ink-hip-bpf)

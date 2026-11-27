@@ -1,0 +1,14 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/stage_w4.sh; cap 195s; stopping radiance 2026-11-26 21:52:04
+[window] radiance stopped 2026-11-26 21:52:08 (inactive)
+[stage] start 21:52:08 dfl6 689cde21f795f1e38ba968c25d06daea
+[md5] off 256 rc 0 t+13s ids-md5 380af8a5e897bdbed231818477038f37 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[md5] k4 256 rc 0 t+24s ids-md5 380af8a5e897bdbed231818477038f37 | spec: verify passes=140 proposed=555 accepted=370 (acceptance 66.7%, 3.64 tokens per pass)
+[md5] k5 256 rc 0 t+36s ids-md5 380af8a5e897bdbed231818477038f37 | spec: verify passes=126 proposed=628 accepted=383 (acceptance 61.0%, 4.04 tokens per pass)
+[md5] off 64 rc 0 t+44s ids-md5 f2e334dd8f1657b3ece2c7f8aa125deb | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[md5] k4 64 rc 0 t+52s ids-md5 f2e334dd8f1657b3ece2c7f8aa125deb | spec: verify passes=28 proposed=108 accepted=98 (acceptance 90.7%, 4.50 tokens per pass)
+[md5] k5 64 rc 0 t+60s ids-md5 f2e334dd8f1657b3ece2c7f8aa125deb | spec: verify passes=24 proposed=113 accepted=102 (acceptance 90.3%, 5.25 tokens per pass)
+[speed] pair skipped (t+60s)
+[stage] done 21:53:08 t+60s
+[window] stage done 2026-11-26 21:53:09 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 21:53:09
+[window] radiance answers 2026-11-26 21:53:19 (after 15 s)

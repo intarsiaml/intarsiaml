@@ -52,6 +52,16 @@ fn p12_stack(rng: &mut SplitMix64, ns: [usize; 3], d: usize, std: f32, adversari
     (parts.next().unwrap(), parts.next().unwrap())
 }
 
+/// A stacked int8 per-row `InkInProj` weight (lane ink-hip-i8): rows at the pack scales of `p12_stack`'s, each row quantised with its own
+/// MSE-optimal clip (`i8row::quantize_host`), so every row gets its own scale; `[sum ns, d]` i8 and `[sum ns, 1]` f32 scales.
+fn i8_stack(rng: &mut SplitMix64, ns: [usize; 3], d: usize, std: f32) -> (HostTensor, HostTensor) {
+    let mut w = Vec::with_capacity(ns.iter().sum::<usize>() * d);
+    for (j, &n) in ns.iter().enumerate() {
+        w.extend(rng.normal_vec(n * d, std * [1.0, 0.25, 3.7][j]));
+    }
+    crate::quant::i8row::quantize_host(&w, ns.iter().sum(), d, false)
+}
+
 fn none() -> HostTensor {
     HostTensor::zeros(DType::Bf16, &[0])
 }
@@ -684,6 +694,19 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                             let inputs = vec![rand_t(rng, DType::Bf16, &[s, t, d], 1.0), w, aux];
                             push(format!("T={t} S={s} D={d} N={ns:?} bf16 p12 adversarial={adv}"), inputs, ns.iter().map(|&n| out(DType::Bf16, &[t, n])).collect(), a0.clone());
                         }
+                    }
+                }
+            }
+            // int8 per-row codes + scales (lane ink-hip-i8; bf16 activations): the cases of the model's decode / verify shapes
+            for &t in rows {
+                for &(d, ns) in &shapes {
+                    if d > D && t > 1 {
+                        continue;
+                    }
+                    for s in [1usize, 3] {
+                        let (w, sc) = i8_stack(rng, ns, d, (d as f32).powf(-0.5));
+                        let inputs = vec![rand_t(rng, DType::Bf16, &[s, t, d], 1.0), w, sc];
+                        push(format!("T={t} S={s} D={d} N={ns:?} bf16 i8 per-row"), inputs, ns.iter().map(|&n| out(DType::Bf16, &[t, n])).collect(), a0.clone());
                     }
                 }
             }

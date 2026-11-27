@@ -1,0 +1,17 @@
+fleetq: #12344 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12339 "ink-hip-i8: sync + build a2 (merged main aee06201c)" (claude-04c0e1cd) loads it
+fleetq:   #12339 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12339 set, or it will wait for #12339 to be released.
+fleetq: #12344 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12342 "ink-sampled-adapt: build hip ad4 (d23914b2d)" (claude-04c0e1cd) loads it
+fleetq:   #12342 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12342 set, or it will wait for #12342 to be released.
+fleetq: #12344 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 K=4 ORDER=a R1=r1 R2=r2 BR=dfl6 bash /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/window.sh /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/stage_ab_k.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/stage_ab_k.sh; cap 285s; stopping radiance 2026-11-26 21:03:22
+[window] radiance stopped 2026-11-26 21:03:25 (inactive)
+[stage] start 21:03:25 dfl6 689cde21f795f1e38ba968c25d06daea K 4 TOK 256 ORDER a r1 r2
+[speed] dspark@r1 rc 0 t+56s | up to 5 drafts | decode overall: 4195 tokens after the first, 38302 ms (109.53 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[speed] dfl@r1 rc 0 t+104s | up to 4 drafts | decode overall: 4195 tokens after the first, 33393 ms (125.62 tok/s) | spec: verify passes=1265 proposed=5038 accepted=2935 (acceptance 58.3%, 3.32 tokens per pass)
+[speed] dfl@r2 rc 0 t+153s | up to 4 drafts | decode overall: 4195 tokens after the first, 33421 ms (125.52 tok/s) | spec: verify passes=1265 proposed=5038 accepted=2935 (acceptance 58.3%, 3.32 tokens per pass)
+[speed] dspark@r2 rc 0 t+209s | up to 5 drafts | decode overall: 4195 tokens after the first, 38474 ms (109.04 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[stage] done 21:06:54 t+209s
+[window] stage done 2026-11-26 21:06:55 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 21:06:55
+[window] radiance answers 2026-11-26 21:07:05 (after 15 s)
+fleetq: #12344 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

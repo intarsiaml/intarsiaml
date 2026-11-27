@@ -1,0 +1,6 @@
+fleetq: #12369 running on endor: bash docs/results/2026-11-26-inkling2-sampled-adapt/raw/metal/md5.sh
+main6 off rc 0 ids-md5 617b2717999004d7100222ecf7b285f6 lines 7 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+main6 def rc 0 ids-md5 617b2717999004d7100222ecf7b285f6 lines 7 | spec: verify passes=172 proposed=398 accepted=238 (acceptance 59.8%, 2.38 tokens per pass)
+ad4 off rc 0 ids-md5 617b2717999004d7100222ecf7b285f6 lines 7 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+ad4 def rc 0 ids-md5 617b2717999004d7100222ecf7b285f6 lines 7 | spec: verify passes=172 proposed=398 accepted=238 (acceptance 59.8%, 2.38 tokens per pass)
+fleetq: #12369 done (exit 0)

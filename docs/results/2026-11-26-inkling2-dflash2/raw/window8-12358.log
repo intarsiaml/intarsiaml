@@ -1,0 +1,28 @@
+fleetq: #12358 waiting (#6 in line): in line behind #12353 "ink-hip-overlap: window S2 (paired speed BA: o4 vs main5; card 1 o5 md5 + solo servers o4 / o5)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12353 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12353 set, or it will wait for #12353 to be released.
+fleetq: #12358 waiting (#5 in line): in line behind #12354 "ink-hip-i8: W4 (plain decode + prefill, 4k ABBA 4+4, 16k 2+2)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12354 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12354 set, or it will wait for #12354 to be released.
+fleetq: #12358 waiting (#4 in line): in line behind #12355 "ink-hip-overlap: window S3 (paired speed AB: main5 vs o4; card 1 pace 0/150/300 on merged o5, batched bitwise)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12355 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12355 set, or it will wait for #12355 to be released.
+fleetq: #12358 waiting (#3 in line): in line behind #12356 "ink-sampled-adapt: W2 (speed off/fix/pol, HIP)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12356 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12356 set, or it will wait for #12356 to be released.
+fleetq: #12358 waiting (#2 in line): in line behind #12357 "ink-hip-i8: W6 (hip tiny suites inkling2 + inkling2_batch, i8 env and main)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12357 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12357 set, or it will wait for #12357 to be released.
+fleetq: #12358 waiting (#1 in line): radiance-rank0 is also taken down by #12357 "ink-hip-i8: W6 (hip tiny suites inkling2 + inkling2_batch, i8 env and main)" (claude-04c0e1cd)
+fleetq:   #12357 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12357 set, or it will wait for #12357 to be released.
+fleetq: #12358 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 46% busy with work fleetq does not track
+fleetq: #12358 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12358 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 60% busy with work fleetq does not track
+fleetq: #12358 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 K=5 ORDER=a R1=r1 R2=r2 BR=dfl6 bash /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/window.sh /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/stage_ab_k.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/stage_ab_k.sh; cap 285s; stopping radiance 2026-11-26 21:39:34
+[window] radiance stopped 2026-11-26 21:39:38 (inactive)
+[stage] start 21:39:38 dfl6 689cde21f795f1e38ba968c25d06daea K 5 TOK 256 ORDER a r1 r2
+[speed] dspark@r1 rc 0 t+56s | up to 5 drafts | decode overall: 4195 tokens after the first, 38441 ms (109.13 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[speed] dfl@r1 rc 0 t+104s | up to 5 drafts | decode overall: 4195 tokens after the first, 33495 ms (125.24 tok/s) | spec: verify passes=1174 proposed=5842 accepted=3023 (acceptance 51.7%, 3.57 tokens per pass)
+[speed] dfl@r2 rc 0 t+152s | up to 5 drafts | decode overall: 4195 tokens after the first, 33495 ms (125.24 tok/s) | spec: verify passes=1174 proposed=5842 accepted=3023 (acceptance 51.7%, 3.57 tokens per pass)
+[speed] dspark@r2 rc 0 t+208s | up to 5 drafts | decode overall: 4195 tokens after the first, 38499 ms (108.96 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[stage] done 21:43:06 t+208s
+[window] stage done 2026-11-26 21:43:07 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 21:43:07
+[window] radiance answers 2026-11-26 21:43:17 (after 15 s)
+fleetq: #12358 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

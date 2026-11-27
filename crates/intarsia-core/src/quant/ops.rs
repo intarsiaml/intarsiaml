@@ -449,6 +449,16 @@ pub fn check(call: &OpCall) -> Result<()> {
             }
             crate::quant::p12::check_tensors(&i[1], &i[2], n, k, "w").or_else(|m| bad(op, m))?;
         }
+        Op::MatmulI8 => {
+            // x [M,K] . (q [N,K] i8 * scale [N,1] f32)^T: `Matmul` (bf16 / f16 out) or `Logits` (f32 out)
+            rank(&i[0], 2, "x")?;
+            rank(&o[0], 2, "out")?;
+            let (m, k, n) = (i[0].shape[0], i[0].shape[1], o[0].shape[1]);
+            if !act(&i[0]) || !act(&o[0]) || o[0].shape[0] != m {
+                return bad(op, format!("x [M,K] and out [M,N] must be bf16/f16/f32, got {} {:?} / {} {:?}", i[0].dtype, i[0].shape, o[0].dtype, o[0].shape));
+            }
+            crate::quant::i8row::check_tensors(&i[1], &i[2], n, k, "w").or_else(|m| bad(op, m))?;
+        }
         _ => unreachable!("quant::ops::check called for {op}"),
     }
     Ok(())
@@ -458,7 +468,7 @@ pub fn check(call: &OpCall) -> Result<()> {
 pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
     let i = &call.inputs;
     match call.op {
-        Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MatmulMxfp4 | Op::MatmulP12 => {
+        Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MatmulMxfp4 | Op::MatmulP12 | Op::MatmulI8 => {
             s.m = i[0].shape[0];
             s.k = i[0].shape[1];
             s.n = i[1].shape[0];

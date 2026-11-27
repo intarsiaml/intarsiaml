@@ -1536,6 +1536,7 @@ impl Backend for HipBackend {
                         .or_else(|| crate::inkroute::launch::launch(other, &ia))
                         .or_else(|| crate::inkspec::launch::launch(other, &ia))
                         .or_else(|| crate::inkp12::launch::launch(other, &ia))
+                        .or_else(|| crate::inki8::launch::launch(other, &ia))
                     {
                         Some(rc) => rc,
                         None => return Err(Error::NoKernel(format!("hip kernel '{other}' has no dispatch entry"))),

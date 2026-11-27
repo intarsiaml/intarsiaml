@@ -1,0 +1,2 @@
+[w1 c1] md5 ad4 off rc 0 2026-11-26 21:12:20 | decode overall: 441 tokens after the first, 5297 ms (83.26 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w1 c1] md5 ad4 def rc 0 2026-11-26 21:12:36 | decode overall: 441 tokens after the first, 3665 ms (120.32 tok/s) | spec: verify passes=140 proposed=432 accepted=269 (acceptance 62.3%, 2.92 tokens per pass)

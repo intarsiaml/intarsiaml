@@ -1306,6 +1306,7 @@ impl Model {
             spec_pipe: std::sync::atomic::AtomicU8::new(0),
             spec_sampled: std::sync::atomic::AtomicU8::new(0),
             spec_sampled_dflash: std::sync::atomic::AtomicU8::new(0),
+            spec_sampled_adapt: std::sync::Mutex::new(self.spec_sampled_adapt.lock().unwrap().clone()),
             feedback_hold: self.feedback_hold,
             tail_merge: 0,
             base_chunk: None,
