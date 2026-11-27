@@ -845,3 +845,14 @@ Per prompt: T 1.0 short_b 1.003 [0.998-1.009], short_a 0.999 [0.989-1.008], shor
 [0.991-1.006], short_a 1.003 [0.989-1.018], short_c 1.001 [0.984-1.017]. Lowest CI upper bound 1.005 (gate >= 0.99): **gate 1 pass,
 gate 2 pass.** Absolute sampled tok/s (main7 / dualM): T 1.0 short 88.66 / 88.97, 1k 77.24 / 77.29, 4k 106.46 / 106.68. (speed3.py's
 printed "section 3" rule is D2's, not this gate.)
+
+**WA3b (#12569, radiance down 09:49:05-09:51:18; stage 09:49:08-09:51:07, 1:59; `raw/a3b-dualM/`, `raw/window-wa3b-12569.log`): PASS.**
+- b16 serve of dualM (card 0): cold admission as predicted (23 kernels, **134 cases run, 0 cached**), up after 104 s (`loaded ... in
+  103.7s, context 3285 tokens`; no drafter line above one sequence). **16 / 16 replies = main7's M1 b16** and 16 / 16 = PR A's GS2 b16:
+  **gate 3 pass.**
+- Greedy on the merged head (card 1): md5.json 256 tokens, dualM `--spec off` **`380af8a5`** (81.90 tok/s) = dualM default
+  **`380af8a5`** (134.89 tok/s; `DFlash2 drafter ... (k 4): loaded beside the DSpark default`, second-draft line) = main7's. Default
+  verify counts 140 / 555 / 370 = WA1b's DFlash2 k4 alone and dual (every count equal): **gate 4 pass.**
+
+**WA3 verdict: PASS (gates 1-4).** Radiance for WA3: 3:02 + 2:13 = **5:15** in two windows (each stage <= 285 s). Next: PR B from
+`ink/hip-specflip-b` (user decision).
