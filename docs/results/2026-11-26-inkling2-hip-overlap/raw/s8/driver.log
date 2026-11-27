@@ -1,0 +1,25 @@
+[00:24:40] radiance down
+[00:24:40] background stage stage_s8bg.sh started (cap 175 s)
+[00:24:40] B: start (o6; INTARSIA_OVERLAP=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[00:25:01] B: up (IP 172.17.0.3 after 20s ; 229 s left)
+[00:25:08] B: real rep 1 N=4 exit 0 (222 s left): wall 5.56 s, aggregate 92.1 tok/s, latency median 5.41 s max 5.56 s, prompt tokens 6814, cached 0, ttft median 1.354 max 2.7137017250061035, itl p50 0.0239 p99 0.1805
+[00:25:18] B: real rep 1 N=8 exit 0 (212 s left): wall 8.75 s, aggregate 117.1 tok/s, latency median 8.31 s max 8.73 s, prompt tokens 12091, cached 0, ttft median 1.7071 max 5.07863450050354, itl p50 0.0332 p99 0.1896
+[00:25:35] B: real rep 1 N=16 exit 0 (195 s left): wall 16.55 s, aggregate 123.8 tok/s, latency median 15.04 s max 16.51 s, prompt tokens 25896, cached 0, ttft median 2.7196 max 11.622408390045166, itl p50 0.0578 p99 0.2044
+[00:26:08] B fill r1: localeval exit 0 (162 s left): [localeval] 1 streams: aggregate 62.1 tok/s [localeval] 4 streams: aggregate 113.1 tok/s [localeval] 8 streams: aggregate 141.7 tok/s [localeval] 16 streams: aggregate 152.7 tok/s 
+[00:26:10] B: stopped: VRAM peak B: card0 28594 MiB, card1 22796 MiB
+[00:26:10] A: start (main6; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[00:26:28] A: up (IP 172.17.0.2 after 17s ; 142 s left)
+[00:26:35] A: real rep 1 N=4 exit 0 (135 s left): wall 5.58 s, aggregate 91.8 tok/s, latency median 5.53 s max 5.58 s, prompt tokens 6814, cached 0, ttft median 1.6908 max 2.574105739593506, itl p50 0.0239 p99 0.5758
+[00:26:44] A: real rep 1 N=8 exit 0 (126 s left): wall 8.68 s, aggregate 118.0 tok/s, latency median 8.58 s max 8.67 s, prompt tokens 12091, cached 0, ttft median 1.9885 max 4.585300445556641, itl p50 0.0332 p99 0.5885
+[00:27:02] A: real rep 1 N=16 exit 0 (108 s left): wall 16.45 s, aggregate 124.5 tok/s, latency median 16.09 s max 16.41 s, prompt tokens 25896, cached 0, ttft median 2.8504 max 9.704992055892944, itl p50 0.0573 p99 0.6259
+[00:27:35] A fill r1: localeval exit 0 (75 s left): [localeval] 1 streams: aggregate 61.8 tok/s [localeval] 4 streams: aggregate 111.8 tok/s [localeval] 8 streams: aggregate 142.1 tok/s [localeval] 16 streams: aggregate 154.2 tok/s 
+[00:27:37] A: stopped: VRAM peak A: card0 28531 MiB, card1 57 MiB
+[00:27:37] visits done (73 s left)
+[00:27:37] waiting for the background stage
+[00:27:37] background stage ended: [bg] done 2026-11-27 00:25:55
+[00:27:49] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/hold.sh; cap 250s; stopping radiance 2026-11-27 00:24:35
+[window] radiance stopped 2026-11-27 00:24:39 (inactive)
+[window] stage done 2026-11-27 00:27:39 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-27 00:27:39
+[window] radiance answers 2026-11-27 00:27:49 (after 15 s)

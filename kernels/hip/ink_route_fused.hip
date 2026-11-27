@@ -7,6 +7,7 @@
 // x bf16 [T,D], w bf16 [E,D], bias f32 [E] -> weights f32 [T,K], ids i32 [T,K], logits f32 [T,E] or [0]; E <= 256, K <= 32, T <= 16.
 #include "ik_hip.h"
 #include "ik_hip_abi_inkmix.h"
+#include "ink_tick.h"
 
 namespace {
 
@@ -14,7 +15,8 @@ constexpr int kWaves = 4;       // logits per block (E / 4 blocks: 32 for the re
 constexpr int kRowsMax = 16;
 constexpr int kEMax = 256;      // experts: the routing keeps 2 * E floats per wave in shared memory
 
-__device__ unsigned int g_route_ctr = 0;
+// one ticket per slot: the launch's (device, HIP stream), ink_tick.h (lane ink-hip-overlap)
+__device__ unsigned int g_route_ctr[kInkTickSlots];
 
 struct Pick {
     float v;
@@ -105,7 +107,7 @@ IK_DEVI void route_row(const float* __restrict__ l, const float* __restrict__ bi
 
 __global__ void __launch_bounds__(kWaves* IK_WARP)
 ink_route_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ wt, const float* __restrict__ bias, float* lg, int T, int E,
-                 int64_t D, int K, float scale, int norm, float temp, int sf, float* __restrict__ ow, int* __restrict__ oid) {
+                 int64_t D, int K, float scale, int norm, float temp, int sf, float* __restrict__ ow, int* __restrict__ oid, int slot) {
     __shared__ float smem[kWaves * 2 * kEMax];
     __shared__ int picks[kWaves][32];
     __shared__ int last_blk;
@@ -141,9 +143,9 @@ ink_route_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ wt, 
     __threadfence();  // the logits of this block before the ticket
     __syncthreads();
     if (threadIdx.x == 0) {
-        const unsigned old = atomicAdd(&g_route_ctr, 1u);
+        const unsigned old = atomicAdd(&g_route_ctr[slot], 1u);
         const bool l = old == gridDim.x - 1;
-        if (l) atomicExch(&g_route_ctr, 0u);
+        if (l) atomicExch(&g_route_ctr[slot], 0u);
         last_blk = l;
     }
     __syncthreads();
@@ -181,9 +183,9 @@ extern "C" int ik_ink_route_bf16(const ik_tensor* x, const ik_tensor* w, const i
         lg = (float*)scratch->data;
     }
     const unsigned grid = (unsigned)((E + kWaves - 1) / kWaves);
-    ink_route_kernel<<<grid, kWaves * IK_WARP, 0, IK_STREAM(stream)>>>((const ik_bf16*)x->data, (const ik_bf16*)w->data,
-                                                                       (const float*)bias->data, lg, (int)T, (int)E, D, (int)top_k, scale,
-                                                                       norm_topk, temperature, score_func, (float*)weights->data,
-                                                                       (int*)ids->data);
+    hipStream_t st = IK_STREAM(stream);
+    ink_route_kernel<<<grid, kWaves * IK_WARP, 0, st>>>((const ik_bf16*)x->data, (const ik_bf16*)w->data, (const float*)bias->data, lg,
+                                                        (int)T, (int)E, D, (int)top_k, scale, norm_topk, temperature, score_func,
+                                                        (float*)weights->data, (int*)ids->data, ink_tick_slot(st));
     return ik_launch_status();
 }

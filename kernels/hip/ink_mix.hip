@@ -24,6 +24,7 @@
 #include <type_traits>
 #include "ik_hip.h"
 #include "ik_hip_abi_inkmix.h"
+#include "ink_tick.h"
 
 // Phase timestamps of block 0 / thread 0 (INK_PROBE builds only; tests/ink_mix_probe.rs reads them with ik_ink_probe): wall_clock64 ticks (100 MHz).
 #ifdef INK_PROBE
@@ -56,8 +57,9 @@ constexpr int kFuseRowsMax = 8;                  // default: blend chunks of at 
 constexpr int kFnormRowsMax = 2;                 // default: blend chunks of at most this many rows take the gate kernel's fused norm (blend_fnorm_rows)
 constexpr int kFuseD = 2304;                     // widest row of the fused blend (the pair lives in shared memory)
 
-// tickets of the gate kernel's fused norm: [stream][row group], zero between launches (the last block of a group resets its own)
-__device__ unsigned int g_gate_ctr[3 * 16];
+// tickets of the gate kernel's fused norm: [slot][stream][row group], zero between launches (the last block of a group resets its own);
+// the slot is the launch's (device, HIP stream) (ink_tick.h, lane ink-hip-overlap: a prefill chunk and the decode twin's step at once)
+__device__ unsigned int g_gate_ctr[kInkTickSlots * 3 * 16];
 
 // DPP (INTARSIA_HIP_INK_DEC3 bit 1, lane ink-hip-dec3): the partners from DPP / v_permlanex16 instead of ds_bpermute; the same
 // partners in the same order (ik_warp_sum_dpp), so the same bits
@@ -581,6 +583,7 @@ struct GateNorm {
     float eps;
     int on;
     int tail;  // INTARSIA_HIP_INK_DEC_FAST bit 2 (lane ink-hip-dec2): the slice partials staged by all threads at once, the norm loop's loads issued 4 at a time
+    int slot;  // the ticket slot of the launch's stream (ink_tick.h)
 };
 constexpr int kTailPs = 256;  // slice partials of a group the fast tail stages (rows x slices; kFuseRowsMax x 18 at D 2304)
 
@@ -669,9 +672,10 @@ __global__ void __launch_bounds__(kGateCh) ink_blend_gate_kernel(const ik_bf16* 
     __threadfence();  // ybuf (every thread) and part (threads < rows) before the ticket
     __syncthreads();
     if (threadIdx.x == 0) {
-        const unsigned old = atomicAdd(&g_gate_ctr[s * 16 + blockIdx.z], 1u);
+        unsigned* const ctr = &g_gate_ctr[(gn_.slot * 3 + s) * 16 + blockIdx.z];
+        const unsigned old = atomicAdd(ctr, 1u);
         const bool l = old == gridDim.x - 1;
-        if (l) atomicExch(&g_gate_ctr[s * 16 + blockIdx.z], 0u);
+        if (l) atomicExch(ctr, 0u);
         last_blk = l;
     }
     __syncthreads();
@@ -1009,7 +1013,8 @@ int run_blend(RowArgs a, const ik_tensor* down, const ik_tensor* gain, const ik_
             IK_TRY(ik_launch_status());
         }
         const bool fnorm = (mix_mask() & 2) != 0 && rc <= blend_fnorm_rows();
-        const GateNorm gnorm{(const ik_bf16*)norm->data, (ik_bf16*)out->data, a.eps, fnorm ? 1 : 0, mix_dec_tail() ? 1 : 0};
+        const GateNorm gnorm{(const ik_bf16*)norm->data, (ik_bf16*)out->data, a.eps, fnorm ? 1 : 0, mix_dec_tail() ? 1 : 0,
+                             fnorm ? ink_tick_slot(st) : 0};
         const dim3 gg((unsigned)nsl, (unsigned)S, (unsigned)((rc + kGateRows - 1) / kGateRows));
         const bool gdpp = (ik_hip_dec3_mask() & 1) != 0;
 #define IK_GATE(F, P)                                                                                                                   \

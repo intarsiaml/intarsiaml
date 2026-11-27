@@ -1,0 +1,15 @@
+
+running 10 tests
+test inkling2_batch_argmax_equals_solo ... ok
+test inkling2_batch_equals_solo_2_5_16 ... ok
+test inkling2_batch_failed_pass_resets_every_sequence ... ok
+test inkling2_batch_membership_changes ... ok
+test inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo ... ok
+test inkling2_batch_rollback_per_sequence ... ok
+test inkling2_batch_sampler_rows_are_softcapped ... ok
+test inkling2_batched_engine_equals_solo_engine ... ok
+test inkling2_decode_twin_equals_solo_and_overlaps_prefill ... ok
+test inkling2_loaded_to_batch_packs_no_p12 ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 37.87s
+

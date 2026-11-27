@@ -318,7 +318,7 @@ fn batched_overlap(v: Variant, rows: usize, reuse: bool, overlap: bool) -> (Batc
     let m = model(v, rows, true, &tel);
     let mut o = BatchedOptions::new(rows, 64);
     o.prefix_reuse = reuse;
-    o.overlap = overlap;
+    o.overlap = Some(overlap);
     (BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel.clone(), o).unwrap(), tel)
 }
 

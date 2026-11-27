@@ -29,6 +29,7 @@
 // order.
 #include "ik_hip.h"
 #include "ik_hip_abi_inkattn.h"
+#include "ink_tick.h"
 #include <math.h>
 #include <type_traits>
 
@@ -61,6 +62,8 @@ constexpr int F_DIAG_NOMERGE = 512;  // diagnostic (INTARSIA_INK_DEC_DIAG bit 1)
 constexpr int F_DPP = 1024;          // INTARSIA_HIP_INK_DEC3 bit 1 (lane ink-hip-dec3): op 75's launcher takes the <.., DPP = true>
                                      // kernels, whose butterflies take the partner from DPP / v_permlanex16 (ik_xor_f) instead of
                                      // ds_bpermute: the same partners in the same order, same bits (the kernels do not read the flag)
+constexpr int F_SLOT_SHIFT = 24;     // op 75 (lane ink-hip-overlap): bits 24..27 = the ticket slot of the launch's stream (ink_tick.h);
+                                     // 0 for the first stream of a device, so InkP stays main's bytes there
 constexpr int F_R_ROW = 2048;        // prologue (INTARSIA_HIP_INK_PF2 bit 1, lane ink-hip-pf2): write r (rounded) into the first dr entries
                                      // of each rel row and skip the rel tail; ink_rel_table_k forms the rows from it right after
 
@@ -656,7 +659,8 @@ __global__ void ink_attn_comb_k(InkP p) {
 
 // InkAttnDecode tickets: per (row, kv head) the count of finished splits; the last block resets its entry to 0, so the array is
 // zero before and after every launch (stream order serialises launches; graph replays alike).
-__device__ unsigned ink_dec_tick[MAXROWS * MAXHK_TICK];
+// [slot][row][kv head]: the slot (flags bits 24..27) is the launch's (device, HIP stream), ink_tick.h (lane ink-hip-overlap)
+__device__ unsigned ink_dec_tick[kInkTickSlots * MAXROWS * MAXHK_TICK];
 
 // Row-table form (lane ink-hip-batch): `p` becomes the T = 1 call of sequence r at device position pos[r]: its row-indexed
 // operands shifted by r rows, its own scratch block of one row, its caches / rings from table entries rti .. rti + 3 (+ the carriers'
@@ -774,7 +778,7 @@ __global__ void __launch_bounds__(DEC_WAVES * 32) ink_attn_dec_k(std::conditiona
     // the partials of this split are written; the last split of (row, kv head) to arrive merges them all
     __threadfence();
     __syncthreads();
-    unsigned* tick = &ink_dec_tick[(RT ? blockIdx.z : t) * MAXHK_TICK + kvh];
+    unsigned* tick = &ink_dec_tick[((((unsigned)p.flags >> F_SLOT_SHIFT) & (unsigned)(kInkTickSlots - 1)) * MAXROWS + (RT ? blockIdx.z : t)) * MAXHK_TICK + kvh];
     if (tid == 0) {
         const unsigned old = atomicAdd(tick, 1u);
         is_last = old == g.ns - 1;
@@ -1406,10 +1410,13 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
     }
     const size_t tbb = (size_t)G * nb * 4;
     const dim3 grid(p.hk, gy, p.t);
+    // the ticket slot of this stream (flags bits 24..27; 0 = main's bytes): this launch only, the cache-write pass below takes p
+    InkP pd = p;
+    pd.flags |= ink_tick_slot(st) << F_SLOT_SHIFT;
     switch (G) {
-        case 1: if (p.flags & F_DPP) ink_attn_dec_k<1, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); else ink_attn_dec_k<1><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
-        case 2: if (p.flags & F_DPP) ink_attn_dec_k<2, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); else ink_attn_dec_k<2><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
-        default: if (p.flags & F_DPP) ink_attn_dec_k<3, true><<<grid, DEC_WAVES * 32, tbb, st>>>(p); else ink_attn_dec_k<3><<<grid, DEC_WAVES * 32, tbb, st>>>(p); break;
+        case 1: if (p.flags & F_DPP) ink_attn_dec_k<1, true><<<grid, DEC_WAVES * 32, tbb, st>>>(pd); else ink_attn_dec_k<1><<<grid, DEC_WAVES * 32, tbb, st>>>(pd); break;
+        case 2: if (p.flags & F_DPP) ink_attn_dec_k<2, true><<<grid, DEC_WAVES * 32, tbb, st>>>(pd); else ink_attn_dec_k<2><<<grid, DEC_WAVES * 32, tbb, st>>>(pd); break;
+        default: if (p.flags & F_DPP) ink_attn_dec_k<3, true><<<grid, DEC_WAVES * 32, tbb, st>>>(pd); else ink_attn_dec_k<3><<<grid, DEC_WAVES * 32, tbb, st>>>(pd); break;
     }
     if (!kv_fused) {
         InkP pw = p;

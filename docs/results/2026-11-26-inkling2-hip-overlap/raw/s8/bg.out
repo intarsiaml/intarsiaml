@@ -1,0 +1,23 @@
+[q-b4o-o6] (o6, card 1) up after 10s (0 = not up) 2026-11-27 00:24:49: admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 426 cached continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 4096 loaded ink on hip (AMD Radeon Graphics) in 8.1s, context 8192 tokens 
+[q-b4o-o6] intarsia_kv_tokens_capacity 32768 VRAM card1 22622 MiB
+[q-b4o-o6] bitwise conc:4:0 exit 0 2026-11-27 00:24:52: wall 2.19 s, aggregate 234.1 tok/s, latency median 2.17 s max 2.19 s, prompt tokens 4962, cached 0, ttft median 0.3627 max 0.6528329849243164, itl p50 0.0122 p99 0.1186
+[q-b4o-o6] bitwise conc:4:1 exit 0 2026-11-27 00:24:54: wall 2.12 s, aggregate 241.6 tok/s, latency median 2.1 s max 2.12 s, prompt tokens 5049, cached 0, ttft median 0.3418 max 0.6059098243713379, itl p50 0.0122 p99 0.138
+[q-b4o-o6] bitwise conc:4:2 exit 0 2026-11-27 00:24:57: wall 2.81 s, aggregate 182.5 tok/s, latency median 2.79 s max 2.8 s, prompt tokens 6383, cached 0, ttft median 1.095 max 1.4400303363800049, itl p50 0.0109 p99 0.0333
+[q-b4o-o6] bitwise conc:4:3 exit 0 2026-11-27 00:24:59: wall 2.34 s, aggregate 219.0 tok/s, latency median 2.32 s max 2.34 s, prompt tokens 7776, cached 0, ttft median 0.4726 max 0.8134067058563232, itl p50 0.0123 p99 0.2343
+[q-b4o-o6] intarsia_batch_overlap_steps_total 158
+[q-b4o-main6] (main6, card 1) up after 11s (0 = not up) 2026-11-27 00:25:09: admission on plan shapes: 40 kernel(s) checked, 426 case(s) run, 0 cached continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 4096 loaded ink on hip (AMD Radeon Graphics) in 9.9s, context 8192 tokens 
+[q-b4o-main6] intarsia_kv_tokens_capacity 32768 VRAM card1 22793 MiB
+[q-b4o-main6] bitwise conc:4:0 exit 0 2026-11-27 00:25:11: wall 2.14 s, aggregate 239.6 tok/s, latency median 2.12 s max 2.14 s, prompt tokens 4962, cached 0, ttft median 0.3094 max 0.5978069305419922, itl p50 0.0123 p99 0.1249
+[q-b4o-main6] bitwise conc:4:1 exit 0 2026-11-27 00:25:14: wall 2.12 s, aggregate 241.7 tok/s, latency median 2.1 s max 2.12 s, prompt tokens 5049, cached 0, ttft median 0.3389 max 0.6035764217376709, itl p50 0.0122 p99 0.1383
+[q-b4o-main6] bitwise conc:4:2 exit 0 2026-11-27 00:25:16: wall 2.24 s, aggregate 228.8 tok/s, latency median 2.22 s max 2.24 s, prompt tokens 6383, cached 0, ttft median 0.3676 max 0.7155699729919434, itl p50 0.0123 p99 0.1588
+[q-b4o-main6] bitwise conc:4:3 exit 0 2026-11-27 00:25:18: wall 2.33 s, aggregate 219.4 tok/s, latency median 2.31 s max 2.33 s, prompt tokens 7776, cached 0, ttft median 0.4669 max 0.8070964813232422, itl p50 0.0123 p99 0.2343
+G2 short o6 [2026-11-27 00:25:18] prefill floor [4bit]: top-1 (all rows) 99.47% (not gated for this class) ok | 21-way KL (scored rows, n=569) 4.491e-3 (need <= 3.0e-2) ok [all rows, n=569: 4.491e-3, reported only] | tail mass (all rows) ours 0.0665 vs ref 0.0679, excess -0.0014 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested 
+G2 long o6 [2026-11-27 00:25:29] prefill floor [4bit]: top-1 (all rows) 98.98% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 4.083e-3 (need <= 3.0e-2) ok [all rows, n=1569: 4.083e-3, reported only] | tail mass (all rows) ours 0.0405 vs ref 0.0407, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested 
+[tiny] inkling2_batch (o6 tree) exit 0 2026-11-27 00:25:50
+[tiny inkling2_batch] test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.77s
+[tiny] inkling2_packed (o6 tree) exit 0 2026-11-27 00:25:55
+[tiny inkling2_packed] overlap, pace 0 ms: 47 decode phases beside chunks in flight, 1 packed passes
+[tiny inkling2_packed] overlap, pace 2 ms: 32 decode phases beside chunks in flight, 1 packed passes
+[tiny inkling2_packed] test inkling2_packed_equals_solo_real ... ok
+[tiny inkling2_packed] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.59s
+[bg] done 2026-11-27 00:25:55

@@ -1,0 +1,157 @@
+== s1: arms ['A', 'B']
+  fill1.agg        A     61.9  B     61.8
+  fill4.agg        A    113.2  B    113.3
+  fill8.agg        A    142.7  B    140.4
+  fill16.agg       A    154.5  B    153.3
+  fill1.ttft50     A    0.418  B    0.398
+  fill4.ttft50     A    1.316  B    1.167
+  fill8.ttft50     A    2.065  B    1.988
+  fill16.ttft50    A    3.643  B    3.702
+  fill1.ttftmax    A    0.418  B    0.398
+  fill4.ttftmax    A    1.525  B    1.598
+  fill8.ttftmax    A    3.063  B    3.307
+  fill16.ttftmax   A    6.325  B    7.335
+  real4.agg        A    101.8  B    102.2
+  real8.agg        A    119.1  B    117.1
+  real16.agg       A    127.2  B    124.5
+  real4.itl50      A   0.0232  B   0.0233
+  real4.itl90      A  0.03174  B  0.05202
+  real4.itl99      A   0.1089  B   0.1587
+  real8.itl50      A   0.0329  B   0.0334
+  real8.itl90      A  0.07116  B  0.12846
+  real8.itl99      A   0.6144  B   0.1909
+  real16.itl50     A   0.0572  B   0.0592
+  real16.itl90     A  0.12421  B  0.16227
+  real16.itl99     A   0.6509  B   0.2376
+  real4.ttft50     A   1.5445  B   1.2017
+  real4.ttft95     A 2.0723659992218018  B 2.1843321323394775
+  real8.ttft50     A   1.9267  B   1.6739
+  real8.ttft95     A 4.513938903808594  B 5.049576044082642
+  real16.ttft50    A   3.0001  B    2.643
+  real16.ttft95    A 9.395364046096802  B 11.567775011062622
+  real4.ttftmax    A 2.0723659992218018  B 2.1843321323394775
+  real8.ttftmax    A 4.513938903808594  B 5.049576044082642
+  real16.ttftmax   A 9.395364046096802  B 11.567775011062622
+  vram             A    28531  B    28593
+== s2: arms ['A', 'B']
+  fill1.agg        A     61.8  B     62.0
+  fill4.agg        A    113.5  B    115.3
+  fill8.agg        A    139.6  B    140.3
+  fill16.agg       A    153.9  B    153.2
+  fill1.ttft50     A    0.393  B    0.395
+  fill4.ttft50     A    1.319  B    1.162
+  fill8.ttft50     A    2.096  B    1.999
+  fill16.ttft50    A    3.684  B    3.704
+  fill1.ttftmax    A    0.393  B    0.395
+  fill4.ttftmax    A    1.531  B    1.591
+  fill8.ttftmax    A    3.134  B    3.313
+  fill16.ttftmax   A    6.351  B     7.33
+  real4.agg        A    102.3  B    101.7
+  real8.agg        A    112.7  B    112.0
+  real16.agg       A    125.1  B    124.7
+  real4.itl50      A   0.0234  B   0.0236
+  real4.itl90      A  0.03155  B  0.07197
+  real4.itl99      A   0.1137  B   0.1693
+  real8.itl50      A   0.0333  B   0.0333
+  real8.itl90      A  0.07522  B  0.13128
+  real8.itl99      A   0.5884  B   0.1932
+  real16.itl50     A   0.0577  B   0.0597
+  real16.itl90     A  0.12899  B   0.1665
+  real16.itl99     A   0.6256  B   0.2558
+  real4.ttft50     A   1.5738  B   1.2808
+  real4.ttft95     A 2.0210280418395996  B 2.1881611347198486
+  real8.ttft50     A   2.0558  B   1.7068
+  real8.ttft95     A 4.990886926651001  B 5.4418299198150635
+  real16.ttft50    A   2.7618  B   2.6733
+  real16.ttft95    A 9.640033960342407  B 11.485774993896484
+  real4.ttftmax    A 2.0210280418395996  B 2.1881611347198486
+  real8.ttftmax    A 4.990886926651001  B 5.4418299198150635
+  real16.ttftmax   A 9.640033960342407  B 11.485774993896484
+  vram             A    28531  B    28593
+== s3: arms ['A', 'B']
+  fill1.agg        A     61.9  B     62.1
+  fill4.agg        A    112.5  B    113.4
+  fill8.agg        A    142.0  B    140.9
+  fill16.agg       A    154.1  B    153.5
+  fill1.ttft50     A    0.389  B     0.39
+  fill4.ttft50     A    1.315  B    1.172
+  fill8.ttft50     A    2.067  B    2.019
+  fill16.ttft50    A    3.643  B    3.701
+  fill1.ttftmax    A    0.389  B     0.39
+  fill4.ttftmax    A    1.527  B    1.672
+  fill8.ttftmax    A    3.096  B    3.303
+  fill16.ttftmax   A     6.34  B    7.383
+  real4.agg        A     93.1  B     92.2
+  real8.agg        A    119.7  B    117.9
+  real16.agg       A    125.1  B    124.4
+  real4.itl50      A   0.0238  B   0.0237
+  real4.itl90      A  0.03193  B  0.07882
+  real4.itl99      A   0.2481  B     0.18
+  real8.itl50      A   0.0328  B   0.0333
+  real8.itl90      A  0.06526  B  0.11555
+  real8.itl99      A   0.5878  B   0.3684
+  real16.itl50     A   0.0571  B   0.0588
+  real16.itl90     A  0.12715  B  0.16786
+  real16.itl99     A   0.6332  B   0.2379
+  real4.ttft50     A   1.6973  B   1.3577
+  real4.ttft95     A 2.498135805130005  B 2.688965082168579
+  real8.ttft50     A   2.4235  B   1.5983
+  real8.ttft95     A 4.486520051956177  B 5.017611026763916
+  real16.ttft50    A   2.8118  B   2.6595
+  real16.ttft95    A 9.704530000686646  B 11.581496000289917
+  real4.ttftmax    A 2.498135805130005  B 2.688965082168579
+  real8.ttftmax    A 4.486520051956177  B 5.017611026763916
+  real16.ttftmax   A 9.704530000686646  B 11.581496000289917
+  vram             A    28531  B    28594
+== paired X / A (mean over windows, 95 % t interval); for TTFT / ITL lower is better
+  B/A fill1.agg        1.002 [0.995, 1.009]  n=3  per window 0.998, 1.003, 1.003
+  B/A fill4.agg        1.008 [0.990, 1.027]  n=3  per window 1.001, 1.016, 1.008
+  B/A fill8.agg        0.994 [0.967, 1.020]  n=3  per window 0.984, 1.005, 0.992
+  B/A fill16.agg       0.995 [0.989, 1.000]  n=3  per window 0.992, 0.995, 0.996
+  B/A fill1.ttft50     0.987 [0.912, 1.061]  n=3  per window 0.952, 1.005, 1.003
+  B/A fill4.ttft50     0.886 [0.874, 0.899]  n=3  per window 0.887, 0.881, 0.891
+  B/A fill8.ttft50     0.964 [0.936, 0.993]  n=3  per window 0.963, 0.954, 0.977
+  B/A fill16.ttft50    1.013 [0.997, 1.028]  n=3  per window 1.016, 1.005, 1.016
+  B/A fill1.ttftmax    0.987 [0.912, 1.061]  n=3  per window 0.952, 1.005, 1.003
+  B/A fill4.ttftmax    1.061 [0.986, 1.135]  n=3  per window 1.048, 1.039, 1.095
+  B/A fill8.ttftmax    1.068 [1.040, 1.096]  n=3  per window 1.080, 1.057, 1.067
+  B/A fill16.ttftmax   1.159 [1.147, 1.172]  n=3  per window 1.160, 1.154, 1.165
+  B/A real4.agg        0.996 [0.979, 1.014]  n=3  per window 1.004, 0.994, 0.990
+  B/A real8.agg        0.987 [0.973, 1.001]  n=3  per window 0.983, 0.994, 0.985
+  B/A real16.agg       0.990 [0.966, 1.014]  n=3  per window 0.979, 0.997, 0.994
+  B/A real4.itl50      1.003 [0.987, 1.019]  n=3  per window 1.004, 1.009, 0.996
+  B/A real4.itl90      2.130 [1.049, 3.210]  n=3  per window 1.639, 2.281, 2.469
+  B/A real4.itl99      1.224 [0.151, 2.297]  n=3  per window 1.457, 1.489, 0.726
+  B/A real8.itl50      1.010 [0.988, 1.032]  n=3  per window 1.015, 1.000, 1.015
+  B/A real8.itl90      1.774 [1.699, 1.848]  n=3  per window 1.805, 1.745, 1.771
+  B/A real8.itl99      0.422 [-0.019, 0.863]  n=3  per window 0.311, 0.328, 0.627
+  B/A real16.itl50     1.033 [1.026, 1.040]  n=3  per window 1.035, 1.035, 1.030
+  B/A real16.itl90     1.306 [1.269, 1.342]  n=3  per window 1.306, 1.291, 1.320
+  B/A real16.itl99     0.383 [0.326, 0.440]  n=3  per window 0.365, 0.409, 0.376
+  B/A real4.ttft50     0.797 [0.752, 0.842]  n=3  per window 0.778, 0.814, 0.800
+  B/A real4.ttft95     1.071 [1.034, 1.108]  n=3  per window 1.054, 1.083, 1.076
+  B/A real8.ttft50     0.786 [0.509, 1.063]  n=3  per window 0.869, 0.830, 0.660
+  B/A real8.ttft95     1.109 [1.069, 1.150]  n=3  per window 1.119, 1.090, 1.118
+  B/A real16.ttft50    0.932 [0.819, 1.044]  n=3  per window 0.881, 0.968, 0.946
+  B/A real16.ttft95    1.205 [1.150, 1.261]  n=3  per window 1.231, 1.191, 1.193
+  B/A real4.ttftmax    1.071 [1.034, 1.108]  n=3  per window 1.054, 1.083, 1.076
+  B/A real8.ttftmax    1.109 [1.069, 1.150]  n=3  per window 1.119, 1.090, 1.118
+  B/A real16.ttftmax   1.205 [1.150, 1.261]  n=3  per window 1.231, 1.191, 1.193
+  B/A vram             1.002 [1.002, 1.002]  n=3  per window 1.002, 1.002, 1.002
+== gate 4 (rule of section 4)
+  PASS  fill1.agg      aggregate upper >= 0.99: 1.009
+  PASS  fill4.agg      aggregate upper >= 0.99: 1.027
+  PASS  fill8.agg      aggregate upper >= 0.99: 1.020
+  PASS  fill16.agg     aggregate upper >= 0.99: 1.000
+  PASS  fill1.ttft50   TTFT p50 lower <= 1.01: 0.912
+  PASS  fill4.ttft50   TTFT p50 lower <= 1.01: 0.874
+  PASS  fill8.ttft50   TTFT p50 lower <= 1.01: 0.936
+  PASS  fill16.ttft50  TTFT p50 lower <= 1.01: 0.997
+  PASS  real4.agg      aggregate upper >= 0.99: 1.014
+  PASS  real8.agg      aggregate upper >= 0.99: 1.001
+  PASS  real16.agg     aggregate upper >= 0.99: 1.014
+  FAIL  real8.itl99    ITL p99 upper <= 0.70: 0.863
+  PASS  real16.itl99   ITL p99 upper <= 0.70: 0.440
+  PASS  real4.ttft50   TTFT p50 lower <= 1.01: 0.752
+  PASS  real8.ttft50   TTFT p50 lower <= 1.01: 0.509
+  PASS  real16.ttft50  TTFT p50 lower <= 1.01: 0.819

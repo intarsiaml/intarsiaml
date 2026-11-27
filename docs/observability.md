@@ -69,6 +69,7 @@ holding a slot, prefilling or decoding; an admitted request that has not started
 queue gauge. `intarsia_batch_queue_depth_max` is the highest `queue_depth` seen at a submit. The scheduler also exports
 `intarsia_batch_mixed_iterations_total` (iterations that ran a decode phase and a prefill chunk),
 `intarsia_batch_paused_steps_total` (decode steps run while a prefill chunk was parked between layers, `INTARSIA_PREFILL_PAUSE_ROWS`),
+`intarsia_batch_overlap_steps_total` (decode phases run while a prefill chunk or packed pass was in flight on its own stream, `INTARSIA_OVERLAP`),
 `intarsia_batch_requests_{admitted,finished,cancelled,failed,rejected}_total`, and the histograms
 `intarsia_batch_{step,chunk_call,ttft,itl}_seconds` (`chunk_call` is the host-side time of the `prefill_chunk` call: a non-final chunk is only enqueued, its GPU time is paid by the next decode step).
 

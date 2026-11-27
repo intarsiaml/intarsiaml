@@ -1,0 +1,26 @@
+[00:11:23] radiance down
+[00:11:23] background stage stage_s6bg.sh started (cap 195 s)
+[00:11:24] B: start (o6; INTARSIA_OVERLAP=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[00:11:42] B: up (IP 172.17.0.3 after 18s ; 231 s left)
+[00:11:48] B: real rep 1 N=4 exit 0 (225 s left): wall 5.03 s, aggregate 101.8 tok/s, latency median 4.92 s max 5.03 s, prompt tokens 5277, cached 0, ttft median 1.2096 max 2.18908953666687, itl p50 0.0236 p99 0.1555
+[00:11:58] B: real rep 1 N=8 exit 0 (215 s left): wall 8.68 s, aggregate 118.0 tok/s, latency median 8.24 s max 8.67 s, prompt tokens 12091, cached 0, ttft median 1.5879 max 4.946308374404907, itl p50 0.0334 p99 0.1953
+[00:12:15] B: real rep 1 N=16 exit 0 (198 s left): wall 16.50 s, aggregate 124.1 tok/s, latency median 15.0 s max 16.47 s, prompt tokens 25896, cached 0, ttft median 2.7241 max 11.597161769866943, itl p50 0.0576 p99 0.269
+[00:12:49] B fill r1: localeval exit 0 (164 s left): [localeval] 1 streams: aggregate 62.2 tok/s [localeval] 4 streams: aggregate 113.3 tok/s [localeval] 8 streams: aggregate 141.2 tok/s [localeval] 16 streams: aggregate 153.0 tok/s 
+[00:13:09] B: wait /home/josef/intarsiaml-ink-hip-bpf/logs/s6/main6-primed exit 0 (144 s left)
+[00:13:11] B: stopped: VRAM peak B: card0 28593 MiB, card1 28611 MiB
+[00:13:11] A: start (main6; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[00:13:29] A: up (IP 172.17.0.3 after 18s ; 124 s left)
+[00:13:35] A: real rep 1 N=4 exit 0 (118 s left): wall 5.05 s, aggregate 101.4 tok/s, latency median 5.02 s max 5.05 s, prompt tokens 5277, cached 0, ttft median 1.5471 max 2.0714573860168457, itl p50 0.0235 p99 0.0971
+[00:13:45] A: real rep 1 N=8 exit 0 (108 s left): wall 8.62 s, aggregate 118.8 tok/s, latency median 8.52 s max 8.61 s, prompt tokens 12091, cached 0, ttft median 1.9417 max 4.5182273387908936, itl p50 0.0332 p99 0.5843
+[00:14:02] A: real rep 1 N=16 exit 0 (91 s left): wall 16.43 s, aggregate 124.6 tok/s, latency median 16.09 s max 16.41 s, prompt tokens 25896, cached 0, ttft median 2.8348 max 9.70339584350586, itl p50 0.0575 p99 0.6246
+[00:14:36] A fill r1: localeval exit 0 (57 s left): [localeval] 1 streams: aggregate 61.8 tok/s [localeval] 4 streams: aggregate 112.1 tok/s [localeval] 8 streams: aggregate 141.3 tok/s [localeval] 16 streams: aggregate 154.5 tok/s 
+[00:14:38] A: stopped: VRAM peak A: card0 28532 MiB, card1 22637 MiB
+[00:14:38] visits done (55 s left)
+[00:14:38] waiting for the background stage
+[00:14:38] background stage ended: [bg] done 2026-11-27 00:14:27
+[00:14:49] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/hold.sh; cap 250s; stopping radiance 2026-11-27 00:11:20
+[window] radiance stopped 2026-11-27 00:11:23 (inactive)
+[window] stage done 2026-11-27 00:14:39 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-27 00:14:39
+[window] radiance answers 2026-11-27 00:14:49 (after 15 s)

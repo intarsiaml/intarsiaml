@@ -1923,8 +1923,10 @@ impl Model {
                         "speculative drafters other than its DSpark draft (--spec dflash --spec-draft <model dir>) or a DFlash2 draft on Inkling-2".into(),
                     ));
                 }
-                if opts.dflash.as_ref().is_some_and(dflash2) && !matches!(b.name(), "hip" | "cpu") {
-                    return Err(Error::Unsupported(format!("a DFlash2 draft on Inkling-2 on the {} backend (hip and cpu only, lane ink-dflash2)", b.name())));
+                // (Metal: lane ink-metal-dflash2, the 27B's DFlash2 ops of lane dm; the draft pass is draft-only numerics, the verify rows are
+                // the target's own, so output ids stay `--spec off`'s)
+                if opts.dflash.as_ref().is_some_and(dflash2) && !matches!(b.name(), "hip" | "cpu" | "metal") {
+                    return Err(Error::Unsupported(format!("a DFlash2 draft on Inkling-2 on the {} backend (hip, metal and cpu only, lanes ink-dflash2 / ink-metal-dflash2)", b.name())));
                 }
                 let ic = recipe.layer.other.get("ink").ok_or_else(|| Error::model("recipe [layer.ink] missing"))?;
                 let field = |k: &str| ic.get(k).and_then(|v| v.as_str()).map(String::from).ok_or_else(|| Error::model(format!("recipe [layer.ink] needs '{k}'")));
@@ -3957,7 +3959,7 @@ impl Model {
         }
         let (d, esz) = (&self.dims, self.act.size_bytes());
         let mut w = vec![d.hidden * esz, d.n_heads * d.head_dim * esz, d.n_kv_heads * d.head_dim * esz, im.dims.top_k * 4];
-        for l in &im.layers {
+        for l in im.layers.iter() {
             w.extend([l.nq * esz, l.nk * esz, d.n_heads * l.relproj.shape[1] * esz]);
         }
         let need = |b: usize| 16 / gcd(b, 16);
@@ -4141,6 +4143,18 @@ impl Model {
     /// Whether this is an Inkling-2 model (`inkling2_loop`).
     pub fn is_inkling(&self) -> bool {
         self.ink.is_some()
+    }
+
+    /// Lane ink-hip-overlap: whether a batching engine runs prefill/decode overlap (R3d) when `INTARSIA_OVERLAP` is unset: Inkling-2
+    /// on HIP when [`inkling2::INK_OVERLAP_DEFAULT`] is on (off since gate 4, so opt-in there too); every other model and backend
+    /// keeps it opt-in.
+    pub fn overlap_default(&self) -> bool {
+        self.ink.is_some() && self.backend.name() == "hip" && inkling2::INK_OVERLAP_DEFAULT
+    }
+
+    /// Lane ink-hip-overlap: this model's `INTARSIA_OVERLAP_PACE_MS` default when the variable is unset; `None`: the engine's.
+    pub fn overlap_pace_default_ms(&self) -> Option<u64> {
+        self.ink.is_some().then_some(inkling2::INK_OVERLAP_PACE_MS_DEFAULT)
     }
 
     /// Inkling-2 only (tests, lane ink-hip-bpf): [`Model::ink_prefill_packed`]'s pass over `items` with the oracle-named

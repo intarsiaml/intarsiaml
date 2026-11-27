@@ -1,0 +1,24 @@
+fleetq: #12490 running on endor: /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/.scratch/cpu_tests2.sh
+fleetq: #12490 went ahead of the line and must end within 30m (by Fri 00:37); it is stopped then
+head ab01c8e0e        0 dirty
+== intarsia-models --test inkling2_dflash2 00:07:00
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 70.65s
+== intarsia-models --test dflash2_cpu 00:08:24
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 121.65s
+== intarsia-models --test dflash_cpu 00:10:28
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 78.81s
+== intarsia-models --test inkling2_dspark 00:11:48
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 69.25s
+== intarsia-models --test inkling2_dspark_cut 00:12:58
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.43s
+== intarsia-models --test recipes_doc 00:13:16
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+== core lib 00:13:18
+test result: ok. 283 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 16.00s
+== docs_env_vars 00:13:41
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+    Finished `release` profile [optimized] target(s) in 8.17s
+MD5 (.scratch/bin/intarsia-br3) = 7940c0132b6d0b77a409989013d7b525
+    Finished `release` profile [optimized] target(s) in 1.38s
+cpu tests exit 0 00:14:06
+fleetq: #12490 done (exit 0)

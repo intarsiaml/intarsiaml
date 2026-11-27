@@ -1,0 +1,17 @@
+fleetq: #12290 waiting (#3 in line): in line behind #12284 "ink-dflash2: W2 md5 regate, k7 trace, mxfp4 head, hip tiny (<4 min down)" (claude-04c0e1cd) on tatooine-r9700; #12284 has no estimated start, so nothing can go first by ending before it
+fleetq:   #12284 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12284 set, or it will wait for #12284 to be released.
+fleetq: #12290 waiting (#2 in line): in line behind #12287 "ink-hip-i8: sync + build cli + ink_i8 test binary (cpu only)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12287 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12287 set, or it will wait for #12287 to be released.
+fleetq: #12290 running on tatooine-r9700: ssh tatooine 'bash intarsiaml-ink-hip-bpf/.scratch/build.sh o2 m:inkling2_batch m:inkling2_packed'
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 2m 39s
+cli build exit 0
+0163643c76b5562882bb57dae301dd67  .scratch/bin/intarsia-o2
+    Finished `release` profile [optimized] target(s) in 18.17s
+  Executable tests/inkling2_batch.rs (/target/release/deps/inkling2_batch-4078c269fe83f39e)
+test inkling2_batch build exit 0
+    Finished `release` profile [optimized] target(s) in 0.93s
+  Executable tests/inkling2_packed.rs (/target/release/deps/inkling2_packed-1ed2245ff98f9c1a)
+test inkling2_packed build exit 0
+fleetq: #12290 done (exit 0)

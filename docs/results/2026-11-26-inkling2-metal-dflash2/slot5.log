@@ -1,0 +1,10 @@
+fleetq: #12514 running on endor: env BR=br3 NAME=s5-k4-a ORDER=a K=4 /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/docs/results/2026-11-26-inkling2-metal-dflash2/raw/slot3.sh
+slot start 00:53:20 K 4 order a r1 r2
+start 00:53:20 out /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/.scratch/metal/s5-k4-a binary md5 7940c0132b6d0b77a409989013d7b525 git eecef7907 prompts speed tok 256 idle 45 limit 1000
+dspark@r1 rc 0 00:55:12 t+112s | up to 3 drafts | decode overall: 4261 tokens after the first, 44241 ms (96.31 tok/s) | spec: verify passes=1627 proposed=3779 accepted=2277 (acceptance 60.3%, 2.40 tokens per pass)
+dfl4@r1 rc 0 00:56:50 t+210s | up to 4 drafts | decode overall: 4261 tokens after the first, 39876 ms (106.86 tok/s) | spec: verify passes=1306 proposed=5205 accepted=2950 (acceptance 56.7%, 3.26 tokens per pass)
+dfl4@r2 rc 0 00:58:29 t+309s | up to 4 drafts | decode overall: 4261 tokens after the first, 39712 ms (107.30 tok/s) | spec: verify passes=1306 proposed=5205 accepted=2950 (acceptance 56.7%, 3.26 tokens per pass)
+dspark@r2 rc 0 01:00:16 t+416s | up to 3 drafts | decode overall: 4261 tokens after the first, 43996 ms (96.85 tok/s) | spec: verify passes=1627 proposed=3779 accepted=2277 (acceptance 60.3%, 2.40 tokens per pass)
+end 01:00:16
+slot end 01:00:17
+fleetq: #12514 done (exit 0)

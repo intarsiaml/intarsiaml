@@ -1,0 +1,11 @@
+MD5 card1 o5 short 64 --spec off 04cdb28a6849728e8aa5be39bf65c07e rc 0 | prefill 115 ms (269.6 tok/s) | decode 758 ms (83.08 tok/s) [2026-11-26 21:21:16]
+MD5 card1 o5 short 256 --spec off 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | prefill 101 ms (306.7 tok/s) | decode 3052 ms (83.54 tok/s) [2026-11-26 21:21:24]
+MD5 card1 o5 4k 64 --spec off 2252566a5c54cf52cb564bd214c9af2b rc 0 | prefill 1362 ms (3104.9 tok/s) | decode 792 ms (79.58 tok/s) [2026-11-26 21:21:32]
+MD5 card1 o5 4k 256 --spec off 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | prefill 1361 ms (3106.1 tok/s) | decode 3177 ms (80.27 tok/s) [2026-11-26 21:21:42]
+[solo-o4] (o4, card 1) up after 0s (0 = not up) 2026-11-26 21:22:23: 
+MD5 card1 o5 short 64 dspark 04cdb28a6849728e8aa5be39bf65c07e rc 0 | prefill 102 ms (302.6 tok/s) | decode 651 ms (96.81 tok/s) [2026-11-26 21:22:32]
+MD5 card1 o5 short 256 dspark 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | prefill 99 ms (314.6 tok/s) | decode 2689 ms (94.83 tok/s) [2026-11-26 21:22:44]
+MD5 card1 o5 4k 64 dspark 2252566a5c54cf52cb564bd214c9af2b rc 0 | prefill 1372 ms (3081.3 tok/s) | decode 730 ms (86.28 tok/s) [2026-11-26 21:22:54]
+MD5 card1 o5 4k 256 dspark 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | prefill 1364 ms (3100.3 tok/s) | decode 2349 ms (108.56 tok/s) [2026-11-26 21:23:07]
+[solo-o5] (o5, card 1) up after 0s (0 = not up) 2026-11-26 21:23:47: 
+[bg] done 2026-11-26 21:23:48

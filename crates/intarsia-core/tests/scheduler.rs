@@ -129,6 +129,8 @@ struct Rec {
     batch_sizes: Vec<usize>,
     /// Packed passes as the model ran them: the body rows of each chunk (`prefill_pack`).
     packs: Vec<Vec<usize>>,
+    /// Of `packs`, those that ran in flight (`prefill_begin_pack`, lane ink-hip-overlap).
+    packs_in_flight: usize,
     /// Batched verify passes (`verify_step`): per pass, whether each sequence asked for row outputs (a sampled one).
     verify_passes: Vec<Vec<bool>>,
 }
@@ -156,6 +158,8 @@ struct MockModel {
     overlap: bool,
     /// The chunk in flight: slot, tokens, head, decode steps taken when it began.
     inflight: Option<(usize, Vec<u32>, Option<Mode>, usize)>,
+    /// The packed pass in flight (`prefill_begin_pack`, with `overlap` and `pack`): its chunks, decode steps taken when it began.
+    inflight_pack: Option<(Vec<(usize, Vec<u32>, Option<Mode>)>, usize)>,
     /// While `false`, every `prefill_chunk` and `decode_step` blocks (a long step, for the live-gauge test).
     gate: Option<Arc<(Mutex<bool>, Condvar)>>,
     /// `BatchModel::macro_step` pass size in rows (0: off).
@@ -203,6 +207,7 @@ impl MockModel {
             avoid: avoid(),
             overlap: OVERLAP.with(|a| a.get()),
             inflight: None,
+            inflight_pack: None,
             gate: None,
         }
     }
@@ -308,12 +313,27 @@ impl BatchModel for MockModel {
         self.overlap
     }
     fn prefill_begin(&mut self, slot: usize, tokens: &[u32], mode: Option<Mode>) -> Result<()> {
-        assert!(self.inflight.is_none(), "two chunks in flight");
+        assert!(self.inflight.is_none() && self.inflight_pack.is_none(), "two chunks in flight");
         self.inflight = Some((slot, tokens.to_vec(), mode, self.steps));
         Ok(())
     }
     fn prefill_done(&self) -> bool {
-        self.inflight.as_ref().is_none_or(|f| self.steps >= f.3 + 3)
+        self.inflight.as_ref().is_none_or(|f| self.steps >= f.3 + 3) && self.inflight_pack.as_ref().is_none_or(|f| self.steps >= f.1 + 3)
+    }
+    fn overlap_pack(&self) -> bool {
+        self.overlap && self.pack > 0
+    }
+    fn prefill_begin_pack(&mut self, items: &[(usize, &[u32], Option<Mode>)]) -> Result<()> {
+        assert!(self.inflight.is_none() && self.inflight_pack.is_none(), "two chunks in flight");
+        assert!(items.len() >= 2, "a packed pass of {} chunks", items.len());
+        self.inflight_pack = Some((items.iter().map(|&(s, t, m)| (s, t.to_vec(), m)).collect(), self.steps));
+        Ok(())
+    }
+    fn prefill_end_pack(&mut self) -> Result<Vec<Option<Out>>> {
+        let (items, _) = self.inflight_pack.take().expect("a packed pass in flight");
+        self.rec.lock().unwrap().packs_in_flight += 1;
+        let refs: Vec<(usize, &[u32], Option<Mode>)> = items.iter().map(|(s, t, m)| (*s, t.as_slice(), *m)).collect();
+        self.prefill_pack(&refs)
     }
     fn prefill_end(&mut self) -> Result<Option<Out>> {
         let (slot, tokens, mode, _) = self.inflight.take().expect("a chunk in flight");
@@ -358,6 +378,9 @@ impl BatchModel for MockModel {
     fn decode_step(&mut self, rows: &[Row<Mode>]) -> Result<Vec<Result<Out>>> {
         if let Some(f) = &self.inflight {
             assert!(rows.iter().all(|r| r.slot != f.0), "a decode row on the slot whose chunk is in flight");
+        }
+        if let Some((items, _)) = &self.inflight_pack {
+            assert!(rows.iter().all(|r| items.iter().all(|it| it.0 != r.slot)), "a decode row on a slot whose packed chunk is in flight");
         }
         self.wait_gate();
         assert!(!rows.is_empty() && rows.len() <= self.max_rows);
@@ -1541,6 +1564,41 @@ fn batched_equals_solo_randomized_with_packing() {
         }
         assert!(passes >= 20, "only {passes} packed passes");
     });
+}
+
+/// Lane ink-hip-overlap: overlap with packing (a packed pass in flight, `prefill_begin_pack`, beside paced and unpaced decode
+/// steps): every request equals its solo reference, packed passes ran in flight, and decode steps ran beside them.
+#[test]
+fn batched_equals_solo_randomized_with_overlap_and_packing() {
+    with_pack(1024, || with_overlap(true, || {
+        let cap = 4096;
+        let (mut in_flight, mut overlap_steps) = (0usize, 0u64);
+        for pace_us in [0u64, 300] {
+            for &b in &[2usize, 4, 8] {
+                for seed in 0..3u64 {
+                    let mut rng = SplitMix64::new(seed * 1000 + b as u64 + 57);
+                    let mut reqs = random_reqs(&mut rng, 24, cap);
+                    reqs.iter_mut().for_each(|r| r.fail_prefill = false);
+                    // a packed pass may be in flight only where a first chunk's size does not depend on the decode rows
+                    let cfg = SchedulerConfig {
+                        max_batch: b,
+                        max_queue: 1000,
+                        pack_prefill: true,
+                        busy_chunk: 2048,
+                        overlap_pace: std::time::Duration::from_micros(pace_us),
+                        ..Default::default()
+                    };
+                    let run = run_batched(cfg.clone(), cap, &reqs, false);
+                    check_trace(&run, &cfg);
+                    assert_eq!(check_identity(&run, &reqs, &cfg, cap), 0, "overlap + packing, pace {pace_us} us, B = {b}, seed {seed}");
+                    in_flight += run.rec.lock().unwrap().packs_in_flight;
+                    overlap_steps += run.metrics.overlap_steps;
+                }
+            }
+        }
+        assert!(in_flight >= 10, "only {in_flight} packed passes ran in flight");
+        assert!(overlap_steps >= 50, "only {overlap_steps} decode steps ran beside a chunk in flight");
+    }));
 }
 
 /// Run the same small workload under `cfg`; the scheduler is returned for its trace.

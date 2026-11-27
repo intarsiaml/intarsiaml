@@ -1,0 +1,30 @@
+fleetq: #12361 waiting (#5 in line): in line behind #12355 "ink-hip-overlap: window S3 (paired speed AB: main5 vs o4; card 1 pace 0/150/300 on merged o5, batched bitwise)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12355 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12355 set, or it will wait for #12355 to be released.
+fleetq: #12361 waiting (#5 in line): in line behind #12355 "ink-hip-overlap: window S3 (paired speed AB: main5 vs o4; card 1 pace 0/150/300 on merged o5, batched bitwise)" (claude-04c0e1cd) on tatooine-r9700; #12355 has no estimated start, so nothing can go first by ending before it
+fleetq:   #12355 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12355 set, or it will wait for #12355 to be released.
+fleetq: #12361 waiting (#4 in line): in line behind #12356 "ink-sampled-adapt: W2 (speed off/fix/pol, HIP)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12356 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12356 set, or it will wait for #12356 to be released.
+fleetq: #12361 waiting (#4 in line): in line behind #12356 "ink-sampled-adapt: W2 (speed off/fix/pol, HIP)" (claude-04c0e1cd) on tatooine-r9700; #12356 has no estimated start, so nothing can go first by ending before it
+fleetq:   #12356 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12356 set, or it will wait for #12356 to be released.
+fleetq: #12361 waiting (#3 in line): in line behind #12357 "ink-hip-i8: W6 (hip tiny suites inkling2 + inkling2_batch, i8 env and main)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12357 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12357 set, or it will wait for #12357 to be released.
+fleetq: #12361 waiting (#3 in line): in line behind #12357 "ink-hip-i8: W6 (hip tiny suites inkling2 + inkling2_batch, i8 env and main)" (claude-04c0e1cd) on tatooine-r9700; #12357 has no estimated start, so nothing can go first by ending before it
+fleetq:   #12357 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12357 set, or it will wait for #12357 to be released.
+fleetq: #12361 waiting (#2 in line): in line behind #12358 "ink-dflash2: ABBA k5 w3 (a, r1 r2)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12358 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12358 set, or it will wait for #12358 to be released.
+fleetq: #12361 waiting (#2 in line): in line behind #12358 "ink-dflash2: ABBA k5 w3 (a, r1 r2)" (claude-04c0e1cd) on tatooine-r9700; #12358 has no estimated start, so nothing can go first by ending before it
+fleetq:   #12358 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12358 set, or it will wait for #12358 to be released.
+fleetq: #12361 waiting (#1 in line): #12358 "ink-dflash2: ABBA k5 w3 (a, r1 r2)" (claude-04c0e1cd) needs cpu quiet on tatooine-r9700, and this job loads it
+fleetq:   #12358 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12358 set, or it will wait for #12358 to be released.
+fleetq: #12361 running on tatooine-r9700: bash -c 'bash docs/results/2026-11-26-inkling2-hip-overlap/raw/sync.sh && ssh -o BatchMode=yes tatooine "bash intarsiaml-ink-hip-bpf/.scratch/build.sh \"\" m:inkling2_batch m:inkling2_packed" < /dev/null'
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 20.76s
+cli build exit 0
+    Finished `release` profile [optimized] target(s) in 16.16s
+  Executable tests/inkling2_batch.rs (/target/release/deps/inkling2_batch-4078c269fe83f39e)
+test inkling2_batch build exit 0
+    Finished `release` profile [optimized] target(s) in 0.87s
+  Executable tests/inkling2_packed.rs (/target/release/deps/inkling2_packed-1ed2245ff98f9c1a)
+test inkling2_packed build exit 0
+fleetq: #12361 done (exit 0)

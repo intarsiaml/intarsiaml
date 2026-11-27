@@ -1,0 +1,15 @@
+VRAM peak Y1: card0 28592 MiB, card1 57 MiB
+prefill chunk 2048 (recipe inkling2, hip)
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+inkling2 packed prefill: on, up to 2048 rows per pass, segments of 17+ rows
+loaded ink on hip (AMD Radeon Graphics) in 16.0s, context 4608 tokens
+cb-trace t=1795741577227 DecodePhase { iter: 2, b: 1, spec_allowed: true }
+cb-trace t=1795741577227 Decode { iter: 2, ids: [0], spec_allowed: true }
+cb-trace t=1795741577275 DecodePhase { iter: 2, b: 1, spec_allowed: true }
+cb-trace t=1795741577275 Decode { iter: 2, ids: [0], spec_allowed: true }
+cb-trace t=1795741577326 DecodePhase { iter: 2, b: 1, spec_allowed: true }
+cb-trace t=1795741577326 Decode { iter: 2, ids: [0], spec_allowed: true }
+cb-trace t=1795741577372 DecodePhase { iter: 2, b: 1, spec_allowed: true }
+cb-trace t=1795741577372 Decode { iter: 2, ids: [0], spec_allowed: true }
+cb-trace t=1795741577417 DecodePhase { iter: 2, b: 1, spec_allowed: true }
+cb-trace t=1795741577417 Decode { iter: 2, ids: [0], spec_allowed: true }

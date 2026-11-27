@@ -1438,7 +1438,7 @@ fn batched_herd_distinct_prompts_are_untouched() {
 #[test]
 fn batched_store_refuses_overlap_pack_and_prewarm() {
     let err = |r: intarsia_core::Result<BatchedEngine>| r.err().map(|e| e.to_string()).unwrap_or_default();
-    let e = err(batched_store_opts(Kind::Hybrid, 8, Some(store_cfg()), |o| o.overlap = true));
+    let e = err(batched_store_opts(Kind::Hybrid, 8, Some(store_cfg()), |o| o.overlap = Some(true)));
     assert!(e.contains("INTARSIA_OVERLAP"), "{e}");
     let e = err(batched_store_opts(Kind::Hybrid, 8, Some(store_cfg()), |o| o.pack_prefill = Some(true)));
     assert!(e.contains("INTARSIA_PACK_PREFILL"), "{e}");

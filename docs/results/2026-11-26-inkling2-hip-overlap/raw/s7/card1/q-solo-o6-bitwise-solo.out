@@ -1,0 +1,2 @@
+wall 14.75 s, aggregate 138.8 tok/s, latency median 0.89 s max 1.11 s, prompt tokens 24170, cached 0, ttft median 0.1231 max 0.322706937789917, itl p50 0.006 p99 0.0181
+solo: 16 replies, 2048 tokens -> /home/josef/intarsiaml-ink-hip-bpf/logs/s7/q-solo-o6-bitwise-solo.json

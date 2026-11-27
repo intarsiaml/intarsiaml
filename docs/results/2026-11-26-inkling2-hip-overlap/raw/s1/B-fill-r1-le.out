@@ -1,0 +1,52 @@
+1795743690.384 fleetq: #12331 is done, not running; queueing separately
+1795743690.421 fleetq: #12338 expect ~2h00m, learned from 20 similar runs; pass --expect to set it
+1795743690.438 fleetq: #12338 running on tatooine-r9700: /opt/code/deepeval/.venv/bin/python3 -m localeval.cli speed --url http://tatooine:18132/v1 --model ink --sizes 1024 --gen 128 --reps 1 --concurrency 1,4,8,16 --label ink-hip-overlap-B-fill-r1 --recipe 'intarsia serve -m Inkling-2-Mini --backend hip --max-batch 16 --max-seq 4608 --kv-fraction 0.9 (tree o4)'
+1795743692.502 [localeval] calibrated: 22.4 tokens/sentence, 42 base tokens, ctx=4608
+1795743694.597 [localeval]   1024 tok rep 1/1: prompt=1037 ttft=0.39s prefill=2648 tok/s decode=75.8 tok/s peak=105.6 tok/s out=128
+1795743696.686 [localeval] 1 streams: aggregate 61.8 tok/s
+1795743701.226 [localeval] 4 streams: aggregate 113.3 tok/s
+1795743708.535 [localeval] 8 streams: aggregate 140.4 tok/s
+1795743721.912 [localeval] 16 streams: aggregate 153.3 tok/s
+1795743721.920 # localeval: adhoc — 2026-11-26T20:41
+1795743721.920 
+1795743721.920 - model: `ink` on ? (?), url `http://tatooine:18132/v1`
+1795743721.920 - thinking: default; run kind: speed; label: ink-hip-overlap-B-fill-r1
+1795743721.920 - harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git 2c5524c
+1795743721.920 - command: `/opt/code/deepeval/src/localeval/cli.py speed --url http://tatooine:18132/v1 --model ink --sizes 1024 --gen 128 --reps 1 --concurrency 1,4,8,16 --label ink-hip-overlap-B-fill-r1 --recipe intarsia serve -m Inkling-2-Mini --backend hip --max-batch 16 --max-seq 4608 --kv-fraction 0.9 (tree o4)`
+1795743721.920 - result file: `results/20261126-204130-adhoc-ink-hip-overlap-B-fill-r1/result.json`
+1795743721.920 
+1795743721.920 ## Launch recipe
+1795743721.920 
+1795743721.920 from inline command (secrets redacted):
+1795743721.920 
+1795743721.920 ````
+1795743721.920 intarsia serve -m Inkling-2-Mini --backend hip --max-batch 16 --max-seq 4608 --kv-fraction 0.9 (tree o4)
+1795743721.920 ````
+1795743721.920 
+1795743721.920 ## Speed sweep
+1795743721.920 
+1795743721.920 served `ink`, fingerprint `None`, ctx 4608, 1 reps, 128 forced output tokens
+1795743721.920 
+1795743721.920 | prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+1795743721.920 |---:|---:|---:|---:|---:|---:|---:|---:|---:|
+1795743721.920 | 1037 | 0.39 | 2648 (2648–2648) | - | 75.8 (75.8–75.8) | 105.6 (105.6–105.6) | - | - | 128 |
+1795743721.920 
+1795743721.920 Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+1795743721.920 
+1795743721.920 Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+1795743721.920 
+1795743721.920 
+1795743721.920 | streams | aggregate decode tok/s | per-stream decode | TTFT s |
+1795743721.920 |---:|---:|---:|---:|
+1795743721.920 | 1 | 61.8 | 76.3 (76.3–76.3) | 0.40 |
+1795743721.920 | 4 | 113.3 | 38.5 (33.6–43.7) | 1.17 |
+1795743721.920 | 8 | 140.4 | 25.0 (20.4–32.0) | 1.99 |
+1795743721.920 | 16 | 153.3 | 14.2 (11.5–21.2) | 3.70 |
+1795743721.920 
+1795743721.920 ## Method
+1795743721.920 
+1795743721.920 Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+1795743721.920 
+1795743721.920 [localeval] saved /opt/code/deepeval/results/20261126-204130-adhoc-ink-hip-overlap-B-fill-r1/result.json
+1795743723.985 [localeval] logged to unanimis: 61102e37-108a-4c2c-8673-df40d62c841f
+1795743724.103 fleetq: #12338 done (exit 0)

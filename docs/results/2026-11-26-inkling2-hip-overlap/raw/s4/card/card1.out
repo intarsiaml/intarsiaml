@@ -1,0 +1,9 @@
+[solo-o4] (o4, card 1) up after 0s (0 = not up) 2026-11-26 21:45:50: 
+[solo-o5] (o5, card 1) up after 0s (0 = not up) 2026-11-26 21:46:52: 
+[tiny] inkling2_batch (o5 tree) exit 0 2026-11-26 21:47:00
+[tiny inkling2_batch] test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.66s
+[tiny] inkling2_packed (o5 tree) exit 0 2026-11-26 21:47:05
+[tiny inkling2_packed] overlap, pace 0 ms: 46 decode phases beside chunks in flight, 1 packed passes
+[tiny inkling2_packed] overlap, pace 2 ms: 32 decode phases beside chunks in flight, 1 packed passes
+[tiny inkling2_packed] test inkling2_packed_equals_solo_real ... ok
+[tiny inkling2_packed] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.51s

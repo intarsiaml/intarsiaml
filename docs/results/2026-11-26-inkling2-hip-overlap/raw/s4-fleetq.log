@@ -1,0 +1,21 @@
+fleetq: #12362 waiting (#6 in line): in line behind #12355 "ink-hip-overlap: window S3 (paired speed AB: main5 vs o4; card 1 pace 0/150/300 on merged o5, batched bitwise)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12355 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12355 set, or it will wait for #12355 to be released.
+fleetq: #12362 waiting (#5 in line): in line behind #12356 "ink-sampled-adapt: W2 (speed off/fix/pol, HIP)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12356 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12356 set, or it will wait for #12356 to be released.
+fleetq: #12362 waiting (#4 in line): in line behind #12357 "ink-hip-i8: W6 (hip tiny suites inkling2 + inkling2_batch, i8 env and main)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12357 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12357 set, or it will wait for #12357 to be released.
+fleetq: #12362 waiting (#3 in line): in line behind #12358 "ink-dflash2: ABBA k5 w3 (a, r1 r2)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12358 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12358 set, or it will wait for #12358 to be released.
+fleetq: #12362 waiting (#2 in line): in line behind #12361 "ink-hip-overlap: sync + hip tiny test builds (inkling2_batch, inkling2_packed) of merged head" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12361 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12361 set, or it will wait for #12361 to be released.
+fleetq: #12362 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12361 "ink-hip-overlap: sync + hip tiny test builds (inkling2_batch, inkling2_packed) of merged head" (claude-04c0e1cd) loads it
+fleetq:   #12361 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12361 set, or it will wait for #12361 to be released.
+fleetq: #12362 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12362 running on tatooine-r9700, tatooine-r9700-2: bash .scratch/window_s4.sh
+window exit 0
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/stage_s4.sh; cap 235s; stopping radiance 2026-11-26 21:44:05
+[window] radiance stopped 2026-11-26 21:44:09 (inactive)
+[window] stage done 2026-11-26 21:47:06 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 21:47:06
+[window] radiance answers 2026-11-26 21:47:16 (after 15 s)
+fleetq: #12362 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

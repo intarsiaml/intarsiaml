@@ -1,0 +1,17 @@
+fleetq: #12501 waiting (#3 in line): endor is held exclusively by #12495 "ink-metal-dflash2: slot 3 ABBA half A (dspark dfl5 dfl5 dspark) + md5 + bf16 draft-pass test on metal" (claude-04c0e1cd); then in line behind #12497 "dynamo: Phase 3 full G2 + profile + speed + SSD + fp8attn + localeval" (josef@endor) on endor
+fleetq:   #12495 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12495 set, or it will wait for #12495 to be released.
+fleetq: #12501 waiting (#1 in line): needs endor to itself; running there: #12497 "dynamo: Phase 3 full G2 + profile + speed + SSD + fp8attn + localeval" (josef@endor), #12498 "ink-hip-specflip: push PR A doc commit + Metal CLIs main 1bf40e29f / PR A 1122ede46 + Metal tiny test exes (for the Metal no-op slot)" (claude-04c0e1cd)
+fleetq:   #12498 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12498 set, or it will wait for #12498 to be released.
+fleetq: #12501 waiting (#1 in line): needs endor to itself; running there: #12497 "dynamo: Phase 3 full G2 + profile + speed + SSD + fp8attn + localeval" (josef@endor)
+fleetq: #12501 running on endor: bash .scratch/metal_slot.sh
+[metal] main6 = copy of /opt/code/intarsiaml/.worktrees/ink-hip-specflip/.scratch/bin/intarsia-mmain2 (086cf3166ebaa700474f3ccf22ffdbc0)
+[metal] start 00:39:13; main6 1bf40e29f, o6 7830c114e
+[metal] md5 main6 off rc 127 ids256 d41d8cd98f00b204e9800998ecf8427e first64 d41d8cd98f00b204e9800998ecf8427e lines 0 00:39:13 | 
+[metal] md5 o6 off rc 127 ids256 d41d8cd98f00b204e9800998ecf8427e first64 d41d8cd98f00b204e9800998ecf8427e lines 0 00:39:13 | 
+[metal] md5 main6 def rc 127 ids256 d41d8cd98f00b204e9800998ecf8427e first64 d41d8cd98f00b204e9800998ecf8427e lines 0 00:39:13 | 
+[metal] md5 o6 def rc 127 ids256 d41d8cd98f00b204e9800998ecf8427e first64 d41d8cd98f00b204e9800998ecf8427e lines 0 00:39:13 | 
+[metal] tiny inkling2_batch rc 127 00:39:13 | 
+[metal] tiny inkling2_packed rc 127 00:39:13 | 
+[metal] tiny inkling2 rc 127 00:39:13 | 
+[metal] end 00:39:13 (1 s)
+fleetq: #12501 done (exit 0)

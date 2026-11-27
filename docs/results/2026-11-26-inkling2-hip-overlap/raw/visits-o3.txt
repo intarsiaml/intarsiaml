@@ -1,0 +1,8 @@
+# name;bin;serve args (leading NAME=value = server env);actions (' && '-separated)
+# O3 (lane ink-hip-overlap): o3 = merged main a4c8f3b19 + per-stream staging. Card 0: N3 (b13, no overlap): real at 8 and 16;
+# waits for card 1's prime of o3. Y0 (o3 overlap, pace 0, default priority), Y1 (o3 overlap, priority high, pace 0), Y2 (priority
+# high, pace 150 ms): real at 8 and 16, CB trace on (step times beside chunks). Card 1: prime o3, hip tiny batch / packed / inkling2.
+N3;b13;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc:8:0+conc && wait:/home/josef/intarsiaml-ink-hip-bpf/logs/o3/o3-primed:150
+Y0;o3;INTARSIA_OVERLAP=1 INTARSIA_CB_TRACE=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc:8:0+conc
+Y1;o3;INTARSIA_OVERLAP=1 INTARSIA_HIP_STREAM1_PRIORITY=high INTARSIA_CB_TRACE=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc:8:0+conc
+Y2;o3;INTARSIA_OVERLAP=1 INTARSIA_HIP_STREAM1_PRIORITY=high INTARSIA_OVERLAP_PACE_MS=150 INTARSIA_CB_TRACE=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc:8:0+conc

@@ -1,0 +1,7 @@
+fleetq: #12275 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash intarsiaml-ink-hip-bpf/.scratch/build.sh o1'
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 23.73s
+cli build exit 0
+bdbefdf53f43c2689d706a59e0334972  .scratch/bin/intarsia-o1
+fleetq: #12275 done (exit 0)

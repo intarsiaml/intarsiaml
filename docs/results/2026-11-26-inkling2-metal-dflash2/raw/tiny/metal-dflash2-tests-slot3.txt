@@ -1,0 +1,59 @@
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/ink-metal-dflash2/crates/intarsia-core)
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:370:9
+    |
+370 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+370 -     Ink(usize),
+370 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1388:4
+     |
+1388 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:373:9
+    |
+369 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+373 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/ink-metal-dflash2/crates/intarsia-backend-metal)
+warning: `intarsia-core` (lib) generated 5 warnings
+    Finished `release` profile [optimized] target(s) in 10.95s
+     Running tests/dflash2.rs (target/release/deps/dflash2-c3f49dbf26c78a2f)
+
+running 3 tests
+test window_decode_is_never_picked_by_plain_calls ... ok
+test dyn_conv_matches_the_reference ... ok
+test window_decode_is_bitwise_the_plain_decode_over_the_window ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+

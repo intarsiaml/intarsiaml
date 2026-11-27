@@ -1,0 +1,2 @@
+wall 8.77 s, aggregate 116.8 tok/s, latency median 8.33 s max 8.76 s, prompt tokens 12019, cached 0, ttft median 1.7076 max 5.069377422332764, itl p50 0.0334 p99 0.1892
+conc:8:0: 8 replies, 1024 tokens -> /home/josef/intarsiaml-ink-hip-bpf/logs/s4/def-o5-bitwise-conc_8_0.json

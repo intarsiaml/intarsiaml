@@ -1,0 +1,19 @@
+Q35 card1 main6 unset short 256 df397a9b4285a03b77538ba05567f854 rc 0 | prompt=29 decode 1525 ms (167.21 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0  [2026-11-27 00:20:19]
+Q35 card1 o6 unset short 256 df397a9b4285a03b77538ba05567f854 rc 0 | prompt=29 decode 1518 ms (167.99 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0  [2026-11-27 00:20:23]
+Q35 card1 o6 INTARSIA_OVERLAP=1 short 256 df397a9b4285a03b77538ba05567f854 rc 0 | prompt=29 decode 1517 ms (168.08 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0  [2026-11-27 00:20:27]
+Q35 card1 main6 INTARSIA_OVERLAP=1 short 256 df397a9b4285a03b77538ba05567f854 rc 0 | prompt=29 decode 1518 ms (167.98 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0  [2026-11-27 00:20:32]
+Q35 card1 main6 unset 4k 256 a368b17d386c2b3aa12d5659d90333ec rc 0 | prompt=3858 decode 1577 ms (161.75 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0  [2026-11-27 00:20:36]
+Q35 card1 o6 unset 4k 256 a368b17d386c2b3aa12d5659d90333ec rc 0 | prompt=3858 decode 1577 ms (161.69 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0  [2026-11-27 00:20:41]
+Q35 card1 o6 INTARSIA_OVERLAP=1 4k 256 a368b17d386c2b3aa12d5659d90333ec rc 0 | prompt=3858 decode 1578 ms (161.57 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0  [2026-11-27 00:20:45]
+Q35 card1 main6 INTARSIA_OVERLAP=1 4k 256 a368b17d386c2b3aa12d5659d90333ec rc 0 | prompt=3858 decode 1578 ms (161.57 tok/s)  | steps=257 graph replays=256 (captures 1) eager decode steps=0  [2026-11-27 00:20:50]
+[q-solo-o6] (o6, card 1) up after 11s (0 = not up) 2026-11-27 00:21:00: admission on plan shapes: 31 kernel(s) checked, 380 case(s) run, 0 cached loaded ink on hip (AMD Radeon Graphics) in 9.0s, context 8192 tokens 
+[q-solo-o6] intarsia_kv_tokens_capacity 8192 VRAM card1 21919 MiB
+[q-solo-o6] bitwise solo exit 0 2026-11-27 00:21:15: wall 14.75 s, aggregate 138.8 tok/s, latency median 0.89 s max 1.11 s, prompt tokens 24170, cached 0, ttft median 0.1231 max 0.322706937789917, itl p50 0.006 p99 0.0181
+[q-b4-o6] (o6, card 1) up after 7s (0 = not up) 2026-11-27 00:21:21: admission on plan shapes: 40 kernel(s) checked, 46 case(s) run, 380 cached continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 4096 loaded ink on hip (AMD Radeon Graphics) in 5.8s, context 8192 tokens 
+[q-b4-o6] intarsia_kv_tokens_capacity 32768 VRAM card1 22628 MiB
+[q-b4-o6] bitwise conc:4:0 exit 0 2026-11-27 00:21:23: wall 2.19 s, aggregate 234.2 tok/s, latency median 2.15 s max 2.18 s, prompt tokens 4962, cached 0, ttft median 0.2579 max 0.5794715881347656, itl p50 0.0122 p99 0.0848
+[q-b4-o6] bitwise conc:4:1 exit 0 2026-11-27 00:21:25: wall 2.15 s, aggregate 238.0 tok/s, latency median 2.13 s max 2.15 s, prompt tokens 5049, cached 0, ttft median 0.2694 max 0.5447976589202881, itl p50 0.0122 p99 0.0748
+[q-b4-o6] bitwise conc:4:2 exit 0 2026-11-27 00:21:28: wall 2.27 s, aggregate 225.7 tok/s, latency median 2.23 s max 2.27 s, prompt tokens 6383, cached 0, ttft median 0.2844 max 0.6746160984039307, itl p50 0.0123 p99 0.1208
+[q-b4-o6] bitwise conc:4:3 exit 0 2026-11-27 00:21:30: wall 2.46 s, aggregate 208.5 tok/s, latency median 2.42 s max 2.45 s, prompt tokens 7776, cached 0, ttft median 0.4747 max 0.8582854270935059, itl p50 0.0124 p99 0.1198
+[q-b4-o6] intarsia_batch_overlap_steps_total 0
+[bg] done 2026-11-27 00:21:30
