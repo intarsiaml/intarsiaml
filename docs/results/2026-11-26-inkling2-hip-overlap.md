@@ -29,6 +29,25 @@ Branch `ink/hip-overlap` from the `ink/hip-bpf` head 2561d5957 (PR #538: packed 
   - Radiance: 30 min in total for brief 3, every window under 5 min. Its own PR; do not merge. fleetq for every job; work folders
     only under `.worktrees/`.
 
+- 2026-11-26 ~19:10 EST (coordinator answers for #538 and brief 3; in substance):
+  - **#538:** default-on at 2048 rows accepted, on one condition before the merge (b13 has not run on a GPU; packing-on serving
+    on the merged base not checked bitwise): one window, at most 5 min down, an extra 6 min on top of the 30-min day budget for
+    this window only. (1) packing on, no env, the recipe defaults (2048 rows): the 16 real prompts at 4 / 8 / 16 streams, every
+    reply equal to solo; (2) hip tiny `inkling2_packed` on b13; (3) if time is left, one ABBA pair at 2048 rows vs main, 4-stream
+    filler TTFT p50 and aggregate, pooled with any 2048-row data already measured; rule for the 2048 default: the pooled TTFT p50
+    interval's lower bound <= 1.01; if it does not fit, say which 2048 numbers the default rests on and whether they had an interval
+    or were single runs; (4) if 1 or 2 fails, stop and report, no flip; if they pass, push and report the head (the coordinator
+    merges on green CI); (5) 4096 rows stay opt-in, documented as `INTARSIA_INK_PACK_ROWS=4096` plus `--kv-fraction 0.9`.
+  - **Brief 3, Q1:** yes, edit `kernels/hip/ink_mix.hip`, `ink_attn.hip` and `ink_route_fused.hip` for per-stream counters (this
+    lane owns the three files now; lane ink-dflash2 keeps off them). Minimal and add-only where possible; solo and batched paths stay
+    bitwise: admission for every touched op, greedy md5 vs main at short / 4k, 64 / 256; the same-ISA check where the default path's
+    code should not change. No refuse-when-counters-are-in-use fallback.
+  - **Brief 3, Q2:** gate 4's baseline is main's default after #538 (2048-row packing on), not the 4096-row config. Overlap must
+    keep packing (the packed chunk is the stream-0 pass); accept the larger scheduler work. Report back before building if keeping
+    packing plus a twin workspace does not fit the default KV budget, or if the scheduler work grows past about one day. The minimum
+    interval between decode steps during a chunk is accepted: a knob, aiming at about 2 steps per chunk, with the TTFT p50 vs ITL
+    p99 trade-off recorded at 2 or 3 settings. Radiance for brief 3: 30 min, windows <= 5 min, after the #538 window.
+
 ## 1. Design (step 0)
 
 ### 1.1 Mechanism: (a) concurrent HIP streams, through the existing R3d decode twin
