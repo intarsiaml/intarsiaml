@@ -1,0 +1,8 @@
+# name;bin;serve args (leading NAME=value = server env);actions (' && '-separated)
+# W9 (b12 = PR head on 178d87ece; main4 = 178d87ece): the 4-stream filler row, 3 more paired reps in alternating order on card 0:
+# (R, A), (A, R), (R, A); R = b12 with the recommended packing config, A = main4's batching server. Card 1 (stage_w9bg.sh) primes
+# main4's admission first (R1 waits for it), then the hip tiny tests, the knob-off --max-batch 16 server, the B16 defaults check.
+R1;b12;INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;le:--sizes 1024 --gen 128 --reps 1 --concurrency 4@k1 && wait:/home/josef/intarsiaml-ink-hip-bpf/logs/w9/main4-primed:60
+A1;main4;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;le:--sizes 1024 --gen 128 --reps 1 --concurrency 4@k1 && le:--sizes 1024 --gen 128 --reps 1 --concurrency 4@k2
+R2;b12;INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;le:--sizes 1024 --gen 128 --reps 1 --concurrency 4@k2 && le:--sizes 1024 --gen 128 --reps 1 --concurrency 4@k3
+A2;main4;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;le:--sizes 1024 --gen 128 --reps 1 --concurrency 4@k3

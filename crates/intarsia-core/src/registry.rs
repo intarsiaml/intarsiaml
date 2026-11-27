@@ -93,6 +93,10 @@ pub struct KernelImpl {
     /// registration is the twin of (G-B, the backend's `tests/row_tables.rs`). Selected only for calls with a row table, and
     /// those only select these.
     pub row_table: bool,
+    /// Segment-table kernel (`OpCall::segs`, packed prefill; lane ink-hip-bpf): segment `s` of the call is bitwise the solo
+    /// kernel the registration is the twin of (its name without `_segs`), run over that segment's rows on its own state. Selected
+    /// only for calls with a segment table, and those only select these.
+    pub seg_table: bool,
     /// Implements the extended attributes (`OpAttrs::window`, `rope_prop`, `gelu`). Off by default; see `ShapeInfo::ext`.
     pub ext: bool,
     /// Reads a non-row-major weight layout (`backend::Layout`, `ShapeInfo::frag`). Off by default: a call with a tagged input is accepted
@@ -131,6 +135,7 @@ impl KernelImpl {
             scratch: None,
             rows_exact: false,
             row_table: false,
+            seg_table: false,
             ext: false,
             frag: false,
             row_invariant: false,
@@ -222,6 +227,11 @@ impl KernelImpl {
     /// Mark as a row-table kernel (see `KernelImpl::row_table`).
     pub fn row_table(mut self) -> Self {
         self.row_table = true;
+        self
+    }
+    /// Mark as a segment-table kernel (see `KernelImpl::seg_table`).
+    pub fn seg_table(mut self) -> Self {
+        self.seg_table = true;
         self
     }
     pub fn priority(mut self, p: i32) -> Self {
@@ -353,10 +363,15 @@ impl Registry {
     /// bitwise test against the one-row kernel (`tests/row_tables.rs`). Without this, `serve` (admitted kernels only) would
     /// never select the row-table twins.
     fn effective_admission(&self, k: &KernelImpl, own: Admission) -> Admission {
-        if !k.row_table {
+        let base = if k.row_table {
+            k.name.strip_suffix("_rows")
+        } else if k.seg_table {
+            // a segment-table kernel likewise (lane ink-hip-bpf): its gate is the backend's bitwise test against per-segment solo calls
+            k.name.strip_suffix("_segs")
+        } else {
             return own;
-        }
-        k.name.strip_suffix("_rows").and_then(|base| self.admission(base)).unwrap_or(own)
+        };
+        base.and_then(|base| self.admission(base)).unwrap_or(own)
     }
 
     /// Is the implementation called `name` admitted the way `select` counts it: a row-table kernel by the admission of the kernel it
@@ -389,7 +404,7 @@ impl Registry {
             if k.op != call.op || !k.arch_matches(&self.arch) || !k.accepts(&s) {
                 continue;
             }
-            if k.rows_exact != rows_only || k.row_table != call.rows.is_some() {
+            if k.rows_exact != rows_only || k.row_table != call.rows.is_some() || k.seg_table != call.segs.is_some() {
                 continue;
             }
             // a row-invariant prefill pass (`OpCall::prefill_inv`) takes only kernels that promise it, for every op
@@ -478,6 +493,38 @@ mod tests {
         assert_eq!(reg.effective_admission(&twin, Admission::Untested), Admission::Rejected);
         // a rows-exact kernel is swept on its own, so its own admission stands
         assert_eq!(reg.effective_admission(&other, Admission::Untested), Admission::Untested);
+    }
+
+    /// Lane ink-hip-bpf: a segment-table twin (`_segs`) takes its base's admission, is selected only for calls with a segment
+    /// table, and those select only it.
+    #[test]
+    fn a_segment_table_kernel_is_selected_only_with_a_segment_table_and_takes_its_base_admission() {
+        let base = KernelImpl::new(Op::Add, "cmx", "b");
+        let twin = KernelImpl::new(Op::Add, "cmx_segs", "b").seg_table().priority(5);
+        let entries = vec![(base, Admission::Untested), (twin.clone(), Admission::Untested)];
+        let mut reg = Registry { backend: "b".into(), arch: "any".into(), entries, require_admitted: false, reference_only: false };
+        assert_eq!(reg.effective_admission(&twin, Admission::Untested), Admission::Untested);
+        reg.set_admission("cmx", Admission::Admitted);
+        assert_eq!(reg.effective_admission(&twin, Admission::Untested), Admission::Admitted);
+        #[derive(Debug)]
+        struct Nb;
+        impl crate::backend::BufferImpl for Nb {
+            fn bytes(&self) -> usize {
+                1 << 16
+            }
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+        }
+        let buf = crate::backend::Buffer::new(Nb);
+        let t = |shape: &[usize], dt: DType| crate::backend::TensorRef::new(buf.clone(), dt, shape);
+        // (selection only: `select` reads the shapes, never the semantics, so a two-input stand-in of the call does)
+        let mut call = OpCall::new(Op::Add, vec![t(&[4, 8], DType::Bf16), t(&[4, 8], DType::Bf16)], vec![t(&[4, 8], DType::Bf16)], Default::default());
+        assert_eq!(reg.select(&call).unwrap().name, "cmx", "an ordinary call never takes the segment twin, whatever its priority");
+        call.segs = Some(crate::ops::SegTab { segs: vec![(0, 4, 0)], ptrs: t(&[1, 2, 8], DType::U8), stride: 2, index: 0, meta: t(&[4, 4], DType::I32) });
+        assert_eq!(reg.select(&call).unwrap().name, "cmx_segs");
+        reg.set_admission("cmx", Admission::Rejected);
+        assert!(reg.select(&call).is_err(), "the twin is rejected with its base");
     }
 
     /// `is_admitted` is what the plan description reports: the twin counts as admitted once its base is (the plan of the 27B on HIP

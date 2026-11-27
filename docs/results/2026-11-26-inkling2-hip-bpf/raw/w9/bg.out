@@ -1,0 +1,24 @@
+[bg] (1) prime main4 2026-11-26 18:33:39
+[bg] prime-main4 (main4) up after 109s (0 = not up) 2026-11-26 18:35:28: admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached loaded ink on hip (AMD Radeon Graphics) in 108.6s, context 4608 tokens 
+[bg] (2) tiny inkling2_packed, no env (131 s left) 2026-11-26 18:35:28
+[bg] tiny packed exit 0 2026-11-26 18:35:32
+[bg tiny packed] test inkling2_packed_equals_solo_real ... ok
+[bg tiny packed] 2 x 17: 2 segments, 37 rows: packed == solo
+[bg tiny packed] 17 / 40 / 300, one resumed: 3 segments, 360 rows: packed == solo
+[bg tiny packed] 2048 / 1000 / 17: 3 segments, 3065 rows: packed == solo
+[bg tiny packed] 4096 rows, two resumed: 4 segments, 4096 rows: packed == solo
+[bg tiny packed] blend tails: 3 segments, 1037 rows: packed == solo
+[bg tiny packed] 16 mixed: 16 segments, 1976 rows: packed == solo
+[bg tiny packed] test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.11s
+[bg] (2) tiny inkling2_batch, no env (127 s left) 2026-11-26 18:35:32
+[bg] tiny batch exit 0 2026-11-26 18:35:38
+[bg tiny batch] test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.72s
+[bg] (3) knob-off b12 --max-batch 16 (121 s left) 2026-11-26 18:35:38
+[bg] off-b12 (b12) up after 18s (0 = not up) 2026-11-26 18:35:55: admission on plan shapes: 23 kernel(s) checked, 0 case(s) run, 134 cached inkling2 packed prefill: off (INTARSIA_INK_PACK=1 turns it on where the backend has the segment-table ConvMix) loaded ink on hip (AMD Radeon Graphics) in 16.2s, context 4608 tokens 
+[bg] knob-off conc exit 0 2026-11-26 18:36:12: wall 16.75 s, aggregate 122.3 tok/s, latency median 16.38 s max 16.75 s, prompt tokens 25752, cached 0, ttft median 3.3515 max 10.105366945266724, itl p50 0.057 p99 0.618
+[bg] knob-off pack passes: intarsia_batch_pack_passes_total 0
+[bg] (4) B16 defaults with packing 4096 (87 s left) 2026-11-26 18:36:12
+[bg] dflt-b12 (b12) up after 18s (0 = not up) 2026-11-26 18:36:29: admission on plan shapes: 23 kernel(s) checked, 0 case(s) run, 134 cached inkling2 packed prefill: on, up to 4096 rows per pass, segments of 17+ rows loaded ink on hip (AMD Radeon Graphics) in 16.3s, context 2791 tokens 
+[bg dflt] intarsia_kv_bytes_total 4383834112
+[bg dflt] intarsia_kv_tokens_capacity 44656
+[bg] done 2026-11-26 18:36:29

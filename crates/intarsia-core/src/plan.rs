@@ -85,6 +85,10 @@ pub enum Phase {
     /// Batched verify pass (`Model::forward_verify_batch`, only when `Model::enable_verify_batch` was called): `t` is the number of
     /// rows of all the sequences' verify runs together, `pos0` the length of each sequence.
     VerifyBatch,
+    /// Inkling-2 packed prefill pass (`Model::ink_prefill_packed`, lane ink-hip-bpf; only on a model that can pack): `t` rows over
+    /// fresh phantom sequences of at most a prefill chunk each, so the row-wise ops and the experts see a pass of more rows than
+    /// any one sequence's KV room (the scratch is sized and the kernels admitted for it).
+    Pack,
 }
 
 /// One op call of the plan with the kernel the registry selected for it.
@@ -300,6 +304,11 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
             probes.push((Phase::Prefill, big, cap - big));
         }
     }
+    // Inkling-2 packed prefill (lane ink-hip-bpf): the largest packed pass, whose row-wise ops and experts run over the rows of
+    // several sequences' chunks (more than one sequence's KV room may hold); nothing is added when the model cannot pack
+    if model.ink_pack_capable() && model.ink_pack_rows_max() >= 2 * model.pack_min_rows() {
+        probes.push((Phase::Pack, model.ink_pack_rows_max(), 0));
+    }
     // speculative verify passes (spec on only): every row count, at both ends of the context
     for t in 2..=model.verify_rows() {
         if t < cap {
@@ -369,7 +378,8 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
     let mut vb_gaps: BTreeSet<String> = BTreeSet::new();
     for (phase, t, pos0, plain) in probes {
         // a batch step appends one token to each of its sequences
-        if pos0 + if phase == Phase::Batch { 1 } else { t } > cap {
+        // a packed pass's segments are fresh sequences of at most a prefill chunk each
+        if pos0 + match phase { Phase::Batch => 1, Phase::Pack => t.min(chunk), _ => t } > cap {
             continue;
         }
         if plain {
@@ -852,12 +862,13 @@ pub fn admit(model: &mut Model, reference: &dyn Backend, opts: &PlanOptions) -> 
         // bitwise test (tests/row_tables.rs). That base kernel may be one the plan never selects itself (the solo step runs a fused op,
         // the batched step the row-table twin of the unfused one), so it would stay untested and the twin unusable under `serve`'s
         // admitted-only rule: queue it, and test it by its op's sweep.
-        let is_rt = |n: &String| cand_kernels.iter().any(|k| &k.name == n && k.row_table);
+        // a segment-table kernel (`OpCall::segs`, lane ink-hip-bpf) likewise, by the kernel it twins (its name without `_segs`)
+        let is_rt = |n: &String| cand_kernels.iter().any(|k| &k.name == n && (k.row_table || k.seg_table));
         let twins: BTreeSet<String> = untested
             .iter()
             .filter_map(|n| cand_kernels.iter().find(|k| &k.name == n))
-            .filter(|k| k.row_table)
-            .filter_map(|k| k.name.strip_suffix("_rows"))
+            .filter(|k| k.row_table || k.seg_table)
+            .filter_map(|k| if k.row_table { k.name.strip_suffix("_rows") } else { k.name.strip_suffix("_segs") })
             .filter(|b| model.registry.admission(b) == Some(Admission::Untested))
             .map(str::to_string)
             .collect();

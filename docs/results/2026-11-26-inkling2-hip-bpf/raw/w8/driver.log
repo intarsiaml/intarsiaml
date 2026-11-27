@@ -1,0 +1,32 @@
+[17:53:38] radiance down
+[17:53:38] pre-stage stage_w8pre.sh (270 s left)
+[17:54:06] pre-stage exit 0 (242 s left)
+[17:54:07] A: start (main3; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[17:54:24] A: up (IP 172.17.0.2 after 17s ; 224 s left)
+[17:54:31] A: real rep 1 N=4 exit 0 (217 s left): wall 5.62 s, aggregate 91.1 tok/s, latency median 5.57 s max 5.61 s, prompt tokens 6814, cached 0, ttft median 1.787 max 2.562955856323242, itl p50 0.0239 p99 0.499
+[17:54:39] A: real rep 1 N=8 exit 0 (209 s left): wall 8.78 s, aggregate 116.7 tok/s, latency median 8.64 s max 8.77 s, prompt tokens 12091, cached 0, ttft median 1.9922 max 4.601726055145264, itl p50 0.0335 p99 0.5848
+[17:54:56] A: real rep 1 N=16 exit 0 (192 s left): wall 16.71 s, aggregate 122.5 tok/s, latency median 16.36 s max 16.71 s, prompt tokens 25896, cached 0, ttft median 3.1934 max 10.066874980926514, itl p50 0.0577 p99 0.6313
+[17:55:30] A fill r1: localeval exit 0 (158 s left): [localeval] 1 streams: aggregate 62.0 tok/s [localeval] 4 streams: aggregate 110.4 tok/s [localeval] 8 streams: aggregate 140.1 tok/s [localeval] 16 streams: aggregate 154.5 tok/s 
+[17:55:33] A: bitwise pp:16:49:w8 exit 0 (155 s left): pp 16 x 49: wall 1.985 s, prompt tokens 1123 (60..90), prompt 565.7 tok/s, cached 0
+[17:55:35] A: bitwise pp:8:512:w8 exit 0 (153 s left): pp 8 x 512: wall 2.477 s, prompt tokens 4750 (570..612), prompt 1917.7 tok/s, cached 0
+[17:55:37] A: bitwise pp:4:1024:w8 exit 0 (151 s left): pp 4 x 1024: wall 1.662 s, prompt tokens 4744 (1180..1196), prompt 2854.9 tok/s, cached 0
+[17:55:39] A: bitwise pp:2:2048:w8 exit 0 (149 s left): pp 2 x 2048: wall 1.687 s, prompt tokens 4712 (2348..2364), prompt 2793.7 tok/s, cached 0
+[17:55:41] A: stopped: VRAM peak A: card0 28528 MiB, card1 57 MiB
+[17:55:41] R: start (b10; INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[17:55:58] R: up (IP 172.17.0.2 after 17s ; 130 s left)
+[17:56:05] R: real rep 1 N=4 exit 0 (123 s left): wall 5.42 s, aggregate 94.5 tok/s, latency median 5.37 s max 5.41 s, prompt tokens 6814, cached 0, ttft median 1.4516 max 2.338819980621338, itl p50 0.0244 p99 0.2523
+[17:56:13] R: real rep 1 N=8 exit 0 (115 s left): wall 8.49 s, aggregate 120.5 tok/s, latency median 8.42 s max 8.49 s, prompt tokens 12091, cached 0, ttft median 1.7294 max 4.327561140060425, itl p50 0.0336 p99 0.5843
+[17:56:29] R: real rep 1 N=16 exit 0 (99 s left): wall 15.99 s, aggregate 128.1 tok/s, latency median 15.7 s max 15.98 s, prompt tokens 25896, cached 0, ttft median 2.5421 max 9.246870040893555, itl p50 0.0577 p99 0.6287
+[17:57:02] R fill r1: localeval exit 0 (66 s left): [localeval] 1 streams: aggregate 61.5 tok/s [localeval] 4 streams: aggregate 117.4 tok/s [localeval] 8 streams: aggregate 151.6 tok/s [localeval] 16 streams: aggregate 169.0 tok/s 
+[17:57:04] R: bitwise pp:16:49:w8 exit 0 (64 s left): pp 16 x 49: wall 1.787 s, prompt tokens 1123 (60..90), prompt 628.3 tok/s, cached 0
+[17:57:06] R: bitwise pp:8:512:w8 exit 0 (62 s left): pp 8 x 512: wall 1.675 s, prompt tokens 4750 (570..612), prompt 2835.3 tok/s, cached 0
+[17:57:08] R: bitwise pp:4:1024:w8 exit 0 (60 s left): pp 4 x 1024: wall 1.449 s, prompt tokens 4744 (1180..1196), prompt 3274.9 tok/s, cached 0
+[17:57:09] R: bitwise pp:2:2048:w8 exit 0 (59 s left): pp 2 x 2048: wall 1.7 s, prompt tokens 4712 (2348..2364), prompt 2771.6 tok/s, cached 0
+[17:57:11] R: stopped: VRAM peak R: card0 29135 MiB, card1 57 MiB
+[17:57:11] visits done (57 s left)
+[17:57:23] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/hold.sh; cap 270s; stopping radiance 2026-11-26 17:53:34
+[window] radiance stopped 2026-11-26 17:53:38 (inactive)
+[window] stage done 2026-11-26 17:57:13 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 17:57:13
+[window] radiance answers 2026-11-26 17:57:23 (after 15 s)

@@ -329,6 +329,50 @@ impl SlotModel {
     }
 }
 
+impl SlotModel {
+    /// Inkling-2 packed prefill (lane ink-hip-bpf): the chunks that may pack (`Model::ink_pack_item_ok`, at least two) in one
+    /// pass (`Model::ink_prefill_packed`), every other one alone, as `prefill_chunk` runs it. Each slot ends bitwise as its own
+    /// `prefill_chunk` leaves it.
+    fn ink_prefill_pack(&mut self, items: &[(usize, &[u32], Option<HeadMode>)]) -> Result<Vec<Option<StepOut>>> {
+        let mode = |m: Option<HeadMode>| m.unwrap_or(HeadMode::None);
+        let mut seen = vec![false; self.states.len()];
+        for &(slot, _, _) in items {
+            if slot >= seen.len() || std::mem::replace(&mut seen[slot], true) {
+                return Err(Error::Other(format!("packed prefill names slot {slot} twice or out of range")));
+            }
+        }
+        let ok: Vec<bool> = items.iter().map(|&(slot, t, m)| self.model.ink_pack_item_ok(&self.states[slot], t, mode(m))).collect();
+        let mut packable: Vec<usize> = (0..items.len()).filter(|&k| ok[k]).collect();
+        let mut out: Vec<Option<Option<StepOut>>> = (0..items.len()).map(|_| None).collect();
+        let lens: Vec<usize> = packable.iter().map(|&k| items[k].1.len()).collect();
+        if packable.len() < 2 || self.model.ink_pack_layout(&lens).is_none() {
+            packable.clear();
+        }
+        if !packable.is_empty() {
+            let mut by_slot: Vec<Option<&mut SequenceState>> = self.states.iter_mut().map(Some).collect();
+            let mut packed: Vec<(&mut SequenceState, &[u32], HeadMode)> = Vec::with_capacity(packable.len());
+            for &k in &packable {
+                let (slot, t, m) = items[k];
+                let st = by_slot[slot].take().expect("distinct slots (checked above)");
+                packed.push((st, t, mode(m)));
+            }
+            let res = self.model.ink_prefill_packed(&mut packed)?;
+            for (&k, o) in packable.iter().zip(res) {
+                out[k] = Some(match o {
+                    StepOut::None => None,
+                    o => Some(o),
+                });
+            }
+        }
+        for (k, &(slot, t, m)) in items.iter().enumerate() {
+            if out[k].is_none() {
+                out[k] = Some(self.prefill_chunk(slot, t, m)?);
+            }
+        }
+        Ok(out.into_iter().map(|o| o.expect("every chunk ran")).collect())
+    }
+}
+
 impl BatchModel for SlotModel {
     type Mode = HeadMode;
     type Out = StepOut;
@@ -519,11 +563,18 @@ impl BatchModel for SlotModel {
         self.model.tail_merge()
     }
     fn pack_rows_max(&self) -> usize {
-        if self.twin.is_none() && self.model.pack_capable() && self.states.iter().all(|s| s.has_recurrent()) {
+        if self.twin.is_none() && self.model.ink_pack_capable() && self.store.is_none() {
+            // Inkling-2 (lane ink-hip-bpf): its own packed pass (`Model::ink_prefill_packed`)
+            self.model.ink_pack_rows_max()
+        } else if self.twin.is_none() && self.model.pack_capable() && self.states.iter().all(|s| s.has_recurrent()) {
             self.model.pack_rows_max()
         } else {
             0
         }
+    }
+    fn pack_last_alone(&self) -> bool {
+        // Inkling-2 has no recurrent state: its final chunk is one pass with the head on its last row (`run_prefill`)
+        !self.model.is_inkling()
     }
     fn pack_min_rows(&self) -> usize {
         self.model.pack_min_rows()
@@ -532,6 +583,9 @@ impl BatchModel for SlotModel {
         self.model.backend.pack_split_gemms()
     }
     fn prefill_pack(&mut self, items: &[(usize, &[u32], Option<HeadMode>)]) -> Result<Vec<Option<StepOut>>> {
+        if self.model.is_inkling() {
+            return self.ink_prefill_pack(items);
+        }
         // the schedule of `run_prefill` for a recurrent state, with the bodies of all chunks in one pass: the body is the chunk
         // (non-final) or the chunk without its last token (final); a snapshot follows each body; the last token runs alone
         let keep = self.model.batch_snapshots();

@@ -1,0 +1,29 @@
+fleetq: #12240 running on tatooine-r9700, tatooine-r9700-2: env VISITS=/opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/visits-w4.txt OUT=/opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/w4 CAP=275 BG=stage_w4bg.sh BG_CAP=235 bash /opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/serve_window.sh
+[17:32:00] radiance down
+[17:32:00] background stage stage_w4bg.sh started (cap 235 s)
+[17:32:00] pk16: start (b10; INTARSIA_INK_PACK=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[17:33:43] pk16: up (IP 172.17.0.3 after 101s ; 172 s left)
+[17:33:44] pk16: bitwise conc:4:0 exit 1 (171 s left): Traceback (most recent call last):
+[17:33:45] pk16: bitwise conc:4:1 exit 1 (170 s left): Traceback (most recent call last):
+[17:33:45] pk16: bitwise conc:4:2 exit 1 (170 s left): Traceback (most recent call last):
+[17:33:45] pk16: bitwise conc:4:3 exit 1 (170 s left): Traceback (most recent call last):
+[17:33:45] pk16: bitwise conc:8:0 exit 1 (170 s left): Traceback (most recent call last):
+[17:33:45] pk16: bitwise conc:8:1 exit 1 (170 s left): Traceback (most recent call last):
+[17:33:45] pk16: bitwise conc exit 1 (170 s left): Traceback (most recent call last):
+[17:33:45] pk16: bitwise reuse-conc:6 exit 1 (170 s left): Traceback (most recent call last):
+[17:33:47] pk16: stopped: VRAM peak pk16: card0 28611 MiB, card1 21398 MiB
+[17:33:47] solo: start (b10; --max-seq 4608 --spec off)
+[17:35:44] solo: up (IP 172.17.0.3 after 115s ; 51 s left)
+[17:36:20] solo: bitwise solo exit 0 (15 s left): wall 34.82 s, aggregate 58.8 tok/s, latency median 2.02 s max 3.05 s, prompt tokens 25752, cached 0, ttft median 0.5235 max 1.4819810390472412, itl p50 0.0118 p99 0.084
+[17:36:22] solo: stopped: VRAM peak solo: card0 21348 MiB, card1 22443 MiB
+[17:36:22] visits done (13 s left)
+[17:36:22] waiting for the background stage
+[17:36:22] background stage ended: [bg] done 2026-11-26 17:35:23
+[17:36:34] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/hold.sh; cap 270s; stopping radiance 2026-11-26 17:31:56
+[window] radiance stopped 2026-11-26 17:32:00 (inactive)
+[window] stage done 2026-11-26 17:36:24 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 17:36:24
+[window] radiance answers 2026-11-26 17:36:34 (after 15 s)
+fleetq: #12240 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0

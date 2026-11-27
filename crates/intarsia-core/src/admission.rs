@@ -1197,7 +1197,9 @@ pub fn run_admission(
         }
         // a row-table kernel (`OpCall::rows`) only runs calls with a table of device addresses, which no sweep case has; its
         // gate is the backend's own bitwise test against the one-row kernel it twins (tests/row_tables.rs)
-        if kern.row_table {
+        // a segment-table kernel (`OpCall::segs`, lane ink-hip-bpf) likewise: its calls carry a segment table no sweep case has;
+        // its gate is the backend's bitwise test against the per-segment solo calls
+        if kern.row_table || kern.seg_table {
             continue;
         }
         if let Some(ops) = &opts.only_ops {

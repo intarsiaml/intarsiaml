@@ -1,0 +1,164 @@
+== w6: arms ['A', 'B']
+  fill1.agg        A     61.7  B     61.9  R     None
+  fill4.agg        A    111.3  B    110.6  R     None
+  fill8.agg        A    140.8  B    139.4  R     None
+  fill16.agg       A    154.8  B    153.9  R     None
+  fill1.ttft50     A    0.395  B    0.421  R     None
+  fill4.ttft50     A    1.319  B    1.332  R     None
+  fill8.ttft50     A    2.076  B     2.08  R     None
+  fill16.ttft50    A    3.663  B    3.649  R     None
+  fill1.ttftmax    A    0.395  B    0.421  R     None
+  fill4.ttftmax    A     1.53  B    1.538  R     None
+  fill8.ttftmax    A    3.083  B    3.101  R     None
+  fill16.ttftmax   A    6.354  B    6.342  R     None
+  pp2x2048         A   2802.2  B   2781.0  R     None
+  pp4x1024         A   2930.6  B   2802.5  R     None
+  pp8x512          A   1917.9  B   2467.2  R     None
+  pp16x49          A    571.8  B    636.5  R     None
+  real4.agg        A    100.2  B     98.9  R     None
+  real8.agg        A    116.8  B    116.3  R     None
+  real16.agg       A    122.0  B    123.3  R     None
+  real4.itl50      A   0.0238  B    0.024  R     None
+  real4.itl99      A   0.5238  B   0.1053  R     None
+  real8.itl50      A   0.0336  B   0.0338  R     None
+  real8.itl99      A   0.6239  B   0.5884  R     None
+  real16.itl50     A   0.0573  B   0.0573  R     None
+  real16.itl99     A   0.6284  B   0.6285  R     None
+  real4.ttft50     A   1.6024  B   1.6578  R     None
+  real8.ttft50     A   2.0519  B   2.0052  R     None
+  real16.ttft50    A   3.2881  B   3.0202  R     None
+  real4.ttftmax    A 2.1265950202941895  B 2.182137966156006  R     None
+  real8.ttftmax    A 4.665759086608887  B 4.621793031692505  R     None
+  real16.ttftmax   A 10.072468996047974  B 9.989553928375244  R     None
+  vram             A    28529  B    28532  R     None
+== w7: arms ['A', 'B', 'R']
+  fill1.agg        A     61.9  B     None  R     61.9
+  fill4.agg        A    111.9  B     None  R    117.4
+  fill8.agg        A    141.8  B     None  R    153.1
+  fill16.agg       A    153.9  B     None  R    168.8
+  fill1.ttft50     A     0.39  B     None  R    0.388
+  fill4.ttft50     A    1.334  B     None  R    1.345
+  fill8.ttft50     A     2.08  B     None  R    2.134
+  fill16.ttft50    A    3.662  B     None  R    3.368
+  fill1.ttftmax    A     0.39  B     None  R    0.388
+  fill4.ttftmax    A    1.535  B     None  R    1.367
+  fill8.ttftmax    A    3.086  B     None  R    2.569
+  fill16.ttftmax   A    6.359  B     None  R    5.064
+  pp2x2048         A   2800.9  B   2694.6  R   2795.2
+  pp4x1024         A   2904.4  B   2823.0  R   3185.1
+  pp8x512          A   1903.2  B   2418.9  R   2833.5
+  pp16x49          A    542.6  B    634.2  R    638.9
+  real4.agg        A    100.6  B    100.3  R    105.1
+  real8.agg        A    108.5  B    111.5  R    111.9
+  real16.agg       A    121.4  B    124.0  R    127.9
+  real4.itl50      A   0.0241  B   0.0239  R    0.024
+  real4.itl99      A   0.4262  B     0.44  R   0.0929
+  real8.itl50      A    0.034  B   0.0338  R   0.0336
+  real8.itl99      A   0.5655  B   0.6209  R   0.5887
+  real16.itl50     A   0.0577  B   0.0578  R   0.0574
+  real16.itl99     A   0.6873  B   0.6373  R   0.6776
+  real4.ttft50     A   1.5959  B   1.5977  R   1.3938
+  real8.ttft50     A   2.2995  B   2.0481  R   2.4295
+  real16.ttft50    A   3.4035  B   2.8582  R   2.5964
+  real4.ttftmax    A 2.0452399253845215  B 2.0498239994049072  R 1.817713975906372
+  real8.ttftmax    A 5.263308048248291  B 5.002170085906982  R 4.958295106887817
+  real16.ttftmax   A 10.134676933288574  B 9.741221189498901  R 9.294176816940308
+  vram             A    28529  B    28530  R    29135
+== w8: arms ['A', 'R']
+  fill1.agg        A     62.0  B     None  R     61.5
+  fill4.agg        A    110.4  B     None  R    117.4
+  fill8.agg        A    140.1  B     None  R    151.6
+  fill16.agg       A    154.5  B     None  R    169.0
+  fill1.ttft50     A    0.431  B     None  R    0.394
+  fill4.ttft50     A    1.318  B     None  R     1.36
+  fill8.ttft50     A    2.319  B     None  R    2.141
+  fill16.ttft50    A    3.689  B     None  R    3.366
+  fill1.ttftmax    A    0.431  B     None  R    0.394
+  fill4.ttftmax    A    1.536  B     None  R    1.382
+  fill8.ttftmax    A     3.11  B     None  R    2.564
+  fill16.ttftmax   A    6.362  B     None  R    5.059
+  pp2x2048         A   2793.7  B     None  R   2771.6
+  pp4x1024         A   2854.9  B     None  R   3274.9
+  pp8x512          A   1917.7  B     None  R   2835.3
+  pp16x49          A    565.7  B     None  R    628.3
+  real4.agg        A     91.1  B     None  R     94.5
+  real8.agg        A    116.7  B     None  R    120.5
+  real16.agg       A    122.5  B     None  R    128.1
+  real4.itl50      A   0.0239  B     None  R   0.0244
+  real4.itl99      A    0.499  B     None  R   0.2523
+  real8.itl50      A   0.0335  B     None  R   0.0336
+  real8.itl99      A   0.5848  B     None  R   0.5843
+  real16.itl50     A   0.0577  B     None  R   0.0577
+  real16.itl99     A   0.6313  B     None  R   0.6287
+  real4.ttft50     A    1.787  B     None  R   1.4516
+  real8.ttft50     A   1.9922  B     None  R   1.7294
+  real16.ttft50    A   3.1934  B     None  R   2.5421
+  real4.ttftmax    A 2.562955856323242  B     None  R 2.338819980621338
+  real8.ttftmax    A 4.601726055145264  B     None  R 4.327561140060425
+  real16.ttftmax   A 10.066874980926514  B     None  R 9.246870040893555
+  vram             A    28528  B     None  R    29135
+== paired X / A (mean over windows, 95 % t interval); for TTFT / ITL lower is better
+  B/A fill1.agg        1.003 (1 rep)  n=1  per window 1.003
+  B/A fill4.agg        0.994 (1 rep)  n=1  per window 0.994
+  B/A fill8.agg        0.990 (1 rep)  n=1  per window 0.990
+  B/A fill16.agg       0.994 (1 rep)  n=1  per window 0.994
+  B/A fill1.ttft50     1.066 (1 rep)  n=1  per window 1.066
+  B/A fill4.ttft50     1.010 (1 rep)  n=1  per window 1.010
+  B/A fill8.ttft50     1.002 (1 rep)  n=1  per window 1.002
+  B/A fill16.ttft50    0.996 (1 rep)  n=1  per window 0.996
+  B/A fill1.ttftmax    1.066 (1 rep)  n=1  per window 1.066
+  B/A fill4.ttftmax    1.005 (1 rep)  n=1  per window 1.005
+  B/A fill8.ttftmax    1.006 (1 rep)  n=1  per window 1.006
+  B/A fill16.ttftmax   0.998 (1 rep)  n=1  per window 0.998
+  B/A pp2x2048         0.977 [0.784, 1.170]  n=2  per window 0.992, 0.962
+  B/A pp4x1024         0.964 [0.864, 1.064]  n=2  per window 0.956, 0.972
+  B/A pp8x512          1.279 [1.181, 1.377]  n=2  per window 1.286, 1.271
+  B/A pp16x49          1.141 [0.787, 1.495]  n=2  per window 1.113, 1.169
+  B/A real4.agg        0.992 [0.929, 1.056]  n=2  per window 0.987, 0.997
+  B/A real8.agg        1.012 [0.809, 1.215]  n=2  per window 0.996, 1.028
+  B/A real16.agg       1.016 [0.948, 1.084]  n=2  per window 1.011, 1.021
+  B/A real4.itl50      1.000 [0.894, 1.106]  n=2  per window 1.008, 0.992
+  B/A real4.itl99      0.617 [-4.665, 5.898]  n=2  per window 0.201, 1.032
+  B/A real8.itl50      1.000 [0.925, 1.075]  n=2  per window 1.006, 0.994
+  B/A real8.itl99      1.021 [0.037, 2.004]  n=2  per window 0.943, 1.098
+  B/A real16.itl50     1.001 [0.990, 1.012]  n=2  per window 1.000, 1.002
+  B/A real16.itl99     0.964 [0.501, 1.427]  n=2  per window 1.000, 0.927
+  B/A real4.ttft50     1.018 [0.805, 1.230]  n=2  per window 1.035, 1.001
+  B/A real8.ttft50     0.934 [0.384, 1.484]  n=2  per window 0.977, 0.891
+  B/A real16.ttft50    0.879 [0.379, 1.379]  n=2  per window 0.919, 0.840
+  B/A real4.ttftmax    1.014 [0.862, 1.166]  n=2  per window 1.026, 1.002
+  B/A real8.ttftmax    0.970 [0.715, 1.226]  n=2  per window 0.991, 0.950
+  B/A real16.ttftmax   0.976 [0.782, 1.171]  n=2  per window 0.992, 0.961
+  B/A vram             1.000 [1.000, 1.001]  n=2  per window 1.000, 1.000
+  R/A fill1.agg        0.996 [0.945, 1.047]  n=2  per window 1.000, 0.992
+  R/A fill4.agg        1.056 [0.966, 1.147]  n=2  per window 1.049, 1.063
+  R/A fill8.agg        1.081 [1.066, 1.096]  n=2  per window 1.080, 1.082
+  R/A fill16.agg       1.095 [1.076, 1.114]  n=2  per window 1.097, 1.094
+  R/A fill1.ttft50     0.955 [0.442, 1.467]  n=2  per window 0.995, 0.914
+  R/A fill4.ttft50     1.020 [0.870, 1.170]  n=2  per window 1.008, 1.032
+  R/A fill8.ttft50     0.975 [0.322, 1.627]  n=2  per window 1.026, 0.923
+  R/A fill16.ttft50    0.916 [0.870, 0.962]  n=2  per window 0.920, 0.912
+  R/A fill1.ttftmax    0.955 [0.442, 1.467]  n=2  per window 0.995, 0.914
+  R/A fill4.ttftmax    0.895 [0.837, 0.954]  n=2  per window 0.891, 0.900
+  R/A fill8.ttftmax    0.828 [0.777, 0.879]  n=2  per window 0.832, 0.824
+  R/A fill16.ttftmax   0.796 [0.788, 0.803]  n=2  per window 0.796, 0.795
+  R/A pp2x2048         0.995 [0.958, 1.032]  n=2  per window 0.998, 0.992
+  R/A pp4x1024         1.122 [0.801, 1.443]  n=2  per window 1.097, 1.147
+  R/A pp8x512          1.484 [1.418, 1.549]  n=2  per window 1.489, 1.478
+  R/A pp16x49          1.144 [0.720, 1.569]  n=2  per window 1.177, 1.111
+  R/A real4.agg        1.041 [0.994, 1.088]  n=2  per window 1.045, 1.037
+  R/A real8.agg        1.032 [1.024, 1.040]  n=2  per window 1.031, 1.033
+  R/A real16.agg       1.050 [1.000, 1.099]  n=2  per window 1.054, 1.046
+  R/A real4.itl50      1.008 [0.849, 1.168]  n=2  per window 0.996, 1.021
+  R/A real4.itl99      0.362 [-1.466, 2.189]  n=2  per window 0.218, 0.506
+  R/A real8.itl50      0.996 [0.902, 1.089]  n=2  per window 0.988, 1.003
+  R/A real8.itl99      1.020 [0.754, 1.286]  n=2  per window 1.041, 0.999
+  R/A real16.itl50     0.997 [0.964, 1.030]  n=2  per window 0.995, 1.000
+  R/A real16.itl99     0.991 [0.927, 1.054]  n=2  per window 0.986, 0.996
+  R/A real4.ttft50     0.843 [0.455, 1.231]  n=2  per window 0.873, 0.812
+  R/A real8.ttft50     0.962 [-0.235, 2.160]  n=2  per window 1.057, 0.868
+  R/A real16.ttft50    0.779 [0.569, 0.990]  n=2  per window 0.763, 0.796
+  R/A real4.ttftmax    0.901 [0.749, 1.052]  n=2  per window 0.889, 0.913
+  R/A real8.ttftmax    0.941 [0.931, 0.952]  n=2  per window 0.942, 0.940
+  R/A real16.ttftmax   0.918 [0.908, 0.927]  n=2  per window 0.917, 0.919
+  R/A vram             1.021 [1.021, 1.021]  n=2  per window 1.021, 1.021

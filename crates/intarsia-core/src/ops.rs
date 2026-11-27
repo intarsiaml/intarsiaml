@@ -711,6 +711,47 @@ pub struct OpCall {
     /// `Registry::select` then picks only kernels registered `row_invariant` (and fails if none fits). `false` (every other call)
     /// leaves selection as it was.
     pub prefill_inv: bool,
+    /// Packed-prefill segment call (lane ink-hip-bpf; Inkling-2 `ConvMix`, `inkling2::ops`, "Segment tables"): the call's rows are
+    /// several sequences' prefill chunks, one after another, each the solo call over its own rows on its own state. See
+    /// [`SegTab`]. `None` (every other call): one sequence.
+    pub segs: Option<SegTab>,
+}
+
+/// The segments of a packed-prefill call (lane ink-hip-bpf; `inkling2::ops`, "Segment tables"): rows `segs[s].0 ..
+/// segs[s].0 + segs[s].1` of the call are one sequence's chunk at positions `segs[s].2 ..`, and its state tensor `j` lives at
+/// table entry `[s, index + j]` (plus the carrier tensor's offset), the batched step's row-table layout over the segments'
+/// sequences. Segment `s` is, bit for bit, the solo call over its rows at `pos0 = segs[s].2` on its own state (row-indexed
+/// tensors: its rows of every `[T, ..]` tensor and of every plane of an `[N, T, D]` one).
+#[derive(Clone, Debug)]
+pub struct SegTab {
+    /// `(first row, rows, first position)` per segment, in row order; together they cover rows `0..T` of the call.
+    pub segs: Vec<(usize, usize, usize)>,
+    /// u8 `[n, stride, 8]`: little-endian u64 state addresses, segment-major.
+    pub ptrs: TensorRef,
+    /// Entries per segment of the table.
+    pub stride: usize,
+    /// This call's first entry within a segment.
+    pub index: usize,
+    /// i32 `[4, T]`, the device copy of `segs` per row: the row's position, its segment's first position, its segment's end
+    /// position (one past its last), its segment's index.
+    pub meta: TensorRef,
+}
+
+impl SegTab {
+    /// The `meta` rows ([`SegTab::meta`]) of `segs`, plane-major: i32 little-endian bytes of `[4, T]`.
+    pub fn meta_bytes(segs: &[(usize, usize, usize)]) -> Vec<u8> {
+        let t: usize = segs.iter().map(|s| s.1).sum();
+        let mut planes = vec![vec![0i32; t]; 4];
+        for (si, &(r0, n, p0)) in segs.iter().enumerate() {
+            for r in 0..n {
+                planes[0][r0 + r] = (p0 + r) as i32;
+                planes[1][r0 + r] = p0 as i32;
+                planes[2][r0 + r] = (p0 + n) as i32;
+                planes[3][r0 + r] = si as i32;
+            }
+        }
+        planes.into_iter().flatten().flat_map(|v| v.to_le_bytes()).collect()
+    }
 }
 
 /// The per-sequence buffers of a batched decode call, as a table of device addresses that the host rewrites before every step
@@ -739,7 +780,7 @@ pub struct RowTab {
 
 impl OpCall {
     pub fn new(op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> OpCall {
-        OpCall { op, inputs, outputs, attrs, scratch: None, pos: None, exact_rows: false, rows: None, prefill_inv: false }
+        OpCall { op, inputs, outputs, attrs, scratch: None, pos: None, exact_rows: false, rows: None, prefill_inv: false, segs: None }
     }
 
     /// The solo-step calls a call stands for: `rows` for a row-table call and for the per-row ops (`QkNorm`, `Rope`,
@@ -878,6 +919,35 @@ impl OpCall {
             if matches!(self.op, Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv) && self.pos.is_none() {
                 return Err(Error::invalid(format!("{}: a row-table call needs the per-row positions (`pos`)", self.op)));
             }
+        }
+        if let Some(sg) = &self.segs {
+            if !crate::inkling2::ops::SEG_TABLE_OPS.contains(&self.op) {
+                return bad("takes no segment table".into());
+            }
+            if self.rows.is_some() || self.pos.is_some() {
+                return bad("a segment-table call takes no row table and no device position (the table holds the positions)".into());
+            }
+            let t = self.inputs.first().and_then(|x| x.shape.first().copied()).unwrap_or(0);
+            let mut next = 0usize;
+            for &(r0, n, _) in &sg.segs {
+                if r0 != next || n == 0 {
+                    return bad(format!("segments {:?} are not consecutive non-empty row ranges", sg.segs));
+                }
+                next += n;
+            }
+            let ns = crate::inkling2::ops::row_states(self.op);
+            let n = sg.segs.len();
+            if n == 0 || next != t || sg.ptrs.dtype != DType::U8 || sg.ptrs.shape != [n, sg.stride, 8] || sg.index + ns > sg.stride {
+                return bad(format!(
+                    "segment table {:?} {:?} stride {} index {} (+{ns} entries) over {next} rows does not fit {n} segments of a call over {t} rows",
+                    sg.ptrs.dtype, sg.ptrs.shape, sg.stride, sg.index
+                ));
+            }
+            if sg.meta.dtype != DType::I32 || sg.meta.shape != [4, t] {
+                return bad(format!("segment rows must be i32 [4, {t}], got {} {:?}", sg.meta.dtype, sg.meta.shape));
+            }
+            sg.ptrs.check_bounds()?;
+            sg.meta.check_bounds()?;
         }
         let i = &self.inputs;
         let o = &self.outputs;

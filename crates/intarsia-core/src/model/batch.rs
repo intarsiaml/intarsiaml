@@ -1310,6 +1310,8 @@ impl Model {
             macro_cap: 0,
             macro_split: Vec::new(),
             macro_ctx: std::sync::Mutex::new(None),
+            ink_pack_moe: std::sync::Mutex::new(None),
+            ink_pack_passes: std::sync::atomic::AtomicU64::new(0),
             macro_snaps: std::sync::Mutex::new(None),
             macro_passes: std::sync::atomic::AtomicU64::new(0),
             skip_dead: std::sync::atomic::AtomicBool::new(false),

@@ -266,6 +266,15 @@ pub trait Backend: Send + Sync {
         crate::model::Model::PACK_MIN_ROWS
     }
 
+    /// The Inkling-2 routed experts (`MoeExperts` / `MoeExpertsMxfp8` with the SiTU activation) of `experts` experts, top
+    /// `top_k`, `hidden` and `inter` wide: the fewest rows of an ordinary prefill call that takes another numerical form than a
+    /// call of fewer rows (HIP: the tensor-core path from `T * top_k >= 16 * experts` pairs, `kernels/hip/ink_moe.hip`). A packed
+    /// prefill pass (lane ink-hip-bpf) runs the segments of at least this many rows in one call and the shorter ones in calls of
+    /// fewer rows, so every segment keeps its solo form. `None` (default): one form at every row count (any grouping is bitwise).
+    fn moe_split_rows(&self, _experts: usize, _top_k: usize, _hidden: usize, _inter: usize) -> Option<usize> {
+        None
+    }
+
     /// Whether `serve --max-batch` packs the prefill of prompts waiting together (`BatchedOptions::pack_prefill`) when
     /// `INTARSIA_PACK_PREFILL` is unset. Default false (opt-in); true where the packed pass is measured bitwise and faster (CUDA, HIP).
     fn pack_prefill_default(&self) -> bool {

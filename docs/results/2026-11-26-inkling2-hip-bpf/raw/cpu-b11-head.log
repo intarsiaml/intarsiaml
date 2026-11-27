@@ -1,0 +1,27 @@
+fleetq: #12249 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'S=~/intarsiaml-ink-hip-bpf/.scratch; cd ~/intarsiaml-ink-hip-bpf; bash $S/build.sh b11 m:inkling2_packed m:inkling2_batch m:inkling2 && bash $S/cpu_tests.sh core plan packed hiplib; export INTARSIA_REPO=$PWD INTARSIA_TARGET_VOL=intarsia-cargo-target-ink-hip-bpf INTARSIA_CONTAINER_NAME=ink-hip-bpf-build; docker rm -f ink-hip-bpf-build > /dev/null 2>&1; deploy/tatooine/dev.sh cargo test --release -j8 -p intarsia-cli --test docs_env_vars < /dev/null > logs/docs-env.log 2>&1; echo "docs_env_vars exit $?"; grep -aE "test result|panicked|FAILED" logs/docs-env.log | head -4; docker rm -f ink-hip-bpf-build > /dev/null 2>&1; true'
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 2m 10s
+cli build exit 0
+7b1d9d55693d72a25f90bf923972b569  .scratch/bin/intarsia-b11
+    Finished `release` profile [optimized] target(s) in 15.95s
+  Executable tests/inkling2_packed.rs (/target/release/deps/inkling2_packed-1ed2245ff98f9c1a)
+test inkling2_packed build exit 0
+    Finished `release` profile [optimized] target(s) in 0.92s
+  Executable tests/inkling2_batch.rs (/target/release/deps/inkling2_batch-4078c269fe83f39e)
+test inkling2_batch build exit 0
+    Finished `release` profile [optimized] target(s) in 1.39s
+  Executable tests/inkling2.rs (/target/release/deps/inkling2-4591618c7e4a1464)
+test inkling2 build exit 0
+== core exit 0
+test result: ok. 270 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 13.45s
+== plan exit 0
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+== packed exit 0
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.12s
+== hiplib exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.00s
+docs_env_vars exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+fleetq: #12249 done (exit 0)
+exit 0
