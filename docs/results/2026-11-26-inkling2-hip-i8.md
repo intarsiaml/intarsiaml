@@ -39,6 +39,16 @@ default-on. Status: @@STATUS@@
    coordinator in the next report whether the Mac worktree `.worktrees/ink-q8`, the remote branch `ink/q8-study` and its `target/` folder
    can be removed now, or whether scripts or data from them are still used; the coordinator touches none of them until answered.
 
+4. 2026-11-26 ~21:00 EST (coordinator), new agent after the 20:40 restart: finish the evidence and open the PR (do not merge). (1) Merge `origin/main`
+   (aee06201c; done, merge commit `dafa72379`, no conflicts). (2) Rebuild on tatooine, `--load cpu` (the old `intarsia-a` predates the R2U1
+   retune). (3) W3: 4k accuracy both arms + plain-decode short ABBA 4 + 4, also the first GPU run of the retuned R2U1 / M 5..16 defaults.
+   (4) `stage_speed.sh` windows: 4k, 16k, `SPEC=default`; prefill 4k / 16k not slower; spec-default md5 = spec-off for the i8 arm; hip `inkling2`
+   tiny and `inkling2_batch` pass with the i8 env. (5) A row count slower than P12 (in_proj 9..16 rows 0.92x) goes back to P12 only if that is a
+   small dispatch rule with a test, else a known limit. (6) Fill results / status, LOG.md row, unanimis capture. (7) cpu tests on the final head
+   (endor `--load cpu`), push via `fleetq run --host endor --load cpu` (pre-push hook), PR to `main`. Budget: radiance about 17 of this lane's 20 min
+   left; 16k as `PROMPTS=16k REPS="1 2"` (give n) if it does not fit; windows <= 5 min each, none after 06:00 EST; never `fleetq release` a
+   running window job (kill the driver's process tree, confirm `curl -s http://tatooine:8080/v1/models`); radiance answering after every window.
+
 ## Format and contract
 
 Int8 weight `q [N, K]` (levels -127..=127) with one f32 scale per output row (`scales [N, 1]`), W8A16: `out[m, n] = rA(scale[n] *
