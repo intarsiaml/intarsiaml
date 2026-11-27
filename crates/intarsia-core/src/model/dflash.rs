@@ -74,8 +74,9 @@ pub struct DflashConfig {
     pub selector_top_k: usize,
     /// `dflash_config.final_logit_softcapping` with `selector_softcap_mode = "after_correction"` (lane ink-dflash2, the Inkling-2
     /// DFlash2 drafter `incoai/Inkling-2-Mini-DFlash2`): the selector's path scores are `cap * tanh(score / cap)`; 0 = none. The
-    /// loader refuses a softcap in any other mode (the reference's default `"before_correction"` softcaps the logits before the
-    /// selector's correction, which this port does not implement).
+    /// candidate logits themselves stay uncapped (`Op::Logits` without the target's softcap), as that mode wants. Any other mode
+    /// (the reference's default `"before_correction"` softcaps the logits before the selector's correction, not implemented here)
+    /// loads with the cap ignored and a note, as on main (drafts only).
     pub selector_post_softcap: f32,
     /// A DSpine checkpoint (`model/dspine.rs`, `tencent/Qwen3.8-27B-DSpine-b16`): a causal plain-Qwen3 block with a code bridge
     /// after every layer and a refinement tail. `v2` is set for it as well (the DFlash2 backbone path, without the conv).
