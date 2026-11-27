@@ -1,0 +1,25 @@
+fleetq: #12547 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 A=main7 B=specA2 bash ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/window.sh ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_m7b.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_m7b.sh; cap 285s; stopping radiance 2026-11-27 02:50:34
+[window] radiance stopped 2026-11-27 02:50:38 (inactive)
+[m7b] start 02:50:38 A main7 d644af53f7e375d1fab88b96a72a96f1 4b629184c5ecf1ac2e89a97a1f4bd86f2f87fb69 origin/main (main7, git archive) B specA2 8e927dd520f2765ad8da92db4f198c35
+[m7b c0] def main7@r1 rc 0 t+34s | decode overall: 1568 tokens after the first, 15970 ms (98.19 tok/s) | prefill overall: 21809 tokens, 7037 ms (3099.1 tok/s) | spec: verify passes=540 proposed=1579 accepted=800 (acceptance 50.7%, 2.48 tokens per pass
+[m7b c0] def specA2@r1 rc 0 t+67s | decode overall: 1568 tokens after the first, 15976 ms (98.15 tok/s) | prefill overall: 21809 tokens, 7049 ms (3094.0 tok/s) | spec: verify passes=540 proposed=1579 accepted=800 (acceptance 50.7%, 2.48 tokens per pass
+[m7b c0] def specA2@r2 rc 0 t+101s | decode overall: 1568 tokens after the first, 15978 ms (98.13 tok/s) | prefill overall: 21809 tokens, 7051 ms (3093.0 tok/s) | spec: verify passes=540 proposed=1579 accepted=800 (acceptance 50.7%, 2.48 tokens per pass
+[m7b c0] def main7@r2 rc 0 t+134s | decode overall: 1568 tokens after the first, 15988 ms (98.07 tok/s) | prefill overall: 21809 tokens, 7054 ms (3091.7 tok/s) | spec: verify passes=540 proposed=1579 accepted=800 (acceptance 50.7%, 2.48 tokens per pass
+[m7b c0] off specA2@r1 rc 0 t+163s | decode overall: 1397 tokens after the first, 17204 ms (81.20 tok/s) | prefill overall: 20788 tokens, 6667 ms (3118.0 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[m7b c0] off main7@r1 rc 0 t+193s | decode overall: 1397 tokens after the first, 17205 ms (81.20 tok/s) | prefill overall: 20788 tokens, 6676 ms (3113.8 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[m7b c0] off main7@r2 rc 0 t+222s | decode overall: 1397 tokens after the first, 17202 ms (81.21 tok/s) | prefill overall: 20788 tokens, 6682 ms (3111.0 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[m7b c0] off specA2@r2 rc 0 t+252s | decode overall: 1397 tokens after the first, 17209 ms (81.18 tok/s) | prefill overall: 20788 tokens, 6685 ms (3109.8 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[m7b c1] def specA2@r3 rc 0 t+34s | decode overall: 1568 tokens after the first, 15919 ms (98.50 tok/s) | prefill overall: 21809 tokens, 6997 ms (3116.9 tok/s) | spec: verify passes=540 proposed=1579 accepted=800 (acceptance 50.7%, 2.48 tokens per pass
+[m7b c1] def main7@r3 rc 0 t+67s | decode overall: 1568 tokens after the first, 15923 ms (98.48 tok/s) | prefill overall: 21809 tokens, 7009 ms (3111.7 tok/s) | spec: verify passes=540 proposed=1579 accepted=800 (acceptance 50.7%, 2.48 tokens per pass
+[m7b c1] def main7@r4 rc 0 t+100s | decode overall: 1568 tokens after the first, 15923 ms (98.48 tok/s) | prefill overall: 21809 tokens, 7005 ms (3113.2 tok/s) | spec: verify passes=540 proposed=1579 accepted=800 (acceptance 50.7%, 2.48 tokens per pass
+[m7b c1] def specA2@r4 rc 0 t+132s | decode overall: 1568 tokens after the first, 15925 ms (98.46 tok/s) | prefill overall: 21809 tokens, 7021 ms (3106.4 tok/s) | spec: verify passes=540 proposed=1579 accepted=800 (acceptance 50.7%, 2.48 tokens per pass
+[m7b c1] off main7@r3 rc 0 t+162s | decode overall: 1397 tokens after the first, 17153 ms (81.44 tok/s) | prefill overall: 20788 tokens, 6625 ms (3137.6 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[m7b c1] off specA2@r3 rc 0 t+191s | decode overall: 1397 tokens after the first, 17159 ms (81.41 tok/s) | prefill overall: 20788 tokens, 6620 ms (3140.4 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[m7b c1] off specA2@r4 rc 0 t+221s | decode overall: 1397 tokens after the first, 17153 ms (81.45 tok/s) | prefill overall: 20788 tokens, 6627 ms (3136.8 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[m7b c1] off main7@r4 rc 0 t+250s | decode overall: 1397 tokens after the first, 17153 ms (81.44 tok/s) | prefill overall: 20788 tokens, 6635 ms (3133.2 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[m7b] done 02:54:50 t+252s
+[window] stage done 2026-11-27 02:54:51 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-27 02:54:51
+[window] radiance answers 2026-11-27 02:55:01 (after 15 s)
+fleetq: #12547 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

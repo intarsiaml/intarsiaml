@@ -728,3 +728,24 @@ unverified (no third window).
 - Observation (not gated): main7's cold first-start admission is 215 cases / 195 s against PR A's 134 cases / ~120 s (GS2: solo alone).
   The extra 15 kernels come with #542 / #546; only the first start on a new binary pays it (cached after).
 
+**M2 (#12547, 02:50:34-02:55:01, 4:27; `raw/m7-def/`, `raw/m7-off/`, `raw/m7-analysis.txt`, `raw/window-m2-12547.log`):** 16 / 16
+processes complete; ids identical across every arm and rep in both modes; verify counts identical per process (540 / 1579 / 800).
+
+| main7 (4b629184c) vs specA2 (136b4dc16) | ratio [95 % CI] | n | main7 tok/s (median) |
+|---|---|---|---|
+| default-spec decode, short (3 prompts) | **1.000** [0.999-1.000] | 4 | 98.37 |
+| default-spec decode, 1k | **1.000** [0.999-1.001] | 4 | 102.79 |
+| default-spec decode, 4k | **1.000** [0.999-1.002] | 4 | 117.40 |
+| default-spec decode, 16k | **1.000** [0.998-1.001] | 4 | 91.11 |
+| plain decode (`--spec off`), short (3 prompts) | 1.000 [1.000-1.001] | 4 | 83.65 |
+| plain decode, 4k | 1.000 [0.999-1.000] | 4 | 80.28 |
+| plain decode, 16k | 1.000 [1.000-1.000] | 4 | 75.26 |
+| prefill 4k (default path) | **1.000** [0.998-1.002] | 4 | 3467 |
+| prefill 16k (default path) | **1.000** [0.998-1.002] | 4 | 3272 |
+
+(Plain-run prefill: 4k 1.000 [0.999-1.001], 16k 1.000 [0.999-1.001], 3481 / 3279 tok/s.) The short cell here is 3 prompts (story, code,
+chat_multiturn_rnone): its absolute tok/s is not comparable with the 12-prompt short cell of the earlier tables (DSpark k5 there 109).
+
+**main7 verdict: PASS** (every bitwise check equal; no default-path cell with an upper bound below 0.99; the lowest upper bound is 0.999,
+and the plain cells are the same). Radiance for the main7 check: M1 4:16 + M2 4:27 = **8:43** of its 10:00 grant.
+
