@@ -261,6 +261,10 @@ pub struct LoadOptions {
     /// Row-invariant prefill ([`Model::row_invariant_prefill`], lane rip): `Some` wins over `INTARSIA_ROW_INVARIANT_PREFILL`,
     /// which wins over `Backend::row_invariant_prefill` (on CUDA by default since lane rip2, off on the other backends).
     pub row_invariant_prefill: Option<bool>,
+    /// The model is loaded to batch (`serve --max-batch` > 1; the engine loader sets it before `Model::load`). Its P12 copies
+    /// are then never packed ([`crate::quant::p12::decide_load`]): a batched plan drops them anyway (`drop_p12_for_batch`), and
+    /// the KV budget is measured at load with what is resident, so packing them would only cost KV (lane ink-hip-p12).
+    pub batched: bool,
 }
 
 impl Default for LoadOptions {
@@ -289,6 +293,7 @@ impl Default for LoadOptions {
             dflash_tp: None,
             prefill_macro: None,
             row_invariant_prefill: None,
+            batched: false,
         }
     }
 }
@@ -1357,7 +1362,7 @@ impl Model {
         };
         // the lossless 12-bit copy of the Inkling-2 unembed (lane ink-pack12): the replicated bf16 head only
         let head_p12 = match (&dims.ink, &lm_head) {
-            (Some(_), Some(h)) if crate::quant::p12::enabled(b) && head_quant.is_none() && !vocab_par && h.format == crate::quant::BF16 => {
+            (Some(_), Some(h)) if crate::quant::p12::enabled(b, opts.batched) && head_quant.is_none() && !vocab_par && h.format == crate::quant::BF16 => {
                 let nm = resolve(src, &lh.tensor)?;
                 let i = src.info(&nm).ok_or_else(|| Error::model(format!("lm_head tensor '{nm}' missing")))?;
                 if i.dtype != DType::Bf16 {
@@ -1872,7 +1877,7 @@ impl Model {
                     Some(v) => inkling2::parse_act_quant(&v)?,
                     None => recipe.ink_act_quant(backend.name()).map(inkling2::parse_act_quant).transpose()?.unwrap_or(0),
                 };
-                let m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, act_quant, &mut slot_specs, &mut nbytes)?;
+                let m = inkling2::load(b, src, dims, &names, act, mt, attn_quant, act_quant, opts.batched, &mut slot_specs, &mut nbytes)?;
                 if m.act_quant == 1 {
                     eprintln!("inkling2: W4A4 expert activations ({} / recipe act_quant; changes outputs)", inkling2::ACT_QUANT_ENV);
                 }

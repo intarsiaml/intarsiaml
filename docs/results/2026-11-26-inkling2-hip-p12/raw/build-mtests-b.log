@@ -1,0 +1,12 @@
+fleetq: #12137 waiting (#1 in line): #12136 "ink-sampled: W1 tiny suites hip + real-model law/seed equality (radiance down <= 5:00)" (claude-04c0e1cd) needs cpu quiet on tatooine-r9700, and this job loads it
+fleetq:   #12136 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12136 set, or it will wait for #12136 to be released.
+fleetq: #12137 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/build_mtests.sh'
+  Executable tests/inkling2.rs (/target/release/deps/inkling2-4591618c7e4a1464)
+models test inkling2 build exit 0
+  Executable tests/inkling2_dspark.rs (/target/release/deps/inkling2_dspark-13d33c362e4c37d2)
+models test inkling2_dspark build exit 0
+  Executable tests/inkling2_dspark_cut.rs (/target/release/deps/inkling2_dspark_cut-2f8cdf298ef82228)
+models test inkling2_dspark_cut build exit 0
+  Executable tests/inkling2_verify_softcap.rs (/target/release/deps/inkling2_verify_softcap-eeaaf9fee515e657)
+models test inkling2_verify_softcap build exit 0
+fleetq: #12137 done (exit 0)

@@ -1,0 +1,7 @@
+[speed] new@c1a rc 0 t+37s | up to 5 drafts | decode overall: 2013 tokens after the first, 19130 ms (105.23 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] main@c1a rc 0 t+74s | up to 5 drafts | decode overall: 2013 tokens after the first, 19275 ms (104.44 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] main@c1b rc 0 t+110s | up to 5 drafts | decode overall: 2013 tokens after the first, 19281 ms (104.41 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+[speed] new@c1b rc 0 t+147s | up to 5 drafts | decode overall: 2013 tokens after the first, 19171 ms (105.00 tok/s) | spec: verify passes=694 proposed=2177 accepted=1161 (acceptance 53.3%, 2.67 tokens per pass)
+MD5 vrow3 dflt 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | up to 5 drafts | decode 769 ms (81.96 tok/s) | spec: verify passes=21 proposed=41 accepted=26 (acceptance 63.4%, 2.24 tokens per pass)
+MD5 vrow3 off 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 |  | decode 857 ms (73.48 tok/s) | 
+[c1] done 16:49:39

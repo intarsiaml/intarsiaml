@@ -1,0 +1,5 @@
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+1 kernels, 532 cases in 7.2s

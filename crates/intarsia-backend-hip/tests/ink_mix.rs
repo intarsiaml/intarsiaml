@@ -96,6 +96,22 @@ impl Rig {
             let first_no_dpp = self.run_once(kernel, op, inputs, outs, attrs);
             intarsia_backend_hip::inkmix::set_mix_mode(3);
             intarsia_backend_hip::set_dec3(-1);
+            // the blend's fused launches at every chunk size (lane ink-hip-vrow) and at none, the default forms otherwise
+            intarsia_backend_hip::inkmix::set_blend_fuse(256, 256);
+            let fuse_all = self.run_once(kernel, op, inputs, outs, attrs);
+            intarsia_backend_hip::inkmix::set_blend_fuse(256, 0);
+            let fuse_rows_only = self.run_once(kernel, op, inputs, outs, attrs);
+            intarsia_backend_hip::inkmix::set_blend_fuse(0, 256);
+            let fuse_norm_only = self.run_once(kernel, op, inputs, outs, attrs);
+            intarsia_backend_hip::inkmix::set_blend_fuse(0, 0);
+            let fuse_none = self.run_once(kernel, op, inputs, outs, attrs);
+            intarsia_backend_hip::inkmix::set_blend_fuse(-1, -1);
+            for (j, b) in first.iter().enumerate() {
+                assert_eq!(fuse_all[j].data, b.data, "{kernel}: output {j} with the fused blend at every chunk size differs from the first forms");
+                assert_eq!(fuse_rows_only[j].data, b.data, "{kernel}: output {j} with only the fused row-kernel launch differs from the first forms");
+                assert_eq!(fuse_norm_only[j].data, b.data, "{kernel}: output {j} with only the fused norm differs from the first forms");
+                assert_eq!(fuse_none[j].data, b.data, "{kernel}: output {j} with no fused blend differs from the first forms");
+            }
             for (j, ((a, b), c)) in fast.iter().zip(&first).zip(&all).enumerate() {
                 assert_eq!(a.data, b.data, "{kernel}: output {j} of the default forms differs from the first forms");
                 assert_eq!(c.data, b.data, "{kernel}: output {j} of the fast forms (mask 15) differs from the first forms");
@@ -532,6 +548,65 @@ fn ink_mix_bench() {
             let outs: Vec<Out> = vec![(DType::F32, vec![t, k], None), (DType::I32, vec![t, k], None), (DType::F32, vec![t, e], None)];
             let us_f = bench(&rig, "ink_route_bf16", Op::InkRoute, &[x, w.clone(), bias.clone()], &outs, &a, 300);
             println!("BENCH router T={t}: {lk} {us_l:.1} + moe_route {us_r:.1} = {:.1} us, fused ink_route_bf16 {us_f:.1} us", us_l + us_r);
+        }
+    }
+}
+
+/// The blend's fused launches by chunk size (lane ink-hip-vrow): LoopBlend S3 G64 and ConvMix with the blend (S3) at the real width
+/// (D 2304), T = 1..8 and 16 rows, the fused row-kernel launch / the fused norm up to (r, n) rows:
+/// `cargo test --release -p intarsia-backend-hip --test ink_mix ink_blend_fuse_bench -- --ignored --nocapture`.
+#[test]
+#[ignore]
+fn ink_blend_fuse_bench() {
+    let Some(rig) = Rig::new("ink_blend_fuse_bench") else { return };
+    let mut rng = SplitMix64::new(0xbf);
+    let bf = DType::Bf16;
+    let (d, g, kt, s) = (2304usize, 64usize, 4usize, 3usize);
+    let rr = kt - 1 + 16;
+    let a = OpAttrs { eps: 1e-6, ..OpAttrs::default() };
+    let limits: [(i32, i32); 5] = [(2, 2), (0, 0), (2, 16), (16, 0), (16, 16)];
+    for t in [1usize, 2, 3, 4, 5, 6, 8, 16] {
+        let blend_in = vec![
+            rnd(&mut rng, DType::F32, &[1, t, d], 1.0),
+            rnd(&mut rng, DType::F32, &[s, t, d], 1.0),
+            rnd(&mut rng, bf, &[s, g, 2 * d], (2.0 * d as f32).powf(-0.5)),
+            rnd(&mut rng, bf, &[s, d, g], 0.5),
+            rnd(&mut rng, bf, &[s, d, g], 0.5),
+            pos(&mut rng, &[s, d]),
+        ];
+        let cb_in = vec![
+            rnd(&mut rng, bf, &[t, d], 1.0),
+            rnd(&mut rng, bf, &[kt, d], 0.5),
+            rnd(&mut rng, bf, &[t, d], 1.0),
+            rnd(&mut rng, bf, &[t, d], 1.0),
+            rnd(&mut rng, bf, &[6, t, d], 1.5),
+            rnd(&mut rng, DType::F32, &[1, d], 0.2),
+            pos(&mut rng, &[s, d]),
+            rnd(&mut rng, DType::F32, &[s, t, d], 1.0),
+            rnd(&mut rng, bf, &[s, g, 2 * d], (2.0 * d as f32).powf(-0.5)),
+            rnd(&mut rng, bf, &[s, d, g], 0.5),
+            rnd(&mut rng, bf, &[s, d, g], 0.5),
+        ];
+        let cb_out: Vec<Out> = vec![
+            (bf, vec![t, d], None),
+            (bf, vec![rr, d], Some(rnd(&mut rng, bf, &[rr, d], 1.0))),
+            (bf, vec![t, d], None),
+            (bf, vec![s, t, d], None),
+        ];
+        let cases: [(&str, &str, Op, &[HostTensor], &[Out]); 2] = [
+            ("loop_blend S3 G64", "loop_blend_bf16", Op::LoopBlend, &blend_in, &[(bf, vec![s, t, d], None)]),
+            ("conv_mix N6 Q1 blend S3", "conv_mix_bf16", Op::ConvMix, &cb_in, &cb_out),
+        ];
+        for (label, kname, op, ins, outs) in cases {
+            let mut line = format!("FUSEBENCH {label} T={t}:");
+            for &(r, n) in &limits {
+                intarsia_backend_hip::inkmix::set_blend_fuse(r, n);
+                // best of 3 rounds of 300 calls
+                let us = (0..3).map(|_| bench(&rig, kname, op, ins, outs, &a, 300)).fold(f64::MAX, f64::min);
+                line += &format!(" | r{r}:n{n} {us:.2} us");
+            }
+            intarsia_backend_hip::inkmix::set_blend_fuse(-1, -1);
+            println!("{line}");
         }
     }
 }

@@ -20,6 +20,7 @@
 //   norm   rA(y inv(y) norm) with the partials in slice order
 // in chunks of kBlendRows rows (the scratch holds one chunk).
 #include <stdlib.h>
+#include <string.h>
 #include <type_traits>
 #include "ik_hip.h"
 #include "ik_hip_abi_inkmix.h"
@@ -50,7 +51,9 @@ constexpr int kBlendRows = 256;                  // rows per blend chunk
 constexpr int kGateCh = 128;                     // channels per gate block (one thread each)
 constexpr int kGateRows = 16;                    // rows per gate block
 constexpr int kFastRowsMax = 16;                 // launches of at most this many rows take the fast row kernel (mask bit 1)
-constexpr int kFuseRowsMax = 2;                  // blend chunks of at most this many rows take the fused launches
+constexpr int kFuseRowsMax = 8;                  // default: blend chunks of at most this many rows take the fused row-kernel launch (blend_fuse_rows;
+                                                 // main 2; lane ink-hip-vrow: LoopBlend 3..8 rows 36-53 -> 22-30 us, ConvMix + blend 39-58 -> 35-57 us)
+constexpr int kFnormRowsMax = 2;                 // default: blend chunks of at most this many rows take the gate kernel's fused norm (blend_fnorm_rows)
 constexpr int kFuseD = 2304;                     // widest row of the fused blend (the pair lives in shared memory)
 
 // tickets of the gate kernel's fused norm: [stream][row group], zero between launches (the last block of a group resets its own)
@@ -806,8 +809,29 @@ int row_threads(int D, int* ne) {
 // controller rows in the row kernel's launch, the norm in the gate kernel's last block) for chunks of at most kFuseRowsMax rows (-7 us at 1..2 rows),
 // 4 = the gate kernel's early loads (no gain measured, off), 8 = the fast row kernel at any row count (tests). 0 = the first forms of all. The bits
 // are the same for every mask (tests/ink_mix.rs). Default 3. INTARSIA_INK_MIX_FAST=<mask> or ik_ink_mix_mode(mask) overrides.
+}  // namespace
+// The two switches are shared by this TU and ink_mix_rows.hip's (lane ink-hip-batch): one definition here, so ik_ink_mix_mode /
+// ik_ink_mix_dec set them for the solo and the row-table launches alike (each TU had its own copy before, and the setters reached only this one).
+namespace ik_inkmix {
+#ifdef IK_INK_MIX_ROWS_TU
+extern int g_mix_mask;
+extern int g_mix_dec;
+extern int g_fuse_rows;
+extern int g_fnorm_rows;
+#else
 int g_mix_mask = -1;
 int g_mix_dec = -1;  // tests: 0 | 1 the gate kernel's fast norm tail; < 0: INTARSIA_HIP_INK_DEC_FAST bit 2 / the default (on)
+// tests / benchmarks (lane ink-hip-vrow): the most rows of a blend chunk that take the fused row-kernel launch / the fused norm;
+// < 0: INTARSIA_HIP_INK_BLEND_FUSE / the defaults kFuseRowsMax, kFnormRowsMax
+int g_fuse_rows = -1;
+int g_fnorm_rows = -1;
+#endif
+}  // namespace ik_inkmix
+namespace {
+using ik_inkmix::g_fnorm_rows;
+using ik_inkmix::g_fuse_rows;
+using ik_inkmix::g_mix_dec;
+using ik_inkmix::g_mix_mask;
 bool mix_dec_tail() {
     if (g_mix_dec >= 0) return g_mix_dec != 0;
     static int v = -1;
@@ -816,6 +840,34 @@ bool mix_dec_tail() {
         v = e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : 7;
     }
     return (v & 2) != 0;
+}
+
+// INTARSIA_HIP_INK_BLEND_FUSE (lane ink-hip-vrow): "r" or "r:n", the most rows of a blend chunk that take the fused row-kernel launch
+// (pair + controller rows in the row kernel, r) and the gate kernel's fused norm (n); "0" never; read once. Unset or anything
+// else: kFuseRowsMax / kFnormRowsMax (8:2; main was 2:2: `=2` reverts). Every value gives the same bits (tests/ink_mix.rs); mask bit 2 (INTARSIA_INK_MIX_FAST) still
+// turns both off.
+int blend_fuse_env(int which) {
+    static int v[2] = {-2, -2};
+    if (v[0] == -2) {
+        v[0] = v[1] = -1;
+        const char* e = getenv("INTARSIA_HIP_INK_BLEND_FUSE");
+        if (e && e[0] >= '0' && e[0] <= '9') {
+            const char* colon = strchr(e, ':');
+            v[0] = atoi(e);
+            v[1] = colon && colon[1] >= '0' && colon[1] <= '9' ? atoi(colon + 1) : v[0];
+        }
+    }
+    return v[which];
+}
+int blend_fuse_rows() {
+    if (g_fuse_rows >= 0) return g_fuse_rows;
+    const int v = blend_fuse_env(0);
+    return v >= 0 ? v : kFuseRowsMax;
+}
+int blend_fnorm_rows() {
+    if (g_fnorm_rows >= 0) return g_fnorm_rows;
+    const int v = blend_fuse_env(1);
+    return v >= 0 ? v : kFnormRowsMax;
 }
 
 int mix_mask() {
@@ -898,7 +950,7 @@ int run_blend(RowArgs a, const ik_tensor* down, const ik_tensor* gain, const ik_
         // decode / verify chunks: the pair and the controller rows in the row kernel's own launch (np blocks per row), the norm in the
         // gate kernel's last block: 2 launches instead of 4
         const int np = S * (G / 8);
-        const bool fuse = (mix_mask() & 2) != 0 && rc <= kFuseRowsMax && D <= kFuseD;
+        const bool fuse = (mix_mask() & 2) != 0 && rc <= blend_fuse_rows() && D <= kFuseD;
         if (fuse) {
             r.fuse = 1;
             r.np = np;
@@ -912,7 +964,7 @@ int run_blend(RowArgs a, const ik_tensor* down, const ik_tensor* gain, const ik_
             ink_ctl_gemv_kernel<<<hg, kHWaves * IK_WARP, 0, st>>>(b.pair, (const ik_bf16*)down->data, b.h, rc, 2 * D, G);
             IK_TRY(ik_launch_status());
         }
-        const bool fnorm = (mix_mask() & 2) != 0 && rc <= kFuseRowsMax;
+        const bool fnorm = (mix_mask() & 2) != 0 && rc <= blend_fnorm_rows();
         const GateNorm gnorm{(const ik_bf16*)norm->data, (ik_bf16*)out->data, a.eps, fnorm ? 1 : 0, mix_dec_tail() ? 1 : 0};
         const dim3 gg((unsigned)nsl, (unsigned)S, (unsigned)((rc + kGateRows - 1) / kGateRows));
         const bool gdpp = (ik_hip_dec3_mask() & 1) != 0;
@@ -1029,6 +1081,7 @@ int ik_ink_probe(unsigned long long* out, int n) {
 /* tests / benchmarks: bit mask of the fast forms (1 row kernel loads, 2 fused blend launches, 4 gate kernel loads; 0 = the first forms of all; same bits) */
 void ik_ink_mix_mode(int v) { g_mix_mask = v; }
 void ik_ink_mix_dec(int v) { g_mix_dec = v; }
+void ik_ink_mix_fuse(int rows, int norm_rows) { g_fuse_rows = rows, g_fnorm_rows = norm_rows; }
 
 int64_t ik_ink_blend_scratch_bytes(int64_t s, int64_t r, int64_t d, int64_t g) { return blend_bytes(s, r, d, g); }
 

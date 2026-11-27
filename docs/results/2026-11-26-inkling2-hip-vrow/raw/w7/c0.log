@@ -1,0 +1,54 @@
+[c0] exes /target/release/deps/verify_rows_real-520c2daf27fcc6e0 /target/release/deps/ink_mix-75ba8a33168c1864
+[c0] (b) fuse bench 16:05:28
+rc 0
+test ink_blend_fuse_bench ... FUSEBENCH loop_blend S3 G64 T=1: | r2:n2 18.10 us | r0:n0 27.18 us | r2:n16 17.90 us | r16:n0 19.39 us | r16:n16 18.14 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=1: | r2:n2 21.15 us | r0:n0 31.34 us | r2:n16 21.97 us | r16:n0 24.73 us | r16:n16 21.60 us
+FUSEBENCH loop_blend S3 G64 T=2: | r2:n2 22.04 us | r0:n0 30.64 us | r2:n16 19.79 us | r16:n0 20.50 us | r16:n16 20.73 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=2: | r2:n2 28.89 us | r0:n0 35.37 us | r2:n16 28.04 us | r16:n0 29.68 us | r16:n16 28.94 us
+FUSEBENCH loop_blend S3 G64 T=3: | r2:n2 36.13 us | r0:n0 34.08 us | r2:n16 35.62 us | r16:n0 22.12 us | r16:n16 23.90 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=3: | r2:n2 39.17 us | r0:n0 38.69 us | r2:n16 39.40 us | r16:n0 34.94 us | r16:n16 35.82 us
+FUSEBENCH loop_blend S3 G64 T=4: | r2:n2 39.28 us | r0:n0 37.96 us | r2:n16 39.87 us | r16:n0 24.44 us | r16:n16 26.82 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=4: | r2:n2 41.66 us | r0:n0 42.19 us | r2:n16 45.24 us | r16:n0 36.25 us | r16:n16 39.69 us
+FUSEBENCH loop_blend S3 G64 T=5: | r2:n2 41.79 us | r0:n0 41.68 us | r2:n16 46.18 us | r16:n0 24.73 us | r16:n16 30.19 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=5: | r2:n2 46.36 us | r0:n0 45.22 us | r2:n16 50.63 us | r16:n0 42.34 us | r16:n16 47.23 us
+FUSEBENCH loop_blend S3 G64 T=6: | r2:n2 45.15 us | r0:n0 45.59 us | r2:n16 51.93 us | r16:n0 27.32 us | r16:n16 34.07 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=6: | r2:n2 49.52 us | r0:n0 48.88 us | r2:n16 56.58 us | r16:n0 49.04 us | r16:n16 55.81 us
+FUSEBENCH loop_blend S3 G64 T=8: | r2:n2 53.30 us | r0:n0 53.27 us | r2:n16 62.68 us | r16:n0 30.00 us | r16:n16 40.43 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=8: | r2:n2 57.64 us | r0:n0 57.58 us | r2:n16 66.59 us | r16:n0 57.20 us | r16:n16 66.73 us
+FUSEBENCH loop_blend S3 G64 T=16: | r2:n2 56.88 us | r0:n0 56.95 us | r2:n16 113.94 us | r16:n0 44.61 us | r16:n16 101.82 us
+FUSEBENCH conv_mix N6 Q1 blend S3 T=16: | r2:n2 61.29 us | r0:n0 61.23 us | r2:n16 117.40 us | r16:n0 96.81 us | r16:n16 153.23 us
+[c0] (c) probe 1k rows 1..8, blend fuse 2:2  16:05:32
+rc 0
+PROBE_TIME decode1 13.36 ms, verify2 16.58 ms (1.24x), verify3 20.01 ms (1.50x), verify4 22.31 ms (1.67x), verify5 24.68 ms (1.85x), verify6 26.98 ms (2.02x), verify7 29.31 ms (2.19x), verify8 31.55 ms (2.36x)
+PROBE_TIME_MIN len=1021 decode1 13.30 ms, verify2 16.50 ms, verify3 19.94 ms, verify4 22.26 ms, verify5 24.60 ms, verify6 26.83 ms, verify7 29.20 ms, verify8 31.42 ms
+[c0] (c) probe 1k rows 1..8, blend fuse 16:16  16:05:39
+rc 0
+PROBE_TIME decode1 13.37 ms, verify2 16.59 ms (1.24x), verify3 19.71 ms (1.47x), verify4 21.94 ms (1.64x), verify5 24.45 ms (1.83x), verify6 26.81 ms (2.01x), verify7 29.17 ms (2.18x), verify8 31.36 ms (2.35x)
+PROBE_TIME_MIN len=1021 decode1 13.32 ms, verify2 16.37 ms, verify3 19.68 ms, verify4 21.89 ms, verify5 24.30 ms, verify6 26.66 ms, verify7 29.12 ms, verify8 31.26 ms
+[c0] (c) probe 1k rows 1..8, blend fuse 2:16  16:05:46
+rc 0
+PROBE_TIME decode1 13.34 ms, verify2 16.58 ms (1.24x), verify3 20.10 ms (1.51x), verify4 22.48 ms (1.69x), verify5 24.93 ms (1.87x), verify6 27.27 ms (2.04x), verify7 29.68 ms (2.23x), verify8 31.90 ms (2.39x)
+PROBE_TIME_MIN len=1021 decode1 13.28 ms, verify2 16.48 ms, verify3 19.96 ms, verify4 22.33 ms, verify5 24.63 ms, verify6 27.13 ms, verify7 29.49 ms, verify8 31.76 ms
+[c0] (c) probe 1k rows 1..8, blend fuse 2:2 INTARSIA_INK_DEC_FUSED_KEYS=0 16:05:54
+rc 0
+PROBE_TIME decode1 13.61 ms, verify2 16.41 ms (1.21x), verify3 19.82 ms (1.46x), verify4 21.94 ms (1.61x), verify5 24.04 ms (1.77x), verify6 26.22 ms (1.93x), verify7 28.48 ms (2.09x), verify8 30.57 ms (2.25x)
+PROBE_TIME_MIN len=1021 decode1 13.57 ms, verify2 16.32 ms, verify3 19.70 ms, verify4 21.84 ms, verify5 23.92 ms, verify6 26.12 ms, verify7 28.34 ms, verify8 30.41 ms
+[c0] (c) probe 1k rows 1..8, blend fuse 16:16 INTARSIA_INK_DEC_FUSED_KEYS=0 16:06:01
+rc 0
+PROBE_TIME decode1 13.64 ms, verify2 16.47 ms (1.21x), verify3 19.54 ms (1.43x), verify4 21.58 ms (1.58x), verify5 23.79 ms (1.74x), verify6 26.04 ms (1.91x), verify7 28.31 ms (2.08x), verify8 30.44 ms (2.23x)
+PROBE_TIME_MIN len=1021 decode1 13.61 ms, verify2 16.44 ms, verify3 19.49 ms, verify4 21.54 ms, verify5 23.72 ms, verify6 25.98 ms, verify7 28.24 ms, verify8 30.31 ms
+[c0] (c) probe 1k rows 1..8, blend fuse 2:2  16:06:08
+rc 0
+PROBE_TIME decode1 13.38 ms, verify2 16.63 ms (1.24x), verify3 20.07 ms (1.50x), verify4 22.40 ms (1.67x), verify5 24.76 ms (1.85x), verify6 27.05 ms (2.02x), verify7 29.40 ms (2.20x), verify8 31.70 ms (2.37x)
+PROBE_TIME_MIN len=1021 decode1 13.32 ms, verify2 16.51 ms, verify3 19.95 ms, verify4 22.30 ms, verify5 24.65 ms, verify6 26.89 ms, verify7 29.27 ms, verify8 31.48 ms
+[c0] (a) ink_mix rows-exact tests 16:06:15
+rc 0
+test ink_attn_res_mix_and_blend_rows_exact ... ok
+test ink_conv_mix_rows_exact ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 7.21s
+[c0] (d) bitwise verify probe rows 2..8, blend fuse 16:16 16:06:23
+rc 0
+PROBE_GRAPHS GraphStats { enabled: true, captures: 6, replays: 382, batch_captures: 0, batch_replays: 0, spec_captures: 29, spec_replays: 121 }
+PROBE_RESULT rows=233 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.80s
+[c0] done 16:06:38

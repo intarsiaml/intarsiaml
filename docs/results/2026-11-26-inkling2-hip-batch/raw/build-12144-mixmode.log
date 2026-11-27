@@ -1,0 +1,7 @@
+fleetq:   #12142 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12142 set, or it will wait for #12142 to be released.
+fleetq: #12144 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-hip-batch/.scratch/build.sh b11 ink_rows < /dev/null; bash ~/intarsiaml-ink-hip-batch/.scratch/build_neg.sh < /dev/null'
+cli build exit 0
+test ink_rows build exit 0
+test binary /target/neg/release/deps/ink_rows-f79e3f6ea33bbe48
+neg build exit 0
+fleetq: #12144 done (exit 0)

@@ -1,0 +1,29 @@
+fleetq: #12184 running on endor: bash -c 'cd /opt/code/intarsiaml/.worktrees/ink-hip-p12 && cargo check -q --locked -p intarsia-models -p intarsia-cli --tests 2>&1 | grep -E "^error" -A6 | head -20; echo check-exit=${PIPESTATUS[0]}; cargo test -q --locked -p intarsia-models --test inkling2_batch inkling2_loaded_to_batch_packs_no_p12 2>&1 | grep -v "^warning\|^ *|\|^ *=" | tail -25'
+fleetq: #12184 went ahead of the line and must end within 4h48m (by Thu 20:37); it is stopped then
+check-exit=0
+
+  --> crates/intarsia-models/tests/inkling2_batch.rs:36:4
+36 | fn on_metal() -> bool {
+
+
+running 1 test
+inkling2_loaded_to_batch_packs_no_p12 --- FAILED
+
+failures:
+
+---- inkling2_loaded_to_batch_packs_no_p12 stdout ----
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_loaded_to_batch_packs_no_p12' (121618679) panicked at crates/intarsia-models/tests/inkling2_batch.rs:250:26:
+enable_batch(16) after a batched load: InvalidCall("batch rows 16 outside 2..=8")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    inkling2_loaded_to_batch_packs_no_p12
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p intarsia-models --test inkling2_batch`
+fleetq: #12184 done (exit 0)

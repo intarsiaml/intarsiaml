@@ -77,13 +77,18 @@ mtp_default_k = 3
 prefill_chunk = 2048
 # DSpark speculation by default on HIP (lane ink-hip-spec, 2026-11-26; the brief's bar: on >= off at every length and >= +2 % with a
 # CI lower bound above 1.0 at more than one): without --spec, one sequence at one rank runs --spec dflash with the model's own draft
-# (mtp.safetensors) at k3 and Metal's rule, the cumulative cut 0.5 with no per-step gate (`cut_rule_default` in
+# (mtp.safetensors) at k3 (k5 since lane ink-hip-verify, below) and Metal's rule, the cumulative cut 0.5 with no per-step gate (`cut_rule_default` in
 # crates/intarsia-core/src/model/dspark.rs; INTARSIA_DSPARK_TAU=0.8 restores the gate). Greedy decode on one R9700 at the short /
 # 1k / 4k / 16k prompts: 1.34 / 1.19 / 1.55 / 1.31x (the gate 0.8: 1.32 / 1.16 / 1.46 / 1.29x; 4 + 4 processes, 95 % CI lower bounds
 # 1.34 / 1.19 / 1.55 / 1.31), prefill within 0.7 %, ids identical to --spec off; sampled requests take plain steps (unless
 # INTARSIA_SPEC_SAMPLED_DFLASH=1, opt-in: docs/results/2026-11-26-inkling2-sampled-dspark.md), a batching server has no draft
 # (docs/results/2026-11-26-inkling2-hip-spec.md). Revert: --spec off, INTARSIA_SPEC_DEFAULT=0, or delete this line.
-mtp_default_k = 3
+# k5 since lane ink-hip-verify (2026-11-26; the coordinator's rule: no length slower than k3 beyond its CI, >= +2 % with a CI lower
+# bound above 1.0 at >= 2 lengths, then the higher geometric mean): a verify row costs ~2.3 ms against a 13.4 ms step on HIP, so longer
+# drafts pay for their rows. Spec-default decode on main 80719483a, k / k3 at short / 1k / 4k / 16k (4 + 4 processes): k5 1.007 / 1.009
+# / 1.080 / 1.050 (CI lower bounds 1.006 / 1.008 / 1.079 / 1.049, geomean 1.036); k4 1.018 / 1.001 / 1.059 / 1.035 (geomean 1.028);
+# ids identical to k3 and --spec off (docs/results/2026-11-26-inkling2-hip-verify.md). Revert to k3: set 3 here (or --spec-k 3).
+mtp_default_k = 5
 
 [accuracy]
 chat_turns = "inkling2"       # one open token per role, <|end_message|> closes (crates/intarsia-cli/src/cmd/accuracy/turns.rs)

@@ -1,0 +1,9 @@
+fleetq: #12225 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-hip-p12/docs/results/2026-11-26-inkling2-hip-p12/raw/build_main.sh main3'
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 29.57s
+main cli build exit 0
+cecc952ab1eab8cdd30f2c61c3ee2fb8  /home/josef/intarsiaml-ink-hip-p12/.scratch/bin/intarsia-main3
+  Executable tests/inkling2.rs (/target/main/release/deps/inkling2-4591618c7e4a1464)
+main inkling2 test build exit 0
+dde0c8542e70d99fc4946a96838e3a73  /home/josef/intarsiaml-ink-hip-p12/.scratch/bin/inkling2-test-main3
+fleetq: #12225 done (exit 0)

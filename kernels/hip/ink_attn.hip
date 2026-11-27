@@ -341,8 +341,8 @@ __global__ void __launch_bounds__(256) __attribute__((amdgpu_waves_per_eu(OCC ? 
 // 1.67 ms (94 GB/s). Here a block takes RT_ROWS call rows (all H heads): it stages their r (left by the prologue in the first dr
 // entries of each rel row, F_R_ROW) in LDS before any write, and each thread holds the relproj columns of its entries
 // e = 4 tid .. 4 tid + 3 in registers (one 8-byte store per row). Every entry is ink_rel_g's chain (from 0, j ascending, ffma) on
-// the same r and relproj values, then the bf16 round: bitwise the prologue's tail. Launcher: dr <= RT_DR, E a multiple of 4 and
-// <= 1024, the table 8-byte aligned.
+// the same r and relproj values, then the bf16 round: bitwise the prologue's tail. Launcher: dr <= RT_DR, dr <= E (r must fit in its
+// own row), E a multiple of 4 and <= 1024, the table 8-byte aligned.
 constexpr int RT_ROWS = 8;  // call rows per block
 constexpr int RT_EPT = 4;   // consecutive entries per thread (one 8-byte store per row)
 constexpr int RT_DR = 16;   // most d_rel
@@ -1064,6 +1064,21 @@ int64_t dec_fused_keys() {
     return v;
 }
 
+// INTARSIA_HIP_INK_DEC_FUSED_ROWS (lane ink-hip-vrow): op 75 takes its fused kernel only for calls of at most this many rows (verify
+// passes of more rows take the split path, whose prologue forms q / r once per row instead of once per split block); unset: 1 (the
+// decode step fused, verify passes split: 2..8-row passes 0.2-1.0 ms faster at a 1k context; main took the fused kernel for all, `=16`).
+// Both paths give the pair's bits.
+constexpr int kDecFusedRowsDefault = 1;
+int g_dec_fused_rows = -1;  // tests (ik_ink_attn_dec_fused_rows): >= 0 overrides the env / the default
+int dec_fused_rows() {
+    if (g_dec_fused_rows >= 0) return g_dec_fused_rows;
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_HIP_INK_DEC_FUSED_ROWS");
+        return e && e[0] >= '0' && e[0] <= '9' ? atoi(e) : kDecFusedRowsDefault;
+    }();
+    return v;
+}
+
 unsigned bias_rows(unsigned vis, unsigned e, unsigned sk) {
     const unsigned skr = (sk + 31) / 32 * 32;
     const unsigned ns = ink_nsplit(vis, sk);
@@ -1172,8 +1187,11 @@ extern "C" int ik_ink_kv_prologue_bf16(const ik_tensor* pq, const ik_tensor* pk,
     if (nz < 1) nz = 1;
     // prefill chunks (INTARSIA_HIP_INK_PF2 bit 1): the rel tail as its own pass (ink_rel_table_k), the same bits
     const size_t rt_lds = (size_t)RT_ROWS * p.h * p.dr * sizeof(float);
-    const bool rel_pass = (pf2_mask() & 1) && p.t > MAXROWS && p.dr <= RT_DR && p.e % RT_EPT == 0 && p.e <= 256 * RT_EPT && rt_lds <= 32768 &&
-                          (reinterpret_cast<uintptr_t>(p.relo) & 7u) == 0;
+    // p.dr <= p.e (lane ink-hip-pf2-tiny): the prologue stages r in the first dr entries of each E-entry rel row (F_R_ROW); with
+    // d_rel above the extent (the tiny Inkling-2 fixture: 16 > 12) r spilled into the next head's row (another block's: a race)
+    // and past the end of the table. Those shapes keep the prologue's own rel tail (the form before bit 1). Inkling-2-Mini: 16 <= 1024.
+    const bool rel_pass = (pf2_mask() & 1) && p.t > MAXROWS && p.dr <= RT_DR && p.dr <= p.e && p.e % RT_EPT == 0 && p.e <= 256 * RT_EPT &&
+                          rt_lds <= 32768 && (reinterpret_cast<uintptr_t>(p.relo) & 7u) == 0;
     if (rel_pass) p.flags |= F_R_ROW;
     if (p.d <= 128 && rel_pass && (pf2_mask() & 128)) ink_prologue_k<4, false, true><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
     else if (p.d <= 128) ink_prologue_k<4><<<dim3(p.hk, p.t, nz), 256, 0, st>>>(p);
@@ -1297,6 +1315,9 @@ extern "C" int ik_rel_sink_attn_bf16(const ik_tensor* q, const ik_tensor* k, con
     return ik_launch_status();
 }
 
+// tests (lane ink-hip-vrow): op 75's rows rule (dec_fused_rows); -1 = INTARSIA_HIP_INK_DEC_FUSED_ROWS / the default
+extern "C" void ik_ink_attn_dec_fused_rows(int v) { g_dec_fused_rows = v; }
+
 extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk, const ik_tensor* pv, const ik_tensor* kt, const ik_tensor* vt,
                                        const ik_tensor* qs, const ik_tensor* rs, const ik_tensor* rp, const ik_tensor* kc_in, const ik_tensor* vc_in,
                                        const ik_ink_attn_attrs* a, ik_tensor* o, ik_tensor* kc, ik_tensor* vc, ik_tensor* kring, ik_tensor* vring,
@@ -1351,7 +1372,7 @@ extern "C" int ik_ink_attn_decode_bf16(const ik_tensor* pq, const ik_tensor* pk,
     // host position up to that context), else the split path (prologue + stage 1 + combine, the pair's kernels; bitwise the
     // same). Under a device position a full layer's context is unknown here: the capacity bound decides.
     const int64_t keys = p.window > 0 ? (p.window < p.cr ? p.window : p.cr) : (pos ? (int64_t)p.cr : (int64_t)p.pos0 + p.t);
-    if (keys > dec_fused_keys()) {
+    if (keys > dec_fused_keys() || (int64_t)p.t > dec_fused_rows()) {
         InkP q = p;
         q.flags = (q.flags & (F_DYN | F_RING_WRITE | F_DPP)) | F_R_OUT;
         q.qo = (bf16*)((char*)scratch->data + part + stage);

@@ -46,6 +46,11 @@ int ik_ink_route_bf16(const ik_tensor* x, const ik_tensor* w, const ik_tensor* b
 void ik_ink_mix_mode(int v);
 /* tests: the gate kernel's fast fused-norm tail (lane ink-hip-dec2): 1 on, 0 the first tail, -1 = INTARSIA_HIP_INK_DEC_FAST bit 2 / the default (on); same bits */
 void ik_ink_mix_dec(int v);
+/* tests / benchmarks (lane ink-hip-vrow): the most rows of a blend chunk that take the fused row-kernel launch / the gate kernel's fused
+ * norm; -1 = INTARSIA_HIP_INK_BLEND_FUSE / the default. The same bits for every value. */
+void ik_ink_mix_fuse(int rows, int norm_rows);
+/* tests: the two switches as kernels/hip/ink_mix_rows.hip's launches read them: the fast-form mask | 256 when the fast norm tail is on */
+int ik_ink_mix_rows_switches(void);
 /* the phase timestamps of the last row-kernel launch (a build with INK_PROBE defined; IK_ERR_UNSUPPORTED otherwise), tests/ink_mix_probe.rs */
 int ik_ink_probe(unsigned long long* out, int n);
 /* scratch bytes of the blend for s streams, r rows, width d, controller rank g (mirrored by blend_bytes in src/inkmix.rs) */

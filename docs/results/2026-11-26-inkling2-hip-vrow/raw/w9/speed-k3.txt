@@ -1,0 +1,27 @@
+processes: 12 (12 complete, 16 prompts each); reps ['c0a', 'c0b', 'c1a', 'c1b']
+ids identical across every arm and rep: yes
+spec main: verify passes 3008, proposed 7180, accepted 4380 (61.0 %, 2.46 tokens a pass), 4 processes
+spec new: verify passes 3008, proposed 7180, accepted 4380 (61.0 %, 2.46 tokens a pass), 4 processes
+
+| decode, arm / main | short | 1k | 4k | 16k |
+|---|---:|---:|---:|---:|
+| new | **1.003** [1.002-1.005; boot 1.002-1.004] | **1.023** [1.022-1.025] | **1.025** [1.024-1.026] | **1.022** [1.020-1.024] |
+
+| decode tok/s, median [range] | short | 1k | 4k | 16k |
+|---|---:|---:|---:|---:|
+| main | 103.66 [103.43-103.88] | 90.05 [89.85-90.29] | 114.94 [114.74-115.22] | 91.75 [91.48-91.98] |
+| new | 104.00 [103.81-104.24] | 92.16 [91.99-92.38] | 117.81 [117.51-118.04] | 93.78 [93.52-94.00] |
+
+per process (class geomean tok/s):
+  main@c0a: short 103.49 1k 89.92 4k 114.74 16k 91.63 | spec (752, 1795, 1095)
+  main@c0b: short 103.43 1k 89.85 4k 114.77 16k 91.48 | spec (752, 1795, 1095)
+  main@c1a: short 103.83 1k 90.19 4k 115.11 16k 91.87 | spec (752, 1795, 1095)
+  main@c1b: short 103.88 1k 90.29 4k 115.22 16k 91.98 | spec (752, 1795, 1095)
+  main5@c0a: short 104.11 1k 90.73 4k 123.89 16k 95.93 | spec (694, 2177, 1161)
+  main5@c1a: short 104.56 1k 91.09 4k 124.57 16k 96.69 | spec (694, 2177, 1161)
+  new@c0a: short 103.81 1k 91.99 4k 117.51 16k 93.52 | spec (752, 1795, 1095)
+  new@c0b: short 103.88 1k 91.99 4k 117.60 16k 93.62 | spec (752, 1795, 1095)
+  new@c1a: short 104.24 1k 92.38 4k 118.04 16k 94.00 | spec (752, 1795, 1095)
+  new@c1b: short 104.12 1k 92.32 4k 118.01 16k 93.94 | spec (752, 1795, 1095)
+  new5@c0a: short 104.56 1k 92.66 4k 126.95 16k 98.35 | spec (694, 2177, 1161)
+  new5@c1a: short 104.81 1k 93.04 4k 127.15 16k 98.70 | spec (694, 2177, 1161)

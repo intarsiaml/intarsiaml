@@ -1,0 +1,96 @@
+fleetq: #12164 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12159 "ink-sampled: fixture law tests on cpu (build br3 + 3 law tests, no GPU)" (claude-04c0e1cd) loads it
+fleetq:   #12159 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12159 set, or it will wait for #12159 to be released.
+fleetq: #12164 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12160 "ink-hip-p12: build p12c (merged head) + models tests + main2 80719483a (cpu)" (claude-04c0e1cd) loads it
+fleetq:   #12160 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12160 set, or it will wait for #12160 to be released.
+fleetq: #12164 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=265 BR=verify1 MAIN=main2 K=4 bash ~/intarsiaml-ink-hip-verify/.scratch/window.sh ~/intarsiaml-ink-hip-verify/.scratch/stage_w4.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-verify/.scratch/stage_w4.sh; cap 265s; stopping radiance 2026-11-26 15:26:17
+[window] radiance stopped 2026-11-26 15:26:21 (inactive)
+[stage] start 15:26:21 BR=verify1 MAIN=main2 K=4
+---- card 0
+MD5 main2 off short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 824 ms (76.45 tok/s) |  | 
+MD5 main2 dflt short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 661 ms (95.33 tok/s) | spec: verify passes=23 proposed=49 accepted=31 (acceptance 63.3%, 2.35 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 verify1 off short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 824 ms (76.46 tok/s) |  | 
+MD5 verify1 dflt short 64 04cdb28a6849728e8aa5be39bf65c07e rc 0 | decode 664 ms (94.88 tok/s) | spec: verify passes=22 proposed=55 accepted=32 (acceptance 58.2%, 2.45 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 4: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 main2 off short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 3318 ms (76.86 tok/s) |  | 
+MD5 main2 dflt short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 2800 ms (91.07 tok/s) | spec: verify passes=106 proposed=232 accepted=119 (acceptance 51.3%, 2.12 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 verify1 off short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 3320 ms (76.81 tok/s) |  | 
+MD5 verify1 dflt short 256 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | decode 2822 ms (90.36 tok/s) | spec: verify passes=104 proposed=262 accepted=121 (acceptance 46.2%, 2.16 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 4: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 main2 off 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 862 ms (73.12 tok/s) |  | 
+MD5 main2 dflt 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 768 ms (82.06 tok/s) | spec: verify passes=21 proposed=39 accepted=26 (acceptance 66.7%, 2.24 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 verify1 off 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 859 ms (73.36 tok/s) |  | 
+MD5 verify1 dflt 4k 64 2252566a5c54cf52cb564bd214c9af2b rc 0 | decode 781 ms (80.70 tok/s) | spec: verify passes=21 proposed=41 accepted=26 (acceptance 63.4%, 2.24 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 4: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 main2 off 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 3444 ms (74.04 tok/s) |  | 
+MD5 main2 dflt 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 2616 ms (97.49 tok/s) | spec: verify passes=92 proposed=216 accepted=143 (acceptance 66.2%, 2.55 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+MD5 verify1 off 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 3444 ms (74.04 tok/s) |  | 
+MD5 verify1 dflt 4k 256 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | decode 2562 ms (99.51 tok/s) | spec: verify passes=87 proposed=235 accepted=148 (acceptance 63.0%, 2.70 tokens per pass) | --spec dflash --spec-draft <model dir> --spec-k 4: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_defaul
+[c0] done 15:28:48
+---- card 1
+[c1] (a) bitwise verify probe rows 2..5 15:26:21 (/target/release/deps/verify_rows_real-520c2daf27fcc6e0)
+rc 0
+PROBE_TIME decode1 13.32 ms, verify2 16.11 ms (1.21x), verify3 18.69 ms (1.40x), verify4 21.10 ms (1.58x), verify5 23.32 ms (1.75x)
+PROBE_GRAPHS GraphStats { enabled: true, captures: 6, replays: 220, batch_captures: 0, batch_replays: 0, spec_captures: 17, spec_replays: 76 }
+PROBE_RESULT rows=122 windows_with_diff=0 argmax_flips=0 worst_abs_logit_diff=0e0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.54s
+[c1] (b) hip tiny suites 15:26:33
+rc 101
+     Running tests/inkling2.rs (/target/release/deps/inkling2-4591618c7e4a1464)
+test inkling2_tiny_chunk_scan ... ok
+test inkling2_tiny_chunked_and_decode_match_prefill_bitwise ... ok
+test inkling2_tiny_failed_pass_resets_the_sequence ... ok
+test inkling2_tiny_g1a_f32_vs_f64 ... ok
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+test inkling2_tiny_graph_decode_is_bitwise_the_eager_decode ... ok
+test inkling2_tiny_interleaved_sequences_equal_solo ... ok
+test inkling2_tiny_launch_diff ... ok
+test inkling2_tiny_loads ... ok
+test inkling2_tiny_logits_dump ... ok
+test inkling2_tiny_no_kernel_refusal_names_the_op ... ok
+test inkling2_tiny_p12_forced_on ... ok
+test inkling2_tiny_rollback_by_length ... ok
+test inkling2_tiny_screen_keeps_batching ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+test inkling2_tiny_verify_graph_replays_equal_decode_bitwise ... ok
+test inkling2_tiny_verify_rows_equal_decode_bitwise ... ok
+test result: FAILED. 14 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.98s
+     Running tests/inkling2_dspark.rs (/target/release/deps/inkling2_dspark-13d33c362e4c37d2)
+test dspark_greedy_ids_equal_spec_off ... ok
+test dspark_partial_acceptance_keeps_ids_identical ... ok
+test dspark_runs_with_admitted_kernels_only ... ok
+test dspark_unsynced_draft_keeps_the_prefix_and_skips_drafting ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 71.15s
+     Running tests/inkling2_dspark_cut.rs (/target/release/deps/inkling2_dspark_cut-2f8cdf298ef82228)
+test dspark_cumulative_cut_keeps_ids_and_shortens_drafts ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.10s
+     Running tests/inkling2_verify_softcap.rs (/target/release/deps/inkling2_verify_softcap-eeaaf9fee515e657)
+test verify_logits_rows_are_the_softcapped_decode_logits ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+[c1] (c) G2 short main2 15:27:50
+rc 0
+KL row mask: inkling2 (recipe inkling2, golden template "chatml" does not fit the tokenizer): 0 of 569 rows lie inside a system or user turn and are not scored by the KL floor
+golden: golden/oracle/inkling2-mini-oracle-w4a16-short-top20.safetensors (8 prompts, 569 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+[c1] (c) G2 long main2 15:28:00
+rc 0
+KL row mask: inkling2 (recipe inkling2, golden template "chatml" does not fit the tokenizer): 0 of 1569 rows lie inside a system or user turn and are not scored by the KL floor
+golden: golden/oracle/inkling2-mini-oracle-w4a16-long-top20.safetensors (10 prompts, 1569 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+[c1] (c) G2 short verify1 15:28:12
+rc 0
+KL row mask: inkling2 (recipe inkling2, golden template "chatml" does not fit the tokenizer): 0 of 569 rows lie inside a system or user turn and are not scored by the KL floor
+golden: golden/oracle/inkling2-mini-oracle-w4a16-short-top20.safetensors (8 prompts, 569 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+[c1] (c) G2 long verify1 15:28:23
+rc 0
+KL row mask: inkling2 (recipe inkling2, golden template "chatml" does not fit the tokenizer): 0 of 1569 rows lie inside a system or user turn and are not scored by the KL floor
+golden: golden/oracle/inkling2-mini-oracle-w4a16-long-top20.safetensors (10 prompts, 1569 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+[c1] done 15:28:35
+[stage] done 15:28:48
+[window] stage done 2026-11-26 15:28:49 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 15:28:49
+[window] radiance answers 2026-11-26 15:29:00 (after 15 s)
+fleetq: #12164 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
