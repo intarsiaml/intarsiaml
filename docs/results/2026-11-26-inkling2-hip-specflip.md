@@ -715,3 +715,16 @@ unverified (no third window).
 
 > Coordinator 02:41 EST: #542 merged at 02:41 EST as 4b629184c5ecf1ac2e89a97a1f4bd86f2f87fb69, with all 6 CI checks green. That commit is main7. Build it and run M1 and M2 as pre-registered and amended. Write this message into the results doc.
 
+**main7 build (#12544):** `intarsia-main7` md5 `d644af53f7e375d1fab88b96a72a96f1` from `git archive 4b629184c` (tree on tatooine checked:
+`scheduler.rs` = main7's, no `dflash2_draft` in `recipes/inkling2.toml`); seed harness exe = main7's crates + this branch's harness file.
+
+**M1 (#12546, 02:45:42-02:49:58, 4:16; `raw/m7a-main7/`, `raw/window-m1-12546.log`): all bitwise checks EQUAL.**
+- greedy md5.json 256 tokens: `--spec off` = default = **`380af8a5`** (default 122 tok/s, off 81.8); 64 tokens: the default's ids = the
+  first 64 of off's (both prompts).
+- 100 seeds at T 1.0 on the default path: off 100 / default 100 **identical 100**; the default drafted (265 passes, 408 proposed, 123
+  accepted: the same counts as PR A / GA2); off 0 passes.
+- serve: solo (card 0, no spec flags) up after **195 s** (cold admission: 38 kernels, **215 cases**, 0 cached; `context 4096 tokens`);
+  b16 (card 1) up after 32 s (23 kernels, 23 cases run, 111 cached from solo's run; `context 3285 tokens`); **b16 = solo, 16 / 16**.
+- Observation (not gated): main7's cold first-start admission is 215 cases / 195 s against PR A's 134 cases / ~120 s (GS2: solo alone).
+  The extra 15 kernels come with #542 / #546; only the first start on a new binary pays it (cached after).
+

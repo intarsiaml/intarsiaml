@@ -1,0 +1,24 @@
+fleetq: #12546 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 BR=main7 bash ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/window.sh ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_m7a.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_m7a.sh; cap 285s; stopping radiance 2026-11-27 02:45:42
+[window] radiance stopped 2026-11-27 02:45:45 (inactive)
+[m7a] start 02:45:45 main7 d644af53f7e375d1fab88b96a72a96f1 4b629184c5ecf1ac2e89a97a1f4bd86f2f87fb69 origin/main (main7, git archive)
+[m7a c0] solo up after 195s (t+197s)
+[m7a c1] b16 up after 32s (t+228s)
+[m7a c1] b16 conc rc 0 t+242s | conc: 16 replies, 2048 tokens -> /home/josef/intarsiaml-ink-hip-specflip/logs/m7a-main7/b16.json
+[m7a c1] b16 lines: admission on plan shapes: 23 kernel(s) checked, 23 case(s) run, 111 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 30.9s, context 3285 tokens 
+[m7a c0] solo solo rc 0 t+222s | solo: 16 replies, 2048 tokens -> /home/josef/intarsiaml-ink-hip-specflip/logs/m7a-main7/solo.json
+[m7a c0] solo lines: --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row) sampled requests (temperature > 0): DFlash-family drafting on (recipe inkling2 [tuning.hip] sampled_dflash; INTARSIA_SPEC_SAMPLED_DFLASH=0 turns it off; single sequence, one rank, seed-exact keyed rule) admission on plan shapes: 38 kernel(s) checked, 215 case(s) run, 0 cached loaded ink on hip (AMD Radeon Graphics) in 195.3s, context 4096 to
+[m7a c1] md5 off rc 0 t+14s 380af8a5e897bdbed231818477038f37 | decode overall: 510 tokens after the first, 6233 ms (81.82 tok/s) spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) 
+[m7a c1] md5 def rc 0 t+28s 380af8a5e897bdbed231818477038f37 | --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) decode overall: 510 tokens after the first, 4147 ms (122.99 tok/s) spec: verify passes=151
+[m7a c1] md5 def64 rc 0 t+39s f2e334dd8f1657b3ece2c7f8aa125deb | --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) decode overall: 126 tokens after the first, 886 ms (142.24 tok/s) spec: verify passes=30 p
+[m7a c1] seeds off rc 0 t+85s lines 100 | --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) sampled requests (temperature > 0): DFlash-family drafting off (INTARSIA_SPEC_SAMPLED_DFLASH; single sequence, one rank, seed-exact keyed rule) 100 requests in 37.7 s; spec verify passes 0 p
+[m7a c1] seeds def rc 0 t+134s lines 100 | --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) sampled requests (temperature > 0): DFlash-family drafting on (recipe inkling2 [tuning.hip] sampled_dflash; INTARSIA_SPEC_SAMPLED_DFLASH=0 turns it off; single sequence, one rank, seed-exact
+[m7a] serve b16 (card 1) vs solo (card 0): 16 / 16 replies equal
+[m7a] greedy 256: default = off: EQUAL (2 prompts)
+[m7a] greedy 64: default's ids = the first 64 of off's: EQUAL
+[m7a] seeds T 1.0: off 100 default 100 identical 100
+[m7a] done 02:49:47 t+242s
+[window] stage done 2026-11-27 02:49:48 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-27 02:49:48
+[window] radiance answers 2026-11-27 02:49:58 (after 15 s)
+fleetq: #12546 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
