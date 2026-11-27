@@ -17,6 +17,7 @@ pub mod exl3;
 pub mod exl3_moe;
 pub mod fp8;
 pub mod head;
+pub mod i8row;
 pub mod mlx_affine;
 pub mod moe;
 pub mod mxfp4;
@@ -153,6 +154,7 @@ impl HostQTensor {
             }
             MXFP4 => mxfp4::dequant_rows(&self.parts[0].data, &self.parts[1].data, self.n, self.k),
             EXL3 => exl3::dequant_parts(&self.parts),
+            i8row::I8ROW => i8row::dequant(&self.parts[0].data, &self.parts[1].to_f32(), self.k),
             p12::P12 => p12::decode_parts(&self.parts[0].data, &self.parts[1].data, self.n, self.k)
                 .expect("valid p12 weight")
                 .into_iter()
@@ -188,6 +190,7 @@ fn op_for(format: QuantId, f32_out: bool) -> Op {
         EXL3 => Op::MatmulExl3,
         FP8_E4M3 => Op::MatmulFp8,
         p12::P12 => Op::MatmulP12,
+        i8row::I8ROW => Op::MatmulI8,
         _ if f32_out => Op::Logits,
         _ => Op::Matmul,
     }

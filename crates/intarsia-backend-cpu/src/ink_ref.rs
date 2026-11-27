@@ -292,6 +292,29 @@ pub fn run(call: &OpCall, fast: bool) -> Result<()> {
         // e4m3 weights (lane ink-fp8): the reference is also the fast path (f64, rows in parallel)
         // P12 codes (lane ink-pack12): the float form over the decoded weight
         Op::InkInProj if i.len() == 3 && i[1].dtype == intarsia_core::DType::U8 => run(&crate::p12_ref::as_bf16(call)?, fast),
+        // int8 per-row weights (lane ink-hip-i8): `rA(scale[n] * sum_k x * q)` per output row in f64, rows-exact, the same order as
+        // `MatmulI8`; no separate fast path
+        Op::InkInProj if i.len() == 3 && i[1].dtype == intarsia_core::DType::I8 => {
+            let (s, t, d, a) = (i[0].shape[0], i[0].shape[1], i[0].shape[2], i[0].dtype);
+            let (x, q, sc) = (rd(&i[0])?, crate::mem::bytes(&i[1])?, rd(&i[2])?);
+            let mut row0 = 0;
+            for (j, out) in o.iter().enumerate() {
+                let n = out.shape[1];
+                let xs = &x[j.min(s - 1) * t * d..(j.min(s - 1) + 1) * t * d];
+                let y: Vec<f64> = (0..t * n)
+                    .into_par_iter()
+                    .map(|idx| {
+                        let (ti, ni) = (idx / n, idx % n);
+                        let qr = &q[(row0 + ni) * d..(row0 + ni + 1) * d];
+                        let dot: f64 = xs[ti * d..(ti + 1) * d].iter().zip(qr).map(|(p, c)| p * (*c as i8) as f64).sum();
+                        round(a, dot * sc[row0 + ni])
+                    })
+                    .collect();
+                wr(out, &y)?;
+                row0 += n;
+            }
+            Ok(())
+        }
         Op::InkInProj if fast && i.len() == 2 => in_proj_fast(call),
         Op::InkInProj => {
             let (s, t, d, a) = (i[0].shape[0], i[0].shape[1], i[0].shape[2], i[0].dtype);

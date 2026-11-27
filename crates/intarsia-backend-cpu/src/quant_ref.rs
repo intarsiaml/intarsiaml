@@ -45,6 +45,30 @@ pub fn run(call: &OpCall) -> Result<()> {
             }
             wr(&o[0], &out)
         }
+        Op::MatmulI8 => {
+            let (m, k, n) = (i[0].shape[0], i[0].shape[1], i[1].shape[0]);
+            let x = read_f32(&i[0])?;
+            let q = bytes(&i[1])?;
+            let sc = read_f32(&i[2])?;
+            let chunk = 64.max(n / (rayon::current_num_threads() * 4)).min(n.max(1));
+            let cols: Vec<(usize, Vec<f64>)> = (0..n)
+                .step_by(chunk)
+                .collect::<Vec<_>>()
+                .into_par_iter()
+                .map(|n0| {
+                    let nc = chunk.min(n - n0);
+                    (n0, r::matmul_i8(&x, m, k, &q[n0 * k..(n0 + nc) * k], &sc[n0..n0 + nc], nc))
+                })
+                .collect();
+            let mut out = vec![0f64; m * n];
+            for (n0, blk) in cols {
+                let nc = blk.len() / m.max(1);
+                for mi in 0..m {
+                    out[mi * n + n0..mi * n + n0 + nc].copy_from_slice(&blk[mi * nc..(mi + 1) * nc]);
+                }
+            }
+            wr(&o[0], &out)
+        }
         Op::MatmulNvfp4 => {
             let (m, k, n) = (i[0].shape[0], i[0].shape[1], i[1].shape[0]);
             let x = read_f32(&i[0])?;
