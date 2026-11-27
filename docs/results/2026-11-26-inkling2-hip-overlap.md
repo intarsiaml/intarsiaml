@@ -4,6 +4,40 @@ Branch `ink/hip-overlap` from the `ink/hip-bpf` head 2561d5957 (PR #538: packed 
 `.worktrees/ink-hip-overlap`. User (via the coordinator, 2026-11-26): "build the prefill overlap too". Goal: cut the ITL p99 at 8 and
 16 streams (0.59-0.65 s today, about one 2048-row prefill chunk) while every stream stays bitwise equal to its solo run.
 
+## Result (2026-11-26 ~21:45): overlap works and is bitwise, but gate 4 fails at 8 streams, so it ships opt-in
+
+Speed, gate 4's paired windows S1 (AB), S2 (BA), S3 (AB): A = main5 (main a4c8f3b19, #538 packing on), B = o4 (overlap on, pace
+150 ms, stream 1 at priority -1; = `INTARSIA_OVERLAP=1` on the PR head), card 0, `serve --max-batch 16 --max-seq 4608 --kv-fraction
+0.9`. Ratio B / A, mean over the 3 windows with the 95 % t interval (n = 3, t = 4.303); TTFT / ITL: lower is better. Raw
+`raw/s1..s3`, summary `raw/speed-s1-s3.txt` (`speed_sum.py s1 s2 s3`).
+
+| streams | TTFT p50 | aggregate tok/s | ITL p99 | ITL p50 | ITL p90 | TTFT max |
+|---|---|---|---|---|---|---|
+| real 4 | 0.797 [0.752, 0.842] | 0.996 [0.979, 1.014] | 1.224 [0.15, 2.30] (1.46, 1.49, 0.73) | 1.003 | 2.13 | 1.071 |
+| real 8 | 0.786 [0.509, 1.063] | 0.987 [0.973, 1.001] | **0.422 [-0.02, 0.863]** (0.31, 0.33, 0.63) | 1.010 | 1.77 | 1.109 |
+| real 16 | 0.932 [0.819, 1.044] | 0.990 [0.966, 1.014] | **0.383 [0.326, 0.440]** | 1.033 | 1.31 | 1.205 |
+| filler 1 | 0.987 [0.912, 1.061] | 1.002 [0.995, 1.009] | - | - | - | 0.987 |
+| filler 4 | 0.886 [0.874, 0.899] | 1.008 [0.990, 1.027] | - | - | - | 1.061 |
+| filler 8 | 0.964 [0.936, 0.993] | 0.994 [0.967, 1.020] | - | - | - | 1.068 |
+| filler 16 | 1.013 [0.997, 1.028] | 0.995 [0.989, 1.000] | - | - | - | 1.159 |
+
+Absolute (mean of the 3 windows, A -> B): real ITL p99 at 8 0.597 -> 0.251 s, at 16 0.637 -> 0.244 s, at 4 0.157 -> 0.169 s;
+aggregate real 16 125.8 -> 124.5, filler 16 154.2 -> 153.3 tok/s.
+
+- **Gate 4 (section 4's rule, written before the windows): FAIL.** (a) ITL p99 upper bound <= 0.70: 16 streams 0.440 pass, **8
+  streams 0.863 fail** (S3's B had three stalls of 0.34-0.41 s seen by 7-8 streams at once; S1 / S2's B had 0-1 gaps above 0.3 s,
+  A has 27-34 in every window; cause not diagnosed). (b) aggregate upper bound >= 0.99 at every N: pass (lowest 1.000, filler 16;
+  real 8 1.001). (c) TTFT p50 lower bound <= 1.01 at every N: pass.
+- Not gated, against overlap: ITL p90 is 1.3-2.1x main's at every N (the long chunk stalls become many medium gaps: a decode step
+  beside a chunk takes ~110-150 ms, O3's trace), ITL p99 at 4 streams is worse in 2 of 3 windows, TTFT max is 1.07-1.21x (the last prompt of a
+  burst waits longer: its chunks share the GPU with decode steps), ITL p50 at 16 +3.3 %.
+- **Default left: opt-in.** `INK_OVERLAP_DEFAULT = false` (`model/inkling2.rs`); `INTARSIA_OVERLAP=1` turns on exactly the
+  measured config (pace default 150 ms for Inkling-2, the decode lane at high priority); `docs/tuning.md` row updated.
+- **Bitwise**: every serve run with overlap matched: S1-S3 card 0 B = A (4/4, 8/8, 16/16 each window, nonce'd prompts); S3 card 1
+  o4 at pace 0 / 150 / 300 and main5, 8/8 and 16/16 each vs W4's solo replies; poisoned o4 (`INTARSIA_HIP_POISON=ff`) 16/16 and
+  4 x 4/4; O1-O4 before. Greedy md5 8 / 8 = main for o4 `--spec off`, main5 DSpark and the merged head o5 (both modes). G2 short
+  4.491e-3 / long 4.083e-3, o4 = main5. Window S4 (the merged head's batched and solo servers): see its section.
+
 ## Briefs received
 
 - 2026-11-26 ~18:30 EST (coordinator, brief 3; in substance): start only after brief 2 (#538's window 9, default decision, PR update,
@@ -355,6 +389,43 @@ Driver `raw/window_s.sh 2` (sync, the three binaries checked, then `serve_window
 | real 16: agg / TTFT p50 / ITL p99 | 125.1 / 2.762 / 0.626 | 124.7 / 2.673 / 0.256 | 0.997 / 0.968 / **0.409** |
 | filler 1 / 4 / 8 / 16 agg | 61.8 / 113.5 / 139.6 / 153.9 | 62.0 / 115.3 / 140.3 / 153.2 | 1.003 / 1.016 / 1.005 / 0.995 |
 | filler 1 / 4 / 8 / 16 TTFT p50 | 0.393 / 1.319 / 2.096 / 3.684 | 0.395 / 1.162 / 1.999 / 3.704 | 1.005 / 0.881 / 0.954 / 1.005 |
+
+### S3: paired speed rep 3, order AB (fleetq #12355; radiance down 21:29:35 - 21:32:41 = 3:06)
+
+Driver `raw/window_s.sh 3`; raw `raw/s3/`, card 1 `raw/s3/card1/`.
+- Complete: A (main5) then B (o4), every cell exit 0. Bitwise, card 0: B = A, 4/4, 8/8, 16/16.
+- Card 1, the pace trade-off (the coordinator's ask), o4 beside card 0's visits (single runs; compare the arms with each other):
+  every arm's replies equal W4's solo replies, 8/8 (conc:8:0) and 16/16 (16 at once). (`stage_s3bg.sh` was first revised to run o5
+  here, then put back to o4 before the window: o5's admission cache was empty, ~100 s of cases at its first batched start.)
+
+| card 1 arm | 8 real: agg / TTFT p50 / ITL p99 | 16 real: agg / TTFT p50 / ITL p99 | overlap steps (both runs) |
+|---|---|---|---|
+| main5 (no overlap) | 118.7 / 1.980 / 0.577 | 125.9 / 2.911 / 0.617 | - |
+| o4 pace 0 | 113.5 / 1.888 / **0.142** | 123.4 / 3.861 / 0.231 | 177 |
+| o4 pace 150 (the measured default) | 116.8 / 1.734 / 0.190 | 125.2 / 3.136 / **0.223** | 103 |
+| o4 pace 300 | 118.8 / 1.778 / 0.322 | 125.6 / 3.607 / 0.348 | 52 |
+
+Reading: pace 0 has the lowest ITL p99 at 8 and costs 4 % aggregate at 8 and +33 % TTFT p50 at 16; pace 300 gives back about half
+the ITL gain for +1.7 % / +0.3 % aggregate over 150. 150 stays the opt-in's pace. Card 0, S3:
+
+| S3 (1 rep) | A main5 | B o4 | B / A |
+|---|---|---|---|
+| real 4: agg / TTFT p50 / ITL p99 | 93.1 / 1.697 / 0.248 | 92.2 / 1.358 / 0.180 | 0.990 / 0.800 / 0.726 |
+| real 8: agg / TTFT p50 / ITL p99 | 119.7 / 2.424 / 0.588 | 117.9 / 1.598 / 0.368 | 0.985 / 0.660 / **0.627** |
+| real 16: agg / TTFT p50 / ITL p99 | 125.1 / 2.812 / 0.633 | 124.4 / 2.660 / 0.238 | 0.994 / 0.946 / **0.376** |
+| filler 1 / 4 / 8 / 16 agg | 61.9 / 112.5 / 142.0 / 154.1 | 62.1 / 113.4 / 140.9 / 153.5 | 1.003 / 1.008 / 0.992 / 0.996 |
+| filler 1 / 4 / 8 / 16 TTFT p50 | 0.389 / 1.315 / 2.067 / 3.643 | 0.390 / 1.172 / 2.019 / 3.701 | 1.003 / 0.891 / 0.977 / 1.016 |
+
+The 8-stream subset is S1's (REAL_OFF 2 picks the same 8 prompts as 0 at N = 8; nonce s3). B's tail: 19 gaps above 0.3 s, all
+in three events of 0.34-0.41 s (7-8 streams each), vs 1 (S1) and 0 (S2); A has 27-34 per window.
+
+### Gate 4 verdict (S1-S3, n = 3)
+
+`speed_sum.py s1 s2 s3` (`raw/speed-s1-s3.txt`): FAIL on `real8.itl99` (upper bound 0.863 > 0.70); the other 15 checks pass
+(`real16.itl99` 0.440; aggregate upper bounds >= 1.000; TTFT p50 lower bounds <= 0.997). Per the brief, overlap is opt-in:
+`INK_OVERLAP_DEFAULT = false` (commit 5899d3743), `docs/tuning.md` `INTARSIA_OVERLAP` row with these numbers. The opt-in-off
+default equals main's batching path (`Model::overlap_default` false: no twin, no decode lane, `opts.overlap` None -> off); S4 runs
+the merged head with `INTARSIA_OVERLAP=0`, which takes the same branch.
 
 ### Merge of origin/main aee06201c (#535) and o5
 
