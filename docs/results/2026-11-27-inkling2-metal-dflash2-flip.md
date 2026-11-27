@@ -23,7 +23,7 @@ every snapshot of the checkpoint). Without the link the default stays DSpark k3,
 
 Revert: `INTARSIA_SPEC_DFLASH2_DEFAULT=0` per run, or delete the two recipe lines, or remove the link.
 
-## Gates (pre-registered 2026-11-27 12:25 EST, before the first slot)
+## Gates (pre-registered 2026-11-27 ~12:17 EST, before the first slot; committed in 89b6e18e2)
 
 One binary (this branch). Arms: `off` = `--spec off`; `main` = `INTARSIA_SPEC_DFLASH2_DEFAULT=0` (today's default, DSpark k3 alone);
 `flip` = no `--spec` (the new default); `dfl5` = #549's arm. One endor `--exclusive` fleetq slot, script `raw/slotG.sh`.
