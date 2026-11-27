@@ -318,11 +318,19 @@ impl AdaptK {
     }
 }
 
-/// The policy as a `Seq` (engine.rs) runs it: the state of [`AdaptMode::On`] (none for [`AdaptMode::Drafts`]), the cap of the call in
-/// flight, and the `INTARSIA_SPEC_TRACE=1` step timer (`adapt:` lines: every step's wall time and kind, every change of phase).
+#[derive(Clone, Debug)]
+enum RunKind {
+    Policy(AdaptK),
+    /// [`AdaptMode::Off`] under `INTARSIA_SPEC_TRACE=1`: fixed k, only the step timer runs (the calibration of the cost table).
+    Fixed,
+    Drafts,
+}
+
+/// The policy as a `Seq` (engine.rs) runs it: the state of [`AdaptMode::On`], the cap of the call in flight, and the
+/// `INTARSIA_SPEC_TRACE=1` step timer (`adapt:` lines: every step's wall time and kind, every change of phase).
 #[derive(Clone, Debug)]
 pub struct AdaptRun {
-    k: Option<AdaptK>,
+    k: RunKind,
     cap: usize,
     /// (start of the current step, generated tokens then); the step's kind and drafts.
     mark: Option<(Instant, usize)>,
@@ -330,26 +338,28 @@ pub struct AdaptRun {
 }
 
 impl AdaptRun {
-    /// `None` for [`AdaptMode::Off`] (fixed k). `kmax`: the request's `--spec-k`.
+    /// `None` for [`AdaptMode::Off`] (fixed k: lane ink-sampled's code path), except under `INTARSIA_SPEC_TRACE=1`, where a fixed-k
+    /// run only times its steps. `kmax`: the request's `--spec-k`.
     pub fn new(mode: AdaptMode, kmax: usize) -> Option<AdaptRun> {
         let k = match mode {
+            AdaptMode::Off if super::trace_enabled() => RunKind::Fixed,
             AdaptMode::Off => return None,
-            AdaptMode::On(p) => Some(AdaptK::new(p, kmax)),
-            AdaptMode::Drafts => None,
+            AdaptMode::On(p) => RunKind::Policy(AdaptK::new(p, kmax)),
+            AdaptMode::Drafts => RunKind::Drafts,
         };
         Some(AdaptRun { k, cap: 0, mark: None, kind: ("plain", 0) })
     }
 
     /// [`AdaptMode::Drafts`]: the draft call's proposals are logged and dropped, the step is a plain step.
     pub fn drafts_only(&self) -> bool {
-        self.k.is_none()
+        matches!(self.k, RunKind::Drafts)
     }
 
     /// A step that may draft begins ([`AdaptK::next`]); `generated`: tokens so far. Returns the cap (0: a plain step).
     pub fn next(&mut self, k: usize, generated: usize) -> usize {
-        let cap = match self.k.as_mut() {
-            Some(a) => a.next(k),
-            None => k,
+        let cap = match &mut self.k {
+            RunKind::Policy(a) => a.next(k),
+            RunKind::Fixed | RunKind::Drafts => k,
         };
         self.cap = cap;
         if cap > 0 {
@@ -380,8 +390,10 @@ impl AdaptRun {
     }
 
     fn record(&mut self, proposed: usize, accepted: usize, generated: usize) {
-        let Some(a) = self.k.as_mut() else { return };
+        // a call this step did not plan (cap 0: the step was planned plain) never moves the estimates or the hold
+        let (RunKind::Policy(a), true) = (&mut self.k, self.cap > 0) else { return };
         let ev = a.record(self.cap, proposed, accepted);
+        self.cap = 0;
         if let (Some(ev), true) = (ev, super::trace_enabled()) {
             eprintln!("adapt: token {} {ev:?}", generated + 1);
         }

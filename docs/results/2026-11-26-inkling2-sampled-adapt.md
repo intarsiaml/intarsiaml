@@ -74,7 +74,21 @@ Opt-in only; no default changes. Whether sampled speculation becomes default-on 
 
 ## Later coordinator messages
 
-(none yet)
+**Coordinator, 2026-11-26 ~20:35 EST** (verbatim):
+
+> 1. #535 is merged into main as `aee06201c`. That merge commit includes `ink/sampled-dspark` at `15bca842c`, which is main `a4c8f3b19` merged in: #538 packed prefill default-on with `--max-batch`, and #540 cpu-only int8 / fp8 study.
+>    - Merge `origin/main` into `ink/sampled-adapt`, using a merge, not a rebase.
+>    - Open your PR against `main`.
+>    - Your fixed-k5 arm is main itself now.
+> 2. Cleanup: tell me in your next report whether you still use any of these:
+>    - the Mac worktree `.worktrees/ink-sampled` (including its `.scratch/`);
+>    - the remote branch `ink/sampled-dspark`;
+>    - the tatooine folder `~/intarsiaml-ink-sampled`, with binaries `intarsia-br5` / `intarsia-main5`, and its docker volume.
+>    I will not touch them until you answer.
+
+Consequences here: the greedy-md5 baseline and the fixed-k arm move to the new main (built as `main6` from `origin/main` after the merge);
+the PR goes against `main`. Of the ink-sampled folders this lane read `raw/` scripts and the two prompt files (`speed.json`, `md5.json`,
+copied into this lane's `.scratch/prompts/`) and uses nothing else.
 
 ## 1. Findings before building (2026-11-26 ~20:30 EST)
 

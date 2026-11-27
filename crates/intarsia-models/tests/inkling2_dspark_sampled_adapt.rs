@@ -148,4 +148,7 @@ fn adapt_seeded_ids_equal_spec_off() {
     // fixed k takes plain steps only where max_tokens leaves no room for a draft (one per request at most here)
     assert!(plain[0] <= 2 * 9 * 2, "fixed: {} plain-step tokens", plain[0]);
     assert!(plain[1] > plain[0] + 50, "aggressive: {} plain-step tokens against fixed k's {}: the policy never held drafting", plain[1], plain[0]);
+    // and it resumes: hold_max 4 between probes keeps plain steps well below every token
+    let total = (47 + 29) * (CFGS.len() * PROMPTS.len()) as u64;
+    assert!(plain[1] * 10 < total * 6, "aggressive: {} of {total} tokens from plain steps: drafting never resumed", plain[1]);
 }
