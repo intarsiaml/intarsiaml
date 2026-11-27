@@ -1,0 +1,19 @@
+fleetq: #12297 waiting (#2 in line): in line behind #12295 "ink-hip-i8: sync + build merged tree (cli + ink_i8 test)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12295 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12295 set, or it will wait for #12295 to be released.
+fleetq: #12297 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12295 "ink-hip-i8: sync + build merged tree (cli + ink_i8 test)" (claude-04c0e1cd) loads it
+fleetq:   #12295 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12295 set, or it will wait for #12295 to be released.
+fleetq: #12297 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12299 "ink-hip-overlap: build o3 (merged main a4c8f3b19 + per-stream staging) + hip test builds + cpu tests" (claude-04c0e1cd) loads it
+fleetq:   #12299 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12299 set, or it will wait for #12299 to be released.
+fleetq: #12297 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 env ORDER=a R1=r1 R2=r2 bash ~/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/window.sh ~/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/stage_ab.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/stage_ab.sh; cap 285s; stopping radiance 2026-11-26 19:58:39
+[window] radiance stopped 2026-11-26 19:58:43 (inactive)
+[stage] start 19:58:43 dfl5 c00616e706713da142eade4c41142e57 K 7 TOK 256 ORDER a r1 r2
+[speed] dspark@r1 rc 0 t+56s | up to 5 drafts | decode overall: 4195 tokens after the first, 38320 ms (109.47 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[speed] dfl@r1 rc 0 t+105s | up to 7 drafts | decode overall: 4195 tokens after the first, 34674 ms (120.98 tok/s) | spec: verify passes=1073 proposed=7459 accepted=3124 (acceptance 41.9%, 3.91 tokens per pass)
+[speed] dfl@r2 rc 0 t+155s | up to 7 drafts | decode overall: 4195 tokens after the first, 34711 ms (120.86 tok/s) | spec: verify passes=1073 proposed=7459 accepted=3124 (acceptance 41.9%, 3.91 tokens per pass)
+[speed] dspark@r2 rc 0 t+210s | up to 5 drafts | decode overall: 4195 tokens after the first, 38480 ms (109.02 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[stage] done 20:02:13 t+210s
+[window] stage done 2026-11-26 20:02:14 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 20:02:14
+[window] radiance answers 2026-11-26 20:02:24 (after 15 s)
+fleetq: #12297 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

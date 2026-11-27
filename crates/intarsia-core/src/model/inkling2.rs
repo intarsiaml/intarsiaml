@@ -1209,10 +1209,20 @@ impl Model {
         let mut x_ready = false;
         // only for a request that drafts (a sampled or plain request leaves its draft state inactive and never ingests)
         let drafting = st.dflash.as_ref().is_some_and(|d| d.active && d.synced);
-        let (ds_taps, ds_feat): (&[usize], &[Buffer]) = match self.dflash.as_ref().filter(|h| h.dspark.is_some() && drafting) {
+        // (and a DFlash2 draft's, lane ink-dflash2: the same visits, one staging buffer per tap as `dflash_ingest` reads them)
+        let (ds_taps, ds_feat): (&[usize], &[Buffer]) = match self.dflash.as_ref().filter(|h| (h.dspark.is_some() || h.v2.is_some()) && drafting) {
             Some(h) if t <= h.feat_rows => (&h.taps, &h.feat),
-            Some(_) => return Err(Error::invalid(format!("inkling2: a pass of {t} rows is longer than the DSpark tap buffers"))),
+            Some(_) => return Err(Error::invalid(format!("inkling2: a pass of {t} rows is longer than the draft's tap buffers"))),
             None => (&[], &[]),
+        };
+        // where tap `ti` of this pass goes: DSpark's one tap-major buffer (`[taps * t, d]`), or the DFlash2 draft's own buffer `ti`
+        let per_tap = self.dflash.as_ref().is_some_and(|h| h.dspark.is_none());
+        let tap_dst = |ti: usize| -> TensorRef {
+            if per_tap {
+                TensorRef::new(ds_feat[ti].clone(), act, &[t, d])
+            } else {
+                TensorRef::new(ds_feat[0].clone(), act, &[ds_taps.len() * t, d]).rows(ti * t, t)
+            }
         };
         let n_vis = im.visits.len();
         for (vi, v) in im.visits.iter().enumerate() {
@@ -1236,7 +1246,7 @@ impl Model {
             }
             // the DSpark draft's taps (`model/dspark.rs`): the partial entering visits 5, 23, 41 of every pass, tap-major in one buffer
             if let Some(ti) = ds_taps.iter().position(|&x| x == vi) {
-                self.ink_copy(&TensorRef::new(ds_feat[0].clone(), act, &[ds_taps.len() * t, d]).rows(ti * t, t), &partial)?;
+                self.ink_copy(&tap_dst(ti), &partial)?;
             }
             let ctrl = l.ctrl.as_ref();
             if looped && ctrl.is_none() {
@@ -1600,7 +1610,7 @@ impl Model {
         put("final_hidden".into(), out)?;
         // the DSpark draft's last tap: the final-norm output (`target_layer_ids` 48 = one past the last visit)
         if let Some(ti) = ds_taps.iter().position(|&x| x == n_vis) {
-            self.ink_copy(&TensorRef::new(ds_feat[0].clone(), act, &[ds_taps.len() * t, d]).rows(ti * t, t), out)?;
+            self.ink_copy(&tap_dst(ti), out)?;
         }
         if let Some(dm) = dump {
             dm.extend(extra);

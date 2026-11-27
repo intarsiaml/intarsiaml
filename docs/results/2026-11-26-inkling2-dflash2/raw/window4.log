@@ -1,0 +1,21 @@
+fleetq: #12305 waiting (#4 in line): in line behind #12302 "ink-hip-i8: W1 kernel-only i8 vs P12 microbench + correctness (<=5 min down)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12302 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12302 set, or it will wait for #12302 to be released.
+fleetq: #12305 waiting (#3 in line): in line behind #12303 "ink-hip-overlap: window O3 (per-stream staging: b13 vs o3 overlap pace 0 / priority / priority pace 150, real 8/16, CB trace; card 1 prime o3 + hip tiny)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12303 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12303 set, or it will wait for #12303 to be released.
+fleetq: #12305 waiting (#2 in line): in line behind #12304 "ink-hip-overlap: build main5 (a4c8f3b19, gate-4 baseline) cli + tiny test builds" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12304 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12304 set, or it will wait for #12304 to be released.
+fleetq: #12305 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12304 "ink-hip-overlap: build main5 (a4c8f3b19, gate-4 baseline) cli + tiny test builds" (claude-04c0e1cd) loads it
+fleetq:   #12304 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12304 set, or it will wait for #12304 to be released.
+fleetq: #12305 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 env ORDER=b R1=r3 R2=r4 bash ~/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/window.sh ~/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/stage_ab.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/stage_ab.sh; cap 285s; stopping radiance 2026-11-26 20:10:15
+[window] radiance stopped 2026-11-26 20:10:19 (inactive)
+[stage] start 20:10:19 dfl5 c00616e706713da142eade4c41142e57 K 7 TOK 256 ORDER b r3 r4
+[speed] dfl@r3 rc 0 t+50s | up to 7 drafts | decode overall: 4195 tokens after the first, 34487 ms (121.64 tok/s) | spec: verify passes=1073 proposed=7459 accepted=3124 (acceptance 41.9%, 3.91 tokens per pass)
+[speed] dspark@r3 rc 0 t+105s | up to 5 drafts | decode overall: 4195 tokens after the first, 38449 ms (109.10 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[speed] dspark@r4 rc 0 t+160s | up to 5 drafts | decode overall: 4195 tokens after the first, 38476 ms (109.03 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[speed] dfl@r4 rc 0 t+210s | up to 7 drafts | decode overall: 4195 tokens after the first, 34718 ms (120.83 tok/s) | spec: verify passes=1073 proposed=7459 accepted=3124 (acceptance 41.9%, 3.91 tokens per pass)
+[stage] done 20:13:49 t+210s
+[window] stage done 2026-11-26 20:13:50 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 20:13:50
+[window] radiance answers 2026-11-26 20:14:00 (after 15 s)
+fleetq: #12305 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

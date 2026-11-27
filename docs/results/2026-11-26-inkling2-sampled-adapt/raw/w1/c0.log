@@ -1,0 +1,4 @@
+[w1 c0] cal 0 T 1.0 rc 0 2026-11-26 21:12:58 | decode overall: 762 tokens after the first, 8901 ms (85.61 tok/s) | spec: verify passes=294 proposed=818 accepted=381 (acceptance 46.6%, 2.30 tokens per pass)
+[w1 c0] cal drafts T 1.0 rc 0 2026-11-26 21:13:23 | decode overall: 762 tokens after the first, 12606 ms (60.45 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w1 c0] cal 1 T 1.0 rc 0 2026-11-26 21:13:45 | decode overall: 762 tokens after the first, 8956 ms (85.08 tok/s) | spec: verify passes=176 proposed=490 accepted=272 (acceptance 55.5%, 2.55 tokens per pass)
+[w1 c0] seeds arm 0 rc 0 2026-11-26 21:15:10 lines 200 | 0 phase changes (0 stops, 0 resumes) | 200 requests in 75.2 s; spec verify passes 0 proposed 0 accepted 0

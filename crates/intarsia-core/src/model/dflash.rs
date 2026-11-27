@@ -72,6 +72,12 @@ pub struct DflashConfig {
     /// `dflash_config.selector_rank` / `selector_top_k` (0: no candidate selector, drafts are the rows' argmax).
     pub selector_rank: usize,
     pub selector_top_k: usize,
+    /// `dflash_config.final_logit_softcapping` with `selector_softcap_mode = "after_correction"` (lane ink-dflash2, the Inkling-2
+    /// DFlash2 drafter `incoai/Inkling-2-Mini-DFlash2`): the selector's path scores are `cap * tanh(score / cap)`; 0 = none. The
+    /// candidate logits themselves stay uncapped (`Op::Logits` without the target's softcap), as that mode wants. Any other mode
+    /// (the reference's default `"before_correction"` softcaps the logits before the selector's correction, not implemented here)
+    /// loads with the cap ignored and a note, as on main (drafts only).
+    pub selector_post_softcap: f32,
     /// A DSpine checkpoint (`model/dspine.rs`, `tencent/Qwen3.8-27B-DSpine-b16`): a causal plain-Qwen3 block with a code bridge
     /// after every layer and a refinement tail. `v2` is set for it as well (the DFlash2 backbone path, without the conv).
     pub spine: Option<SpineConfig>,
@@ -314,6 +320,32 @@ pub(super) fn load_head(
     })
 }
 
+/// `INTARSIA_DFLASH2_HEAD` (lane ink-dflash2; Inkling-2 DFlash2 drafts): `mxfp4` / `fp8` quantise the target unembed's first
+/// `dims.vocab` rows for the draft's logits (`DflashHead::full_head`), `bf16` keeps the target's head (`None`). Unset: `mxfp4` on
+/// HIP (window 2: 142.2 vs 138.9 tok/s, the same acceptance; the bf16 head is 1.8 of a 4.9 ms draft pass), `bf16` elsewhere.
+pub(super) fn dflash2_head_copy(b: &dyn Backend, target: &dyn WeightSource, unembed: &str, dims: &ModelDims, add_bytes: &dyn Fn(u64)) -> Result<Option<QTensor>> {
+    let v = std::env::var("INTARSIA_DFLASH2_HEAD").unwrap_or_default();
+    let v = match v.trim() {
+        "" if b.name() == "hip" => "mxfp4",
+        x => x,
+    };
+    let kind = match v {
+        "mxfp4" => crate::quant::head::HeadQuant::Mxfp4,
+        "fp8" => crate::quant::head::HeadQuant::Fp8,
+        "bf16" | "0" | "off" | "" => return Ok(None),
+        other => return Err(Error::invalid(format!("INTARSIA_DFLASH2_HEAD={other}: mxfp4, fp8 or bf16"))),
+    };
+    let ui = target.info(unembed).ok_or_else(|| Error::model(format!("DFlash2 draft head: '{unembed}' missing")))?;
+    if ui.dtype != DType::Bf16 || ui.shape.len() != 2 || ui.shape[1] != dims.hidden || ui.shape[0] < dims.vocab {
+        return Err(Error::model(format!("DFlash2 draft head: '{unembed}' is {} {:?}, expected bf16 [>= {}, {}]", ui.dtype, ui.shape, dims.vocab, dims.hidden)));
+    }
+    let t0 = std::time::Instant::now();
+    let q = crate::quant::head::quantize_host(kind, DType::Bf16, target.bytes(unembed)?, ui.shape[0], dims.hidden, 0, dims.vocab)?.upload(b)?;
+    add_bytes(q.parts.iter().map(|p| p.nbytes() as u64).sum());
+    eprintln!("dflash: DFlash2 draft head {} [{} x {}] in {:.1} s ({}; drafts only)", kind.name(), dims.vocab, dims.hidden, t0.elapsed().as_secs_f64(), "INTARSIA_DFLASH2_HEAD");
+    Ok(Some(q))
+}
+
 fn ds_norm_ref(ds: &super::dspark::Dspark) -> TensorRef {
     ds.norm_ref()
 }
@@ -354,13 +386,29 @@ fn load_head2(
     if dl.dcoco {
         return Err(Error::Unsupported(format!("--dcoco with a {} draft", c.kind_name())));
     }
-    if c.layer_ids.is_empty() || c.layer_ids.iter().any(|&l| l >= dims.n_layers) || c.block < 2 || c.block > Model::VERIFY_MAX_ROWS {
+    if let Some(ik) = &dims.ink {
+        // Inkling-2 (lane ink-dflash2): the taps are visits, the last the final-norm output one past the last visit (the reference's
+        // `resolve_dflash_capture_layers`: sorted, unique, ending at `num_layer_visits`); `Model::ink_pass` exports them
+        let n_vis = ik.visits().len();
+        let sorted = c.layer_ids.windows(2).all(|w| w[0] < w[1]);
+        if c.layer_ids.is_empty() || !sorted || c.layer_ids.last() != Some(&n_vis) {
+            return Err(Error::model(format!(
+                "{} draft taps {:?} on Inkling-2: visit ids, sorted, unique, ending at the final norm ({n_vis}, the target's visit count)",
+                c.kind_name(),
+                c.layer_ids
+            )));
+        }
+        if c.spine.is_some() {
+            return Err(Error::Unsupported("a DSpine draft on Inkling-2".into()));
+        }
+    } else if c.layer_ids.is_empty() || c.layer_ids.iter().any(|&l| l >= dims.n_layers) {
+        return Err(Error::model(format!("{} draft tap layers {:?} do not fit a {}-layer target", c.kind_name(), c.layer_ids, dims.n_layers)));
+    }
+    if c.block < 2 || c.block > Model::VERIFY_MAX_ROWS {
         return Err(Error::model(format!(
-            "{} draft tap layers {:?} / block {} do not fit a {}-layer target with {}-row verify passes",
+            "{} draft block {} does not fit {}-row verify passes",
             c.kind_name(),
-            c.layer_ids,
             c.block,
-            dims.n_layers,
             Model::VERIFY_MAX_ROWS
         )));
     }
@@ -1096,11 +1144,19 @@ impl Model {
     }
 
     /// Tests: the feature taps of the last target pass (`[rows, H]` f32 per tapped layer, in `taps` order): the target's residual
-    /// stream after each tapped layer, as the draft reads it.
+    /// stream after each tapped layer, as the draft reads it. (A DSpark draft's one tap-major buffer is split into its taps.)
     #[doc(hidden)]
     pub fn dflash_taps(&self, rows: usize) -> Result<Vec<Vec<f32>>> {
         let head = self.dflash.as_ref().ok_or_else(|| Error::invalid("no DFlash draft"))?;
         let n = rows * self.dims.hidden;
+        if head.dspark.is_some() {
+            let nt = head.taps.len();
+            let mut b = vec![0u8; nt * n * self.act.size_bytes()];
+            self.backend.download(&head.feat[0], 0, &mut b, self.stream)?;
+            let mut all = vec![0f32; nt * n];
+            crate::dtype::decode_to_f32(self.act, &b, &mut all);
+            return Ok(all.chunks(n).map(|c| c.to_vec()).collect());
+        }
         head.feat
             .iter()
             .map(|f| {
