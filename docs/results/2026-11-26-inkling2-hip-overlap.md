@@ -54,6 +54,17 @@ Branch `ink/hip-overlap` from the `ink/hip-bpf` head 2561d5957 (PR #538: packed 
   the Mac worktree `.worktrees/ink-hip-bpf`, the remote branch `ink/hip-bpf`, the tatooine folder `~/intarsiaml-ink-hip-bpf`, its
   docker volume. Nothing is touched until answered.
 
+- 2026-11-26 ~21:00 EST (coordinator, resume brief to the new agent after the Desktop restart; in substance): (1) analyse S1 with
+  `speed_sum.py s1`; if complete and valid (every rep, card-1 md5, G2, poison) count it as rep 1 and run only S2 (BA) and S3 (AB),
+  else rerun S1. (2) Radiance: about 10 min left of the 30, **plus one extra window of up to 5 min approved** (about 15 min, 3
+  windows); use the S windows' card 1 for the unverified items (poisoned o4, md5 o4 `--spec off` and main5 DSpark, G2 short / long,
+  the solo server on o4). (3) Merge `origin/main` (aee06201c, #535 sampled DSpark, opt-in), a merge, not a rebase; cpu tests of the
+  merged head on endor (`fleetq run --host endor --load cpu`); if the merge touches files this change touches, md5 of the merged
+  head in a window, within budget. (4) Speed table first, gate verdict, LOG.md row, unanimis capture. (5) Push, open a PR to main,
+  do not merge. Overlap stays default-on (`INK_OVERLAP_DEFAULT`) only if gate 4 passes on paired reps, else opt-in with the
+  numbers. Windows: `--host tatooine-r9700 --takes-down radiance --quiet gpu,cpu`, each <= 5 min, none after 06:00 EST; never
+  `fleetq release` a running window job (abort = kill the driver's tree, then check `/v1/models`).
+
 ## 1. Design (step 0)
 
 ### 1.1 Mechanism: (a) concurrent HIP streams, through the existing R3d decode twin
@@ -294,6 +305,38 @@ instructions: the slot term of the counter address), `ink_attn_dec_k` (6 instant
 +5..6 instructions: the slot from `flags` bits 24..27), and `ink_route_kernel` (one more argument, so its mangled name changed; its
 body differs by the slot index). `ik_runtime.hip` is host code only (3 identical, the new `ik_rt_stream_create_prio` is host).
 `__hip_cuid_*` are per-compile ids.
+
+### S1: paired speed rep 1, order AB (fleetq #12331; radiance down 20:38:19 - 20:42:17 = 3:58)
+
+fleetq started #12331 at 20:38:19; the parked agent released it at 20:38:23, which ended the fleetq job but not the Mac driver
+(`serve_window.sh`), so the window ran to its 250 s cap without a slot. `fleetq log` shows nothing else started on tatooine-r9700
+between 20:38:23 and radiance's return at 20:42:19 except this window's own localeval jobs (#12337 A filler, #12338 B filler), so
+the visits ran on a quiet box. Checked by the resumed agent (21:05):
+- **Complete**: A (main5) and B (o4) each ran the real prompts at 4 / 8 / 16 (nonce s1, exit 0) and the filler sweep 1 / 4 / 8 / 16
+  (localeval exit 0); `speed_sum.py s1` reads every cell.
+- **Bitwise, card 0**: the nonce'd replies of B equal A's (`serve_bitwise.py compare`): 4/4, 8/8, 16/16.
+- **Card 1** (`stage_s1bg.sh`, logs copied to `raw/s1/card1/`):
+  - md5 (`generate --ignore-eos`): o4 `--spec off` short 64 04cdb28a, short 256 9a27c21b, 4k 64 2252566a, 4k 256 9675bbb9; main5
+    DSpark the same four (= W3 / O4). Decode tok/s o4 spec off 83.2 / 83.6 / 79.7 / 80.3, main5 DSpark 97.9 / 94.6 / 85.8 / 108.6.
+  - G2 (`accuracy --mode prefill`, oracle W4A16): short KL 4.491e-3, top-1 99.47 %, long KL 4.083e-3, top-1 98.98 %, PASS, **o4 and
+    main5 identical** to the printed digits.
+  - **Poisoned run on o4** (`INTARSIA_HIP_POISON=ff`, overlap on by default, stream 1 at priority -1, `--max-batch 16 --max-seq 4608
+    --kv-fraction 0.9`): 16 at once 16/16 and 4 x 4/4 equal W4's solo replies. That overlap ran in it: the server printed
+    "prefill/decode overlap: on" and "stream 1 (decode lane) at priority -1", and its 16-at-once ITL p99 was 0.204 s (B's 0.238,
+    not A's 0.651). Its `/metrics` snapshot (`intarsia_batch_overlap_steps_total 0`) was taken at startup, before any request, so
+    it does not count the steps.
+- Verdict: S1 is valid and counts as rep 1.
+
+| S1 (1 rep) | A main5 | B o4 | B / A |
+|---|---|---|---|
+| real 4: agg / TTFT p50 / ITL p99 | 101.8 / 1.545 / 0.109 | 102.2 / 1.202 / 0.159 | 1.004 / 0.778 / 1.457 |
+| real 8: agg / TTFT p50 / ITL p99 | 119.1 / 1.927 / 0.614 | 117.1 / 1.674 / 0.191 | 0.983 / 0.869 / **0.311** |
+| real 16: agg / TTFT p50 / ITL p99 | 127.2 / 3.000 / 0.651 | 124.5 / 2.643 / 0.238 | 0.979 / 0.881 / **0.365** |
+| filler 1 / 4 / 8 / 16 agg | 61.9 / 113.2 / 142.7 / 154.5 | 61.8 / 113.3 / 140.4 / 153.3 | 0.998 / 1.001 / 0.984 / 0.992 |
+| filler 1 / 4 / 8 / 16 TTFT p50 | 0.418 / 1.316 / 2.065 / 3.643 | 0.398 / 1.167 / 1.988 / 3.702 | 0.952 / 0.887 / 0.963 / 1.016 |
+
+`speed_sum.py` fix (21:05): the real-prompt reply files are a dict keyed by prompt, so the TTFT p95 / ITL p90 rows were never
+computed; they are now (S1: ITL p90 B / A 1.64 / 1.81 / 1.31 at 4 / 8 / 16, TTFT p95 = max at these N 1.05 / 1.12 / 1.23).
 
 ## Parked 2026-11-26 20:40 (coordinator: Claude Desktop restart)
 

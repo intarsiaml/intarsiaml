@@ -31,7 +31,8 @@ def load(win):
                 m[f"real{n}.itl99"] = j.get("itl_s_p99") or j.get("itl_p99")
                 rj = f[0].replace(".meta.json", ".json")
                 if os.path.exists(rj):
-                    recs = [r for r in json.load(open(rj)) if isinstance(r, dict)]
+                    rd = json.load(open(rj))
+                    recs = [r for r in (rd.values() if isinstance(rd, dict) else rd) if isinstance(r, dict)]
                     tt = sorted(r["ttft"] for r in recs)
                     g = sorted(x for r in recs for x in r.get("gaps", []))
                     if tt:
