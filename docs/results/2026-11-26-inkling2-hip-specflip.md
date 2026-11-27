@@ -802,7 +802,7 @@ intarsia-models 635 (incl. inkling2_dflash2 with #546's `draft_pass_matches_host
 
 **User, 11-27 morning (as written):** "Accept, run WA3"
 
-### Pre-registration: WA3 on the merged head (written 09:36 EST 11-27, before building or queuing anything)
+### Pre-registration: WA3 on the merged head (written 09:36 EST 11-27, before queuing either window; the dualM build #12567 was running)
 
 Deviations from the 00:42 plan, and why:
 - **Binary `dualM`** = the (a) head `e6e8b4ee5` (the main7 merge `55f43e087` plus docs), built fresh on tatooine (`raw/prep_a.sh dualM`).
@@ -856,3 +856,11 @@ printed "section 3" rule is D2's, not this gate.)
 
 **WA3 verdict: PASS (gates 1-4).** Radiance for WA3: 3:02 + 2:13 = **5:15** in two windows (each stage <= 285 s). Next: PR B from
 `ink/hip-specflip-b` (user decision).
+
+**Greedy speed on the merged head (information, single runs, not a gate):** the 1.113 greedy GO was measured on the pre-merge `dualA5`
+vs specA2 (WA1b / WA2). On `dualM` only identity and sampled contention were gated. Consistency check, same card (1), same md5.json
+prompts, 256 tokens, each run beside a card-0 cold admission: default dualM 134.89 tok/s vs main7 122 (M1) ≈ 1.10; `--spec off` 81.90
+vs 81.82.
+
+**Merge of origin/main `eb2a7ffa8` (#547-#549, docs) into the branch (09:58 EST):** `git diff --stat e6e8b4ee5 HEAD -- crates kernels
+recipes` is empty, so `dualM` is the PR head's code.
