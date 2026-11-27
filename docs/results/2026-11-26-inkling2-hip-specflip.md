@@ -176,9 +176,9 @@ Q2 build the confirmation binary from main cd16cac1b now?
 **Lane to coordinator, ~22:55 EST (lane clock):** confirmation ABBA meets GO again; KV check 2 over 5 % (-9.9 % solo capacity with both
 drafters; default contexts unchanged): flip B stopped, (a) / (b) / (c) to the user.
 
-**Coordinator, 2026-11-26 ~23:55 EST (received ~23:13 by the lane clock; as written):**
+**Coordinator, sent ~23:10 EST 2026-11-26 (the message said "~23:55"; corrected by the coordinator, see below), as written:**
 
-> **USER DECISION (23:55, verbatim): "Test DFlash2 sampled", option (b).** Under flip B, when the DFlash2 drafter is present, sampled requests draft with DFlash2 too. That leaves one drafter loaded, at −1.2 % capacity vs main. When DFlash2 is absent, the server behaves exactly like flip A (sampled DSpark adaptive). Option (a), two drafters, is not built now.
+> **USER DECISION (23:55 [corrected: ~23:10 EST 11-26], verbatim): "Test DFlash2 sampled", option (b).** Under flip B, when the DFlash2 drafter is present, sampled requests draft with DFlash2 too. That leaves one drafter loaded, at −1.2 % capacity vs main. When DFlash2 is absent, the server behaves exactly like flip A (sampled DSpark adaptive). Option (a), two drafters, is not built now.
 >
 > **Order:**
 > 1. PR A (flip A) continues now, on its own. #543 merged as 3fb1b5f8d.
@@ -200,3 +200,31 @@ drafters; default contexts unchanged): flip B stopped, (a) / (b) / (c) to the us
 > 5. **If the gate fails,** go to (a), two drafters, per the plan the user saw. Before writing code, report the numbers to me in ≤ 6 lines. I will relay them and give the go.
 >
 > **Radiance:** a new 10 min for steps 2-3, on top of the 6:10 you have left, which stays reserved for the PR A / PR B gate window. That is 16:10 in all. Each window ≤ 5 min, none after 06:00. Metal stays at ≤ 15 min.
+
+**Lane to coordinator, ~23:14 EST:** PR A gate window G1 (#12441, 3:35): greedy md5 default = `--spec off` (380af8a5), 100 / 100 seeds
+identical (off 0 passes, default 265, startup line "drafting on (recipe ...)"), contexts solo 4096 / b16 3285; serve 16/16 did not run
+(client URL lacked `/v1`; the solo first-start admission passed 150 s beside the b16 one). Asked for G2 (serve-only) and a PR B gate window.
+
+**Coordinator, sent 23:15 EST 2026-11-26 (the message said "2026-11-27 ~00:20"; corrected by the coordinator), as written:**
+
+> **Yes to both:**
+> - G2, serve-only, ≤ 5:00 of radiance now.
+> - PR B's gate window, ≤ 5:00 later.
+>
+> Your lane's total cap tonight is **33:00**. You have used 12:25. The 10 min for the DFlash2 sampled test (D1 calibration and D2 measurement) are inside that cap. Each window ≤ 5 min, none after 06:00.
+>
+> **For G2:**
+> 1. Fix the client URL so it includes `/v1`, and check it against radiance's host format before the window.
+> 2. The serve check is 16/16 replies at `--max-batch 16` equal to solo.
+> 3. Also record main 3fb1b5f8d's b16 context line, from an existing log if there is one, so 3285 is shown to be unchanged by flip A.
+>
+> **To cut the cost of PR B's gate:**
+> - Build the PR B candidate binary before D2 and run D2's measurement with it. Its admission cache is then warm for the gate window.
+> - If D1 or D2 has a spare card while the other card measures, fold gate checks into it.
+> - Never let a gate check share a card with a timed speed run.
+>
+> **If G2 fails for a real reason** (replies differ, not a harness error), stop PR A and report to me.
+
+**Coordinator correction (as written):** two timestamps in my last two messages were wrong. The user's decision ("Test DFlash2 sampled")
+came at about 23:10 EST on 2026-11-26, not 23:55. My G2 budget grant was sent at 23:15 EST on 11-26, not 00:20 on 11-27. Correct both in
+your results doc. Nothing else changes. The 06:00 cutoff for windows is 06:00 EST on 11-27.
