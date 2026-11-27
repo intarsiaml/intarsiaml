@@ -460,7 +460,7 @@ pub struct BackendTuning {
     /// resolved next to the checkpoint (`<checkpoint>/../<name>`: the drafter downloaded beside the model). Not found (or not a DFlash2
     /// draft): the DSpark default alone, never an error. `INTARSIA_SPEC_DFLASH2_DEFAULT=0` restores the DSpark default (DFlash2 not
     /// loaded). Without the DSpark draft in the checkpoint, the DFlash2 drafter alone drafts greedy requests and sampled ones stay
-    /// plain. Only `recipes/inkling2.toml` sets it, on HIP.
+    /// plain. Only `recipes/inkling2.toml` sets it: HIP (k4) and Metal (k5, lane ink-metal-flip, user decision 2026-11-27).
     pub dflash2_draft: Option<String>,
     /// `--spec-k` of [`BackendTuning::dflash2_draft`]'s greedy requests (a lone `--spec-k N` wins). Unset: the block's drafts.
     pub dflash2_k: Option<usize>,
