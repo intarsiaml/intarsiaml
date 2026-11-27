@@ -11,7 +11,8 @@
 # 3. Card 1 (after the KV), the tasks in $C1 (default "md5 seeds1.0"; WA2: KV=0 C1="seeds0.6 md564"): md5 = greedy md5 (md5.json, 256
 #    tokens, --ignore-eos) BR --spec off / BR default / CTL --spec dflash <DFlash2> k4 (change 6: acceptance counts); md564 = BR default at 64 tokens (vs the first 64 ids of md5's off run, same
 #    folder); seeds<T> = 100 seeds (24 tokens) at T: BR with INTARSIA_SPEC_SAMPLED_DFLASH=0 vs BR default (INTARSIA_SS_DEFAULT=1: no
-#    --spec, the recipe default with both drafts); mixed = change 7 (8 requests alternating greedy / seeded sampled in one process,
+#    --spec, the recipe default with both drafts); rev<T> = the same seeds with INTARSIA_SPEC_DFLASH2_DEFAULT=0 (PR A's load, DSpark alone:
+#    change 6's sampled acceptance comparison, the same harness path and binary); mixed = change 7 (8 requests alternating greedy / seeded sampled in one process,
 #    prompt x1 and x12; BR default vs INTARSIA_SPEC_DEFAULT=0).
 set -uo pipefail
 REPO=$HOME/intarsiaml-ink-hip-specflip
@@ -66,6 +67,7 @@ seeds() {  # arm (off | def) temp
   local f=$OUT/seeds-$1-$2 e="INTARSIA_SS_DEFAULT=1"
   rm -f "$f.txt"
   [ "$1" = off ] && e="$e INTARSIA_SPEC_SAMPLED_DFLASH=0"
+  [ "$1" = rev ] && e="$e INTARSIA_SPEC_DFLASH2_DEFAULT=0"
   rc 1 env $e INTARSIA_TEST_REAL_MODEL=1 INTARSIA_INK_MODEL=$M INTARSIA_INKLING2_BACKEND=hip INTARSIA_SS_SEEDS=0..100 INTARSIA_SS_TEMPS=$2 \
     INTARSIA_SS_TOKENS=24 INTARSIA_SS_BUDGET_S=75 INTARSIA_SS_OUT=/work/logs/a1-$BR/seeds-$1-$2.txt \
     /work/.scratch/bin/t-$BR-inkling2_sampled_real --nocapture > "$f.log" 2>&1
@@ -98,6 +100,7 @@ speed > "$OUT/c0.log" 2>&1 &
       md5) md5 off 256 "--spec off"; md5 def 256 ""; md5 dfl4 256 "--spec dflash --spec-draft $D --spec-k 4" $C ;;
       md564) md5 def64 64 "" ;;
       seeds*) seeds off ${t#seeds}; seeds def ${t#seeds} ;;
+      rev*) seeds rev ${t#rev} ;;
       mixed) mixed off 1; mixed def 1; mixed off 12; mixed def 12 ;;
     esac
   done
@@ -129,5 +132,7 @@ if [ -s "$OUT/md5-def.err" ] && [ -s "$OUT/md5-dfl4.err" ]; then
   a=$(grep -aE '^spec(\[[^]]*\])?: verify' "$OUT/md5-def.err" | md5sum | cut -c1-12); b=$(grep -aE '^spec(\[[^]]*\])?: verify' "$OUT/md5-dfl4.err" | md5sum | cut -c1-12)
   echo "[a1] acceptance md5.json: dual $(grep -aE '^spec: verify' "$OUT/md5-def.err" | cut -c1-80) | DFlash2 k4 alone $(grep -aE '^spec: verify' "$OUT/md5-dfl4.err" | cut -c1-80) | spec lines $a / $b $([ "$a" = "$b" ] && echo EQUAL || echo DIFFER)"
 fi
-for t in $C1; do case $t in seeds1.0) echo "[a1] acceptance seeds T 1.0: dual $(grep -aE 'requests in' "$OUT/seeds-def-1.0.log" | grep -oE 'spec verify.*') (GA2 specA2: spec verify passes 265 proposed 408 accepted 123)" ;; esac; done
+for t in $C1; do case $t in rev*) T=${t#rev}
+  a=$(grep -aE 'requests in' "$OUT/seeds-def-$T.log" | grep -oE 'spec verify.*'); b=$(grep -aE 'requests in' "$OUT/seeds-rev-$T.log" | grep -oE 'spec verify.*')
+  echo "[a1] acceptance seeds T $T: dual [$a] vs DSpark alone (INTARSIA_SPEC_DFLASH2_DEFAULT=0, PR A's load) [$b] $([ -n "$a" ] && [ "$a" = "$b" ] && echo EQUAL || echo DIFFER); ids def vs rev: $(cmp -s <(sort "$OUT/seeds-def-$T.txt") <(sort "$OUT/seeds-rev-$T.txt") && echo IDENTICAL || echo DIFFER)" ;; esac; done
 echo "[a1] done $(now) t+$(el)s"
