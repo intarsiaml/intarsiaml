@@ -14,7 +14,8 @@
 //!   DFlash2 drafter `Inkling-2-Mini-DFlash2`).
 //! * `INTARSIA_SS_DEFAULT=1` (lane ink-hip-specflip, option (a)): no `--spec` at all, the recipe's speculation default as `serve` and
 //!   `generate` apply it (Inkling-2 on HIP: the DSpark default, with the DFlash2 drafter beside it when found); `INTARSIA_SS_K` and
-//!   `INTARSIA_SS_DRAFT` are then unused.
+//!   `INTARSIA_SS_DRAFT` are then unused. `INTARSIA_SS_PROMPT_X=<n>` repeats the prompt n times (default 1; lane ink-hip-specflip's
+//!   mixed-switch run: a reuse above `DFLASH_RESYNC_REUSE_MAX`). A temperature of 0 is a greedy request.
 //!
 //! Every request is the same short prompt, `--spec dflash --spec-k 3`, `ignore_eos`. Token 1 comes from prefill; tokens 2.. are the
 //! speculative positions. `docs/results/2026-11-26-inkling2-sampled-dspark/raw/law.py` compares the arms (seed equality on shared seeds,
@@ -88,6 +89,7 @@ fn inkling2_sampled_dspark_real_model_runs() {
         var("INTARSIA_SS_DRAFT")
     );
     let prompt = e.tokenize("Once upon a time, in a small village by the sea, there lived", false).unwrap();
+    let prompt = prompt.repeat(var("INTARSIA_SS_PROMPT_X").map_or(1, |v| v.parse().unwrap()));
     let mut f = out.map(|p| std::fs::OpenOptions::new().create(true).append(true).open(p).unwrap());
     let t0 = std::time::Instant::now();
     let mut n = 0usize;

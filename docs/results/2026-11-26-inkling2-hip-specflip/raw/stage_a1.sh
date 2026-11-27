@@ -5,12 +5,14 @@
 #    alone) and BR default (DSpark + DFlash2); then BR at the defaults (`--max-seq` 4096). Gate 3: BR capacity >= 0.90 x CTL capacity
 #    (stop line -10 %), else the speed part is skipped (file $OUT/KV_FAIL).
 # 2. Card 0 (after the KV verdict): greedy ABBA half (stage_ab_k.sh's prompts and protocol: speed.json, 256 tokens, greedy, EOS honoured):
-#    arms dfl = CTL --spec dflash --spec-draft <DFlash2> --spec-k 4 (DFlash2 alone), dual = BR default; ORDER a = dfl dual dual dfl
-#    (reps R1 R2), b = dual dfl dfl dual. Out: logs/a-greedy/<arm>@<rep>.err (speed.py <dir> dfl <classes>).
+#    arms dspark = CTL default (DSpark k5, main's and PR A's greedy default), dual = BR default (coordinator 00:43 change 1: the GO rule vs
+#    DSpark k5); ORDER a = dspark dual dual dspark (reps R1 R2), b = dual dspark dspark dual. Out: logs/a-greedy/<arm>@<rep>.err
+#    (speed.py <dir> dspark <classes>).
 # 3. Card 1 (after the KV), the tasks in $C1 (default "md5 seeds1.0"; WA2: KV=0 C1="seeds0.6 md564"): md5 = greedy md5 (md5.json, 256
-#    tokens, --ignore-eos) BR --spec off / BR default; md564 = BR default at 64 tokens (vs the first 64 ids of md5's off run, same
+#    tokens, --ignore-eos) BR --spec off / BR default / CTL --spec dflash <DFlash2> k4 (change 6: acceptance counts); md564 = BR default at 64 tokens (vs the first 64 ids of md5's off run, same
 #    folder); seeds<T> = 100 seeds (24 tokens) at T: BR with INTARSIA_SPEC_SAMPLED_DFLASH=0 vs BR default (INTARSIA_SS_DEFAULT=1: no
-#    --spec, the recipe default with both drafts).
+#    --spec, the recipe default with both drafts); mixed = change 7 (8 requests alternating greedy / seeded sampled in one process,
+#    prompt x1 and x12; BR default vs INTARSIA_SPEC_DEFAULT=0).
 set -uo pipefail
 REPO=$HOME/intarsiaml-ink-hip-specflip
 S=$REPO/.scratch
@@ -46,18 +48,18 @@ fi
 GEN="generate -m $M --backend hip --max-seq 20480 --profile-every 0 --show-ids --max-tokens 256 --prompt-ids /work/.scratch/prompts/speed.json"
 arm() {  # arm rep
   local f=$G/$1@$2
-  if [ "$1" = dfl ]; then rc 0 $C $GEN --spec dflash --spec-draft $D --spec-k 4 > "$f.out" 2> "$f.err"
+  if [ "$1" = dspark ]; then rc 0 $C $GEN > "$f.out" 2> "$f.err"
   else rc 0 $B $GEN > "$f.out" 2> "$f.err"; fi
   echo "[a1 c0] $1@$2 rc $? t+$(el)s | $(grep -aoE 'up to [0-9]+ drafts' "$f.err" | head -1) | $(grep -aE '^decode overall' "$f.err" | head -1) | $(grep -aE '^spec: verify' "$f.err" | head -1 | cut -c1-100) | $(grep -aE 'DFlash2 drafter|second draft' "$f.err" | tr '\n' ' ' | cut -c1-200)"
 }
 speed() {
   [ -e "$OUT/KV_FAIL" ] && { echo "[a1 c0] skipped (KV)"; return; }
-  if [ "$ORDER" = a ]; then arm dfl $R1; arm dual $R1; arm dual $R2; arm dfl $R2
-  else arm dual $R1; arm dfl $R1; arm dfl $R2; arm dual $R2; fi
+  if [ "$ORDER" = a ]; then arm dspark $R1; arm dual $R1; arm dual $R2; arm dspark $R2
+  else arm dual $R1; arm dspark $R1; arm dspark $R2; arm dual $R2; fi
 }
-md5() {  # name tokens extra
+md5() {  # name tokens extra [binary]
   local f=$OUT/md5-$1
-  rc 1 $B generate -m $M --backend hip --max-seq 8192 --profile-every 0 --show-ids --ignore-eos --max-tokens $2 --prompt-ids /work/.scratch/prompts/md5.json $3 > "$f.out" 2> "$f.err"
+  rc 1 ${4:-$B} generate -m $M --backend hip --max-seq 8192 --profile-every 0 --show-ids --ignore-eos --max-tokens $2 --prompt-ids /work/.scratch/prompts/md5.json $3 > "$f.out" 2> "$f.err"
   echo "[a1 c1] md5 $1 rc $? t+$(el)s $(cat "$f.out" "$f.err" | grep -a '^ids\[' | md5sum | cut -c1-32) | $(grep -aE '^decode overall|^spec: verify|DFlash2 drafter|second draft|DSpark default' "$f.err" | tr '\n' ' ' | cut -c1-420)"
 }
 seeds() {  # arm (off | def) temp
@@ -69,6 +71,19 @@ seeds() {  # arm (off | def) temp
     /work/.scratch/bin/t-$BR-inkling2_sampled_real --nocapture > "$f.log" 2>&1
   echo "[a1 c1] seeds $1 T $2 rc $? t+$(el)s lines $(wc -l < "$f.txt" 2>/dev/null) | $(grep -aE 'requests in|DFlash2 drafter|DFlash-family drafting|second draft' "$f.log" | tr '\n' ' ' | cut -c1-400)"
 }
+mixed() {  # arm (off = no speculation at all | def) prompt-repeat: greedy (T 0) and seeded sampled (T 1.0) alternating, seeds 0..4
+  local f=$OUT/mixed-$1-x$2 e="INTARSIA_SS_DEFAULT=1"
+  rm -f "$f.txt"
+  [ "$1" = off ] && e="$e INTARSIA_SPEC_DEFAULT=0"
+  rc 1 env $e INTARSIA_TEST_REAL_MODEL=1 INTARSIA_INK_MODEL=$M INTARSIA_INKLING2_BACKEND=hip INTARSIA_SS_SEEDS=0..4 INTARSIA_SS_TEMPS=0.0,1.0 \
+    INTARSIA_SS_TOKENS=24 INTARSIA_SS_PROMPT_X=$2 INTARSIA_SS_OUT=/work/logs/a1-$BR/mixed-$1-x$2.txt \
+    /work/.scratch/bin/t-$BR-inkling2_sampled_real --nocapture > "$f.log" 2>&1
+  echo "[a1 c1] mixed $1 x$2 rc $? t+$(el)s lines $(wc -l < "$f.txt" 2>/dev/null) | $(grep -aE 'requests in|DFlash2 drafter|panicked' "$f.log" | tr '\n' ' ' | cut -c1-400)"
+}
+cmp_mixed() {  # prompt-repeat
+  [ -s "$OUT/mixed-off-x$1.txt" ] && [ -s "$OUT/mixed-def-x$1.txt" ] || { echo "[a1] mixed x$1: missing"; return; }
+  echo "[a1] mixed x$1: off $(grep -c . "$OUT/mixed-off-x$1.txt") default $(grep -c . "$OUT/mixed-def-x$1.txt") $(cmp -s "$OUT/mixed-off-x$1.txt" "$OUT/mixed-def-x$1.txt" && echo IDENTICAL || echo DIFFER)"
+}
 cmp_seeds() {  # temp
   local a b
   [ -s "$OUT/seeds-off-$1.txt" ] && [ -s "$OUT/seeds-def-$1.txt" ] || { echo "[a1] seeds T $1: missing"; return; }
@@ -79,9 +94,10 @@ speed > "$OUT/c0.log" 2>&1 &
 (
   for t in $C1; do
     case $t in
-      md5) md5 off 256 "--spec off"; md5 def 256 "" ;;
+      md5) md5 off 256 "--spec off"; md5 def 256 ""; md5 dfl4 256 "--spec dflash --spec-draft $D --spec-k 4" $C ;;
       md564) md5 def64 64 "" ;;
       seeds*) seeds off ${t#seeds}; seeds def ${t#seeds} ;;
+      mixed) mixed off 1; mixed def 1; mixed off 12; mixed def 12 ;;
     esac
   done
 ) > "$OUT/c1.log" 2>&1 &
@@ -106,5 +122,11 @@ off, d64 = ids(d / "md5-off.err"), ids(d / "md5-def64.err")
 eq = all(off.get(k, [])[:len(v)] == v and len(v) == 64 for k, v in d64.items()) and len(d64) == len(off) > 0
 print(f"[a1] greedy 64 tokens: default's ids = the first 64 of --spec off's ({len(d64)} prompts): {'EQUAL' if eq else 'DIFFER'}")
 EOF
-for t in $C1; do case $t in seeds*) cmp_seeds ${t#seeds} ;; esac; done
+for t in $C1; do case $t in seeds*) cmp_seeds ${t#seeds} ;; mixed) cmp_mixed 1; cmp_mixed 12 ;; esac; done
+# change 6: acceptance counts, dual default vs DFlash2 k4 alone on md5.json
+if [ -s "$OUT/md5-def.err" ] && [ -s "$OUT/md5-dfl4.err" ]; then
+  a=$(grep -aE '^spec(\[[^]]*\])?: verify' "$OUT/md5-def.err" | md5sum | cut -c1-12); b=$(grep -aE '^spec(\[[^]]*\])?: verify' "$OUT/md5-dfl4.err" | md5sum | cut -c1-12)
+  echo "[a1] acceptance md5.json: dual $(grep -aE '^spec: verify' "$OUT/md5-def.err" | cut -c1-80) | DFlash2 k4 alone $(grep -aE '^spec: verify' "$OUT/md5-dfl4.err" | cut -c1-80) | spec lines $a / $b $([ "$a" = "$b" ] && echo EQUAL || echo DIFFER)"
+fi
+for t in $C1; do case $t in seeds1.0) echo "[a1] acceptance seeds T 1.0: dual $(grep -aE 'requests in' "$OUT/seeds-def-1.0.log" | grep -oE 'spec verify.*') (GA2 specA2: spec verify passes 265 proposed 408 accepted 123)" ;; esac; done
 echo "[a1] done $(now) t+$(el)s"
