@@ -59,6 +59,49 @@ beyond the 3 % itself; the reconstructed `speed.json` differs from #543's by one
    The replay, with a stop-after-the-first-failed-probe rule (`giveup=1`, in sim only), predicts an in-sample score of 1.012 (against 1.002 for the gate string) with `short_b` 0.990 / 1.023; the engine part is a few lines in `Seq::prepare_with` plus the multi-turn resync check (`DFLASH_RESYNC_REUSE_MAX`).
 2. Re-run the same gate on seeds 7, 23, 29 (this doc's harness: `raw/metal/gate.sh`, `raw/sim2.py`, `raw/speed4.py`), ~35 min of exclusive endor time.
 
+## Phase 2 (coordinator message 03:12 EST, verbatim; branch `ink/metal-sampled3`, docs of phase 1 + origin/main `4b629184c`)
+
+> Coordinator 03:12 EST. Your report is accepted. I'm merging #547 (docs only) on green CI and deleting the remote `ink/metal-sampled2` branch afterwards. Leave your local branch alone. Write this whole message into a new "Phase 2" section of the doc before you do anything else.
+>
+> PHASE 2: a forced exit to plain decoding, Metal, opt-in. Steps are in order, and each one can stop the lane.
+>
+> STEP 0 (no GPU). Does your replay's cost model already charge the 3.1 % drafting-mode plain-step tax?
+> - If it does, the 2.5-3.7 % replay optimism on `short_b` has another cause, and 0.990 minus about 3 % fails clause 1 again. STOP and report the answer with the evidence.
+> - If it does not, the optimism is roughly the tax, and a request that has exited runs at off cost. Continue.
+>
+> STEP 1, the mechanism before any policy.
+> - New branch `ink/metal-sampled3` from origin/main `4b629184c`, in your same worktree (`git switch -c`). No new folders.
+> - Add a knob (env plus a recipe key) that, once a request meets an exit condition, permanently moves it onto the same path a `--spec off` request takes. No taps, no stash copies, no further probes, and ideally the drafter state is freed.
+> - For the mechanism test, add a trivial forced-exit variant ("exit after step N").
+> - The knob unset must run exactly today's code on every backend. HIP is the live default and has no GPU check left tonight.
+> - Prove it with a cpu unit test showing identical decisions under the HIP recipe string, plus the HIP cfg check (`cargo check` with hip cfgs).
+> - If exiting needs ANY unconditional change to the keyed path in engine.rs, or anything that changes HIP behaviour with the knob unset, STOP and report. Do not work around it.
+> - Seeded RNG must stay aligned across the switch: the exited request's ids must equal `--spec off`.
+>
+> STEP 2, one short Metal slot (<= 10 min).
+> - ABBA, forced exit at step ~1 vs `--spec off`, on `short_b`, with >= 4 seeds at T 1.0 and 45 s idle gaps.
+> - Also a 10-seed identity spot check (exited = off).
+> - Rule, written before the slot: the lower 95 % CI bound of exited/off must be >= 0.99. If it isn't, the tax doesn't come from the drafting mode and no stop rule fixes it. STOP and report.
+>
+> STEP 3, only if step 2 passes.
+> - Tune the exit rule offline on calibration traces. Seeds 11/13/17/19, plus 7/23/29, are now all calibration seeds because they've been seen.
+> - Replay every prompt, not just `short_b`, so an early exit on a well-accepting request (the T 0.7 4k risk from #543) shows up.
+> - Pre-register again in the doc before the gate slot. #543's gate stays unchanged, measured on a FRESH gate seed set (e.g. 31, 37, 41, 43, 47).
+> - Give `short_b` more seeds than the others (>= 6 per temperature), because its T 0.7 CI of 0.889-1.061 on 3 seeds was a coin flip.
+> - Clause 3 (100 seeds identical at T 1.0 and T 0.6) and clause 4 (greedy = main) are rerun on the new build.
+>
+> BUDGET AND RULES
+> - New Metal cap: 40 min of exclusive slots for Phase 2. Each slot <= 20 min, none starting after 07:00 EST.
+> - Same fleetq, 4-minute-call and work-folder rules as before, and use your own `.scratch/` (not `/tmp`).
+> - If the gate passes: update the `[tuning.metal]` recipe with the knob enabled. It stays opt-in, so do not set `sampled_dflash = true` for Metal.
+> - Open a PR to main and do NOT merge it. If any step fails, the PR is docs only and names where it stopped.
+>
+> Final report (<= 20 lines): the step 0 answer; the step 2 ratio and CI; if reached, the gate table and verdict per clause; the HIP-unchanged evidence; the PR and its head; Metal minutes; what isn't verified; fleetq ids.
+
+Branch note: `ink/metal-sampled3` was created in this worktree with `git switch -c` from the head of `ink/metal-sampled2` (origin/main `4b629184c` plus phase 1's docs-only commits, 106 files, all under `docs/`), so that phase 1's results doc is the file this section lives in; the code base is exactly `4b629184c`.
+
+### Phase 2 log
+
 ## 0. Brief (verbatim from the coordinator, 2026-11-27 02:07 EST, condensed only by dropping the tool-use boilerplate)
 
 > You are lane **ink-metal-sampled2** in the IntarsiaML repo. The user is asleep; the coordinator (me) is your contact via SendMessage to "main". Work fully autonomously within this brief.
@@ -221,3 +264,15 @@ Metal exclusive time used: C 10 min 45 s (including the 50 s aborted #12537) + G
 ## 4. Merge
 
 origin/main `4b629184c` (#542) merged into the branch before the PR. The change set of #542 on shared code (`model/inkling2.rs`, `model.rs`, `scheduler.rs`, `engine/batch.rs`) is HIP / scheduler work; Metal numbers above were taken before the merge.
+
+**Step 0 (no GPU, 03:20 EST): the replay's cost model ALREADY charges the 3.1 % drafting-mode plain-step tax. Phase 2 stops here, as the rule says.**
+
+Evidence:
+- `raw/sim2.py` `replay()`: a policy plain step costs `1.0 + po` (line `t += 1.0 + (po if a and not a.gave_up else 0.0)`), an empty draft call `d + 1.0 + po`; the off arm costs 1.0 per token. Every number of section 2 (the grid, the pick, the 0.983 / 0.998 in-sample, the fidelity table) was run with `--po=0.031`
+  (`raw/cal/gridA.txt` header: `po 0.031`).
+- Effect of the charge on the picked string, in sample (`short_b`, T 1.0 / 0.7): `po = 0` gives 0.998 / 1.019, `po = 0.031` gives 0.983 / 0.998. So the tax is worth 1.5 / 2.1 points there (the share of steps that are plain), and it is inside the 0.983 / 0.998 that were then measured as 0.946 / 0.971.
+- The seed-13 fidelity table (section 2.1) was also computed with the tax charged: `short_b` pol / off 0.941 predicted against 0.922 measured, fixed k3 0.943 against 0.913 (fixed k3 has almost no plain steps, so its 3 points of optimism are not the tax at all).
+- The optimism (2.5-3.7 % on `short_b` at the gate seeds, 3 points on fixed k3 in the fidelity run) therefore has another cause, and it is present in the fixed arm, which takes no policy plain steps. Candidates I could not separate without more Metal time: the `adapt:` trace prints in the traced runs (fidelity run only), the Metal draft being non-deterministic given the context (replays differ by 3-5 passes), the verify-pass cost at the real context (the table is the short-context one; `len4k` fixed k3 measured 12 % slower than the table), and the cost table's own error on `r_m` for the story prompt's mix of pass sizes.
+- Consequence for the 0.990 estimate of the forced-exit rule (`giveup = 1`): it removes only the tax on the plain steps after the exit; replay optimism of about 3 points stays, so the estimate is about 0.96 measured, which fails clause 1 again. No exit rule can fix a gap whose largest part is not the drafting mode.
+
+Phase 2 steps 1-3 are not started: no code on `ink/metal-sampled3`, no Metal time used in phase 2. What would settle the open cause cheaply (not done, needs Metal): an untraced A/B of fixed k3 against off on `short_b` alone over 6+ seeds against the replay of the same seeds' `drafts` traces, which separates trace overhead and cost-table error from policy effects.
