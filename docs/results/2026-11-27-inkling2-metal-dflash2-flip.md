@@ -47,7 +47,7 @@ the flip server and the off server at both starts, and `cached_tokens` shows reu
 
 ## Results
 
-**Verdict: PASS. G1-G4 pass, and neither G5 nor G6 raised a FLAG.** Slot G was fleetq #12677, endor `--exclusive`, 12:18:31-12:32:24 EST, the
+**Verdict: PASS. G1-G4 and G7 pass, and neither G5 nor G6 raised a FLAG.** Slot G was fleetq #12677, endor `--exclusive`, 12:18:31-12:32:24 EST, the
 first and only slot. Binary `intarsia-flip` md5 `08b3211b60f82bceb080c795a030eb67`, built from 89b6e18e2 (same code as 6e9640a2c). The log
 is `raw/slotG-12677.log`, and the per-run stderr is in `raw/G/`.
 
@@ -59,6 +59,14 @@ is `raw/slotG-12677.log`, and the per-run stderr is in `raw/G/`.
 | G4 | **PASS** | `serve --max-batch 4`: up after 136 s (cold admission of a new binary), no spec / draft line in the log; concurrent = solo 4 / 4, twice |
 | G5 | **no FLAG** | peak footprint at the clamped capacity: `main` 44.10 / 44.10 GB, `dfl5` 48.82 / 48.82, `flip` 48.98 / 48.97, so `flip` − `dfl5` = **+0.15 GB** (rule: +0.5). `flip` − `main` = +4.87 GB. Context 607,199 tokens vs 615,670 (`main`, −1.4 %) and 615,458 (`dfl5`). Weights 17.24 vs 16.41 GB (`main`). At `--max-seq 20480` (G2 runs): `off` 20.30, `dfl5` 20.32, `main` 20.84, `flip` 21.15 GB |
 | G6 | **no FLAG** | ABBA `flip` / `main`: count **1.438** (1.390, 1.488), story **1.005** (0.979, 1.032), chat **1.284** (1.250, 1.318); geo **1.229**, min 1.005 (rule: 1.10 / 0.95; #549: 1.253 / 1.028). Ids identical across the 4 processes |
+
+**G7: PASS.** Slot H was fleetq exclusive endor, 12:39:30-12:43:43 EST. It used the same binary (md5 `08b3211b...`). The log is `raw/slotH-H.log`, and the
+replies and server stderr are in `raw/H/`. `serve --max-batch 1` with the flip default: the startup log has both drafts (`second draft (greedy
+requests, k 5)`) and `a request switched drafts (greedy: the second draft)`. All 12 turns (2 chats x 3 on the chat endpoint, 2 x 3 as token-id
+extensions, 128 tokens each) have identical ids between flip and `--spec off`, at start 1 and at start 2. Flip start 1 = flip start 2.
+`cached_tokens` is equal on both servers, with reuse on every turn 2 and 3 (chat 30 / 47 and 27 / 43; ids 93 / 256 and 300 / 468). Server up
+times: flip 141 s on the first start (cold admission of the binary), 8 s on the second; off 4-5 s. Chat wall time is information only: about 19 s
+flip vs 22-23 s off for the 12 turns.
 
 Single greedy runs, information only (G2's `generate` runs, one process each, no idle gaps). Decode in tok/s:
 
