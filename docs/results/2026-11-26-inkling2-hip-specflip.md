@@ -825,3 +825,23 @@ Gate (every item must pass; one try each, no re-run hoping for a pass; a void or
 2. **Sampled ids:** every process of one temperature emits the same ids (both arms, all reps; same seed).
 3. **b16:** dualM's 16 b16 replies = main7's M1 b16 replies, 16 / 16 (also compared with PR A's GS2 b16, information).
 4. **Greedy on the merged head:** dualM `--spec off` = dualM default, ids md5 equal and = `380af8a5` (main7's); the default line names DFlash2.
+
+**Build `dualM` (#12567, 09:36-09:41, cpu only):** `intarsia-dualM` md5 `704a6b208de5abd69837cad69ed0c229`, commit
+`e6e8b4ee5 0 uncommitted`; tatooine tiny tests of the head all green (inkling2_dflash2 12/12, inkling2_sampled_default 2/2,
+recipe_ink_sampled_dflash 3/3, recipes_doc 3/3, inkling2_dspark 4/4, inkling2_dspark_sampled 2/2, inkling2_dspark_sampled_adapt 2/2, mtp
+69/69, models lib 81, cli docs_env_vars 2/2, core lib 284; 0 failed).
+
+**WA3s (#12568, radiance down 09:45:04-09:48:06; stage 09:45:08-09:47:55, 2:47; `raw/a3s-dualM/`, `raw/window-wa3s-12568.log`): PASS.**
+16 / 16 processes rc 0; ids identical across all 8 processes of each temperature (both arms, all reps); verify counts identical across
+arms (T 1.0: 231 / 606 / 315 per process; T 0.7: 208 / 558 / 304). dualM's load line: `DFlash2 drafter ... (k 4): loaded beside the
+DSpark default`; main7: DSpark alone. `speed3.py` (dual = pol, main7 = off), n = 4 rep pairs:
+
+| dualM / main7, sampled default | short (pooled) | 1k | 4k |
+|---|---|---|---|
+| T 1.0 | 1.004 [0.995-1.012] | 1.001 [0.991-1.010] | 1.002 [0.980-1.025] |
+| T 0.7 | 1.001 [0.997-1.005] | 1.004 [0.994-1.015] | 1.004 [0.981-1.029] |
+
+Per prompt: T 1.0 short_b 1.003 [0.998-1.009], short_a 0.999 [0.989-1.008], short_c 1.010 [0.985-1.035]; T 0.7 short_b 0.999
+[0.991-1.006], short_a 1.003 [0.989-1.018], short_c 1.001 [0.984-1.017]. Lowest CI upper bound 1.005 (gate >= 0.99): **gate 1 pass,
+gate 2 pass.** Absolute sampled tok/s (main7 / dualM): T 1.0 short 88.66 / 88.97, 1k 77.24 / 77.29, 4k 106.46 / 106.68. (speed3.py's
+printed "section 3" rule is D2's, not this gate.)
