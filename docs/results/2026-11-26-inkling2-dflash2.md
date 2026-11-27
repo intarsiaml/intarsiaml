@@ -184,6 +184,9 @@ that would decide 4k / 16k; it belongs to the HIP verify lanes (ink-hip-spec / i
 
 ## Verdict against the pre-registered rule
 
+Radiance down time: window 1 3 min 33 s, 2 3 min 4 s, 3 3 min 45 s, 4 3 min 45 s, 5 3 min 6 s; total 17 min 13 s of the 20 min
+budget, every window under 5 min.
+
 - GO needs: best single k >= 1.03x on the mean over the cells (k7: geomean of the six cells 1.044, arithmetic 1.049: met), no cell
   more than 1 % slower (4k CI upper 0.909, 16k CI upper 0.954: **failed**), every md5 equal (met).
 - **OPT-IN**: faster on short (+19.0 %), 1k (+4.7 %), prose (+4.5 %) and chat (+15.4 %), slower on 4k (-9.5 %) and 16k (-5.0 %).
@@ -194,6 +197,27 @@ that would decide 4k / 16k; it belongs to the HIP verify lanes (ink-hip-spec / i
   (k5, cut 0.5) 2.40-3.22. The card's 1.3-1.4x acceptance gain over DSpark holds here (1.31-2.02x); its speedup does not carry to
   long contexts on this card. Like RAD's R9700 report and our 27B (LOG 2026-11-06 20:30), code gains most; unlike both, prose and
   chat gain here too (prose +4.5 %, chat +15.4 %).
+
+## Window 5: k sweep on short + 4k (fleetq #12312, 20:20:41-20:23:47 EST, radiance down 3 min 6 s), informational
+
+`raw/stage_k.sh`, `raw/ksweep.json` (warm + 12 golden + 4108 ids), one process per arm, binary `dfl5`, `raw/k/`,
+`raw/ksweep-analysis.txt`. Not part of the rule (the ABBA's k7 was fixed before it ran); n = 1 per arm, no CI. The second DSpark
+process was skipped at the time limit.
+
+| DFlash2 / DSpark k5 (same window) | short | 4k | chat (8 of short) | golden code |
+|---|---:|---:|---:|---:|
+| k7 | 1.187 | 0.903 | 1.151 | 1.473 |
+| k6 | **1.208** | 0.932 | 1.190 | 1.417 |
+| k5 | 1.201 | 0.965 | 1.207 | 1.338 |
+| k4 | 1.183 | **0.987** | **1.211** | 1.230 |
+| tokens per pass k7 / k6 / k5 / k4 | 3.92 / 3.80 / 3.57 / 3.32 | 3.64 / 3.54 / 3.43 / 3.23 | 3.61 / 3.54 / 3.36 / 3.16 | 6.07 / 5.54 / 4.90 / 4.18 |
+
+The k7 row reproduces the ABBA (short 1.187 vs 1.190, 4k 0.903 vs 0.905). Lower k trades code speed for long-context parity: at
+4k, k4 gives back most of the loss (0.987, still 1.3 % slower by its point estimate), and short / chat stay +18-21 %. The
+pre-registered predictor missed this. It priced verify rows from a table pooled over all contexts, while at 4k an extra row costs
+more. Not measured: 16k, 1k and prose at k4 / k5. So whether k4 or k5 would pass the GO rule is open. The radiance budget left
+(2 min 47 s) does not hold the ABBA 4 + 4 that would decide it. The next window for this drafter would run ABBA k4 (and k5) vs
+DSpark k5 on all six cells.
 
 ## Later messages from the coordinator
 

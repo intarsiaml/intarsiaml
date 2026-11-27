@@ -1,0 +1,13 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/stage_k.sh; cap 185s; stopping radiance 2026-11-26 20:20:41
+[window] radiance stopped 2026-11-26 20:20:45 (inactive)
+[stage] start 20:20:45 dfl5 c00616e706713da142eade4c41142e57
+[k] dspark1 rc 0 t+39s | decode overall: 3004 tokens after the first, 27560 ms (109.00 tok/s) | spec: verify passes=1017 proposed=3252 accepted=1696 (acceptance 52.2%, 2.67 tokens per pass)
+[k] k7 rc 0 t+72s | decode overall: 3004 tokens after the first, 24761 ms (121.32 tok/s) | spec: verify passes=783 proposed=5445 accepted=2223 (acceptance 40.8%, 3.84 tokens per pass)
+[k] k6 rc 0 t+105s | decode overall: 3004 tokens after the first, 24079 ms (124.76 tok/s) | spec: verify passes=806 proposed=4809 accepted=2201 (acceptance 45.8%, 3.73 tokens per pass)
+[k] k5 rc 0 t+138s | decode overall: 3004 tokens after the first, 23879 ms (125.80 tok/s) | spec: verify passes=853 proposed=4240 accepted=2154 (acceptance 50.8%, 3.53 tokens per pass)
+[k] k4 rc 0 t+171s | decode overall: 3004 tokens after the first, 23875 ms (125.82 tok/s) | spec: verify passes=917 proposed=3652 accepted=2091 (acceptance 57.3%, 3.28 tokens per pass)
+[k] skip dspark2 (t+171s)
+[stage] done 20:23:36 t+171s
+[window] stage done 2026-11-26 20:23:37 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 20:23:37
+[window] radiance answers 2026-11-26 20:23:47 (after 15 s)
