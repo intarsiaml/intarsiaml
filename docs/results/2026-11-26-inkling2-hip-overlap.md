@@ -4,6 +4,48 @@ Branch `ink/hip-overlap` from the `ink/hip-bpf` head 2561d5957 (PR #538: packed 
 `.worktrees/ink-hip-overlap`. User (via the coordinator, 2026-11-26): "build the prefill overlap too". Goal: cut the ITL p99 at 8 and
 16 streams (0.59-0.65 s today, about one 2048-row prefill chunk) while every stream stays bitwise equal to its solo run.
 
+## Overlap stalls (lane ink-hip-overlap2)
+
+### Brief (coordinator, 2026-11-26 23:38 EST; written here 23:36 by `date`; the user is asleep and said "keep working")
+
+In substance, every rule kept:
+- Background: PR #542 (draft, `ink/hip-overlap` @ 2b3550800) failed gate 4 at 8 streams (ITL p99 ratio 0.422 [-0.02, 0.863], limit
+  0.70): S3's B had three stalls of 0.34-0.41 s, cause unknown. Also against overlap: ITL p90 1.3-2.1x, TTFT max 1.07-1.21x, ITL p99
+  at 4 streams worse in 2 of 3 windows. Parked as a draft: ~350 lines of shared `scheduler.rs` / `engine/batch.rs` plus HIP
+  `device.rs` and `ik_runtime.{h,hip}`, no Metal or Qwen-on-HIP no-op check, gate failed.
+- Where: this worktree, scratch under `.scratch/`; this doc, new top section (this one); raw under `raw/` (`s1/`-`s5/`,
+  `speed_sum.py`); tatooine tree `~/intarsiaml-ink-hip-bpf` only (o4, main5 in `.scratch/bin/`); fleet / window rules in
+  `.worktrees/hip-swarm/COMMON-1126.md` (this brief wins where they differ).
+- Step 1 (Mac only, no GPU): line up S3's three stalls against chunk boundaries and sizes, admission / plan changes, allocations and
+  workspace growth, the minimum decode interval while a chunk is in flight, the stream waits at both handoffs, the per-stream
+  counters, graph capture / replay misses, the request arrival pattern; check S1 / S2 / S5 for smaller versions. One hypothesis and
+  how to test it; if the logs cannot decide, the cheapest opt-in instrumentation (no change to the default path).
+- Step 2: merge `origin/main` (a merge, never a rebase) only once `gh pr view 544 --json state` is MERGED. Expect conflicts: #543
+  `model/batch.rs`; #541 and #544 `model/inkling2.rs`; #544 HIP `device.rs`. Then the full cpu suite on endor (`fleetq run --host
+  endor --load cpu`): core lib, `tests/scheduler.rs`, models tests, CLI `docs_env_vars`.
+- Step 3: fix the cause if found; regate with gate 4 exactly as section 4 pre-registered (no threshold change): paired windows vs
+  main, S1-S3's shapes, n >= 3; report ITL p90 and TTFT max next to the gated metrics.
+- Step 4, no-op gates before any merge: Metal (greedy md5 main vs branch on Inkling + the Metal tiny suite, one exclusive endor
+  slot <= 15 min, queued behind the other Metal lane); Qwen on HIP (greedy md5 main vs branch for the 35B in intarsiaml's own
+  container, in a radiance window, `INTARSIA_OVERLAP` unset and `=1`; batched serve at 4 streams equals solo); Inkling HIP (every
+  check of section "Bitwise" on the merged head).
+- Step 5: update #542, keep it a **draft**, `INK_OVERLAP_DEFAULT = false`; results here, speed table first; LOG.md row; unanimis
+  capture (no `project` / `scope`, `intarsiaml` in `source`). If gate 4 and the no-op gates pass, say so; default-on is the user's
+  call in the morning; nothing default-on merged tonight. PR body keeps the Claude Code line last; commits end with the
+  Co-Authored-By line.
+- Budget: radiance <= 15 min in total, each window <= 5 min, none after 06:00 EST; lane ink-hip-specflip has priority on radiance
+  (queue behind its windows, never start ahead of its queued jobs). Metal: one exclusive slot <= 15 min. Every fleet command through
+  fleetq with an honest `--expect`; builds / tests `--load cpu`; windows `--host tatooine-r9700 --takes-down radiance --quiet
+  gpu,cpu`. Never `fleetq release` a running window job (abort = kill the driver's tree, then confirm `curl -s
+  http://tatooine:8080/v1/models`); confirm radiance answers after every window. No tool call or wait over 4 min. No new folders,
+  none deleted.
+- Stop rules: no testable hypothesis from step 1 -> report that, no blind reruns. Two failed fix attempts -> stop and name the
+  assumption that might be wrong.
+- Final report <= 15 lines: stall cause with evidence; speed table (gate-4 metrics with 95 % CI, ITL p90, TTFT max); gate-4
+  verdict; each no-op gate; PR head sha; radiance and Metal minutes; not verified; fleetq ids.
+
+Later go-aheads from the coordinator are written below as they arrive.
+
 ## Result (2026-11-26 ~21:45): overlap works and is bitwise, but gate 4 fails at 8 streams, so it ships opt-in
 
 Speed, gate 4's paired windows S1 (AB), S2 (BA), S3 (AB): A = main5 (main a4c8f3b19, #538 packing on), B = o4 (overlap on, pace
