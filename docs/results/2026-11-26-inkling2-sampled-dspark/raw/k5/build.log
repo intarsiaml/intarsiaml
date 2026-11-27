@@ -1,0 +1,19 @@
+fleetq: #12277 waiting (#1 in line): #12276 "ink-dflash2: W1 md5 gate, traces, variants, admission, tiny hip (<5 min down)" (claude-04c0e1cd) needs cpu quiet on tatooine-r9700, and this job loads it
+fleetq:   #12276 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12276 set, or it will wait for #12276 to be released.
+fleetq: #12277 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-sampled/.scratch/tat/build_k5.sh'
+[build] branch 19:27:58
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 2m 39s
+cli build exit 0
+6667e0667c7964f4b495934fd8f7a6d4  /home/josef/intarsiaml-ink-sampled/.scratch/bin/intarsia-br5
+[build] main 19:30:40
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 2m 23s
+cli build exit 0
+1212314c1f79be0b94b93d63a17ea899  /home/josef/intarsiaml-ink-sampled/.scratch/main-src/.scratch/bin/intarsia-main5
+[build] done 19:33:04
+6667e0667c7964f4b495934fd8f7a6d4  /home/josef/intarsiaml-ink-sampled/.scratch/bin/intarsia-br5
+1212314c1f79be0b94b93d63a17ea899  /home/josef/intarsiaml-ink-sampled/.scratch/bin/intarsia-main5
+fleetq: #12277 done (exit 0)

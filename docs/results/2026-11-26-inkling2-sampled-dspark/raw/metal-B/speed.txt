@@ -1,0 +1,42 @@
+processes: 16, reps [1, 2, 3, 4]
+T 1.0: ids identical across 8 processes (on and off): yes
+T 0.7: ids identical across 8 processes (on and off): yes
+
+| T | class | off tok/s (mean) | on tok/s (mean) | on / off (geo mean) | 95 % CI | pairs | acceptance | tokens / pass |
+|---|---|---:|---:|---:|---|---:|---:|---:|
+| 1.0 | short | 76.02 | 85.59 | 1.126 | [1.117, 1.135] | 4 | 52.7 % | 2.11 |
+| 1.0 | 1k | 73.93 | 80.91 | 1.095 | [1.077, 1.113] | 4 | 50.9 % | 2.17 |
+| 1.0 | 4k | 71.69 | 92.52 | 1.291 | [1.281, 1.301] | 4 | 72.6 % | 2.68 |
+| 0.7 | short | 75.97 | 87.13 | 1.147 | [1.140, 1.154] | 4 | 52.6 % | 2.13 |
+| 0.7 | 1k | 73.50 | 79.98 | 1.088 | [1.078, 1.098] | 4 | 46.8 % | 2.04 |
+| 0.7 | 4k | 71.55 | 101.48 | 1.418 | [1.386, 1.451] | 4 | 86.0 % | 3.06 |
+
+per prompt: on / off (geo mean over reps), acceptance, tokens per pass
+  T 1.0 short_a  1.179 (4 pairs) | 45.7 %, 2.09
+  T 1.0 short_b  0.862 (4 pairs) | 36.2 %, 1.46
+  T 1.0 short_c  1.526 (4 pairs) | 69.6 %, 2.82
+  T 1.0 len1k    1.095 (4 pairs) | 50.9 %, 2.17
+  T 1.0 len4k    1.291 (4 pairs) | 72.6 %, 2.68
+  T 0.7 short_a  1.051 (4 pairs) | 37.3 %, 1.91
+  T 0.7 short_b  0.971 (4 pairs) | 53.1 %, 1.69
+  T 0.7 short_c  1.576 (4 pairs) | 71.3 %, 2.91
+  T 0.7 len1k    1.088 (4 pairs) | 46.8 %, 2.04
+  T 0.7 len4k    1.418 (4 pairs) | 86.0 %, 3.06
+
+per process: GPU s above 65 W, mean GPU W (macmon, 250 ms samples), short / 1k / 4k tok/s
+  off07 r1    1.0 s   15.3 W  76.21 73.69 70.95
+  off1  r1    1.2 s   24.3 W  76.08 74.12 71.87
+  on07  r1    1.5 s   23.3 W  87.79 80.60 102.81
+  on1   r1    1.5 s   23.4 W  85.98 80.20 92.35
+  off07 r2    1.2 s   23.4 W  76.52 73.52 72.52
+  off1  r2    1.2 s   23.9 W  75.96 73.78 71.95
+  on07  r2    1.2 s   28.3 W  87.77 80.35 101.99
+  on1   r2    1.2 s   28.3 W  85.89 81.53 93.50
+  off07 r3    1.5 s   24.1 W  75.35 73.23 71.35
+  off1  r3    1.2 s   24.3 W  76.01 74.42 71.43
+  on07  r3    1.5 s   28.7 W  86.45 79.11 100.31
+  on1   r3    1.5 s   28.5 W  85.49 80.96 92.15
+  off07 r4    1.2 s   24.5 W  75.81 73.56 71.39
+  off1  r4    1.2 s   24.2 W  76.01 73.39 71.51
+  on07  r4    1.5 s   28.5 W  86.51 79.85 100.79
+  on1   r4    1.2 s   28.5 W  85.01 80.96 92.09
