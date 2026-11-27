@@ -1,0 +1,35 @@
+processes: 8 (8 complete, 19 prompts each); reps ['r1', 'r2', 'r3', 'r4']
+ids identical across every arm and rep: yes
+spec dspark: verify passes 5584, proposed 17648, accepted 9624 (54.5 %, 2.72 tokens a pass), 4 processes
+spec dfl: verify passes 4292, proposed 29836, accepted 12496 (41.9 %, 3.91 tokens a pass), 4 processes
+
+| decode, arm / dspark | short | 1k | 4k | 16k | prose | chat | code |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| dfl | **1.190** [1.182-1.199; boot 1.133-1.252] | **1.047** [1.041-1.052] | **0.905** [0.901-0.909] | **0.950** [0.946-0.954] | **1.045** [1.042-1.048; boot 1.022-1.068] | **1.154** [1.146-1.161; boot 1.106-1.200] | **1.584** [1.575-1.594; boot 1.504-1.667] |
+
+| decode tok/s, median [range] | short | 1k | 4k | 16k | prose | chat | code |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| dspark | 109.40 [109.36-109.91] | 101.84 [101.78-102.09] | 116.95 [116.86-117.38] | 90.87 [90.78-91.10] | 120.94 [120.84-121.18] | 100.22 [100.19-100.64] | 127.19 [127.12-127.62] |
+| dfl | 130.13 [130.03-131.07] | 106.54 [106.31-107.13] | 105.85 [105.75-106.23] | 86.29 [86.24-86.65] | 126.34 [126.29-126.69] | 115.56 [115.48-116.28] | 201.41 [201.29-202.52] |
+
+per process (class geomean tok/s):
+  dfl@r1: short 130.20 1k 106.66 4k 105.93 16k 86.33 prose 126.34 chat 115.61 code 201.38 | spec (1073, 7459, 3124)
+  dfl@r2: short 130.07 1k 106.31 4k 105.78 16k 86.24 prose 126.33 chat 115.51 code 201.45 | spec (1073, 7459, 3124)
+  dfl@r3: short 131.07 1k 107.13 4k 106.23 16k 86.65 prose 126.69 chat 116.28 code 202.52 | spec (1073, 7459, 3124)
+  dfl@r4: short 130.03 1k 106.41 4k 105.75 16k 86.24 prose 126.29 chat 115.48 code 201.29 | spec (1073, 7459, 3124)
+  dspark@r1: short 109.91 1k 102.09 4k 117.38 16k 91.10 prose 121.18 chat 100.64 code 127.62 | spec (1396, 4412, 2406)
+  dspark@r2: short 109.36 1k 101.78 4k 116.86 16k 90.78 prose 120.86 chat 100.20 code 127.12 | spec (1396, 4412, 2406)
+  dspark@r3: short 109.44 1k 101.85 4k 117.00 16k 90.88 prose 121.02 chat 100.25 code 127.22 | spec (1396, 4412, 2406)
+  dspark@r4: short 109.36 1k 101.82 4k 116.90 16k 90.86 prose 120.84 chat 100.19 code 127.16 | spec (1396, 4412, 2406)
+
+tokens per verify pass (passes and accepted summed over the processes): | short | 1k | 4k | 16k | prose | chat | code |
+| dspark | 2.66 | 2.68 | 3.22 | 2.47 | 3.06 | 2.40 | 3.19 |
+| dfl | 3.92 | 3.58 | 3.64 | 3.23 | 4.04 | 3.61 | 6.46 |
+
+prefill tok/s per class (median over processes of the class's summed tokens / summed ms): | short | 1k | 4k | 16k | prose | chat | code |
+| dspark | 551 | 2774 | 3420 | 3232 | 1862 | 537 | 667 |
+| dfl | 549 | 2774 | 3418 | 3226 | 1859 | 533 | 664 |
+| ms per verify pass | short | 1k | 4k | 16k | prose | chat | code |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| dspark | 27.07 | 28.44 | 29.44 | 29.22 | 29.35 | 26.29 | 25.69 |
+| dfl | 31.43 | 33.41 | 34.39 | 37.38 | 32.47 | 31.47 | 32.07 |

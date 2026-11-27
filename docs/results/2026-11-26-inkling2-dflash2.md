@@ -1,6 +1,7 @@
 # Inkling-2-Mini + DFlash 2 drafter on one R9700 (lane ink-dflash2, 2026-11-26)
 
-Status: in progress. Branch `ink/dflash2` from origin/main `178d87ece`. Opt-in only; no default changes.
+Status: **OPT-IN** by the pre-registered rule (faster on short / 1k / prose / chat, slower at 4k and 16k). Branch `ink/dflash2` from
+origin/main `178d87ece` (main `a4c8f3b19` merged in after the measurements). Opt-in only; no engine default changes.
 
 ## Brief (coordinator, 2026-11-26 ~18:55 EST; user approved "Yes, start the probe", incl. the 990 MB download)
 
@@ -135,6 +136,63 @@ Work folders: Mac `.worktrees/ink-dflash2`; tatooine `~/intarsiaml-ink-dflash2`,
 - ABBA DFlash2 arm: binary `dfl5` (branch head: embed_norm on, mxfp4 draft head on HIP), `--spec dflash --spec-draft
   /models/Inkling-2-Mini-DFlash2 --spec-k 7`, no env. DSpark arm: the same binary, no `--spec` flags. Window 3 = A B B A (reps
   r1 r2), window 4 = B A A B (reps r3 r4). The rule and the cells are unchanged. No k sweep (radiance budget: 6 min 37 s used of 20).
+
+## Speed: DFlash2 k7 vs DSpark k5, ABBA 4 + 4 (windows 3 and 4)
+
+Windows: 3 = fleetq #12297 (19:58:39-20:02:24 EST, radiance down 3 min 45 s, A B B A, reps r1 r2); 4 = #12305 (20:10:15-20:14:00,
+3 min 45 s, B A A B, reps r3 r4). Card 0, one process at a time, binary `dfl5` (md5 `c00616e706713da142eade4c41142e57`, the branch
+before the main merge). Arms: `dspark` = no `--spec` flags (main's default, DSpark k5 cut 0.5); `dfl` = `--spec dflash --spec-draft
+/models/Inkling-2-Mini-DFlash2 --spec-k 7` (embed_norm, mxfp4 draft head: the branch defaults). `raw/speed.json`, 256 tokens,
+greedy, EOS honoured. Ratio per (prompt, rep), geometric mean per cell, 95 % CI = t over the 4 rep pairs (`raw/speed.py`, output
+`raw/speed-analysis.txt`, logs `raw/ab/`).
+
+| | DSpark k5 (main's default), tok/s | DFlash2 k7, tok/s | change | DFlash2 / DSpark, 95 % CI |
+|---|---:|---:|---:|---:|
+| prefill 4k (4108 ids) | 3420 | 3418 | -0.2 % | 0.998 [0.992-1.004] |
+| prefill 16k (16455 ids) | 3232 | 3226 | -0.3 % | 0.998 [0.991-1.004] |
+| spec decode, short (12 golden) | 109.40 | 130.13 | **+19.0 %** | **1.190** [1.182-1.199] |
+| spec decode, 1k | 101.84 | 106.54 | **+4.7 %** | **1.047** [1.041-1.052] |
+| spec decode, 4k | 116.95 | 105.85 | **-9.5 %** | **0.905** [0.901-0.909] |
+| spec decode, 16k | 90.87 | 86.29 | **-5.0 %** | **0.950** [0.946-0.954] |
+| spec decode, prose (long_prose_300 / 700) | 120.94 | 126.34 | **+4.5 %** | **1.045** [1.042-1.048] |
+| spec decode, chat (8 chat golden) | 100.22 | 115.56 | **+15.4 %** | **1.154** [1.146-1.161] |
+| extra (not in the rule): code (golden code + code_tests) | 127.19 | 201.41 | **+58.4 %** | **1.584** [1.575-1.594] |
+
+tok/s = median over the 4 processes of the cell's geometric mean. The DSpark arm reproduces main's numbers (lane ink-hip-combined
+on `178d87ece`: short 109.57, 1k 102.01, 4k 117.12, 16k 91.01). Prefill: same processes, ratio per rep.
+
+| per cell | short | 1k | 4k | 16k | prose | chat | code |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| tokens per pass, DSpark k5 | 2.66 | 2.68 | 3.22 | 2.47 | 3.06 | 2.40 | 3.19 |
+| tokens per pass, DFlash2 k7 | 3.92 | 3.58 | 3.64 | 3.23 | 4.04 | 3.61 | 6.46 |
+| decode ms per verify pass, DSpark k5 | 27.07 | 28.44 | 29.44 | 29.22 | 29.35 | 26.29 | 25.69 |
+| decode ms per verify pass, DFlash2 k7 | 31.43 | 33.41 | 34.39 | 37.38 | 32.47 | 31.47 | 32.07 |
+
+(ms per pass = decode ms / verify passes, pooled over the 4 processes, `raw/perpass.py`.) The draft / verify split per pass is from
+the traces (window 2 DFlash2 k7, window 1 DSpark k5; traced runs, a few % slower): DFlash2 draft 4.9-5.4 ms (block 2.4, head 1.8 bf16
+/ about 0.5 less with mxfp4), verify + rollback at 8 rows 28.4 ms; DSpark draft 2.9-3.7 ms, verify at its 2-6 rows 15.3-24.9 ms.
+
+Every process's ids are identical across arms and reps (19 prompts x 8 processes), and prompts 1-15 equal main `178d87ece`'s
+spec-default ids (lane ink-hip-combined `raw/c1/speed/new@c0a.err`; prompt 0, the warm-up, is a different prompt there).
+
+**Why long contexts lose:** DFlash2 accepts more at every length (3.64 vs 3.22 at 4k, 3.23 vs 2.47 at 16k), but its passes cost
+5-8 ms more, and the gap grows with context (+4.4 ms short, +5.0 ms 4k, +8.2 ms 16k). On HIP the verify rows run the row-exact
+kernels with one attention decode call per row (bitwise the single-row decode), so an 8-row verify reads the whole context 8 times;
+the draft's own attention is windowed (2048) and does not grow. A batched, still-bitwise multi-row verify attention is the lever
+that would decide 4k / 16k; it belongs to the HIP verify lanes (ink-hip-spec / ink-hip-vrow ownership), not this one.
+
+## Verdict against the pre-registered rule
+
+- GO needs: best single k >= 1.03x on the mean over the cells (k7: geomean of the six cells 1.044, arithmetic 1.049: met), no cell
+  more than 1 % slower (4k CI upper 0.909, 16k CI upper 0.954: **failed**), every md5 equal (met).
+- **OPT-IN**: faster on short (+19.0 %), 1k (+4.7 %), prose (+4.5 %) and chat (+15.4 %), slower on 4k (-9.5 %) and 16k (-5.0 %).
+- k: k7 by the pre-registered predictor (window 2). Per prompt the predictor puts k3 ahead on warm / chat / 4k / prose; it never
+  puts any k above DSpark at 4k (k3 predicted 113.0 vs DSpark 117.6 traced), so no single k turns 4k around.
+- Card comparison (tokens per pass; the card is SGLang, H200, T = 1.0, 7 drafts; ours greedy): card DFlash2 GSM8K 4.96, HumanEval
+  4.80, MBPP 4.88, MT-Bench 3.90; ours code 6.46, chat 3.61, prose 4.04, short 3.92. Card DSpark 3.52 / 3.66 / 3.49 / 2.95; ours
+  (k5, cut 0.5) 2.40-3.22. The card's 1.3-1.4x acceptance gain over DSpark holds here (1.31-2.02x); its speedup does not carry to
+  long contexts on this card. Like RAD's R9700 report and our 27B (LOG 2026-11-06 20:30), code gains most; unlike both, prose and
+  chat gain here too (prose +4.5 %, chat +15.4 %).
 
 ## Later messages from the coordinator
 

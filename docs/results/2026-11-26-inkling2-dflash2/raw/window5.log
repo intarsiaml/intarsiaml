@@ -1,0 +1,4 @@
+fleetq: #12312 waiting (#2 in line): in line behind #12307 "ink-hip-i8: sync + build retuned (cli + ink_i8 test)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12307 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12307 set, or it will wait for #12307 to be released.
+fleetq: #12312 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12307 "ink-hip-i8: sync + build retuned (cli + ink_i8 test)" (claude-04c0e1cd) loads it
+fleetq:   #12307 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12307 set, or it will wait for #12307 to be released.
