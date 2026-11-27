@@ -57,6 +57,19 @@ cache copy of fleetq #12464, nothing linked or created), Metal, exclusive fleetq
 
 Metal budget: <= 25 min of exclusive slots in all, each <= 15 min, none after 07:00 EST.
 
+**Added after slots A to D (advisor review, 04:15 EST, before slot E; information only, same FLAG thresholds as 2c):**
+
+- **2c-sampled.** Check 2c as run in slot D was a greedy ABBA; the brief put the speed pair under the sampled-requests check, and the unpaired slot C
+  numbers hint that sampled plain steps under a draft may be slower (T 1.0: off 75.9, dfl5 70.1 tok/s). Slot E repeats the ABBA sampled:
+  `generate --temperature 1.0 --top-k 0 --top-p 1.0 --seed 7 --ignore-eos --max-tokens 256 --prompt-ids abba3.json`, arms default / dfl5 / dfl5 / default,
+  45 s idle before each, the `warm` prompt excluded, `spec: verify passes` read from each log (both arms must take plain steps). FLAG when the
+  geometric mean of the 3 prompts' dfl5 / default ratios is below 0.98 or any prompt's is below 0.95.
+- **2d, seed stream on one engine with prefix reuse.** The real-model harness `inkling2_sampled_real` (one engine, requests in a row on one
+  prompt, so each request reuses the previous request's KV prefix), `INTARSIA_SPEC_SAMPLED_DFLASH=0`, seeds 0..99 at T 1.0 and T 0.6, 16 tokens:
+  arm X = `--spec dflash` with the DFlash2 drafter at k5 (`INTARSIA_SS_DRAFT`, `INTARSIA_SS_K=5`), arm Y = the checkpoint's own DSpark draft at k3
+  (today's default draft). PASS iff the 200 lines of X and Y are identical (both take plain steps for sampled requests, so a difference would be a
+  side effect of the DFlash2 draft's presence). The reference is the DSpark-loaded engine, not `--spec off`; 2b covers `--spec off`.
+
 ## Deviations from the pre-registered rules (all forced by `serve` start-up cost; none relaxes a pass condition)
 
 - **`serve` admits kernels at every start (`for_serving`, `require_admitted`), and a new binary / plan starts cold.** Slot A's first `serve` arm
