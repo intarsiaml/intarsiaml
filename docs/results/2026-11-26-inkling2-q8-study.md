@@ -207,6 +207,7 @@ All on endor, `--load cpu`, `--mem 30` (4k runs 30 as well after #12149's update
 | #12149 | 4k: bf16, C, A, B (3658 / 2310 / 3183 / 2391 s) |
 | #12151 | `docs_env_vars` 2 / 2, `recipes_doc` 3 / 3, `intarsia-core` inkling2 lib tests 4 / 4 |
 | #12202 | push `ink/q8-study` |
+| #12263 | after merging origin/main (80719483a): build, head tests 8 / 8, `docs_env_vars` 2 / 2, `recipes_doc` 3 / 3, C short re-run tensor-identical to the pre-merge C |
 
 Raw self-goldens, logs and the scripts (`.scratch/acc.sh`, `.scratch/py/{confident,sgcmp,perprompt,summary}.py`, `.scratch/table.sh`) are
 in `.worktrees/ink-q8/.scratch` (git-ignored).
