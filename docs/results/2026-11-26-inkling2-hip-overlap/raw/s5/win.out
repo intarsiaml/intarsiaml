@@ -1,0 +1,15 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/stage_s5.sh; cap 210s; stopping radiance 2026-11-26 21:53:36
+[window] radiance stopped 2026-11-26 21:53:39 (inactive)
+[s5] start 2026-11-26 21:53:39
+[s5] card0:
+[solo-o5] (o5, card 0) up after 115s (0 = not up) 2026-11-26 21:55:34: admission on plan shapes: 27 kernel(s) checked, 6 case(s) run, 106 cached loaded ink on hip (AMD Radeon Graphics) in 113.9s, context 4608 tokens 
+[solo-o5] intarsia_kv_tokens_capacity 4608 VRAM card0 21321 MiB
+[solo-o5] bitwise solo exit 0 2026-11-26 21:56:09: wall 34.15 s, aggregate 60.0 tok/s, latency median 2.01 s max 2.99 s, prompt tokens 25752, cached 0, ttft median 0.4623 max 1.4188940525054932, itl p50 0.0123 p99 0.0248
+[s5] card1:
+[solo-o4] (o4, card 1) up after 116s (0 = not up) 2026-11-26 21:55:35: admission on plan shapes: 27 kernel(s) checked, 6 case(s) run, 106 cached loaded ink on hip (AMD Radeon Graphics) in 115.1s, context 4608 tokens 
+[solo-o4] intarsia_kv_tokens_capacity 4608 VRAM card1 21321 MiB
+[solo-o4] bitwise solo exit 0 2026-11-26 21:56:09: wall 33.94 s, aggregate 60.3 tok/s, latency median 2.0 s max 2.97 s, prompt tokens 25752, cached 0, ttft median 0.459 max 1.4025366306304932, itl p50 0.0122 p99 0.0247
+[s5] done 2026-11-26 21:56:10
+[window] stage done 2026-11-26 21:56:11 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 21:56:11
+[window] radiance answers 2026-11-26 21:56:21 (after 15 s)

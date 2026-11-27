@@ -36,7 +36,11 @@ aggregate real 16 125.8 -> 124.5, filler 16 154.2 -> 153.3 tok/s.
 - **Bitwise**: every serve run with overlap matched: S1-S3 card 0 B = A (4/4, 8/8, 16/16 each window, nonce'd prompts); S3 card 1
   o4 at pace 0 / 150 / 300 and main5, 8/8 and 16/16 each vs W4's solo replies; poisoned o4 (`INTARSIA_HIP_POISON=ff`) 16/16 and
   4 x 4/4; O1-O4 before. Greedy md5 8 / 8 = main for o4 `--spec off`, main5 DSpark and the merged head o5 (both modes). G2 short
-  4.491e-3 / long 4.083e-3, o4 = main5. Window S4 (the merged head's batched and solo servers): see its section.
+  4.491e-3 / long 4.083e-3, o4 = main5. The merged head o5 (S4 / S5): overlap on 8/8 and 16/16, `INTARSIA_OVERLAP=0` 8/8 and 16/16, solo server 16/16 (o4 16/16
+too); hip tiny `inkling2_batch` 10/10 and `inkling2_packed` 6/6 on the PR-head tree; cpu tests of the PR head pass (endor).
+- **Not verified**: speed of the PR head itself (gate 4 measured o4; the merge adds only opt-in sampled-DSpark code, and o5's
+  md5 / decode tok/s match o4's); the PR head binary with the flipped constant was built (`--features hip`) but not run on the GPU:
+  its unset default takes the branch S4 ran with `INTARSIA_OVERLAP=0`. The cause of S3's three 0.34-0.41 s stalls with overlap on.
 
 ## Briefs received
 
@@ -458,7 +462,20 @@ cpu tests of the PR head (22f76ac23 tree, overlap opt-in) on endor (fleetq #1236
 scheduler 54, batch_recurrent 15, inkling2 17, inkling2_batch 10, inkling2_dspark_sampled 2 (+3 ignored), inkling2_dspark_sampled_gumbel
 1, inkling2_packed 6, prefix_store 39, docs_env_vars 2, server lib 71: all pass.
 
+### S5: checks only, the solo servers (fleetq #12368; radiance down 21:53:36 - 21:56:21 = 2:45)
+
+`raw/window_s5.sh` + `raw/stage_s5.sh`; raw `raw/s5/card/`. Both solo servers at once (`--max-seq 4608 --spec off`, no
+`--max-batch`: W4's config), o5 (merged head) on card 0, o4 on card 1: each up after ~115 s (admission 27 kernels, 6 cases run, 106
+cached; the P12 cases are the slow ones), then the 16 real prompts one at a time: **o5 16/16 and o4 16/16 equal W4's solo replies**
+(wall 34.2 / 33.9 s, W4's b10 / main3 34.8 / 34.0 s). Gate 2's solo-server item is closed.
+
+Radiance for brief 3: O1 4:04, O2 3:32, O3 4:17, O4 4:02, S1 3:58, S2 3:09, S3 3:06, S4 3:11, S5 2:45 = **32:04** (30 min plus the
+coordinator's extra 5). The resumed agent's share: S2-S5 = 12:11 of the ~15 left at the resume brief.
+
 ## Parked 2026-11-26 20:40 (coordinator: Claude Desktop restart)
+
+(Resumed 2026-11-26 ~21:00 by a new agent: S1 checked valid, S2-S5 run, gate 4 verdict and the opt-in default in the Result
+section at the top. The text below is the parked state as it was.)
 
 - **Head**: the commit that adds this section (parent 32bd1e389), branch `ink/hip-overlap`, local only (not pushed; origin has none of it).
   Candidate binary o4 = 8ed77739d (md5 38475e68394d85800f5e970d39006508), baseline main5 = origin/main a4c8f3b19 (md5
