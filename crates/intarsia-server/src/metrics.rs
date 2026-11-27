@@ -242,6 +242,13 @@ pub fn render_batch(b: &intarsia_core::scheduler::BatchMetrics) -> String {
     );
     metric(
         &mut o,
+        "intarsia_batch_overlap_steps_total",
+        "counter",
+        "Decode phases run while a prefill chunk or packed pass was in flight on its own stream (INTARSIA_OVERLAP).",
+        b.overlap_steps,
+    );
+    metric(
+        &mut o,
         "intarsia_batch_running",
         "gauge",
         "Requests holding a KV slot, prefilling or decoding, as of the end of the scheduler's last iteration.",

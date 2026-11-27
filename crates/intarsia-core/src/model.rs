@@ -3898,7 +3898,7 @@ impl Model {
         }
         let (d, esz) = (&self.dims, self.act.size_bytes());
         let mut w = vec![d.hidden * esz, d.n_heads * d.head_dim * esz, d.n_kv_heads * d.head_dim * esz, im.dims.top_k * 4];
-        for l in &im.layers {
+        for l in im.layers.iter() {
             w.extend([l.nq * esz, l.nk * esz, d.n_heads * l.relproj.shape[1] * esz]);
         }
         let need = |b: usize| 16 / gcd(b, 16);
@@ -4082,6 +4082,18 @@ impl Model {
     /// Whether this is an Inkling-2 model (`inkling2_loop`).
     pub fn is_inkling(&self) -> bool {
         self.ink.is_some()
+    }
+
+    /// Lane ink-hip-overlap: whether a batching engine runs prefill/decode overlap (R3d) when `INTARSIA_OVERLAP` is unset: Inkling-2
+    /// on HIP when [`inkling2::INK_OVERLAP_DEFAULT`] is on (off since gate 4, so opt-in there too); every other model and backend
+    /// keeps it opt-in.
+    pub fn overlap_default(&self) -> bool {
+        self.ink.is_some() && self.backend.name() == "hip" && inkling2::INK_OVERLAP_DEFAULT
+    }
+
+    /// Lane ink-hip-overlap: this model's `INTARSIA_OVERLAP_PACE_MS` default when the variable is unset; `None`: the engine's.
+    pub fn overlap_pace_default_ms(&self) -> Option<u64> {
+        self.ink.is_some().then_some(inkling2::INK_OVERLAP_PACE_MS_DEFAULT)
     }
 
     /// Inkling-2 only (tests, lane ink-hip-bpf): [`Model::ink_prefill_packed`]'s pass over `items` with the oracle-named

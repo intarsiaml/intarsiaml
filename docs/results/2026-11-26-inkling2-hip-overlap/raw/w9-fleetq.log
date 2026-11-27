@@ -1,0 +1,26 @@
+fleetq: #12505 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12503 "ink-hip-specflip: cargo check of the (a) dual-drafter tree (cpu, dev image)" (claude-04c0e1cd) loads it
+fleetq:   #12503 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12503 set, or it will wait for #12503 to be released.
+fleetq: #12505 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=80 BG_CAP=78 bash ~/intarsiaml-ink-hip-bpf/.scratch/window.sh ~/intarsiaml-ink-hip-bpf/.scratch/stage_w9.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/stage_w9.sh; cap 80s; stopping radiance 2026-11-27 00:37:02
+[window] radiance stopped 2026-11-27 00:37:06 (inactive)
+[pace-p0-o6] (o6, card 0) up after 18s (0 = not up) 2026-11-27 00:37:23: admission on plan shapes: 23 kernel(s) checked, 0 case(s) run, 134 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 16.6s, context 4608 tokens 
+[pace-p0-o6] intarsia_kv_tokens_capacity 73728 VRAM card0 28497 MiB
+[pace-p0-o6] bitwise conc exit 0 2026-11-27 00:37:39: wall 16.58 s, aggregate 123.5 tok/s, latency median 14.77 s max 16.57 s, prompt tokens 25752, cached 0, ttft median 2.9826 max 12.236602544784546, itl p50 0.0678 p99 0.2207
+[pace-p0-o6] bitwise conc:8:0 exit 0 2026-11-27 00:37:48: wall 8.99 s, aggregate 113.9 tok/s, latency median 8.3 s max 8.98 s, prompt tokens 12019, cached 0, ttft median 1.8444 max 5.56204891204834, itl p50 0.0338 p99 0.1437
+[pace-p0-o6] intarsia_batch_overlap_steps_total 191
+[pace-p300-o6] (o6, card 1) up after 18s (0 = not up) 2026-11-27 00:37:23: admission on plan shapes: 23 kernel(s) checked, 0 case(s) run, 134 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 16.5s, context 4608 tokens 
+[pace-p300-o6] intarsia_kv_tokens_capacity 73728 VRAM card1 28497 MiB
+[pace-p300-o6] bitwise conc exit 0 2026-11-27 00:37:39: wall 16.11 s, aggregate 127.1 tok/s, latency median 15.39 s max 16.11 s, prompt tokens 25752, cached 0, ttft median 2.6416 max 10.083620309829712, itl p50 0.0569 p99 0.3454
+[pace-p300-o6] intarsia_batch_overlap_steps_total 39
+[tiny] inkling2 (o6 tree) exit 101 2026-11-27 00:37:42
+[tiny inkling2] test inkling2_tiny_chunk_scan ... ok
+[tiny inkling2] test inkling2_tiny_launch_diff ... ok
+[tiny inkling2] test inkling2_tiny_logits_dump ... ok
+[tiny inkling2] thread 'inkling2_tiny_screen_keeps_batching' panicked at crates/intarsia-models/tests/inkling2.rs:106:38:
+[tiny inkling2] thread 'inkling2_tiny_screened_head_one_row_only' panicked at crates/intarsia-models/tests/inkling2.rs:106:38:
+[tiny inkling2] test result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.58s
+[w9] done 2026-11-27 00:37:49
+[window] stage done 2026-11-27 00:37:50 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-27 00:37:50
+[window] radiance answers 2026-11-27 00:38:00 (after 15 s)
+fleetq: #12505 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

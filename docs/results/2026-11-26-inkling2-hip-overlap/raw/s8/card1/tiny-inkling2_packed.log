@@ -1,0 +1,125 @@
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:370:9
+    |
+370 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+370 -     Ink(usize),
+370 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1394:4
+     |
+1394 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: function `split_keys` is never used
+   --> crates/intarsia-backend-cuda/src/inkattn.rs:127:4
+    |
+127 | fn split_keys() -> i32 {
+    |    ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:121:12
+    |
+121 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:139:12
+    |
+139 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:142:12
+    |
+142 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:160:12
+    |
+160 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-hip` (lib) generated 6 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/inkling2_packed.rs (/target/release/deps/inkling2_packed-1ed2245ff98f9c1a)
+
+running 6 tests
+test inkling2_overlap_engine_equals_solo_engine ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+pack12 off: the model is loaded to batch (--max-batch > 1); the bf16 weights serve every row
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+hip: stream 1 (decode lane) at priority -1
+overlap, pace 0 ms: 47 decode phases beside chunks in flight, 1 packed passes
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+hip: stream 1 (decode lane) at priority -1
+overlap, pace 2 ms: 32 decode phases beside chunks in flight, 1 packed passes
+ok
+test inkling2_packed_engine_equals_solo_engine ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+ok
+test inkling2_packed_equals_solo_real ... ok
+test inkling2_packed_equals_solo_tiny ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+2 x 17: 2 segments, 37 rows: packed == solo
+17 / 40 / 300, one resumed: 3 segments, 360 rows: packed == solo
+2048 / 1000 / 17: 3 segments, 3065 rows: packed == solo
+4096 rows, two resumed: 4 segments, 4096 rows: packed == solo
+blend tails: 3 segments, 1037 rows: packed == solo
+16 mixed: 16 segments, 1976 rows: packed == solo
+ok
+test inkling2_packed_intermediates_equal_solo ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+tiny 2 x 20: 548 segment tensors compared, 0 differ
+tiny 40 + 300, one resumed: 548 segment tensors compared, 0 differ
+ok
+test inkling2_packed_refuses_what_cannot_pack ... inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.59s
+

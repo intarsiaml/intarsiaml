@@ -49,6 +49,7 @@ int ik_rt_spin(void* stream, unsigned us);
 int ik_rt_memcpy_d2d(void* dst, const void* src, size_t n, void* stream);
 int ik_rt_memset(void* dst, int value, size_t n, void* stream);
 int ik_rt_stream_create(void** stream);
+int ik_rt_stream_create_prio(void** stream, int* prio);
 int ik_rt_stream_sync(void* stream);
 /* stream events for the per-kernel GPU-time trace (INTARSIA_HIP_TRACE) */
 int ik_rt_event_create(void** ev);

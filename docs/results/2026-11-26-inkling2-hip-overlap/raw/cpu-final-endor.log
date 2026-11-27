@@ -1,0 +1,22 @@
+fleetq: #12365 waiting (#2 in line): endor is held exclusively by #12360 "ink-sampled-adapt: Metal slot (seeds, calibration, speed off/fix/pol)" (claude-04c0e1cd); then in line behind #12364 "ink-hip-i8: cpu tests of merged head (core lib, tiny, docs, hip check)" (claude-04c0e1cd) on endor
+fleetq:   #12360 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12360 set, or it will wait for #12360 to be released.
+fleetq: #12365 running on endor: bash .scratch/cpu_endor.sh
+head 22f76ac23 start 21:42:55
+== core exit 0 (21:43:22)
+test result: ok. 274 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 16.59s
+== sched exit 0 (21:43:42)
+test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+== models exit 0 (21:47:14)
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 45.19s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.31s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.04s
+test result: ok. 2 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 62.67s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.65s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.46s
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.97s
+== docs exit 0 (21:47:31)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+== server exit 0 (21:47:50)
+test result: ok. 71 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.78s
+all exit 0 (21:47:50)
+fleetq: #12365 done (exit 0)

@@ -1,0 +1,10 @@
+[def-o5] (o5, card 0) up after 102s (0 = not up) 2026-11-26 21:45:51: admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 prefill/decode overlap: on (the default here; INTARSIA_OVERLAP=0 turns it off), decode steps at most every 150 ms beside a chunk loaded ink on hip (AMD Radeon Graphics) in 101.3s, context 4608 tokens 
+[def-o5] intarsia_kv_tokens_capacity 73728 VRAM card0 28642 MiB
+[def-o5] bitwise conc:8:0 exit 0 2026-11-26 21:46:00: wall 8.77 s, aggregate 116.8 tok/s, latency median 8.33 s max 8.76 s, prompt tokens 12019, cached 0, ttft median 1.7076 max 5.069377422332764, itl p50 0.0334 p99 0.1892
+[def-o5] bitwise conc exit 0 2026-11-26 21:46:16: wall 16.56 s, aggregate 123.6 tok/s, latency median 15.04 s max 16.56 s, prompt tokens 25752, cached 0, ttft median 2.754 max 11.701805830001831, itl p50 0.0577 p99 0.239
+[def-o5] intarsia_batch_overlap_steps_total 113
+[off-o5] (o5, card 0) up after 17s (0 = not up) 2026-11-26 21:46:33: admission on plan shapes: 23 kernel(s) checked, 0 case(s) run, 134 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 16.0s, context 4608 tokens 
+[off-o5] intarsia_kv_tokens_capacity 73728 VRAM card0 28464 MiB
+[off-o5] bitwise conc:8:0 exit 0 2026-11-26 21:46:42: wall 8.70 s, aggregate 117.6 tok/s, latency median 8.6 s max 8.7 s, prompt tokens 12019, cached 0, ttft median 1.97 max 4.557456016540527, itl p50 0.0336 p99 0.585
+[off-o5] bitwise conc exit 0 2026-11-26 21:46:58: wall 16.54 s, aggregate 123.8 tok/s, latency median 16.21 s max 16.54 s, prompt tokens 25752, cached 0, ttft median 2.9634 max 9.824068546295166, itl p50 0.0576 p99 0.6247
+[off-o5] intarsia_batch_overlap_steps_total 0

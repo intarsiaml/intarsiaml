@@ -119,6 +119,16 @@ fn ink_route_fused_env() -> Option<bool> {
 /// (`Model::pack_min_rows`; lane ink-hip-bpf).
 pub(crate) const INK_ROWS_EXACT_MAX: usize = 16;
 
+/// The prefill/decode overlap default for Inkling-2 when `INTARSIA_OVERLAP` is unset (lane ink-hip-overlap,
+/// docs/results/2026-11-26-inkling2-hip-overlap.md): `true` turns it on for a batching engine (`serve --max-batch` > 1) on HIP
+/// without a prefix store. Off (opt-in with `INTARSIA_OVERLAP=1`): gate 4's paired windows S1-S3 (n = 3) cut real-prompt ITL p99
+/// at 16 streams to 0.383 [0.326, 0.440] of main's, but at 8 streams the interval's upper bound is 0.863 (rule: <= 0.70). Every
+/// stream's output is bitwise its solo run's either way.
+pub(crate) const INK_OVERLAP_DEFAULT: bool = false;
+/// The Inkling-2 default of `INTARSIA_OVERLAP_PACE_MS` (lane ink-hip-overlap, window O3): with the twin's stream at high priority,
+/// at most one decode step per 150 ms while a chunk is in flight (about 2-4 per 2048-row chunk).
+pub(crate) const INK_OVERLAP_PACE_MS_DEFAULT: u64 = 150;
+
 /// The packed prefill default when `INTARSIA_INK_PACK` is unset (lane ink-hip-bpf, docs/results/2026-11-26-inkling2-hip-bpf.md):
 /// on since window 9 (coordinator's rule: the pooled 4-stream filler TTFT p50 interval reaches 1 %; every stream bitwise its solo
 /// run). It applies only where packing can run: a batching engine (`serve --max-batch` > 1) on HIP or cpu (`Model::ink_pack_capable`).
@@ -367,7 +377,8 @@ pub(crate) struct InkPacked<'a> {
 }
 
 pub(super) struct InkModel {
-    pub layers: Vec<InkLayer>,
+    /// Shared with a decode twin ([`InkModel::twin`], lane ink-hip-overlap): the weights are read-only once loaded.
+    pub layers: std::sync::Arc<Vec<InkLayer>>,
     pub visits: Vec<InkVisit>,
     /// Planes of the block stack (`max nb_out + 1`).
     pub n_stack: usize,
@@ -1010,7 +1021,43 @@ pub(super) fn load(
         *bytes += p12_stats.bytes as u64;
         eprintln!("{}", p12_stats.note("in_proj + wo"));
     }
-    Ok(InkModel { layers, visits, n_stack, embed_norm, out_q, final_norm, msg_q_all, ws, dims: ink, act_quant, moe_layout: repack as u8 })
+    Ok(InkModel {
+        layers: std::sync::Arc::new(layers),
+        visits,
+        n_stack,
+        embed_norm,
+        out_q,
+        final_norm,
+        msg_q_all,
+        ws,
+        dims: ink,
+        act_quant,
+        moe_layout: repack as u8,
+    })
+}
+
+impl InkModel {
+    /// The decode twin's Inkling model (R3d, lane ink-hip-overlap): the same layers, visits and weights (shared, read-only),
+    /// with its own workspace of `mt` rows, so a batched decode step on the twin and a prefill pass on the main model touch
+    /// disjoint buffers.
+    pub(super) fn twin(&self, b: &dyn Backend, mt: usize, act: DType, dims: &ModelDims) -> Result<InkModel> {
+        let ws = InkWs::alloc(b, mt, act, dims, &self.dims, self.n_stack)?;
+        // the zero fills ran on stream 0; the twin launches on stream 1
+        b.synchronize(0)?;
+        Ok(InkModel {
+            layers: self.layers.clone(),
+            visits: self.visits.clone(),
+            n_stack: self.n_stack,
+            embed_norm: self.embed_norm.clone(),
+            out_q: self.out_q.clone(),
+            final_norm: self.final_norm.clone(),
+            msg_q_all: self.msg_q_all.clone(),
+            ws,
+            dims: self.dims.clone(),
+            act_quant: self.act_quant,
+            moe_layout: self.moe_layout,
+        })
+    }
 }
 
 impl InkWs {

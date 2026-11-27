@@ -1,0 +1,11 @@
+fleetq: #12346 waiting (#2 in line): in line behind #12344 "ink-dflash2: ABBA k4 w1 (a, r1 r2)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12344 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12344 set, or it will wait for #12344 to be released.
+fleetq: #12346 waiting (#1 in line): #12344 "ink-dflash2: ABBA k4 w1 (a, r1 r2)" (claude-04c0e1cd) needs cpu quiet on tatooine-r9700, and this job loads it
+fleetq:   #12344 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12344 set, or it will wait for #12344 to be released.
+fleetq: #12346 running on tatooine-r9700: bash -c 'bash docs/results/2026-11-26-inkling2-hip-overlap/raw/sync.sh && ssh -o BatchMode=yes tatooine "bash intarsiaml-ink-hip-bpf/.scratch/build.sh o5" < /dev/null'
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 24.42s
+cli build exit 0
+d20df8b1d67a7bf1182c3e292ac1e938  .scratch/bin/intarsia-o5
+fleetq: #12346 done (exit 0)
