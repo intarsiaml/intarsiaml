@@ -1883,8 +1883,10 @@ impl Model {
                         "speculative drafters other than its DSpark draft (--spec dflash --spec-draft <model dir>) or a DFlash2 draft on Inkling-2".into(),
                     ));
                 }
-                if opts.dflash.as_ref().is_some_and(dflash2) && !matches!(b.name(), "hip" | "cpu") {
-                    return Err(Error::Unsupported(format!("a DFlash2 draft on Inkling-2 on the {} backend (hip and cpu only, lane ink-dflash2)", b.name())));
+                // (Metal: lane ink-metal-dflash2, the 27B's DFlash2 ops of lane dm; the draft pass is draft-only numerics, the verify rows are
+                // the target's own, so output ids stay `--spec off`'s)
+                if opts.dflash.as_ref().is_some_and(dflash2) && !matches!(b.name(), "hip" | "cpu" | "metal") {
+                    return Err(Error::Unsupported(format!("a DFlash2 draft on Inkling-2 on the {} backend (hip, metal and cpu only, lanes ink-dflash2 / ink-metal-dflash2)", b.name())));
                 }
                 let ic = recipe.layer.other.get("ink").ok_or_else(|| Error::model("recipe [layer.ink] missing"))?;
                 let field = |k: &str| ic.get(k).and_then(|v| v.as_str()).map(String::from).ok_or_else(|| Error::model(format!("recipe [layer.ink] needs '{k}'")));
