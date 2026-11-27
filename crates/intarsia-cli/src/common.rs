@@ -376,6 +376,9 @@ impl ModelArgs {
                 mtp_draft_subset,
                 dflash: None, // set from --spec-draft by the loader
                 dflash_tp: None, // INTARSIA_DFLASH_TP (lane dh)
+                // the loader sets these (the recipe's DFlash2 drafter beside the DSpark default, lane ink-hip-specflip (a))
+                dflash_alt: None,
+                dflash_alt_k: 0,
                 prefill_macro: None, // INTARSIA_PREFILL_MACRO (Model::load)
                 row_invariant_prefill: None, // INTARSIA_ROW_INVARIANT_PREFILL (Model::load)
                 batched: false, // set by the engine loader from --max-batch (intarsia_models::load)

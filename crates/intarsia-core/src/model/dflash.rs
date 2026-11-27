@@ -324,17 +324,7 @@ pub(super) fn load_head(
 /// `dims.vocab` rows for the draft's logits (`DflashHead::full_head`), `bf16` keeps the target's head (`None`). Unset: `mxfp4` on
 /// HIP (window 2: 142.2 vs 138.9 tok/s, the same acceptance; the bf16 head is 1.8 of a 4.9 ms draft pass), `bf16` elsewhere.
 pub(super) fn dflash2_head_copy(b: &dyn Backend, target: &dyn WeightSource, unembed: &str, dims: &ModelDims, add_bytes: &dyn Fn(u64)) -> Result<Option<QTensor>> {
-    let v = std::env::var("INTARSIA_DFLASH2_HEAD").unwrap_or_default();
-    let v = match v.trim() {
-        "" if b.name() == "hip" => "mxfp4",
-        x => x,
-    };
-    let kind = match v {
-        "mxfp4" => crate::quant::head::HeadQuant::Mxfp4,
-        "fp8" => crate::quant::head::HeadQuant::Fp8,
-        "bf16" | "0" | "off" | "" => return Ok(None),
-        other => return Err(Error::invalid(format!("INTARSIA_DFLASH2_HEAD={other}: mxfp4, fp8 or bf16"))),
-    };
+    let Some(kind) = dflash2_head_kind(b)? else { return Ok(None) };
     let ui = target.info(unembed).ok_or_else(|| Error::model(format!("DFlash2 draft head: '{unembed}' missing")))?;
     if ui.dtype != DType::Bf16 || ui.shape.len() != 2 || ui.shape[1] != dims.hidden || ui.shape[0] < dims.vocab {
         return Err(Error::model(format!("DFlash2 draft head: '{unembed}' is {} {:?}, expected bf16 [>= {}, {}]", ui.dtype, ui.shape, dims.vocab, dims.hidden)));
@@ -344,6 +334,21 @@ pub(super) fn dflash2_head_copy(b: &dyn Backend, target: &dyn WeightSource, unem
     add_bytes(q.parts.iter().map(|p| p.nbytes() as u64).sum());
     eprintln!("dflash: DFlash2 draft head {} [{} x {}] in {:.1} s ({}; drafts only)", kind.name(), dims.vocab, dims.hidden, t0.elapsed().as_secs_f64(), "INTARSIA_DFLASH2_HEAD");
     Ok(Some(q))
+}
+
+/// `INTARSIA_DFLASH2_HEAD` resolved for backend `b` (see [`dflash2_head_copy`]); `None` = the target's bf16 head.
+pub(super) fn dflash2_head_kind(b: &dyn Backend) -> Result<Option<crate::quant::head::HeadQuant>> {
+    let v = std::env::var("INTARSIA_DFLASH2_HEAD").unwrap_or_default();
+    let v = match v.trim() {
+        "" if b.name() == "hip" => "mxfp4",
+        x => x,
+    };
+    Ok(match v {
+        "mxfp4" => Some(crate::quant::head::HeadQuant::Mxfp4),
+        "fp8" => Some(crate::quant::head::HeadQuant::Fp8),
+        "bf16" | "0" | "off" | "" => None,
+        other => return Err(Error::invalid(format!("INTARSIA_DFLASH2_HEAD={other}: mxfp4, fp8 or bf16"))),
+    })
 }
 
 fn ds_norm_ref(ds: &super::dspark::Dspark) -> TensorRef {
@@ -474,9 +479,58 @@ impl Model {
         self.dflash.as_ref().map_or(0, |h| h.block)
     }
 
+    /// Lane ink-hip-specflip (a): a second DFlash-family draft is loaded (`LoadOptions::dflash_alt`, greedy requests).
+    pub fn has_dflash_alt(&self) -> bool {
+        self.dflash_alt.is_some()
+    }
+
+    /// Drafts per verify pass of the second draft (`LoadOptions::dflash_alt_k`), 0 without it.
+    pub fn dflash_alt_k(&self) -> usize {
+        if self.dflash_alt.is_some() {
+            self.dflash_alt_k
+        } else {
+            0
+        }
+    }
+
+    /// The draft a sequence's `dflash` state belongs to: the second draft where `SequenceState::dflash_alt_on`, else the first.
+    pub(super) fn dflash_of(&self, alt: bool) -> Option<&DflashHead> {
+        if alt {
+            self.dflash_alt.as_ref()
+        } else {
+            self.dflash.as_ref()
+        }
+    }
+
+    /// Lane ink-hip-specflip (a): make `st`'s draft state the second draft's (`alt`, greedy requests) or the first's. Nothing without
+    /// a second draft, or when `st` already holds that draft's state. A swap parks the other draft's state and starts the incoming one
+    /// over (empty, synced only on an empty sequence): it ingested nothing while it was parked, so `Seq::new`'s resync rule applies as
+    /// after a request that did not draft (re-prefill a short reuse, run a long one without drafting). Captured graphs are dropped (the
+    /// target's taps go to the other draft's buffers). Drafts only propose, so the swap never changes a token. Returns whether it
+    /// swapped.
+    pub fn select_dflash(&self, st: &mut SequenceState, alt: bool) -> Result<bool> {
+        if self.dflash_alt.is_none() || st.dflash_alt_on == alt || st.dflash_parked.is_none() || st.dflash.is_none() {
+            return Ok(false);
+        }
+        std::mem::swap(&mut st.dflash, &mut st.dflash_parked);
+        st.dflash_alt_on = alt;
+        let len = st.len;
+        if let Some(d) = st.dflash.as_mut() {
+            d.cut(0, &*self.backend)?;
+            d.synced = len == 0;
+        }
+        self.graphs.invalidate();
+        Ok(true)
+    }
+
     /// The drafter state a new sequence gets (`None` without the drafter).
     pub(super) fn new_dflash_state(&self, cap: usize) -> Result<Option<Box<DflashState>>> {
-        let Some(head) = &self.dflash else { return Ok(None) };
+        self.new_dflash_state_of(self.dflash.as_ref(), cap)
+    }
+
+    /// The state of draft `head` for a new sequence (`None` without it).
+    pub(super) fn new_dflash_state_of(&self, head: Option<&DflashHead>, cap: usize) -> Result<Option<Box<DflashState>>> {
+        let Some(head) = head else { return Ok(None) };
         let specs = self.dflash_slot_specs(head);
         Ok(Some(Box::new(DflashState { kv: SequenceState::new(&*self.backend, &specs, cap)?, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false, frnn: None })))
     }
@@ -500,7 +554,7 @@ impl Model {
     /// Probes: the DFlash2 draft on the row-exact kernels or not (see `DflashHead::rows_kernels`).
     #[doc(hidden)]
     pub fn dflash_set_rows_kernels(&self, on: bool) {
-        if let Some(h) = &self.dflash {
+        for h in self.dflash.iter().chain(&self.dflash_alt) {
             h.rows_kernels.store(on, std::sync::atomic::Ordering::Relaxed);
         }
     }
@@ -508,7 +562,7 @@ impl Model {
     /// Probes: time every op of the following draft passes (telemetry `ops`), as a profiled decode step does.
     #[doc(hidden)]
     pub fn dflash_profile(&self, on: bool) {
-        if let Some(h) = &self.dflash {
+        for h in self.dflash.iter().chain(&self.dflash_alt) {
             h.profile.store(on, std::sync::atomic::Ordering::Relaxed);
         }
     }
@@ -525,7 +579,7 @@ impl Model {
     /// After a target pass over the `t` rows just committed to `st` (positions `st.len - t .. st.len`; the taps' staging
     /// buffers hold their features): put the rows into the draft's context cache. Nothing for a request that does not draft.
     pub(super) fn dflash_after_forward(&self, st: &mut SequenceState, t: usize, profile: bool) -> Result<()> {
-        let Some(head) = &self.dflash else { return Ok(()) };
+        let Some(head) = self.dflash_of(st.dflash_alt_on) else { return Ok(()) };
         let Some(d) = st.dflash.as_mut() else { return Ok(()) };
         if !d.active || !d.synced {
             // a request that never drafts does not pay for the draft (its rows are not ingested)
@@ -720,7 +774,7 @@ impl Model {
     /// all-reduces pair up), takes the logits of its vocabulary shard and its top candidates per row; rank 0 merges them and picks
     /// the drafts. A pass that drafts nothing (rank 0 decides before the peers start) runs no collective.
     fn dflash_draft_tp(&self, st: &mut SequenceState, next: u32, k: usize) -> Result<Vec<u32>> {
-        let head = self.dflash.as_ref().ok_or_else(|| Error::invalid("--spec dflash without the draft (LoadOptions::dflash)"))?;
+        let head = self.dflash_of(st.dflash_alt_on).ok_or_else(|| Error::invalid("--spec dflash without the draft (LoadOptions::dflash)"))?;
         let d = st.dflash.as_ref().ok_or_else(|| Error::invalid("sequence without DFlash state"))?;
         if k == 0 || (d.active && !d.synced) || st.len + head.block > d.kv.cap {
             return Ok(Vec::new());
@@ -776,7 +830,7 @@ impl Model {
     /// One rank's share of [`Model::dflash_draft`]: `Solo` (the whole draft on this rank), `Lead` (rank 0 of a split draft: picks
     /// the drafts from every rank's candidates), `Follow` (a peer: sends its shard's candidates, returns no drafts).
     fn dflash_draft_rank(&self, st: &mut SequenceState, next: u32, k: usize, link: DraftLink2) -> Result<Vec<u32>> {
-        let head = self.dflash.as_ref().ok_or_else(|| Error::invalid("--spec dflash without the draft (LoadOptions::dflash)"))?;
+        let head = self.dflash_of(st.dflash_alt_on).ok_or_else(|| Error::invalid("--spec dflash without the draft (LoadOptions::dflash)"))?;
         let d = st.dflash.as_ref().ok_or_else(|| Error::invalid("sequence without DFlash state"))?;
         let lead = !matches!(link, DraftLink2::Follow(_));
         if k == 0 {
@@ -1113,7 +1167,7 @@ impl Model {
     /// dtype) as if the target had just processed them; advances `st` (target length and draft cache) by `rows`.
     #[doc(hidden)]
     pub fn dflash_ingest_host(&self, st: &mut SequenceState, feat: &[f32], rows: usize) -> Result<()> {
-        let head = self.dflash.as_ref().ok_or_else(|| Error::invalid("no DFlash draft"))?;
+        let head = self.dflash_of(st.dflash_alt_on).ok_or_else(|| Error::invalid("no DFlash draft"))?;
         let (h, taps) = (self.dims.hidden, head.taps.len());
         if feat.len() != rows * taps * h {
             return Err(Error::invalid(format!("dflash_ingest_host: {} values for {rows} rows x {taps} taps x {h}", feat.len())));
@@ -1190,6 +1244,16 @@ impl Model {
         if self.verify_tok.is_none() {
             return Ok(()); // verify passes not enabled: the draft cannot run either
         }
+        self.dflash_dry_run_head(head, false)?;
+        // lane ink-hip-specflip (a): the second draft's passes too (its own kernels and shapes)
+        match &self.dflash_alt {
+            Some(h2) => self.dflash_dry_run_head(h2, true),
+            None => Ok(()),
+        }
+    }
+
+    /// [`Model::dflash_dry_run`] for one draft (`alt`: the second one, `SequenceState::dflash_alt_on` of the phantom states).
+    fn dflash_dry_run_head(&self, head: &DflashHead, alt: bool) -> Result<()> {
         if let Some(ds) = &head.dspark {
             return self.dspark_dry_run(head, ds);
         }
@@ -1207,6 +1271,7 @@ impl Model {
             self.dflash_ingest(head, &mut kv, &head.feat, t, false)?;
             let mut st = crate::plan::phantom_state(&[], cap, kv.len);
             st.dflash = Some(Box::new(DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false, frnn: None }));
+            st.dflash_alt_on = alt;
             // a split draft (lane dh): this rank's part as it runs it (rank 0 or a peer), without starting the other ranks
             let link = match (self.dflash_tp, self.tp.rank) {
                 (false, _) => DraftLink2::Solo,

@@ -1555,6 +1555,15 @@ impl Seq {
             SAID.call_once(|| eprintln!("sampled DFlash-family drafting: draft length per request {}", mode.describe()));
             seq.adapt = crate::spec::AdaptRun::new(mode, seq.spec_k);
         }
+        // lane ink-hip-specflip (a): with two DFlash-family drafts loaded (Inkling-2 on HIP: DFlash2 beside the DSpark draft), a
+        // greedy request drafts with the second at its own k, a sampled one with the first; the state swaps in the draft state the
+        // request wants, which starts over (the resync rule below applies, as after a request that did not draft)
+        if seq.spec_on && sh.env().spec.mode == crate::spec::SpecMode::Dflash && model.has_dflash_alt() {
+            model.select_dflash(st, seq.greedy)?;
+            if seq.greedy {
+                seq.spec_k = model.dflash_alt_k().min(model.verify_rows().saturating_sub(1));
+            }
+        }
         if seq.spec_mtp {
             // the single-sequence loop times its own steps; the batched scheduler shares one step among sequences
             seq.gate.set_cost(model.spec_cost_params());

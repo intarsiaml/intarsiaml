@@ -12,6 +12,9 @@
 //!   `serve` (with `INTARSIA_SPEC_TRACE=1` its `adapt:` lines count the plain stretches and re-entries).
 //! * `INTARSIA_SS_DRAFT` (lane ink-hip-specflip): the `--spec-draft` directory (default `INTARSIA_INK_MODEL`, the DSpark draft; e.g. the
 //!   DFlash2 drafter `Inkling-2-Mini-DFlash2`).
+//! * `INTARSIA_SS_DEFAULT=1` (lane ink-hip-specflip, option (a)): no `--spec` at all, the recipe's speculation default as `serve` and
+//!   `generate` apply it (Inkling-2 on HIP: the DSpark default, with the DFlash2 drafter beside it when found); `INTARSIA_SS_K` and
+//!   `INTARSIA_SS_DRAFT` are then unused.
 //!
 //! Every request is the same short prompt, `--spec dflash --spec-k 3`, `ignore_eos`. Token 1 comes from prefill; tokens 2.. are the
 //! speculative positions. `docs/results/2026-11-26-inkling2-sampled-dspark/raw/law.py` compares the arms (seed equality on shared seeds,
@@ -64,12 +67,16 @@ fn inkling2_sampled_dspark_real_model_runs() {
     let out = var("INTARSIA_SS_OUT").map(PathBuf::from);
     let budget = var("INTARSIA_SS_BUDGET_S").map(|v| std::time::Duration::from_secs_f64(v.parse().unwrap()));
     let spec_k: usize = var("INTARSIA_SS_K").map_or(3, |v| v.parse().unwrap());
-    let opts = intarsia_models::EngineOptions {
-        spec: SpecConfig { mode: SpecMode::Dflash, k: spec_k, k_min: None },
-        spec_draft: Some(var("INTARSIA_SS_DRAFT").map(PathBuf::from).unwrap_or_else(|| dir.clone())),
-        spec_k_given: true,
-        max_batch: Some(1),
-        ..Default::default()
+    let opts = if var("INTARSIA_SS_DEFAULT").is_some_and(|v| v == "1") {
+        intarsia_models::EngineOptions { max_batch: Some(1), ..Default::default() }
+    } else {
+        intarsia_models::EngineOptions {
+            spec: SpecConfig { mode: SpecMode::Dflash, k: spec_k, k_min: None },
+            spec_draft: Some(var("INTARSIA_SS_DRAFT").map(PathBuf::from).unwrap_or_else(|| dir.clone())),
+            spec_k_given: true,
+            max_batch: Some(1),
+            ..Default::default()
+        }
     };
     let t_load = std::time::Instant::now();
     let loaded = intarsia_models::load_engine(&dir, backend(), &opts).unwrap();

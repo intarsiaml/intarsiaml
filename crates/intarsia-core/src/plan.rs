@@ -250,6 +250,8 @@ pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceStat
         remote: None,
         mtp: None,
         dflash: None,
+        dflash_parked: None,
+        dflash_alt_on: false,
         clean: 0,
         passes: Vec::new(),
         prefill_snapshots: 0,

@@ -106,6 +106,14 @@ sampled_adapt = "d=0.234,r=0.273/0.498/0.69/0.985/1.211,g=0.95,margin=0.0,drop=0
 # draft (the DSpark default or --spec-draft <model dir>), one sequence; a batching server has no draft. Metal failed the gate: opt-in there.
 # Revert: INTARSIA_SPEC_SAMPLED_DFLASH=0, or delete this line.
 sampled_dflash = true
+# Flip B (lane ink-hip-specflip; user decisions 2026-11-26 "Both, confirm first", option (a) per the coordinator 2026-11-27 00:08): the
+# DFlash2 drafter (Inkling-2-Mini-DFlash2) loads beside the DSpark draft of the default above when it is found next to the checkpoint
+# (<checkpoint>/../Inkling-2-Mini-DFlash2, or an absolute path here). Greedy requests draft with it at k4 (1.112x DSpark k5 over the six
+# cells, 4k 0.991 [0.987-0.994], both cards, docs/results/2026-11-26-inkling2-dflash2.md and -hip-specflip.md); sampled requests keep the
+# DSpark draft (sampled_dflash; sampled DFlash2 failed its gate). Both drafts are loaded; each sequence keeps one draft state active.
+# Not found: the DSpark default alone, never an error. Revert: INTARSIA_SPEC_DFLASH2_DEFAULT=0, or delete these lines.
+dflash2_draft = "Inkling-2-Mini-DFlash2"
+dflash2_k = 4
 
 [accuracy]
 chat_turns = "inkling2"       # one open token per role, <|end_message|> closes (crates/intarsia-cli/src/cmd/accuracy/turns.rs)

@@ -406,13 +406,7 @@ pub(super) fn load(
         act_quant: false,
     };
     eprintln!("dspark: Markov fold [{} x {r}] in {:.1} s", dims.vocab, t0.elapsed().as_secs_f64());
-    let hq = std::env::var("INTARSIA_DSPARK_HEAD").unwrap_or_else(|_| "mxfp4".into());
-    let kind = match hq.trim() {
-        "mxfp4" => Some(crate::quant::head::HeadQuant::Mxfp4),
-        "fp8" => Some(crate::quant::head::HeadQuant::Fp8),
-        "bf16" | "0" | "off" | "" => None,
-        other => return Err(Error::invalid(format!("INTARSIA_DSPARK_HEAD={other}: mxfp4, fp8 or bf16"))),
-    };
+    let kind = head_kind()?;
     let head = match kind {
         Some(kind) => {
             let t1 = Instant::now();
@@ -499,7 +493,24 @@ pub(super) fn load(
     Ok((ds, feat))
 }
 
+/// `INTARSIA_DSPARK_HEAD` (`mxfp4` default, `fp8`, `bf16` = `None`): the format of the draft's own copy of the target unembed.
+pub(super) fn head_kind() -> Result<Option<crate::quant::head::HeadQuant>> {
+    let hq = std::env::var("INTARSIA_DSPARK_HEAD").unwrap_or_else(|_| "mxfp4".into());
+    Ok(match hq.trim() {
+        "mxfp4" => Some(crate::quant::head::HeadQuant::Mxfp4),
+        "fp8" => Some(crate::quant::head::HeadQuant::Fp8),
+        "bf16" | "0" | "off" | "" => None,
+        other => return Err(Error::invalid(format!("INTARSIA_DSPARK_HEAD={other}: mxfp4, fp8 or bf16"))),
+    })
+}
+
 impl Dspark {
+    /// Lane ink-hip-specflip (a): the draft's quantised copy of the target unembed (`INTARSIA_DSPARK_HEAD`), if any. A second draft
+    /// that quantises the same rows of the same tensor the same way (Inkling-2's DFlash2 draft, `INTARSIA_DFLASH2_HEAD`) shares it.
+    pub(super) fn head_copy(&self) -> Option<&QTensor> {
+        self.head.as_ref()
+    }
+
     pub(super) fn n_layers(&self) -> usize {
         self.layers.len()
     }

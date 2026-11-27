@@ -1320,6 +1320,8 @@ impl Model {
             pause_save: Mutex::new(None),
             mtp: None,
             dflash: None,
+            dflash_alt: None,
+            dflash_alt_k: 0,
             dflash_tp: false,
             mtp_k: self.mtp_k,
             spec_cost: self.spec_cost,

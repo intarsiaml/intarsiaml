@@ -256,6 +256,12 @@ pub struct LoadOptions {
     /// `INTARSIA_DFLASH_TP` (unset = on, the default since 2026-11-06; `=0` off). In-process ranks only; nothing changes at tp=1. Left
     /// unset, a draft whose kv heads or ffn do not divide by the world stays whole on rank 0; `Some(true)` / `=1` ask for the split and refuse it.
     pub dflash_tp: Option<bool>,
+    /// Lane ink-hip-specflip (a): a second DFlash-family draft beside `dflash`, for greedy requests (Inkling-2's DFlash2 draft beside
+    /// its DSpark draft, which keeps drafting sampled requests); one sequence at one rank only. None: nothing is read, the model is
+    /// exactly the one without it.
+    pub dflash_alt: Option<DflashLoad>,
+    /// Drafts per verify pass of `dflash_alt` (its greedy requests' `--spec-k`).
+    pub dflash_alt_k: usize,
     /// Macro prefill pass size in rows (see [`Model::macro_rows`]): `None` = `INTARSIA_PREFILL_MACRO` (unset = off); `Some(0)` off.
     pub prefill_macro: Option<usize>,
     /// Row-invariant prefill ([`Model::row_invariant_prefill`], lane rip): `Some` wins over `INTARSIA_ROW_INVARIANT_PREFILL`,
@@ -291,6 +297,8 @@ impl Default for LoadOptions {
             mtp_draft_subset: None,
             dflash: None,
             dflash_tp: None,
+            dflash_alt: None,
+            dflash_alt_k: 0,
             prefill_macro: None,
             row_invariant_prefill: None,
             batched: false,
@@ -883,6 +891,11 @@ pub struct Model {
     mtp: Option<mtp::MtpHead>,
     /// The DFlash block drafter (`LoadOptions::dflash`, `model/dflash.rs`).
     dflash: Option<dflash::DflashHead>,
+    /// Lane ink-hip-specflip (a) (`LoadOptions::dflash_alt`): the second DFlash-family draft, for greedy requests (one rank, one
+    /// sequence); a sequence's `SequenceState::dflash_alt_on` says which of the two its `dflash` state belongs to.
+    dflash_alt: Option<dflash::DflashHead>,
+    /// `LoadOptions::dflash_alt_k`.
+    dflash_alt_k: usize,
     /// Lane dh (`LoadOptions::dflash_tp`): the DFlash2 draft is split over the ranks; every rank holds its part (`dflash`).
     dflash_tp: bool,
     /// Per-row recurrent state buffers each sequence gets for verify passes (`LoadOptions::mtp_k`, MTP head only).
@@ -2045,6 +2058,51 @@ impl Model {
             }
             None => None,
         };
+        // lane ink-hip-specflip (a): the second draft (greedy requests), beside the first, at one rank; its draft state per sequence
+        // is parked while the first one drafts (`Model::select_dflash`)
+        let dflash_alt_head = match &opts.dflash_alt {
+            Some(_) if tp.world > 1 => return Err(Error::Unsupported("a second DFlash-family draft (LoadOptions::dflash_alt) under tensor parallelism".into())),
+            Some(_) if dflash_head.is_none() => return Err(Error::invalid("LoadOptions::dflash_alt without LoadOptions::dflash")),
+            Some(dl) if dl.config.dspark.is_some() || dl.config.spine.is_some() || dims.ink.is_none() => {
+                return Err(Error::Unsupported("LoadOptions::dflash_alt: a DFlash2 draft of an Inkling-2 target only".into()));
+            }
+            Some(dl) => {
+                let main_attn = layers.iter().flatten().find_map(|b| match b {
+                    Block::Attn(a) => Some(a),
+                    _ => None,
+                });
+                let t0 = Instant::now();
+                let unembed = resolve(src, &recipe.top.lm_head.tensor).unwrap_or_default();
+                let mut head = dflash::load_head(dl, b, dims, recipe, main_attn, &|n| weights_bytes.set(weights_bytes.get() + n), mt, act, None, (src, &unembed))?;
+                eprintln!(
+                    "dflash: second draft (greedy requests, k {}) of {} layers (taps {:?}, block {}{}) loaded in {:.1} s",
+                    opts.dflash_alt_k,
+                    head.n_layers(),
+                    head.taps,
+                    head.block,
+                    if head.v2.is_some() { ", DFlash2" } else { "" },
+                    t0.elapsed().as_secs_f64()
+                );
+                if head.v2.is_some() {
+                    // the first draft (DSpark) already holds a copy of the same unembed rows quantised the same way: share it (the
+                    // same bits, about 0.25 GB not spent twice); otherwise the DFlash2 draft's own copy as above
+                    let kind = dflash::dflash2_head_kind(b)?;
+                    let shared = match (dflash_head.as_ref().and_then(|h| h.dspark.as_ref()), kind) {
+                        (Some(ds), Some(k)) if dspark::head_kind()? == Some(k) => ds.head_copy().cloned(),
+                        _ => None,
+                    };
+                    head.full_head = match shared {
+                        Some(q) => {
+                            eprintln!("dflash: second draft's head: the DSpark draft's {} copy of the unembed, shared", kind.map_or("bf16", |k| k.name()));
+                            Some(q)
+                        }
+                        None => dflash::dflash2_head_copy(b, src, &unembed, dims, &|n| weights_bytes.set(weights_bytes.get() + n))?.or(head.full_head),
+                    };
+                }
+                Some(head)
+            }
+            None => None,
+        };
         let mut ws_bytes = 0u64;
         let mut wb = |bytes: usize| -> Result<Buffer> {
             ws_bytes += bytes as u64;
@@ -2126,7 +2184,8 @@ impl Model {
             // the drafter head's own attention cache
             + mtp_head.as_ref().map_or(0, |h| (2 * if h.whole() { global } else { dims }.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64)
             // the DFlash draft layers' context caches
-            + dflash_head.as_ref().map_or(0, |h| (h.layers.len() * 2 * dims.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64);
+            + dflash_head.as_ref().map_or(0, |h| (h.layers.len() * 2 * dims.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64)
+            + dflash_alt_head.as_ref().map_or(0, |h| (h.layers.len() * 2 * dims.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64);
         let mut plan = MemoryPlan::compute_budgeted(
             &b.info(),
             weights_bytes.get(),
@@ -2356,6 +2415,8 @@ impl Model {
             spec_auto: std::sync::Mutex::new(crate::spec::AutoParams::from_env()),
             mtp: mtp_head,
             dflash: dflash_head,
+            dflash_alt: dflash_alt_head,
+            dflash_alt_k: opts.dflash_alt_k,
             mtp_k,
             dflash_tp,
         };
@@ -3417,6 +3478,8 @@ impl Model {
         }
         st.mtp = self.new_mtp_state(self.plan.kv_cap_tokens)?;
         st.dflash = self.new_dflash_state(self.plan.kv_cap_tokens)?;
+        // lane ink-hip-specflip (a): the second draft's state, parked until a request wants it (`Model::select_dflash`)
+        st.dflash_parked = self.new_dflash_state_of(self.dflash_alt.as_ref(), self.plan.kv_cap_tokens)?;
         if st.mtp.is_some() && st.has_recurrent() {
             // allocated once here (and reserved in the memory plan), not in the first verify pass
             let need = st.recurrent_bytes().max(16);
