@@ -1,0 +1,58 @@
+fleetq: #12677 waiting (#1 in line): needs endor to itself; running there: #12674 "ink-metal-flip: CPU tests + Metal CLI build" (claude-7a483383), #12676 "dspark-nax-build" (josef@endor)
+fleetq:   #12674 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12674 set, or it will wait for #12674 to be released.
+fleetq: #12677 waiting (#1 in line): needs endor to itself; running there: #12674 "ink-metal-flip: CPU tests + Metal CLI build" (claude-7a483383)
+fleetq:   #12674 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12674 set, or it will wait for #12674 to be released.
+fleetq: #12677 waiting (#1 in line): needs endor to itself; running there: #12678 "dspark-nax-gpu" (josef@endor)
+fleetq: #12677 running on endor: bash -c '[ -x .scratch/bin/intarsia-flip ] || { echo "no binary: build failed?"; exit 3; }; bash docs/results/2026-11-27-inkling2-metal-dflash2-flip/raw/slotG.sh'
+slot G start 12:18:31 binary md5 08b3211b60f82bceb080c795a030eb67 commit 89b6e18e2 git 42646a188
+== G1 + G2: greedy, generate, code + len4k + len16k, 256 tokens, --ignore-eos
+g-flip rc 0 t+31s | decode[code]: 256 tokens, 1870 ms (136.36 tok/s) decode[len4k]: 256 tokens, 2436 ms (104.69 tok/s) decode[len16k]: 256 tokens, 3852 ms (66.20 tok/s)  | spec: verify passes=203 proposed=1008 accepted=560 (acceptance 55.6%, 3.76 tokens per pass) |          21154015176  peak memory footprint
+g-flip load: DFlash2 drafter /Users/josef/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots/Inkling-2-Mini-DFlash2 (k 5): loaded beside the DSpark default of recipe inkling2 on metal for greedy requests ([tuning.metal] dflash2_draft; sampled requests keep the DSpark draft; INTARSIA_SPEC_DFLASH2_DEFAULT=0 loads the DSpark default alone)|--spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on metal ([tuning.metal] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 4.1 s|dflash: second draft (greedy requests, k 5) of 5 layers (taps [
+g-off rc 0 t+57s | decode[code]: 256 tokens, 3287 ms (77.57 tok/s) decode[len4k]: 256 tokens, 3720 ms (68.55 tok/s) decode[len16k]: 256 tokens, 4001 ms (63.73 tok/s)  | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) |          20297966432  peak memory footprint
+g-off load: 
+g-main rc 0 t+85s | decode[code]: 256 tokens, 2395 ms (106.48 tok/s) decode[len4k]: 256 tokens, 2813 ms (90.64 tok/s) decode[len16k]: 256 tokens, 3801 ms (67.08 tok/s)  | spec: verify passes=272 proposed=655 accepted=444 (acceptance 67.8%, 2.63 tokens per pass) |          20835460464  peak memory footprint
+g-main load: DFlash2 drafter of recipe inkling2 on metal off (INTARSIA_SPEC_DFLASH2_DEFAULT=0): the DSpark default alone|--spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on metal ([tuning.metal] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 4.0 s|--spec dflash on metal: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)|
+g-dfl5 rc 0 t+108s | decode[code]: 256 tokens, 1802 ms (141.51 tok/s) decode[len4k]: 256 tokens, 2794 ms (91.27 tok/s) decode[len16k]: 256 tokens, 3843 ms (66.36 tok/s)  | spec: verify passes=203 proposed=1008 accepted=560 (acceptance 55.6%, 3.76 tokens per pass) |          20317103496  peak memory footprint
+g-dfl5 load: dflash: draft of 5 layers (taps [5, 23, 41, 48], block 8, DFlash2) loaded in 0.1 s|--spec dflash on metal: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)|
+| prompt | g-off.err | g-main.err | g-flip.err | g-dfl5.err | n ids | equal |
+|---|---|---|---|---|---|---|
+| code | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | [256, 256, 256, 256] | yes |
+| len4k | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | [256, 256, 256, 256] | yes |
+| len16k | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | [256, 256, 256, 256] | yes |
+== G3: sampled, generate, seed 7, 32 tokens, --ignore-eos (off vs flip; flip traced)
+off T1.0 k0 n100 rc 0 t+168s | ids lines 100 | verify trace lines 1
+off T0.6 k0 n60 rc 0 t+204s | ids lines 60 | verify trace lines 1
+off T0.7 k20 n30 rc 0 t+225s | ids lines 30 | verify trace lines 1
+flip T1.0 k0 n100 rc 0 t+287s | ids lines 100 | verify trace lines 3
+flip T0.6 k0 n60 rc 0 t+330s | ids lines 60 | verify trace lines 3
+flip T0.7 k20 n30 rc 0 t+356s | ids lines 30 | verify trace lines 3
+T0.6-k0      flip   vs off: ref 60 / arm 60 prompts, compared 60, differ 0 []
+T0.7-k20     flip   vs off: ref 30 / arm 30 prompts, compared 30, differ 0 []
+T1.0-k0      flip   vs off: ref 100 / arm 100 prompts, compared 100, differ 0 []
+TOTAL flip vs off: compared 190, differ 0
+== G5: memory / KV capacity, generate --max-seq 4194304 (1048576 fallback) --kv-fraction 0.25, 64 tokens of the code prompt
+mem1 main rc 0 max-seq 4194304 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 8.4s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.41 GB, context 615670 tokens (recipe builtin:inkling2, chat template chat_template.jinja) |          33120681984  maximum resident set size          44102047776  peak memory footprint 
+mem2 flip rc 0 max-seq 4194304 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 8.5s: 24 layers, hidden 2304, act bf16, kv bf16, weights 17.24 GB, context 607199 tokens (recipe builtin:inkling2, chat template chat_template.jinja) |          33717256192  maximum resident set size          48976878152  peak memory footprint 
+mem3 dfl5 rc 0 max-seq 4194304 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 4.2s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.27 GB, context 615458 tokens (recipe builtin:inkling2, chat template chat_template.jinja) |          32764051456  maximum resident set size          48824342656  peak memory footprint 
+mem4 main rc 0 max-seq 4194304 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 8.2s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.41 GB, context 615670 tokens (recipe builtin:inkling2, chat template chat_template.jinja) |          33083719680  maximum resident set size          44102260432  peak memory footprint 
+mem5 flip rc 0 max-seq 4194304 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 8.3s: 24 layers, hidden 2304, act bf16, kv bf16, weights 17.24 GB, context 607199 tokens (recipe builtin:inkling2, chat template chat_template.jinja) |          33716928512  maximum resident set size          48974060704  peak memory footprint 
+mem6 dfl5 rc 0 max-seq 4194304 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 4.1s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.27 GB, context 615458 tokens (recipe builtin:inkling2, chat template chat_template.jinja) |          32764608512  maximum resident set size          48824063816  peak memory footprint 
+== G6: ABBA speed, abba3.json (warm + 3 short), 256 tokens, EOS honoured, 45 s idle
+main@r1 rc 0 t+489s | decode[warm]: 119 tokens, 1471 ms (80.24 tok/s) decode[count]: 256 tokens, 1932 ms (132.01 tok/s) decode[story]: 256 tokens, 3157 ms (80.76 tok/s) decode[chat_reasoning_rnone]: 256 tokens, 2364 ms (107.85 tok/s)  | spec: verify passes=337 proposed=802 accepted=478 (acceptance 59.6%, 2.42 tokens per pass)
+flip@r1 rc 0 t+551s | decode[warm]: 119 tokens, 1192 ms (98.96 tok/s) decode[count]: 256 tokens, 1389 ms (183.53 tok/s) decode[story]: 256 tokens, 3226 ms (79.04 tok/s) decode[chat_reasoning_rnone]: 256 tokens, 1891 ms (134.85 tok/s)  | spec: verify passes=236 proposed=1172 accepted=647 (acceptance 55.2%, 3.74 tokens per pass)
+flip@r2 rc 0 t+612s | decode[warm]: 119 tokens, 1121 ms (105.23 tok/s) decode[count]: 256 tokens, 1278 ms (199.49 tok/s) decode[story]: 256 tokens, 3028 ms (84.20 tok/s) decode[chat_reasoning_rnone]: 256 tokens, 1815 ms (140.46 tok/s)  | spec: verify passes=236 proposed=1172 accepted=647 (acceptance 55.2%, 3.74 tokens per pass)
+main@r2 rc 0 t+675s | decode[warm]: 119 tokens, 1439 ms (82.02 tok/s) decode[count]: 256 tokens, 1902 ms (134.06 tok/s) decode[story]: 256 tokens, 3124 ms (81.62 tok/s) decode[chat_reasoning_rnone]: 256 tokens, 2392 ms (106.59 tok/s)  | spec: verify passes=337 proposed=802 accepted=478 (acceptance 59.6%, 2.42 tokens per pass)
+processes ['flip@r1', 'flip@r2', 'main@r1', 'main@r2'] | ids identical across all: True
+count                    main [132.01, 134.06] flip [183.53, 199.49] ratio per rep [1.39, 1.488] geo 1.438
+story                    main [80.76, 81.62] flip [79.04, 84.2] ratio per rep [0.979, 1.032] geo 1.005
+chat_reasoning_rnone     main [107.85, 106.59] flip [134.85, 140.46] ratio per rep [1.25, 1.318] geo 1.284
+geometric mean of the 3 prompts: 1.229; min prompt 1.005
+== G4: serve --max-batch 4 (no --spec), time box 420 s for the server to come up
+batch4 up after 136 s | loaded thinkingmachines/Inkling-2-Mini on metal (Apple M5 Max) in 135.7s, context 4096 tokens | 
+greedy solo: [('code', 128), ('len1k', 128), ('long_prose_300', 128), ('chat_reasoning_rnone', 128)] in 8.3 s
+greedy concurrent: [('code', 128), ('chat_reasoning_rnone', 128), ('long_prose_300', 128), ('len1k', 128)] in 4.1 s
+greedy concurrent: [('code', 128), ('chat_reasoning_rnone', 128), ('long_prose_300', 128), ('len1k', 128)] in 4.1 s
+/opt/code/intarsiaml/.worktrees/ink-metal-flip/docs/results/2026-11-27-inkling2-metal-dflash2-flip/raw/G/b4-solo.json vs /opt/code/intarsiaml/.worktrees/ink-metal-flip/docs/results/2026-11-27-inkling2-metal-dflash2-flip/raw/G/b4-conc.json: common 4 (of 4 / 4), differ 0
+/opt/code/intarsiaml/.worktrees/ink-metal-flip/docs/results/2026-11-27-inkling2-metal-dflash2-flip/raw/G/b4-solo.json vs /opt/code/intarsiaml/.worktrees/ink-metal-flip/docs/results/2026-11-27-inkling2-metal-dflash2-flip/raw/G/b4-conc2.json: common 4 (of 4 / 4), differ 0
+slot G end 12:32:24 t+833s
+fleetq: #12677 done (exit 0)

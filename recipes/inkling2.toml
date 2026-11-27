@@ -70,6 +70,15 @@ mtp_default_k = 3
 # fixed k3's gain; docs/results/2026-11-26-inkling2-sampled-adapt.md), so sampled drafting stays opt-in and not recommended on Metal.
 # Revert: INTARSIA_SPEC_SAMPLED_ADAPT=0 (fixed k3), or delete this line (the built-in table).
 sampled_adapt = "d=0.237,r=0.236/0.418/0.583,g=0.85,margin=0.0,drop=0.0,probe=3,hold=8,hold_max=32"
+# Flip M (lane ink-metal-flip; user decision 2026-11-27 "Yes, flip Metal"): the DFlash2 drafter (Inkling-2-Mini-DFlash2) loads beside the
+# DSpark default above when it is found next to the checkpoint (<checkpoint>/../Inkling-2-Mini-DFlash2, or an absolute path here; in a
+# Hugging Face cache, a link snapshots/Inkling-2-Mini-DFlash2 -> the incoai/Inkling-2-Mini-DFlash2 snapshot). Greedy requests draft with
+# it at k5: decode 1.072x DSpark k3 over the six cells (short 1.171, 1k 1.031, prose 1.051, chat 1.159, 4k 1.017, 16k 1.014;
+# docs/results/2026-11-26-inkling2-metal-dflash2.md), greedy ids = --spec off (docs/results/2026-11-27-inkling2-metal-dflash2-ready.md,
+# -metal-dflash2-flip.md); sampled requests take plain steps as before (sampled drafting stays opt-in here). Peak memory up ~4.7 GB only at
+# the largest --max-seq. Not found: the DSpark default alone, never an error. Revert: INTARSIA_SPEC_DFLASH2_DEFAULT=0, or delete these lines.
+dflash2_draft = "Inkling-2-Mini-DFlash2"
+dflash2_k = 5
 
 # 2048 on HIP (R9700, tatooine; user decision 2026-11-26 "Yes, flip it", with the tensor-core expert prefill and the flash prefill
 # attention, which are code defaults now: INTARSIA_HIP_INK_MOE_WMMA / INTARSIA_HIP_INK_ATTN_FLASH, unset = on): prefill on one R9700 at

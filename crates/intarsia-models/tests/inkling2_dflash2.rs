@@ -685,20 +685,27 @@ fn recipe_dflash2_default_finds_the_drafter_or_falls_back() {
     let ink = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
     assert_eq!(ink.dflash2_draft("hip"), Some("Inkling-2-Mini-DFlash2"), "recipes/inkling2.toml [tuning.hip] dflash2_draft");
     assert_eq!(ink.dflash2_k("hip"), Some(4));
+    // lane ink-metal-flip (user decision 2026-11-27 "Yes, flip Metal"): Metal's greedy default drafts with DFlash2 at k5
+    assert_eq!(ink.dflash2_draft("metal"), Some("Inkling-2-Mini-DFlash2"), "recipes/inkling2.toml [tuning.metal] dflash2_draft");
+    assert_eq!(ink.dflash2_k("metal"), Some(5));
     let dd = draft_dir();
     let model_dir = dd.parent().unwrap().join("Inkling-2-Mini"); // need not exist: only its parent is read
-    for b in ["metal", "cuda", "cpu"] {
+    for b in ["cuda", "cpu"] {
         assert_eq!(dflash2_default_draft(&ink, b, &model_dir, None), Dflash2Default::NotSet, "{b}: no DFlash2 default");
     }
-    // the key is per backend: with the drafter findable next to the checkpoint (as on endor, where it sits beside the snapshot), a recipe
-    // whose hip table names it still gives metal and cuda no DFlash2 default (once Metal takes DFlash2 drafts, lane ink-metal-dflash2,
-    // only the recipe key keeps its default DSpark)
+    // no Inkling-2-Mini-DFlash2 beside this checkpoint: Metal keeps the DSpark default (Missing, never an error)
+    assert!(matches!(dflash2_default_draft(&ink, "metal", &model_dir, None), Dflash2Default::Missing(..)), "metal: drafter absent");
+    // the key is per backend: with the drafter findable next to the checkpoint, a recipe whose hip table names it still gives cuda
+    // and cpu no DFlash2 default (only the recipe key gives a backend its DFlash2 default); Metal's own key names another directory
     let found = recipe_with("hip", &|t| t.dflash2_draft = Some(dd.file_name().unwrap().to_str().unwrap().to_string()));
     let beside = dd.parent().unwrap().join("checkpoint");
     assert!(matches!(dflash2_default_draft(&found, "hip", &beside, None), Dflash2Default::Found(..)), "hip finds the drafter beside the checkpoint");
-    for b in ["metal", "cuda", "cpu"] {
+    for b in ["cuda", "cpu"] {
         assert_eq!(dflash2_default_draft(&found, b, &beside, None), Dflash2Default::NotSet, "{b}: the drafter is there, but no {b} key");
     }
+    let metal = recipe_with("metal", &|t| t.dflash2_draft = Some(dd.file_name().unwrap().to_str().unwrap().to_string()));
+    assert_eq!(dflash2_default_draft(&metal, "metal", &beside, None), Dflash2Default::Found(dd.clone(), 5), "metal: found beside, k5");
+    assert_eq!(dflash2_default_draft(&metal, "metal", &beside, Some("0")), Dflash2Default::Off, "metal: =0 reverts");
     let name = dd.file_name().unwrap().to_str().unwrap().to_string();
     let sib = recipe_with("cpu", &|t| {
         t.dflash2_draft = Some(name.clone());

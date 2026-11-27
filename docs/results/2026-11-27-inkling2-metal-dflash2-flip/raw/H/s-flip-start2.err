@@ -1,0 +1,44 @@
+DFlash2 drafter /Users/josef/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots/Inkling-2-Mini-DFlash2 (k 5): loaded beside the DSpark default of recipe inkling2 on metal for greedy requests ([tuning.metal] dflash2_draft; sampled requests keep the DSpark draft; INTARSIA_SPEC_DFLASH2_DEFAULT=0 loads the DSpark default alone)
+--spec dflash --spec-draft <model dir> --spec-k 3: the DSpark default of recipe inkling2 on metal ([tuning.metal] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe inkling2, metal)
+prefill chunk: long-prompt chunk off (INTARSIA_INK_LONG_CHUNK=1 turns it on: 4096 rows from 4097 tokens)
+intarsia-backend-metal: keep-warm: registered the file at 0x7000000000, 19.53 GB
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.4 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.46 GB + bounds, cap 64, 0.9 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.4 s)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.0 s
+intarsia-backend-metal: keep-warm: registered the file at 0x136604000, 0.64 GB
+dspark: Markov fold [200058 x 256] in 3.8 s
+dspark: draft head mxfp4 [200058 x 2304] in 0.1 s
+dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 3.9 s
+intarsia-backend-metal: keep-warm: registered the file at 0x748bd78000, 0.99 GB
+dflash: second draft (greedy requests, k 5) of 5 layers (taps [5, 23, 41, 48], block 8, DFlash2) loaded in 0.1 s
+--spec dflash on metal: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)
+speculative decoding: Dflash, up to 3 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_p12_gemv_rows ink_attn_decode=ink_attn_decode_bf16 matmul_p12=matmul_p12_gemv_rows conv_mix=conv_mix_bf16 ink_route=ink_route_bf16 moe_experts=moe_experts_situ_bf16_rows attn_res_mix=attn_res_mix_bf16 loop_blend=loop_blend_bf16 moe_experts_mxfp8=moe_experts_mxfp8_bf16_rows hc_pre=hc_pre_bf16 matmul=matmul_bf16_gemv qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 matmul=matmul_bf16_gemv_rows matmul=matmul_bf16_nax attn_decode=attn_decode_bf16_splitkv add=add_bf16 silu_glu=silu_glu_bf16 matmul_mxfp4=matmul_mxfp4_gemv logits=logits_bf16_gemv matmul_mxfp4=matmul_mxfp4_gemv_rows logits=logits_bf16 attn_decode=attn_decode_bf16_window dyn_conv=dyn_conv_bf16 logits=logits_bf16_gemv_rows argmax=argmax_f32 matmul_p12=matmul_p12_logits_gemv_rows
+sampled requests (temperature > 0): DFlash-family drafting off (default; single sequence, one rank, seed-exact keyed rule)
+admission on plan shapes: 46 kernel(s) checked, 0 case(s) run, 248 cached
+loaded thinkingmachines/Inkling-2-Mini on metal (Apple M5 Max) in 8.6s, context 4096 tokens
+sampling defaults: temperature=1 top_p=1 top_k=0 (from /Users/josef/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots/b85c3cfa615fc413cc9af3379f491b963f3b586a/generation_config.json; a request's own values win)
+intarsia server listening on http://127.0.0.1:8402
+device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel gumbel_argmax_f32
+dflash: a request switched drafts (greedy: the second draft): its sequence's draft state is replaced, one at a time
+INTARSIA_INK_HEAD_SCREEN: gathers through the serving head kernel 'matmul_p12_logits_gemv'
+INTARSIA_INK_HEAD_SCREEN: first screened head step served (1 row)
+       26.79 real        76.23 user         2.47 sys
+         33671593984  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             2158632  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  15  messages sent
+                  29  messages received
+                   1  signals received
+                   0  voluntary context switches
+              124567  involuntary context switches
+        453865684752  instructions retired
+        336119302038  cycles elapsed
+         21119820976  peak memory footprint
