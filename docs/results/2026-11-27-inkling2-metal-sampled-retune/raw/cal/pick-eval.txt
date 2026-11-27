@@ -1,0 +1,8 @@
+eval policy g=0.95,margin=0.05,drop=0.05,probe=3,hold=8,hold_max=64 po 0.031
+  per prompt pol/off (geomean over seeds):
+    T 0.7: short_b 0.998  short_a 1.713  short_c 1.465  len1k 1.097  len4k 1.610
+    T 1.0: short_b 0.983  short_a 1.018  short_c 1.521  len1k 1.129  len4k 1.498
+    T 0.7 classes pol/off | fix/off | pol/(0.98 fix): short 1.320|1.330|1.013  1k 1.097|1.114|1.004  4k 1.610|1.617|1.016
+    T 1.0 classes pol/off | fix/off | pol/(0.98 fix): short 1.129|1.115|1.033  1k 1.129|1.149|1.002  4k 1.498|1.505|1.016
+  score 1.0022 (prompts 1.0031, classes 1.0022)
+current recipe policy g=0.85,margin=0.0,drop=0.0,probe=3,hold=8,hold_max=32 po 0.031

@@ -94,3 +94,66 @@ before the first Metal slot; results are filled in as they arrive).
 No slot starts after 07:00 EST.
 
 ## 2. Log
+
+### 2.1 Calibration slot C (fleetq #12538, endor `--exclusive`, 02:16:36-02:26:31 = 9 min 55 s; #12537 started the same script with a shell bug (`env` cannot run a shell function), rc 127 at the first process, 50 s of slot time, restarted)
+
+Binary `intarsia-b1` = main `aa7beaa73` (`md5 96e679cb...`), no code change. Raw: `raw/cal/` (`ab/`, `tr/`, `drafts/`, `slot-c1.log`, `gridA.txt`, `gridA-loso.txt`, `gridB.txt`).
+
+**Plain-step tax of the policy mode (pre-registered `po`).** off vs `plainonly`, ABBA, seed 13, T 1.0, 762 tokens over 6 prompts each, 45 s idle gaps:
+
+| arm | process | tok/s |
+|---|---|---|
+| off | 1 | 76.05 |
+| plainonly | 2 | 73.36 |
+| plainonly | 3 | 74.03 |
+| off | 4 | 75.92 |
+
+off 75.99, plainonly 73.70: **plainonly / off = 0.970, po = 0.031** (>= 0.01, so the replay charges every policy plain step 1.031). The traced current-recipe policy run (seed 13) agrees: its `plain` steps have median
+13.54 ms against 13.15 ms per token of the untraced off runs (+3 %). Each plainonly process still made one draft call and one verify pass per prompt (6 passes, 15 of 16 drafts accepted, which gives a little back), so
+0.031 slightly understates the per-plain-step tax.
+
+> **Consequence, as pre-registered in section 1.3 step 2: plainonly / off < 0.98, so on any prompt where drafting does not pay and the request mostly takes plain steps in the policy mode, no recipe can reach pol / off >= 0.98; the
+> ceiling of a request that stops at once is about 0.970.** (A plain step of a request that drafts also writes the draft's four tap copies and one stash copy, and cannot use the replayed decode graph, whose recording skips
+> `ink_copy`; this is a reading of the code, not measured here.) Only a request that leaves the draft altogether (the draft state deactivated for the rest of the request) is back at 1.0; that needs an engine change (see 2.3).
+
+**Cost table.** Fixed-k3 traced run (seed 13, T 1.0): D / P as in #543's slot; `pass` cycles 20.0 / 22.1 / 25.0 ms for 1 / 2 / 3 drafts against #543's 20.06 / 22.54 / 24.78: within 15 % of the table in use (`d = 0.237`,
+`r = 0.236 / 0.418 / 0.583`), which stays.
+
+**Replay fidelity (seed 13, T 1.0, traced runs against the replay of the same seed's `drafts` trace).** Fixed k3 passes / proposed / accepted: `short_c` and `len4k` exact; `short_b` 61/92/34 vs 58/83/32, `short_a` 66/107/35 vs 61/101/34,
+`len1k` 50/108/52 vs 49/105/51 (the draft is not deterministic given the context on Metal, as in #543). Measured vs replayed speed ratios on the same seed (measured = traced fix / traced pol over the mean of the two untraced off runs;
+the traced runs print one `adapt:` line per step, so they are a little slow):
+
+| prompt | fix/off measured | fix/off sim | pol/off measured (current recipe) | pol/off sim |
+|---|---|---|---|---|
+| short_b | 0.913 | 0.943 | 0.922 | 0.941 |
+| short_a | 0.914 | 0.929 | 1.010 | 1.025 |
+| short_c | 1.434 | 1.498 | 1.417 | 1.473 |
+| len1k | 1.038 | 1.107 | 1.038 | 1.077 |
+| len4k | 1.437 | 1.576 | 1.436 | 1.554 |
+
+The replay is optimistic by 2-7 % against measured (part of it is the tracing, part the long-context cost growth #543 already saw on `len4k`: its cost table is the short-context one). **A 0.2 % in-sample margin is therefore
+worth little; what the replay can say is which setting is better, not that a gate cell passes.**
+
+### 2.2 Choice of the string (stage A; no amendment)
+
+Traces: `drafts` runs at seeds 11 13 17 19 x T 1.0 / 0.7 (8 processes, `raw/cal/drafts/`). Grid A: 1620 settings (`raw/cal/gridA.txt`). With `po` = 0.031 charged the current recipe predicts, in sample, a lowest prompt of 0.970
+(`short_b` T 1.0), the HIP recipe 0.962.
+
+**Pick (score 1.0022 >= 1.0, so section 1.3 step 5's stage B does not trigger): `g=0.95,margin=0.05,drop=0.05,probe=3,hold=8,hold_max=64`** (with the measured table `d=0.237,r=0.236/0.418/0.583`). In-sample, pol / off geomean over the four
+calibration seeds:
+
+| T | short_b | short_a | short_c | len1k | len4k | class short pol/off (fix/off) | 1k | 4k |
+|---|---|---|---|---|---|---|---|---|
+| 1.0 | 0.983 | 1.018 | 1.521 | 1.129 | 1.498 | 1.129 (1.115) | 1.129 (1.149) | 1.498 (1.505) |
+| 0.7 | 0.998 | 1.713 | 1.465 | 1.097 | 1.610 | 1.320 (1.330) | 1.097 (1.114) | 1.610 (1.617) |
+
+Leave-one-seed-out (pick on three seeds, score on the fourth, single-seed cells): 0.987 / 0.951 / 0.953 / 0.970 for held-out seeds 11 / 13 / 17 / 19, picking `g` 0.9-0.97, `drop` 0.05-0.15, `probe` 2-3 each time: the choice is stable
+in direction (longer memory, a stop threshold below 1, three probe calls) and not in its numbers; a single seed's lowest prompt lands 1.3-4.9 % under what the fit promised. That is the size of the noise the three gate seeds face.
+
+**Stage B (not run on Metal; recorded as the finding).** The same replay with extra rules (`stop_n` consecutive low calls, a faster hold growth, and `giveup`: after the first failed probe the request leaves the draft for good, so its plain steps
+cost 1.0 and not 1.031) reaches an in-sample score of 1.0124 (`raw/cal/gridB.txt`): +1 %, almost all of it from `giveup` removing the plain-step tax. It is **not** an `adapt.rs`-only knob: it needs the engine to deactivate the draft state
+(no tap copies, no stash, no flush; `DFLASH_RESYNC_REUSE_MAX` and the multi-turn resync follow), and `giveup` was not in the pre-registered stage B list. It is the lead for a next lane, not tonight's candidate.
+
+The string goes to the gate unchanged: `INTARSIA_SPEC_SAMPLED_ADAPT=d=0.237,r=0.236/0.418/0.583,g=0.95,margin=0.05,drop=0.05,probe=3,hold=8,hold_max=64`. Expectation recorded before the gate: `short_b` is the cell most likely to miss 0.98.
+
+## 3. Gate slots

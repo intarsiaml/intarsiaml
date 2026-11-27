@@ -15,7 +15,7 @@ PO="drop=-100,hold=1000000,hold_max=1000000,probe=1"
 run() { # name outdir seed temp envassignments...
   local n=$1 od=$2 sd=$3 t=$4; shift 4
   local f=$od/$n; stamp > $f.t
-  env "$@" dl 300 $BIN $G --seed $sd --temperature $t > $f.out 2> $f.err
+  env "$@" perl -e 'alarm shift; exec @ARGV' 300 $BIN $G --seed $sd --temperature $t > $f.out 2> $f.err
   local rc=$?; stamp >> $f.t
   echo "$n rc $rc $(date +%T) | $(grep -aE '^decode overall' $f.err) | $(grep -aE '^spec: verify' $f.err | cut -c1-110)"
 }

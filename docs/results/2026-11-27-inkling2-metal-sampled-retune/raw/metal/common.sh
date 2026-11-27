@@ -11,5 +11,4 @@ trap cleanup EXIT; trap 'cleanup; exit 130' INT TERM
 stamp() { python3 -c 'import time; print(f"{time.time():.3f}")'; }
 # guard: another intarsia generate / serve on the box (match the binary name at the start of the command, not our own shell)
 guard() { local o; o=$(pgrep -fl '^[^ ]*/intarsia[^ ]* (serve|generate)' | head -3); [ -n "$o" ] && { echo "GUARD: another intarsia run on the box: $o"; exit 1; }; }
-# run N seconds at most (perl alarm survives exec)
-dl() { local n=$1; shift; perl -e 'alarm shift; exec @ARGV' $n "$@"; }
+# deadlines: `perl -e 'alarm shift; exec @ARGV' SECONDS cmd...` (alarm survives exec; no `timeout` on macOS). Do not wrap it in a shell function: env cannot run functions.
