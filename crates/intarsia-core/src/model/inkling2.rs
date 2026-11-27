@@ -1322,7 +1322,9 @@ impl Model {
                 // INTARSIA_INK_IN_PROJ_GEMV) where the backend admits it, else the bf16 stack (the same bits)
                 InkInW::Stacked(w) => {
                     let mut done = false;
-                    if let Some(p) = l.in_p12.as_ref().filter(|_| t <= crate::quant::p12::in_proj_rows_max(self.backend.name())) {
+                    // real i8 weights (lane ink-hip-i8) in the slot: 1..=i8row::DENSE_ROWS_MAX rows, so a verify pass (up to 16 rows) reads the
+                    // same i8 weights as a one-row decode step (rows-exact: spec on == spec off); P12 keeps its own limit
+                    if let Some(p) = l.in_p12.as_ref().filter(|p| t <= if p.format == crate::quant::i8row::I8ROW { crate::quant::i8row::DENSE_ROWS_MAX } else { crate::quant::p12::in_proj_rows_max(self.backend.name()) }) {
                         let mut c = OpCall::new(Op::InkInProj, vec![xs(nx), p.parts[0].clone(), p.parts[1].clone()], vec![pq.clone(), pk.clone(), pv.clone()], OpAttrs::default());
                         c.exact_rows = self.verifying();
                         if self.registry.select(&c).is_ok() {
@@ -1497,7 +1499,7 @@ impl Model {
                 // INTARSIA_INK_VERIFY_P12) where the backend admits it, else wo as loaded (the same bits)
                 let mut done = false;
                 let wo_max = if self.verifying() && verify_p12(self.backend.name()) { crate::quant::p12::ROWS_MAX } else { crate::quant::p12::DENSE_ROWS_MAX };
-                if let Some(p) = l.wo_p12.as_ref().filter(|_| t <= wo_max) {
+                if let Some(p) = l.wo_p12.as_ref().filter(|p| t <= if p.format == crate::quant::i8row::I8ROW { crate::quant::i8row::DENSE_ROWS_MAX } else { wo_max }) {
                     let mut c = p.call(o.clone(), aproj.clone());
                     c.exact_rows = self.verifying();
                     if self.registry.select(&c).is_ok() {

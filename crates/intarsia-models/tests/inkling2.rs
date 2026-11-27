@@ -904,6 +904,15 @@ fn inkling2_tiny_int8_row_real_weights_match_the_emulation() {
     };
     let (e, r, p) = (run(&emu), run(&real), run(&plain));
     assert!(c1.load(Ordering::SeqCst) > 0 && c2.load(Ordering::SeqCst) > 0, "no i8 launches: MatmulI8 {} InkInProj {}", c1.load(Ordering::SeqCst), c2.load(Ordering::SeqCst));
+    // a verify-sized pass (5..=16 rows) reads the i8 weights too, not the dequantised bf16 ones: the one-row decode step and a verify
+    // row then run the same weights (spec on == spec off; the P12 limit of 4 rows must not cap the i8 copies)
+    {
+        let mut st = real.new_state().unwrap();
+        let (b1, b2) = (c1.load(Ordering::SeqCst), c2.load(Ordering::SeqCst));
+        let _ = all_logits(&real, &mut st, &ids[..6.min(ids.len())]);
+        assert!(c2.load(Ordering::SeqCst) > b2, "a 6-row pass took no i8 in-projection");
+        assert!(c1.load(Ordering::SeqCst) > b1, "a 6-row pass took no i8 wo / unembed");
+    }
     let cos = |a: &[f32], b: &[f32]| {
         let (mut ab, mut aa, mut bb) = (0f64, 0f64, 0f64);
         for (x, y) in a.iter().zip(b) {
