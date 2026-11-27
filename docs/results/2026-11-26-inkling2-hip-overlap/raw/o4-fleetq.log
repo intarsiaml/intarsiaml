@@ -1,2 +1,6 @@
 fleetq: #12322 waiting (#3 in line): in line behind #12316 "ink-hip-i8: copy 3 goldens (2.5 MB), sync, build retuned cli + ink_i8" (claude-04c0e1cd) on tatooine-r9700
 fleetq:   #12316 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12316 set, or it will wait for #12316 to be released.
+fleetq: #12322 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12316 "ink-hip-i8: copy 3 goldens (2.5 MB), sync, build retuned cli + ink_i8" (claude-04c0e1cd) loads it
+fleetq:   #12316 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12316 set, or it will wait for #12316 to be released.
+fleetq: #12322 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #12321 "ink-sampled-adapt: hip build ad2 (cli + 2 tests)" (claude-04c0e1cd) loads it
+fleetq:   #12321 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12321 set, or it will wait for #12321 to be released.

@@ -65,3 +65,19 @@ admit() {  # card binary op...: `kernels test --op`
       | grep -aE "ADMITTED|REJECT|FAIL|NO CASES|Error|panicked" | head -8 | sed "s/^/ADMIT $op: /"
   done
 }
+g2() {  # card binary short|long: G2 (accuracy --mode prefill vs the oracle W4A16 goldens; stage_g2.sh of ink-hip-bpf)
+  local card=$1 b=$2 g=$3
+  (( $(left) < 30 )) && { echo "G2 $g $b SKIP ($(left) s left)"; return; }
+  echo "G2 $g $b [$(now)] $(HIP_VISIBLE_DEVICES=$card INK_CONTAINER=$(cname "$card") timeout $(( $(left) - 5 )) bash "$S/run.sh" /work/.scratch/bin/intarsia-$b accuracy -m $M \
+    --backend hip --max-seq 4096 --mode prefill --golden golden/oracle/inkling2-mini-oracle-w4a16-$g-top20.safetensors 2>&1 \
+    | grep -aE "prefill floor|floor verdict|Error|panicked" | cut -c1-300 | tr '\n' ' ')"
+}
+bw() {  # name mode...: serve_bitwise.py against the server srv started (IP), one json per mode in $L
+  local name=$1 m ms; shift
+  for m in "$@"; do
+    (( $(left) < 15 )) && { echo "[$name] bitwise $m SKIP ($(left) s left)"; continue; }
+    ms=${m//:/_}
+    timeout $(( $(left) - 3 )) python3 "$S/serve_bitwise.py" "http://$IP:8133/v1" "$m" "$L/$name-bitwise-$ms.json" > "$L/$name-bitwise-$ms.out" 2>&1
+    echo "[$name] bitwise $m exit $? $(now): $(head -n 1 "$L/$name-bitwise-$ms.out")"
+  done
+}

@@ -4,4 +4,4 @@
 set -uo pipefail
 cd /opt/code/intarsiaml/.worktrees/ink-hip-overlap
 rsync -a --delete --exclude /target --exclude /.git --exclude /.worktrees --exclude /logs --exclude /.scratch --exclude /docs/results ./ tatooine:intarsiaml-ink-hip-bpf/ < /dev/null
-rsync -a docs/results/2026-11-26-inkling2-hip-overlap/raw/*.sh tatooine:intarsiaml-ink-hip-bpf/.scratch/ < /dev/null
+rsync -a docs/results/2026-11-26-inkling2-hip-overlap/raw/*.sh docs/results/2026-11-26-inkling2-hip-overlap/raw/isa_cmp.py tatooine:intarsiaml-ink-hip-bpf/.scratch/ < /dev/null
