@@ -69,7 +69,8 @@ fn inkling2_sampled_dspark_real_model_runs() {
     let budget = var("INTARSIA_SS_BUDGET_S").map(|v| std::time::Duration::from_secs_f64(v.parse().unwrap()));
     let spec_k: usize = var("INTARSIA_SS_K").map_or(3, |v| v.parse().unwrap());
     let opts = if var("INTARSIA_SS_DEFAULT").is_some_and(|v| v == "1") {
-        intarsia_models::EngineOptions { max_batch: Some(1), ..Default::default() }
+        // `spec_auto`: no `--spec` given, as the CLI sets it (`common.rs`); without it the loader applies no recipe default
+        intarsia_models::EngineOptions { max_batch: Some(1), spec_auto: true, ..Default::default() }
     } else {
         intarsia_models::EngineOptions {
             spec: SpecConfig { mode: SpecMode::Dflash, k: spec_k, k_min: None },

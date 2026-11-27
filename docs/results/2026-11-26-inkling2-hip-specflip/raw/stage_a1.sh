@@ -70,6 +70,7 @@ seeds() {  # arm (off | def) temp
     INTARSIA_SS_TOKENS=24 INTARSIA_SS_BUDGET_S=75 INTARSIA_SS_OUT=/work/logs/a1-$BR/seeds-$1-$2.txt \
     /work/.scratch/bin/t-$BR-inkling2_sampled_real --nocapture > "$f.log" 2>&1
   echo "[a1 c1] seeds $1 T $2 rc $? t+$(el)s lines $(wc -l < "$f.txt" 2>/dev/null) | $(grep -aE 'requests in|DFlash2 drafter|DFlash-family drafting|second draft' "$f.log" | tr '\n' ' ' | cut -c1-400)"
+  [ "$1" = def ] && ! grep -aq "DFlash2 drafter .*loaded beside" "$f.log" && echo "[a1 c1] seeds def T $2: VOID (no DFlash2 drafter line: the recipe default did not apply)"
 }
 mixed() {  # arm (off = no speculation at all | def) prompt-repeat: greedy (T 0) and seeded sampled (T 1.0) alternating, seeds 0..4
   local f=$OUT/mixed-$1-x$2 e="INTARSIA_SS_DEFAULT=1"
