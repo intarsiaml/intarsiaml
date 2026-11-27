@@ -1,0 +1,21 @@
+fleetq: #12378 running on tatooine-r9700, tatooine-r9700-2: bash .scratch/win.sh 290 stage_w45.sh SPEC=default 'PLAN="short:1 2,4k:1 2,16k:1"'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-i8/docs/results/2026-11-26-inkling2-hip-i8/raw/stage_w45.sh; cap 290s; stopping radiance 2026-11-26 21:57:36
+[window] radiance stopped 2026-11-26 21:57:40 (inactive)
+SPD main default-short 256 r1 9a27c21b6fdc4ea7700439c818e698d8 | decode 2698 ms (94.51 tok/s) | prefill 101 ms (307.6 tok/s) | steps=134 graph replays=133 (captures 6) eager decode steps=0 [21:57:51]
+SPD branch default-short 256 r1 51b358e2804ce910741d29bb6f86f5b9 | decode 2505 ms (101.81 tok/s) | prefill 99 ms (312.1 tok/s) | steps=139 graph replays=138 (captures 6) eager decode steps=0 [21:58:13]
+SPD branch default-short 256 r2 51b358e2804ce910741d29bb6f86f5b9 | decode 2502 ms (101.91 tok/s) | prefill 100 ms (311.1 tok/s) | steps=139 graph replays=138 (captures 6) eager decode steps=0 [21:58:35]
+SPD main default-short 256 r2 9a27c21b6fdc4ea7700439c818e698d8 | decode 2699 ms (94.47 tok/s) | prefill 99 ms (312.3 tok/s) | steps=134 graph replays=133 (captures 6) eager decode steps=0 [21:58:46]
+[stage] done 21:58:46
+SPD main default-4k 256 r1 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2361 ms (108.00 tok/s) | prefill 1384 ms (3054.5 tok/s) | steps=106 graph replays=103 (captures 6) eager decode steps=0 [21:58:58]
+SPD branch default-4k 256 r1 c96e82b75275142ccb4409517610706f | decode 1799 ms (141.76 tok/s) | prefill 1382 ms (3059.2 tok/s) | steps=77 graph replays=74 (captures 6) eager decode steps=0 [21:59:20]
+SPD branch default-4k 256 r2 c96e82b75275142ccb4409517610706f | decode 1800 ms (141.68 tok/s) | prefill 1384 ms (3055.8 tok/s) | steps=77 graph replays=74 (captures 6) eager decode steps=0 [21:59:43]
+SPD main default-4k 256 r2 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2361 ms (108.00 tok/s) | prefill 1384 ms (3055.2 tok/s) | steps=106 graph replays=103 (captures 6) eager decode steps=0 [21:59:55]
+[stage] done 21:59:55
+SPD main default-16k 256 r1 93e0a15116abba2d998ccd8493215a45 | decode 2125 ms (119.99 tok/s) | prefill 5314 ms (3183.0 tok/s) | steps=80 graph replays=71 (captures 5) eager decode steps=0 [22:00:11]
+SPD branch default-16k 256 r1 93e0a15116abba2d998ccd8493215a45 | decode 1940 ms (131.46 tok/s) | prefill 5316 ms (3181.9 tok/s) | steps=79 graph replays=70 (captures 6) eager decode steps=0 [22:00:37]
+[stage] done 22:00:37
+[stage] all done 22:00:37
+[window] stage done 2026-11-26 22:00:38 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 22:00:38
+[window] radiance answers 2026-11-26 22:00:48 (after 15 s)
+fleetq: #12378 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

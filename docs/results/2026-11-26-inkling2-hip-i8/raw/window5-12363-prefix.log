@@ -1,0 +1,37 @@
+fleetq: #12363 waiting (#7 in line): in line behind #12355 "ink-hip-overlap: window S3 (paired speed AB: main5 vs o4; card 1 pace 0/150/300 on merged o5, batched bitwise)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12355 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12355 set, or it will wait for #12355 to be released.
+fleetq: #12363 waiting (#6 in line): in line behind #12356 "ink-sampled-adapt: W2 (speed off/fix/pol, HIP)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12356 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12356 set, or it will wait for #12356 to be released.
+fleetq: #12363 waiting (#5 in line): in line behind #12357 "ink-hip-i8: W6 (hip tiny suites inkling2 + inkling2_batch, i8 env and main)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12357 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12357 set, or it will wait for #12357 to be released.
+fleetq: #12363 waiting (#4 in line): in line behind #12358 "ink-dflash2: ABBA k5 w3 (a, r1 r2)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12358 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12358 set, or it will wait for #12358 to be released.
+fleetq: #12363 waiting (#3 in line): in line behind #12361 "ink-hip-overlap: sync + hip tiny test builds (inkling2_batch, inkling2_packed) of merged head" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12361 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12361 set, or it will wait for #12361 to be released.
+fleetq: #12363 waiting (#2 in line): in line behind #12362 "ink-hip-overlap: window S4 (checks only: merged o5 batched + overlap=0 bitwise, solo servers o4 / o5, tiny)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12362 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12362 set, or it will wait for #12362 to be released.
+fleetq: #12363 waiting (#1 in line): radiance-rank0 is also taken down by #12362 "ink-hip-overlap: window S4 (checks only: merged o5 batched + overlap=0 bitwise, solo servers o4 / o5, tiny)" (claude-04c0e1cd)
+fleetq:   #12362 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12362 set, or it will wait for #12362 to be released.
+fleetq: #12363 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 98% busy with work fleetq does not track
+fleetq: #12363 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12363 running on tatooine-r9700, tatooine-r9700-2: bash .scratch/win.sh 290 stage_w45.sh SPEC=default 'PLAN="short:1 2,4k:1 2,16k:1"'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-i8/docs/results/2026-11-26-inkling2-hip-i8/raw/stage_w45.sh; cap 290s; stopping radiance 2026-11-26 21:48:07
+[window] radiance stopped 2026-11-26 21:48:11 (inactive)
+SPD main default-short 256 r1 9a27c21b6fdc4ea7700439c818e698d8 | decode 2698 ms (94.50 tok/s) | prefill 101 ms (305.9 tok/s) | steps=134 graph replays=133 (captures 6) eager decode steps=0 [21:48:22]
+SPD branch default-short 256 r1 754611c19b111f60e80e68449c31571b | decode 2515 ms (101.39 tok/s) | prefill 99 ms (312.5 tok/s) | steps=132 graph replays=131 (captures 6) eager decode steps=0 [21:48:44]
+SPD branch default-short 256 r2 754611c19b111f60e80e68449c31571b | decode 2513 ms (101.47 tok/s) | prefill 101 ms (308.4 tok/s) | steps=132 graph replays=131 (captures 6) eager decode steps=0 [21:49:05]
+SPD main default-short 256 r2 9a27c21b6fdc4ea7700439c818e698d8 | decode 2698 ms (94.51 tok/s) | prefill 102 ms (303.5 tok/s) | steps=134 graph replays=133 (captures 6) eager decode steps=0 [21:49:16]
+[stage] done 21:49:16
+SPD main default-4k 256 r1 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2359 ms (108.10 tok/s) | prefill 1381 ms (3060.7 tok/s) | steps=106 graph replays=103 (captures 6) eager decode steps=0 [21:49:28]
+SPD branch default-4k 256 r1 c96e82b75275142ccb4409517610706f | decode 1860 ms (137.07 tok/s) | prefill 1383 ms (3056.3 tok/s) | steps=76 graph replays=73 (captures 6) eager decode steps=0 [21:49:51]
+SPD branch default-4k 256 r2 c96e82b75275142ccb4409517610706f | decode 1861 ms (137.04 tok/s) | prefill 1384 ms (3055.6 tok/s) | steps=76 graph replays=73 (captures 6) eager decode steps=0 [21:50:13]
+SPD main default-4k 256 r2 9675bbb95adabf53ce09c1f77a1d34b4 | decode 2361 ms (108.02 tok/s) | prefill 1385 ms (3053.7 tok/s) | steps=106 graph replays=103 (captures 6) eager decode steps=0 [21:50:25]
+[stage] done 21:50:25
+SPD main default-16k 256 r1 93e0a15116abba2d998ccd8493215a45 | decode 2124 ms (120.04 tok/s) | prefill 5315 ms (3182.5 tok/s) | steps=80 graph replays=71 (captures 5) eager decode steps=0 [21:50:41]
+SPD branch default-16k 256 r1 93e0a15116abba2d998ccd8493215a45 | decode 1920 ms (132.83 tok/s) | prefill 5313 ms (3183.6 tok/s) | steps=78 graph replays=69 (captures 6) eager decode steps=0 [21:51:07]
+[stage] done 21:51:07
+[stage] all done 21:51:07
+[window] stage done 2026-11-26 21:51:08 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 21:51:08
+[window] radiance answers 2026-11-26 21:51:18 (after 15 s)
+fleetq: #12363 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -13,7 +13,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         // the gated-delta-net ops reuse the f64 reference math (no separate fast path yet)
         Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::ShortConv => crate::gdn_ref::run(call),
         // quantised matmuls and MoE reuse the f64 reference math (parallel over rows / tokens)
-        Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MatmulMxfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
+        Op::MatmulFp8 | Op::MatmulI8 | Op::MatmulNvfp4 | Op::MatmulMxfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
         Op::BridgeNorm | Op::BridgeCode | Op::BridgeGate | Op::BridgeWrite => crate::bridge_ref::run(call),
         Op::AttnResMix | Op::LoopBlend | Op::SconvRes | Op::InkKvPrologue | Op::RelSinkAttn | Op::MoeExpertsMxfp8 | Op::InkInProj | Op::ConvMix | Op::InkAttnDecode | Op::InkRoute => crate::ink_ref::run(call, true),
         Op::HeadScreen | Op::LogitsGather | Op::ScreenArgmax => crate::screen_ref::run(call, true),
@@ -51,7 +51,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::GumbelArgmax => crate::reference::gumbel_argmax(call),
         // lossless P12 weights (lane ink-pack12): the decoded bf16 weight through the bf16 op
         Op::MatmulP12 => run(&crate::p12_ref::as_bf16(call)?),
-        Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved91 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => Err(Error::invalid(format!("{}: reserved discriminant", call.op))),
+        Op::InkReserved78 | Op::InkReserved79 | Op::InkReserved81 | Op::InkReserved82 | Op::InkReserved83 | Op::InkReserved84 | Op::InkReserved85 | Op::InkReserved86 | Op::InkReserved87 | Op::InkReserved92 | Op::InkReserved93 | Op::InkReserved94 | Op::InkReserved95 => Err(Error::invalid(format!("{}: reserved discriminant", call.op))),
     }
 }
 

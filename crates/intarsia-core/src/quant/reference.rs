@@ -70,6 +70,23 @@ pub fn nvfp4_row(w: &[u8], bs: &[u8], gs: f32, r: usize, k: usize, out: &mut [f6
     }
 }
 
+/// `MatmulI8` (lane ink-hip-i8) for `n` rows: `x [m,k]`, codes `q [n,k]` i8, one f32 scale per row -> `[m,n]` f64, each
+/// `scale[n] * sum_k(x[k] * q[n,k])` (the sum of the activation times the integer code, then the row scale).
+pub fn matmul_i8(x: &[f32], m: usize, k: usize, q: &[u8], scales: &[f32], n: usize) -> Vec<f64> {
+    let mut out = vec![0f64; m * n];
+    for ni in 0..n {
+        let qr = &q[ni * k..(ni + 1) * k];
+        for mi in 0..m {
+            let mut s = 0f64;
+            for ki in 0..k {
+                s += x[mi * k + ki] as f64 * (qr[ki] as i8) as f64;
+            }
+            out[mi * n + ni] = s * scales[ni] as f64;
+        }
+    }
+    out
+}
+
 /// `MatmulNvfp4` for `n` rows: `x` `[m,k]` -> `[m,n]` f64.
 pub fn matmul_nvfp4(x: &[f32], m: usize, k: usize, w: &[u8], bs: &[u8], gs: f32, n: usize) -> Vec<f64> {
     let mut out = vec![0f64; m * n];

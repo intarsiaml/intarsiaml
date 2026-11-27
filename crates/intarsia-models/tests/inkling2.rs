@@ -35,7 +35,15 @@ fn load_with(dir: &Path, chunk: usize, backend: Arc<dyn intarsia_core::Backend>)
     load_act(dir, chunk, backend, None)
 }
 
+/// Loads read the process environment (`INTARSIA_INK_ATTN_QUANT` ...): a test that sets it holds the write side while it loads.
+static LOAD_GATE: std::sync::RwLock<()> = std::sync::RwLock::new(());
+
 fn load_act(dir: &Path, chunk: usize, backend: Arc<dyn intarsia_core::Backend>, act: Option<intarsia_core::DType>) -> intarsia_core::Result<Model> {
+    let _r = LOAD_GATE.read().unwrap_or_else(|e| e.into_inner());
+    load_act_ungated(dir, chunk, backend, act)
+}
+
+fn load_act_ungated(dir: &Path, chunk: usize, backend: Arc<dyn intarsia_core::Backend>, act: Option<intarsia_core::DType>) -> intarsia_core::Result<Model> {
     let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
     let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
     let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
@@ -341,6 +349,7 @@ fn inkling2_tiny_graph_decode_is_bitwise_the_eager_decode() {
         let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
         let src = SafeTensors::open_dir(&dir).unwrap();
         let o = LoadOptions { max_seq: 128, prefill_chunk: chunk(), graphs, profile_every: 0, ..Default::default() };
+        let _r = LOAD_GATE.read().unwrap_or_else(|e| e.into_inner());
         Model::load(backend(), &recipe, &dims, &src, &o, Arc::new(Telemetry::new())).unwrap()
     };
     let run = |m: &Model| {
@@ -470,6 +479,7 @@ fn inkling2_tiny_verify_graph_replays_equal_decode_bitwise() {
         let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
         let src = SafeTensors::open_dir(&dir).unwrap();
         let o = LoadOptions { max_seq: 128, prefill_chunk: chunk(), graphs: false, profile_every: 0, ..Default::default() };
+        let _r = LOAD_GATE.read().unwrap_or_else(|e| e.into_inner());
         Model::load(backend(), &recipe, &dims, &src, &o, Arc::new(Telemetry::new())).unwrap()
     };
     // graphs on for the verify passes (turning them off drops the recordings, `Model::set_graphs`); the 1-row decode they
@@ -791,6 +801,134 @@ fn inkling2_tiny_p12_forced_on() {
     assert_eq!(a.len(), ids.len());
     let first = (0..a.len()).find(|&i| a[i] != b[i]);
     assert!(first.is_none(), "P12 vs bf16 logits: first differing row {first:?} of {}", a.len());
+}
+
+/// The cpu backend under another name (a stand-in for a GPU backend that registers the i8 kernels: the cpu reference serves
+/// `MatmulI8` and the i8 `InkInProj`), counting the i8 launches (lane ink-hip-i8).
+struct I8Sim {
+    inner: Arc<dyn Backend>,
+    matmul_i8: Arc<std::sync::atomic::AtomicUsize>,
+    in_proj_i8: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl Backend for I8Sim {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+    fn info(&self) -> DeviceInfo {
+        self.inner.info()
+    }
+    fn alloc(&self, bytes: usize, kind: MemKind) -> intarsia_core::Result<Buffer> {
+        self.inner.alloc(bytes, kind)
+    }
+    fn upload(&self, dst: &Buffer, o: usize, src: &[u8], s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.upload(dst, o, src, s)
+    }
+    fn download(&self, src: &Buffer, o: usize, dst: &mut [u8], s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.download(src, o, dst, s)
+    }
+    fn copy(&self, d: &Buffer, d_o: usize, s: &Buffer, s_o: usize, n: usize, st: StreamId) -> intarsia_core::Result<()> {
+        self.inner.copy(d, d_o, s, s_o, n, st)
+    }
+    // the `MatmulI8` kernels under a device-looking name (`sim_*`): the loader takes the real-i8 path for a backend that has one
+    fn kernels(&self) -> Vec<KernelImpl> {
+        self.inner
+            .kernels()
+            .into_iter()
+            .map(|mut k| {
+                if k.op == Op::MatmulI8 {
+                    k.name = format!("sim_{}", k.name);
+                }
+                k
+            })
+            .collect()
+    }
+    fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> intarsia_core::Result<()> {
+        let kernel = kernel.strip_prefix("sim_").unwrap_or(kernel);
+        if call.op == Op::MatmulI8 {
+            self.matmul_i8.fetch_add(1, Ordering::SeqCst);
+        }
+        if call.op == Op::InkInProj && call.inputs[1].dtype == intarsia_core::DType::I8 {
+            self.in_proj_i8.fetch_add(1, Ordering::SeqCst);
+        }
+        self.inner.launch(kernel, call, stream)
+    }
+    fn synchronize(&self, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.synchronize(s)
+    }
+    fn zero(&self, dst: &Buffer, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.zero(dst, s)
+    }
+    fn hold(&self, s: StreamId, after: usize) -> intarsia_core::Result<()> {
+        self.inner.hold(s, after)
+    }
+    fn release(&self, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.release(s)
+    }
+    fn discard(&self, s: StreamId) -> intarsia_core::Result<()> {
+        self.inner.discard(s)
+    }
+}
+
+/// `INTARSIA_INK_ATTN_QUANT=int8_row` + `INTARSIA_LMHEAD_QUANT=int8_row` (lane ink-hip-i8): on the cpu backend the f32 emulation
+/// (the accuracy study's arm C); on a backend with the i8 kernels (the cpu reference under another name) REAL i8 weights: decode
+/// steps launch `MatmulI8` and the i8 `InkInProj`, prefill-sized passes take the bf16 weight the codes mean. Both are the same
+/// int8 weights, so their logits agree to bf16 rounding (cosine > 0.999 per row) and both differ from the bf16 model.
+#[test]
+fn inkling2_tiny_int8_row_real_weights_match_the_emulation() {
+    let Some(dir) = tiny_dir() else { return skip("no fixture") };
+    let ids = prompt(&dir);
+    let load_q = |b: Arc<dyn Backend>| -> Model {
+        let _g = LOAD_GATE.write().unwrap_or_else(|e| e.into_inner());
+        std::env::set_var("INTARSIA_INK_ATTN_QUANT", "int8_row");
+        std::env::set_var("INTARSIA_LMHEAD_QUANT", "int8_row");
+        let m = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| load_act_ungated(&dir, chunk(), b, None)));
+        std::env::remove_var("INTARSIA_INK_ATTN_QUANT");
+        std::env::remove_var("INTARSIA_LMHEAD_QUANT");
+        m.unwrap_or_else(|e| std::panic::resume_unwind(e)).unwrap()
+    };
+    let emu = load_q(intarsia_backend_cpu::CpuBackend::arc());
+    let (c1, c2) = (Arc::new(std::sync::atomic::AtomicUsize::new(0)), Arc::new(std::sync::atomic::AtomicUsize::new(0)));
+    let sim = Arc::new(I8Sim { inner: intarsia_backend_cpu::CpuBackend::arc(), matmul_i8: c1.clone(), in_proj_i8: c2.clone() });
+    let real = load_q(sim);
+    let plain = load(&dir, chunk());
+    // a 6-row pass, then one-row steps (the i8 kernels) to the end
+    let run = |m: &Model| {
+        let mut st = m.new_state().unwrap();
+        let n = ids.len();
+        let mut rows = all_logits(m, &mut st, &ids[..6.min(n)]);
+        for i in 6..n {
+            rows.extend(all_logits(m, &mut st, &ids[i..i + 1]));
+        }
+        rows
+    };
+    let (e, r, p) = (run(&emu), run(&real), run(&plain));
+    assert!(c1.load(Ordering::SeqCst) > 0 && c2.load(Ordering::SeqCst) > 0, "no i8 launches: MatmulI8 {} InkInProj {}", c1.load(Ordering::SeqCst), c2.load(Ordering::SeqCst));
+    // a verify-sized pass (5..=16 rows) reads the i8 weights too, not the dequantised bf16 ones: the one-row decode step and a verify
+    // row then run the same weights (spec on == spec off; the P12 limit of 4 rows must not cap the i8 copies)
+    {
+        let mut st = real.new_state().unwrap();
+        let (b1, b2) = (c1.load(Ordering::SeqCst), c2.load(Ordering::SeqCst));
+        let _ = all_logits(&real, &mut st, &ids[..6.min(ids.len())]);
+        assert!(c2.load(Ordering::SeqCst) > b2, "a 6-row pass took no i8 in-projection");
+        assert!(c1.load(Ordering::SeqCst) > b1, "a 6-row pass took no i8 wo / unembed");
+    }
+    let cos = |a: &[f32], b: &[f32]| {
+        let (mut ab, mut aa, mut bb) = (0f64, 0f64, 0f64);
+        for (x, y) in a.iter().zip(b) {
+            ab += *x as f64 * *y as f64;
+            aa += *x as f64 * *x as f64;
+            bb += *y as f64 * *y as f64;
+        }
+        ab / (aa.sqrt() * bb.sqrt())
+    };
+    assert_eq!(e.len(), r.len());
+    for i in 0..e.len() {
+        let c = cos(&e[i], &r[i]);
+        assert!(c > 0.999, "row {i}: emulation vs real i8 cosine {c}");
+    }
+    // the quantisation is real: the bf16 model differs from the int8 one
+    assert!((0..e.len()).any(|i| e[i] != p[i]), "int8 logits equal the bf16 ones");
 }
 
 /// A backend without one of the Inkling-2 kernels refuses the load, naming the op (CUDA and HIP register none of them).
