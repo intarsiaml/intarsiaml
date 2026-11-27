@@ -268,10 +268,18 @@ fn routes_by_config_and_parses_the_softcap() {
     let with = |name: &str, f: &dyn Fn(&mut Value)| intarsia_models::load::open_dflash(Some(&write_draft(name, &g, &draft_config(f))), false);
     // no softcap: none applied
     assert_eq!(with("nocap", &|c| c["dflash_config"].as_object_mut().unwrap().retain(|k, _| !k.contains("softcap"))).unwrap().config.selector_post_softcap, 0.0);
-    // the reference's default mode (before_correction) with a selector, explicit or implied: not implemented, refused
-    assert!(with("before", &|c| c["dflash_config"]["selector_softcap_mode"] = json!("before_correction")).is_err());
-    assert!(with("implied", &|c| { c["dflash_config"].as_object_mut().unwrap().remove("selector_softcap_mode"); }).is_err());
-    assert!(with("bogus", &|c| c["dflash_config"]["selector_softcap_mode"] = json!("sideways")).is_err());
+    // the reference's default mode (before_correction) with a selector, explicit or implied, and unknown modes: not implemented,
+    // the cap ignored as on main (drafts only), the draft still loads
+    for (name, mode) in [("before", Some("before_correction")), ("implied", None), ("bogus", Some("sideways"))] {
+        let dl = with(name, &|c| match mode {
+            Some(m) => c["dflash_config"]["selector_softcap_mode"] = json!(m),
+            None => {
+                c["dflash_config"].as_object_mut().unwrap().remove("selector_softcap_mode");
+            }
+        })
+        .unwrap();
+        assert_eq!(dl.config.selector_post_softcap, 0.0, "{name}");
+    }
     // without a selector the drafts are the rows' argmax, which no softcap moves
     let nosel = with("nosel", &|c| {
         c["dflash_config"]["selector_softcap_mode"] = json!("before_correction");

@@ -480,34 +480,28 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
 /// `dflash_config.final_logit_softcapping` and `selector_softcap_mode` of a DFlash2 draft (lane ink-dflash2): the softcap the
 /// candidate selector applies after its correction (`"after_correction"`, `incoai/Inkling-2-Mini-DFlash2`), 0 without one. A greedy
 /// pick is the argmax of the capped scores, which `cap * tanh(x / cap)` (monotonic) leaves where the uncapped argmax is, but for
-/// scores the f32 tanh rounds to one value. `"before_correction"` (the reference's default) softcaps the unary logits before the
-/// correction is added, which changes the pick: refused with a selector, as is an unknown mode. Without a selector the drafts are
-/// the rows' argmax, which no softcap moves.
+/// scores the f32 tanh rounds to one value. `"before_correction"` (the reference's default, which softcaps the unary logits before
+/// the correction) and unknown modes are not implemented: as on main, the cap is ignored (with a note), which can only change which
+/// drafts are proposed, never the output. Without a selector the drafts are the rows' argmax, which no softcap moves.
 fn selector_softcap(d: &Value, cfg_path: &Path) -> Result<f32> {
     let cap = d.get("final_logit_softcapping").and_then(Value::as_f64).unwrap_or(0.0);
     let mode = match d.get("selector_softcap_mode") {
-        None | Some(Value::Null) => "before_correction",
-        Some(v) => v.as_str().ok_or_else(|| Error::model(format!("{}: dflash_config.selector_softcap_mode is not a string", cfg_path.display())))?,
+        None | Some(Value::Null) => "before_correction".to_string(),
+        Some(v) => v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string()),
     };
-    if !matches!(mode, "before_correction" | "after_correction") {
-        return Err(Error::model(format!(
-            "{}: dflash_config.selector_softcap_mode {mode:?} (before_correction or after_correction)",
-            cfg_path.display()
-        )));
-    }
-    if !(cap > 0.0) {
+    let selector = d.get("selector_rank").and_then(Value::as_u64).unwrap_or(0) > 0 && d.get("selector_top_k").and_then(Value::as_u64).unwrap_or(0) > 0;
+    if !(cap > 0.0) || !selector {
         return Ok(0.0);
     }
-    let selector = d.get("selector_rank").and_then(Value::as_u64).unwrap_or(0) > 0 && d.get("selector_top_k").and_then(Value::as_u64).unwrap_or(0) > 0;
-    match (mode, selector) {
-        ("after_correction", _) => Ok(cap as f32),
-        (_, false) => Ok(0.0),
-        _ => Err(Error::Unsupported(format!(
-            "{}: a DFlash2 candidate selector with final_logit_softcapping {cap} in selector_softcap_mode \"before_correction\" \
-             (only \"after_correction\" is implemented)",
-            cfg_path.display()
-        ))),
+    if mode == "after_correction" {
+        return Ok(cap as f32);
     }
+    eprintln!(
+        "{}: dflash_config.final_logit_softcapping {cap} in selector_softcap_mode {mode:?} is not implemented (only \"after_correction\"): \
+         the selector's scores stay uncapped (drafts only)",
+        cfg_path.display()
+    );
+    Ok(0.0)
 }
 
 /// The Inkling-2 DSpark draft (`mtp.safetensors` beside the target, `mtp_config` in its `config.json`); semantics in
