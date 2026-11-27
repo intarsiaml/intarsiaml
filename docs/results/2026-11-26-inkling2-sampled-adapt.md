@@ -126,7 +126,8 @@ Code read (no change needed):
 - Every target pass ends in `Model::dflash_after_forward` (`model/dflash.rs`), from both the captured decode step (`model.rs`
   `forward_inner`, the graph branch) and the eager pass. For DSpark, a 1-row pass while `active && synced && kv.len + pending + 1 == st.len`
   copies its tap row into the sequence's stash (`dflash_stash`, `pending += 1`); a longer pass flushes the stash first and then ingests its
-  own rows. The stash flushes by itself at 512 rows (`PEND_MAX`), which is also the most rows one ingest takes (`MIX_ROWS`).
+  own rows. The stash flushes by itself when it is full: min(512 (`PEND_MAX`), the workspace rows) rows (`dflash_pend_max`; the real model's
+  chunk is 2048, so 512; the tiny fixture's 16, which the test below overflows on purpose).
 - `dflash_draft_rank` flushes the stash before every block pass and then checks `kv.len == st.len` (an error, not a silent desync).
 - The Markov head's `f_rnn` ring (64 positions) is written for the last 64 rows of every ingest, so the row the draft reads (position
   `p0 - 1`) is current after any flush length.
@@ -134,7 +135,7 @@ Code read (no change needed):
 
 Seeded-id equality cannot detect a desynced draft (Match is exact whatever the drafts are; desync only lowers acceptance), so a test
 that can fail: `tests/inkling2_dspark_sampled_adapt.rs` `plain_steps_keep_the_draft_in_sync` (tiny fixture): after prefill and `n`
-plain decode steps (n = 1, 3, 17), the state is `synced` with `kv.len + pending == st.len`, and the next draft equals the draft of a
+plain decode steps (n = 2, 3, 17; 17 overflows the tiny stash once), the state is `synced` with `kv.len + pending == st.len`, and the next draft equals the draft of a
 state that ingested the same tokens in one pass (prefill of prompt + tokens). Decision: **k_min = 0**, no change to the draft state.
 
 ## 2. The policy (pre-registered before any GPU window)

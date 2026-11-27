@@ -3,7 +3,7 @@
 //! `tests/inkling2_dspark.rs`. Backend: cpu, or Metal / CUDA / HIP with `INTARSIA_INKLING2_BACKEND=metal|cuda|hip`.
 //!
 //! * `plain_steps_keep_the_draft_in_sync`: a plain step (the policy's k = 0) leaves the DSpark draft's context in sync: after prefill
-//!   and `n` single-token decode steps (n = 2, 3, 17) the state is synced with every row accounted for, and the next draft equals the draft of a state
+//!   and `n` single-token decode steps (n = 2, 3, 17; 17 overflows the tiny fixture's 16-row stash once) the state is synced with every row accounted for, and the next draft equals the draft of a state
 //!   that took the same tokens through verify passes (whose rows are bitwise the decode steps' and go into the draft's cache directly).
 //! * `adapt_seeded_ids_equal_spec_off`: with the policy on (the backend's table, an aggressive table that stops and resumes drafting
 //!   often, and the `drafts` diagnostic) a seeded request emits the ids of `--spec off`; the aggressive table both drafts and takes
@@ -51,7 +51,7 @@ fn plain_steps_keep_the_draft_in_sync() {
     let k = 3;
     let (m, _) = model(Some(k), Some(true), None);
     let prompt = PROMPTS[0];
-    let toks: Vec<u32> = (0..17u32).map(|i| (i * 31 + 7) % 250 + 1).collect();
+    let toks: Vec<u32> = (0..18u32).map(|i| (i * 31 + 7) % 250 + 1).collect();
     let fresh = || {
         let mut st = m.new_state().unwrap();
         st.dflash.as_mut().expect("a DSpark state").active = true;
@@ -67,7 +67,10 @@ fn plain_steps_keep_the_draft_in_sync() {
         }
         let d = a.dflash.as_ref().unwrap();
         assert!(d.active && d.synced, "n {n}: the draft fell out of sync after plain steps");
-        assert_eq!((d.kv.len + d.pending, d.pending), (a.len, n), "n {n}: the stash must hold every plain step's row");
+        // every plain step's row is in the stash or, past the stash's size (min(512, workspace rows): 16 on the tiny fixture, so n 17
+        // overflows it once), already ingested
+        assert_eq!(d.kv.len + d.pending, a.len, "n {n}: a plain step's row is neither stashed nor ingested");
+        assert!(d.pending >= 1 && d.pending <= n, "n {n}: pending {}", d.pending);
         let da = m.dflash_draft(&mut a, next, k).unwrap();
         let d = a.dflash.as_ref().unwrap();
         assert_eq!((d.kv.len, d.pending), (a.len, 0), "n {n}: the draft call flushes the stash");
