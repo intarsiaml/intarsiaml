@@ -235,8 +235,8 @@ pub fn sampled_dflash_parse(v: &str) -> Option<bool> {
     }
 }
 
-/// [`sampled_dflash_parse`] of `INTARSIA_SPEC_SAMPLED_DFLASH` (read once): `None` when unset or empty (the backend default applies,
-/// [`sampled_dflash_default_for`]); an unknown value is off with a warning.
+/// [`sampled_dflash_parse`] of `INTARSIA_SPEC_SAMPLED_DFLASH` (read once): `None` when unset or empty (the recipe's default applies,
+/// [`sampled_dflash_resolve`]); an unknown value is off with a warning.
 pub fn sampled_dflash_from_env() -> Option<bool> {
     static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
     *V.get_or_init(|| {
@@ -251,10 +251,15 @@ pub fn sampled_dflash_from_env() -> Option<bool> {
     })
 }
 
-/// The default when `INTARSIA_SPEC_SAMPLED_DFLASH` is unset: off on every backend (opt-in, lane ink-sampled 2026-11-26; default-on is
-/// the user's call after the measurements).
-pub fn sampled_dflash_default_for(_backend: &str) -> bool {
-    false
+/// Whether sampled requests draft with the loaded DFlash-family draft: `env` (`INTARSIA_SPEC_SAMPLED_DFLASH`, [`sampled_dflash_from_env`],
+/// or a test's setting) wins both ways (`0` is the revert); else the recipe's `[tuning.<backend>] sampled_dflash` (`recipe`), which counts
+/// only when the draft is the checkpoint's own DSpark draft (`own_draft`); else off. Lane ink-sampled made it opt-in on every backend;
+/// lane ink-hip-specflip (flip A, user decision 2026-11-26 "Both, confirm first") turns it on by default where the recipe says so:
+/// `recipes/inkling2.toml` on HIP only, where the draft length policy of lane ink-sampled-adapt passed its gate (story prompt 0.981 of
+/// plain sampling, seeded ids equal; docs/results/2026-11-26-inkling2-sampled-adapt.md). An explicit `--spec dflash --spec-draft
+/// <another draft>` (a DFlash2 draft, measured greedy only) keeps sampled requests plain unless `env` says on.
+pub fn sampled_dflash_resolve(env: Option<bool>, recipe: Option<bool>, own_draft: bool) -> bool {
+    env.unwrap_or(own_draft && recipe == Some(true))
 }
 
 // lane ink-sampled-adapt: the per-request draft length of sampled DFlash-family speculation (`INTARSIA_SPEC_SAMPLED_ADAPT`)
@@ -2288,11 +2293,17 @@ mod tests {
     }
 
     #[test]
-    fn sampled_dflash_parse_and_default_off_everywhere() {
-        // lane ink-sampled: opt-in on every backend; `reject` has no DFlash form
-        for b in ["cpu", "metal", "cuda", "hip"] {
-            assert!(!sampled_dflash_default_for(b), "{b}");
+    fn sampled_dflash_parse_and_resolve() {
+        // lane ink-sampled: opt-in; lane ink-hip-specflip: the recipe's key turns it on by default for the checkpoint's own DSpark draft,
+        // the variable wins both ways; `reject` has no DFlash form
+        for own in [false, true] {
+            assert!(!sampled_dflash_resolve(None, None, own), "no key: off");
+            assert!(!sampled_dflash_resolve(None, Some(false), own), "key false: off");
+            assert!(sampled_dflash_resolve(Some(true), None, own), "=1: on");
+            assert!(!sampled_dflash_resolve(Some(false), Some(true), own), "=0 reverts the key");
         }
+        assert!(sampled_dflash_resolve(None, Some(true), true), "the key with the DSpark draft: on");
+        assert!(!sampled_dflash_resolve(None, Some(true), false), "the key with another draft: off");
         for (v, want) in [("0", Some(false)), ("off", Some(false)), ("1", Some(true)), ("on", Some(true)), ("match", Some(true))] {
             assert_eq!(sampled_dflash_parse(v), want, "{v}");
         }

@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/serve_bitwise.py", line 225, in <module>
+    main()
+  File "/home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/serve_bitwise.py", line 119, in main
+    a, b = (json.load(open(x)) for x in sys.argv[2:4])
+    ^^^^
+  File "/home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/serve_bitwise.py", line 119, in <genexpr>
+    a, b = (json.load(open(x)) for x in sys.argv[2:4])
+                      ^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/josef/intarsiaml-ink-hip-specflip/logs/gate2-specA2/solo.json'

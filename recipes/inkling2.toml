@@ -100,6 +100,12 @@ mtp_default_k = 5
 # the story prompt 0.981 / 0.991 (fixed k5 0.896 / 0.982); docs/results/2026-11-26-inkling2-sampled-adapt.md.
 # Revert: INTARSIA_SPEC_SAMPLED_ADAPT=0 (fixed k5), or delete this line (the built-in table).
 sampled_adapt = "d=0.234,r=0.273/0.498/0.69/0.985/1.211,g=0.95,margin=0.0,drop=0.05,probe=1,hold=16,hold_max=64"
+# Sampled requests (temperature > 0) draft with the DSpark draft by default on HIP (lane ink-hip-specflip, user decision 2026-11-26 "Both,
+# confirm first"), with the draft length policy above: seeded ids equal to --spec off (the keyed Match rule), the story prompt 0.981 of plain
+# sampling (docs/results/2026-11-26-inkling2-sampled-adapt.md, docs/results/2026-11-26-inkling2-hip-specflip.md). Only with the model's own
+# draft (the DSpark default or --spec-draft <model dir>), one sequence; a batching server has no draft. Metal failed the gate: opt-in there.
+# Revert: INTARSIA_SPEC_SAMPLED_DFLASH=0, or delete this line.
+sampled_dflash = true
 
 [accuracy]
 chat_turns = "inkling2"       # one open token per role, <|end_message|> closes (crates/intarsia-cli/src/cmd/accuracy/turns.rs)

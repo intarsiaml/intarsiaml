@@ -1,0 +1,41 @@
+processes: 16, reps [1, 2, 3, 4]
+T 1.0: ids identical across 8 processes (all arms): yes
+T 0.7: ids identical across 8 processes (all arms): yes
+
+| T | class | off tok/s | fix tok/s | pol tok/s | fix / off | pol / off | pol / fix | acc., tok/pass, plain tokens: fix / pol |
+|---|---|---:|---:|---:|---|---|---|---|
+| 1.0 | short | 75.87 | nan | 98.57 | - | **1.299** [1.265-1.334] | - | - / 58.5 %, 2.93, 88 |
+| 1.0 | 1k | 73.43 | nan | 83.78 | - | **1.141** [1.122-1.160] | - | - / 40.0 %, 2.38, 20 |
+| 1.0 | 4k | 72.32 | nan | 98.52 | - | **1.362** [1.350-1.374] | - | - / 59.4 %, 3.17, 16 |
+| 0.7 | short | 76.05 | nan | 91.16 | - | **1.199** [1.170-1.228] | - | - / 52.9 %, 2.74, 134 |
+| 0.7 | 1k | 73.91 | nan | 78.40 | - | **1.061** [1.053-1.069] | - | - / 35.5 %, 2.39, 60 |
+| 0.7 | 4k | 72.62 | nan | 97.97 | - | **1.349** [1.337-1.362] | - | - / 61.1 %, 2.74, 1 |
+
+| T | prompt | fix / off | pol / off | pol / fix | acc., tok/pass, plain tokens: fix / pol |
+|---|---|---|---|---|---|
+| 1.0 | short_b | - | **0.974** [0.949-1.000] | - | - / 22.4 %, 1.71, 86 |
+| 1.0 | short_a | - | **1.363** [1.323-1.404] | - | - / 57.2 %, 2.68, 1 |
+| 1.0 | short_c | - | **1.831** [1.770-1.894] | - | - / 83.6 %, 4.34, 1 |
+| 1.0 | len1k | - | **1.141** [1.122-1.160] | - | - / 40.0 %, 2.38, 20 |
+| 1.0 | len4k | - | **1.362** [1.350-1.374] | - | - / 59.4 %, 3.17, 16 |
+| 0.7 | short_b | - | **0.990** [0.958-1.024] | - | - / 30.8 %, 1.73, 70 |
+| 0.7 | short_a | - | **1.054** [1.035-1.073] | - | - / 33.7 %, 2.25, 64 |
+| 0.7 | short_c | - | **1.849** [1.798-1.901] | - | - / 85.2 %, 4.38, 0 |
+| 0.7 | len1k | - | **1.061** [1.053-1.069] | - | - / 35.5 %, 2.39, 60 |
+| 0.7 | len4k | - | **1.349** [1.337-1.362] | - | - / 61.1 %, 2.74, 1 |
+
+pre-registered rule (results doc section 3):
+  1. every prompt pol / off >= 0.98: FAIL (lowest 0.974 at T 1.0 short_b)
+  2. every class keeps >= 98 % of fixed k's ratio: PASS
+  3 (speed processes). ids identical across all arms: PASS
+
+the coordinator's gate (sampled DFlash2 vs flip A's DSpark-adaptive, #543 HIP ratios):
+  1. every prompt pol / off >= 0.98: FAIL (lowest 0.974 at T 1.0 short_b)
+  2. T 1.0 short: pol / off 1.299 vs 0.98 x 1.172 = 1.149: ok
+  2. T 1.0 1k: pol / off 1.141 vs 0.98 x 1.042 = 1.021: ok
+  2. T 1.0 4k: pol / off 1.362 vs 0.98 x 1.466 = 1.437: FAIL
+  2. T 0.7 short: pol / off 1.199 vs 0.98 x 1.163 = 1.140: ok
+  2. T 0.7 1k: pol / off 1.061 vs 0.98 x 1.068 = 1.047: ok
+  2. T 0.7 4k: pol / off 1.349 vs 0.98 x 1.458 = 1.429: FAIL
+  2. every class >= 0.98 x DSpark-adaptive: FAIL
+  ids identical across the arms (speed processes): PASS

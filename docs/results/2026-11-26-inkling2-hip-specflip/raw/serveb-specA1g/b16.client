@@ -1,0 +1,2 @@
+wall 13.83 s, aggregate 141.6 tok/s, latency median 13.63 s max 13.83 s, prompt tokens 19943, cached 0, ttft median 2.5558 max 7.4112629890441895, itl p50 0.0537 p99 0.5868
+conc: 16 replies, 1958 tokens -> /home/josef/intarsiaml-ink-hip-specflip/logs/serveb-specA1g/b16.json

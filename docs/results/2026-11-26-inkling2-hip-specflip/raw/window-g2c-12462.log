@@ -1,0 +1,33 @@
+fleetq: #12462 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12462 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=120 BR=specA1g NOCTX=1 TAG=c bash ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/window.sh ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_serve.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_serve.sh; cap 120s; stopping radiance 2026-11-26 23:32:04
+[window] radiance stopped 2026-11-26 23:32:08 (inactive)
+[gate] start 23:32:08 specA1g d52cbb09447871313b6c3261a4de2f75 commit d84acc9f67fccc512af0baabef69ce2ff68d5e93
+[gate c0] b16 up after 18s 23:32:25
+[gate c0] b16 conc rc 0 23:32:39 | conc: 16 replies, 2048 tokens -> /home/josef/intarsiaml-ink-hip-specflip/logs/servec-specA1g/b16.json
+[gate c0] b16 lines: continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 17.0s, context 3285 tokens 
+[gate c1] solo up after 19s 23:32:26
+[gate c1] solo solo rc 0 23:32:52 | solo: 16 replies, 2048 tokens -> /home/josef/intarsiaml-ink-hip-specflip/logs/servec-specA1g/solo.json
+[gate c1] solo lines: --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row) sampled requests (temperature > 0): DFlash-family drafting on (recipe inkling2 [tuning.hip] sampled_dflash; INTARSIA_SPEC_SAMPLED_DFLASH=0 turns it off; single sequence, one rank, seed-exact keyed rule) loaded ink on hip (AMD Radeon Graphics) 
+EQUAL        short-0: prompt    56 tok, 128 / 128 out, md5 2aac1fe54b88 / 2aac1fe54b88, cached 0 / 0
+EQUAL        short-1: prompt    49 tok, 128 / 128 out, md5 6d1c9868b552 / 6d1c9868b552, cached 0 / 0
+EQUAL        short-2: prompt    57 tok, 128 / 128 out, md5 b090e7cc5642 / b090e7cc5642, cached 0 / 0
+EQUAL          mid-0: prompt   570 tok, 128 / 128 out, md5 cbeba43e08a9 / cbeba43e08a9, cached 0 / 0
+EQUAL          mid-1: prompt   234 tok, 128 / 128 out, md5 653d8a0ed9fd / 653d8a0ed9fd, cached 0 / 0
+EQUAL     4k-0[:700]: prompt   226 tok, 128 / 128 out, md5 0827408680cd / 0827408680cd, cached 0 / 0
+EQUAL    4k-1[:1500]: prompt   546 tok, 128 / 128 out, md5 7fbdce70e4c9 / 7fbdce70e4c9, cached 0 / 0
+EQUAL    4k-0[:2600]: prompt   823 tok, 128 / 128 out, md5 745ddc08d51f / 745ddc08d51f, cached 0 / 0
+EQUAL    4k-1[:3300]: prompt  1167 tok, 128 / 128 out, md5 c51ba18fbfe7 / c51ba18fbfe7, cached 0 / 0
+EQUAL    4k-0[:4000]: prompt  1292 tok, 128 / 128 out, md5 83b603538c48 / 83b603538c48, cached 0 / 0
+EQUAL    4k-1[:5200]: prompt  1790 tok, 128 / 128 out, md5 7b7e05fa6d1d / 7b7e05fa6d1d, cached 0 / 0
+EQUAL    4k-0[:6000]: prompt  1914 tok, 128 / 128 out, md5 9bac0fa88f8e / 9bac0fa88f8e, cached 0 / 0
+EQUAL    4k-1[:7000]: prompt  2559 tok, 128 / 128 out, md5 55f2f21fa55a / 55f2f21fa55a, cached 0 / 0
+EQUAL    4k-0[:8000]: prompt  2549 tok, 128 / 128 out, md5 0c86f039e1af / 0c86f039e1af, cached 0 / 0
+EQUAL    4k-1[:7600]: prompt  2807 tok, 128 / 128 out, md5 7a97c4525e21 / 7a97c4525e21, cached 0 / 0
+EQUAL    4k-0[:9000]: prompt  2864 tok, 128 / 128 out, md5 8adff1f0521f / 8adff1f0521f, cached 0 / 0
+16 / 16 replies equal
+[serve] done 23:32:52
+[window] stage done 2026-11-26 23:32:53 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 23:32:53
+[window] radiance answers 2026-11-26 23:33:03 (after 15 s)
+fleetq: #12462 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

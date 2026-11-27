@@ -1,0 +1,16 @@
+fleetq: #12499 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 BR=specA2 bash ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/window.sh ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_serve2.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_serve2.sh; cap 285s; stopping radiance 2026-11-27 00:28:34
+[window] radiance stopped 2026-11-27 00:28:38 (inactive)
+[serve2] start 00:28:38 specA2 8e927dd520f2765ad8da92db4f198c35 commit 136b4dc162f4f5edca6a5972f6d7cf29869f6f7c
+[serve2 c1] solo up after 120s 00:30:38
+[serve2 c1] solo solo rc 0 00:31:04 | solo: 16 replies, 2048 tokens -> /home/josef/intarsiaml-ink-hip-specflip/logs/serve2-specA2/solo.json
+[serve2 c1] solo lines: --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row) sampled requests (temperature > 0): DFlash-family drafting on (recipe inkling2 [tuning.hip] sampled_dflash; INTARSIA_SPEC_SAMPLED_DFLASH=0 turns it off; single sequence, one rank, seed-exact keyed rule) admission on plan shapes: 38 kernel(s) c
+[serve2 c0] b16 up after 1s 00:31:04
+[serve2 c0] b16 conc rc 0 00:31:18 | conc: 16 replies, 2048 tokens -> /home/josef/intarsiaml-ink-hip-specflip/logs/serve2-specA2/b16.json
+[serve2 c0] b16 lines: admission on plan shapes: 23 kernel(s) checked, 0 case(s) run, 134 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 15.7s, context 3285 tokens 
+[serve2] b16 (card 0) vs solo (card 1): 16 / 16 replies equal
+[serve2] done 00:31:18
+[window] stage done 2026-11-27 00:31:19 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-27 00:31:19
+[window] radiance answers 2026-11-27 00:31:29 (after 15 s)
+fleetq: #12499 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
