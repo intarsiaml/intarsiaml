@@ -1,0 +1,29 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-sampled/.scratch/tat/w_k5.sh; cap 265s; stopping radiance 2026-11-26 19:39:34
+[window] radiance stopped 2026-11-26 19:39:38 (inactive)
+[k5] 6667e0667c7964f4b495934fd8f7a6d4  /home/josef/intarsiaml-ink-sampled/.scratch/bin/intarsia-br5 1212314c1f79be0b94b93d63a17ea899  /home/josef/intarsiaml-ink-sampled/.scratch/bin/intarsia-main5 
+[k5] md5 phase 2026-11-26 19:39:38
+[k5 c0] md5 main5 off rc 0 2026-11-26 19:39:51 | decode overall: 441 tokens after the first, 5307 ms (83.10 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[k5 c0] md5 main5 def rc 0 2026-11-26 19:40:08 | decode overall: 441 tokens after the first, 3676 ms (119.97 tok/s) | spec: verify passes=140 proposed=432 accepted=269 (acceptance 62.3%, 2.92 tokens per pass)
+[k5 c1] md5 br5 off rc 0 2026-11-26 19:39:51 | decode overall: 441 tokens after the first, 5289 ms (83.39 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[k5 c1] md5 br5 def rc 0 2026-11-26 19:40:08 | decode overall: 441 tokens after the first, 3657 ms (120.59 tok/s) | spec: verify passes=140 proposed=432 accepted=269 (acceptance 62.3%, 2.92 tokens per pass)
+[k5] speed 2026-11-26 19:40:08
+[k5 c0] off1 r1 rc 0 2026-11-26 19:40:31 | decode overall: 762 tokens after the first, 10256 ms (74.30 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[k5 c0] on1 r1 rc 0 2026-11-26 19:40:53 | decode overall: 762 tokens after the first, 9179 ms (83.01 tok/s) | spec: verify passes=294 proposed=846 accepted=369 (acceptance 43.6%, 2.26 tokens per pass)
+[k5 c0] on1 r2 rc 0 2026-11-26 19:41:15 | decode overall: 762 tokens after the first, 9179 ms (83.02 tok/s) | spec: verify passes=294 proposed=846 accepted=369 (acceptance 43.6%, 2.26 tokens per pass)
+[k5 c0] off1 r2 rc 0 2026-11-26 19:41:38 | decode overall: 762 tokens after the first, 10287 ms (74.07 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[k5 c0] off07 r1 rc 0 2026-11-26 19:42:00 | decode overall: 762 tokens after the first, 10234 ms (74.46 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[k5 c0] on07 r1 rc 0 2026-11-26 19:42:21 | decode overall: 762 tokens after the first, 8859 ms (86.01 tok/s) | spec: verify passes=283 proposed=799 accepted=374 (acceptance 46.8%, 2.32 tokens per pass)
+[k5 c0] on07 r2 rc 0 2026-11-26 19:42:42 | decode overall: 762 tokens after the first, 8936 ms (85.27 tok/s) | spec: verify passes=283 proposed=799 accepted=374 (acceptance 46.8%, 2.32 tokens per pass)
+[k5 c0] off07 r2 rc 0 2026-11-26 19:43:04 | decode overall: 762 tokens after the first, 10340 ms (73.70 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[k5 c1] off1 r3 rc 0 2026-11-26 19:40:31 | decode overall: 762 tokens after the first, 10252 ms (74.33 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[k5 c1] on1 r3 rc 0 2026-11-26 19:40:53 | decode overall: 762 tokens after the first, 9058 ms (84.13 tok/s) | spec: verify passes=294 proposed=846 accepted=369 (acceptance 43.6%, 2.26 tokens per pass)
+[k5 c1] on1 r4 rc 0 2026-11-26 19:41:15 | decode overall: 762 tokens after the first, 9097 ms (83.77 tok/s) | spec: verify passes=294 proposed=846 accepted=369 (acceptance 43.6%, 2.26 tokens per pass)
+[k5 c1] off1 r4 rc 0 2026-11-26 19:41:37 | decode overall: 762 tokens after the first, 10270 ms (74.19 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[k5 c1] off07 r3 rc 0 2026-11-26 19:41:59 | decode overall: 762 tokens after the first, 10212 ms (74.62 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[k5 c1] on07 r3 rc 0 2026-11-26 19:42:20 | decode overall: 762 tokens after the first, 8865 ms (85.95 tok/s) | spec: verify passes=283 proposed=799 accepted=374 (acceptance 46.8%, 2.32 tokens per pass)
+[k5 c1] on07 r4 rc 0 2026-11-26 19:42:40 | decode overall: 762 tokens after the first, 8963 ms (85.02 tok/s) | spec: verify passes=283 proposed=799 accepted=374 (acceptance 46.8%, 2.32 tokens per pass)
+[k5 c1] off07 r4 rc 0 2026-11-26 19:43:02 | decode overall: 762 tokens after the first, 10388 ms (73.35 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[k5] done 2026-11-26 19:43:04
+[window] stage done 2026-11-26 19:43:05 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 19:43:05
+[window] radiance answers 2026-11-26 19:43:15 (after 15 s)

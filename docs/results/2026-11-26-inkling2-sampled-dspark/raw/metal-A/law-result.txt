@@ -1,0 +1,12 @@
+law T 0.6 position 2: chi2 5.43 df 7 p 0.6073 (n 506 off + 917 on; distinct 24 / 28)
+law T 0.6 position 3: chi2 9.78 df 14 p 0.7784 (n 506 off + 917 on; distinct 29 / 42)
+law T 0.6 position 4: chi2 4.09 df 9 p 0.9057 (n 506 off + 917 on; distinct 33 / 47)
+law T 0.6 position 5: chi2 4.60 df 10 p 0.9160 (n 506 off + 917 on; distinct 47 / 69)
+law T 0.6 position 6: chi2 12.54 df 20 p 0.8964 (n 506 off + 917 on; distinct 62 / 93)
+law T 0.6 Fisher over 5 positions: X2 2.09 df 10 p 0.9956
+law T 1 position 2: chi2 29.62 df 28 p 0.3817 (n 506 off + 917 on; distinct 111 / 152)
+law T 1 position 3: chi2 42.72 df 32 p 0.0975 (n 506 off + 917 on; distinct 120 / 194)
+law T 1 position 4: chi2 20.13 df 26 p 0.7853 (n 506 off + 917 on; distinct 147 / 212)
+law T 1 position 5: chi2 18.98 df 24 p 0.7529 (n 506 off + 917 on; distinct 172 / 270)
+law T 1 position 6: chi2 17.30 df 22 p 0.7464 (n 506 off + 917 on; distinct 214 / 348)
+law T 1 Fisher over 5 positions: X2 8.22 df 10 p 0.6075

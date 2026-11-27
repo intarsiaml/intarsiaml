@@ -1251,6 +1251,15 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             let how = if std::env::var("INTARSIA_SPEC_SAMPLED").is_ok_and(|v| !v.is_empty()) { "INTARSIA_SPEC_SAMPLED" } else { "default" };
             eprintln!("sampled requests (temperature > 0): speculation {s:?} ({how}; single sequence, one rank)");
         }
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
+            // lane ink-sampled (opt-in)
+            let on = model.spec_sampled_dflash();
+            let how = if std::env::var("INTARSIA_SPEC_SAMPLED_DFLASH").is_ok_and(|v| !v.is_empty()) { "INTARSIA_SPEC_SAMPLED_DFLASH" } else { "default" };
+            eprintln!(
+                "sampled requests (temperature > 0): DFlash-family drafting {} ({how}; single sequence, one rank, seed-exact keyed rule)",
+                if on { "on" } else { "off" }
+            );
+        }
     }
     if opts.plan.admit {
         eprintln!(

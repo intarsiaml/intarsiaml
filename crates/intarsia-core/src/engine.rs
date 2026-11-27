@@ -1415,8 +1415,13 @@ pub(crate) struct Seq {
     /// [`Seq::head_mode`] then draws its tokens on the device wherever nothing else needs the logits row on the host.
     gumbel: Option<GumbelHead>,
     /// Lane mtp-sampled: this sampled request drafts in the batching engine with seed-exact acceptance (`engine/keyed.rs`).
-    /// Set by [`Seq::enable_keyed`], never by [`Seq::new`].
+    /// Set by [`Seq::enable_keyed`]; lane ink-sampled: also by [`Seq::new`] for a sampled request with a DFlash-family draft
+    /// (`INTARSIA_SPEC_SAMPLED_DFLASH`, single-sequence engine).
     spec_keyed: bool,
+    /// Lane ink-sampled: this keyed request draws its verify rows with the device sampler ([`Model::forward_verify_gumbel`]), so its
+    /// plain steps keep [`HeadMode::LastGumbel`] while it speculates (every token is the device sampler's draw at its position, as
+    /// with drafting off). Set by [`Seq::new`] only.
+    keyed_gumbel: bool,
     /// Lane samp64: the draft length a keyed request is allowed by its context ([`crate::spec::ctx_k_cap`]); empty: no schedule. Set from
     /// `BatchedOptions::sampled_ctx_k` where the batching engine enables keyed drafting.
     pub(crate) keyed_ctx_k: Vec<(usize, usize)>,
@@ -1523,6 +1528,25 @@ impl Seq {
             seq.spec_sampled = sampled;
             seq.ctx = seq.req.prompt.clone();
         }
+        // lane ink-sampled (opt-in, `INTARSIA_SPEC_SAMPLED_DFLASH`): a sampled request drafts with the DFlash-family draft (`--spec
+        // dflash`, Inkling-2's DSpark) on one rank, the same exclusions, by the seed-exact rule of `engine/keyed.rs` (Match's acceptance
+        // with every row drawn as the plain step at its position draws it). A device-sampled request draws its verify rows with the
+        // device sampler too, and keeps it for its plain steps.
+        if !seq.greedy
+            && sh.env().spec.mode == crate::spec::SpecMode::Dflash
+            && model.spec_sampled_dflash()
+            && seq.req.trace_logits.is_none()
+            && seq.cons.is_none()
+            && model.verify_rows() >= 2
+            && st.peers.is_empty()
+            && st.remote.is_none()
+            && st.dflash.is_some()
+        {
+            seq.spec_on = true;
+            seq.spec_keyed = true;
+            seq.keyed_gumbel = seq.gumbel.is_some() && model.verify_gumbel_ok();
+            seq.ctx = seq.req.prompt.clone();
+        }
         if seq.spec_mtp {
             // the single-sequence loop times its own steps; the batched scheduler shares one step among sequences
             seq.gate.set_cost(model.spec_cost_params());
@@ -1574,6 +1598,8 @@ impl Seq {
             if p > DFLASH_RESYNC_REUSE_MAX {
                 drafting = false;
                 seq.spec_on = false;
+                seq.spec_keyed = false;
+                seq.keyed_gumbel = false;
                 seq.auto = None;
             } else {
                 p = 0;
@@ -1717,6 +1743,7 @@ impl Seq {
             spec_sampled: crate::spec::SampledSpec::Off,
             gumbel,
             spec_keyed: false,
+            keyed_gumbel: false,
             keyed_ctx_k: Vec::new(),
             auto: None,
             drafter: if spec_dflash { crate::spec::Drafter::Dflash } else { crate::spec::Drafter::Mtp },
@@ -1838,7 +1865,8 @@ impl Seq {
     /// so forced-length speed benchmarks measure the real decode path.
     ///
     /// A plain-temperature request with the device sampler ([`Seq::gumbel`]) draws on the device ([`HeadMode::LastGumbel`])
-    /// under the same conditions, and not while it speculates (sampled or keyed speculation reads the rows on the host).
+    /// under the same conditions, and not while it speculates (sampled or keyed speculation reads the rows on the host), except a
+    /// keyed request whose verify rows the device sampler draws too ([`Seq::keyed_gumbel`], lane ink-sampled).
     /// The engine applies no min_p, penalty or logit_bias today (the server drops them on both paths); any future feature
     /// that changes the logits before sampling (min_p, penalties, logit_bias, ...) must exclude `LastGumbel` here.
     pub(crate) fn head_mode(&self, k: usize) -> HeadMode {
@@ -1847,7 +1875,7 @@ impl Seq {
             HeadMode::LastLogits
         } else if self.greedy {
             HeadMode::LastArgmax
-        } else if let (Some(h), false) = (self.gumbel, self.spec_on) {
+        } else if let (Some(h), false) = (self.gumbel, self.spec_on && !self.keyed_gumbel) {
             HeadMode::LastGumbel(h)
         } else {
             HeadMode::LastLogits
