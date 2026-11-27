@@ -742,6 +742,22 @@ impl Model {
         }
     }
 
+    /// Lane ink-sampled-adapt: the draft length policy of sampled DFlash-family requests on this model (`Some` sets it, `None` returns to
+    /// [`Model::spec_sampled_adapt`]'s resolution). Read when a request starts (tests run several policies in one process).
+    pub fn set_spec_sampled_adapt(&self, v: Option<crate::spec::AdaptMode>) {
+        *self.spec_sampled_adapt.lock().unwrap() = v;
+    }
+
+    /// [`Model::set_spec_sampled_adapt`], else `INTARSIA_SPEC_SAMPLED_ADAPT` over the recipe's `[tuning.<backend>] sampled_adapt` over
+    /// the built-in table of the backend ([`crate::spec::AdaptMode::resolve`], [`crate::spec::AdaptParams::default_for`]).
+    pub fn spec_sampled_adapt(&self) -> crate::spec::AdaptMode {
+        if let Some(m) = self.spec_sampled_adapt.lock().unwrap().clone() {
+            return m;
+        }
+        let b = self.backend.name();
+        crate::spec::AdaptMode::resolve(b, self.recipe.sampled_adapt(b), crate::spec::sampled_adapt_env())
+    }
+
     /// Rows the MTP queue can still take before a pass would overflow it (`--spec auto`: while the DFlash draft proposes, the
     /// head only queues).
     pub fn mtp_queue_room(&self, st: &SequenceState) -> usize {

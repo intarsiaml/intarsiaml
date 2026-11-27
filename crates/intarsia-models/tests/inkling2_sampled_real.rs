@@ -7,7 +7,9 @@
 //!   top-p 1.0: what `serve` gives a request without sampling fields for this checkpoint);
 //! * `INTARSIA_SS_SEEDS=<a>..<b>[,<c>..<d>...]` (seed ranges, default `0..20`; one request per seed and temperature, seeds outer),
 //!   `INTARSIA_SS_TOKENS` (default 6), `INTARSIA_SS_OUT` (appends one line per request: `T seed ids...`), `INTARSIA_SS_BUDGET_S`
-//!   (stop starting requests after this many seconds of generation; unset: no limit).
+//!   (stop starting requests after this many seconds of generation; unset: no limit);
+//! * `INTARSIA_SS_K` (lane ink-sampled-adapt): `--spec-k` (default 3); `INTARSIA_SPEC_SAMPLED_ADAPT` picks the draft length policy as in
+//!   `serve` (with `INTARSIA_SPEC_TRACE=1` its `adapt:` lines count the plain stretches and re-entries).
 //!
 //! Every request is the same short prompt, `--spec dflash --spec-k 3`, `ignore_eos`. Token 1 comes from prefill; tokens 2.. are the
 //! speculative positions. `docs/results/2026-11-26-inkling2-sampled-dspark/raw/law.py` compares the arms (seed equality on shared seeds,
@@ -59,8 +61,9 @@ fn inkling2_sampled_dspark_real_model_runs() {
     let tokens: usize = var("INTARSIA_SS_TOKENS").map_or(6, |v| v.parse().unwrap());
     let out = var("INTARSIA_SS_OUT").map(PathBuf::from);
     let budget = var("INTARSIA_SS_BUDGET_S").map(|v| std::time::Duration::from_secs_f64(v.parse().unwrap()));
+    let spec_k: usize = var("INTARSIA_SS_K").map_or(3, |v| v.parse().unwrap());
     let opts = intarsia_models::EngineOptions {
-        spec: SpecConfig { mode: SpecMode::Dflash, k: 3, k_min: None },
+        spec: SpecConfig { mode: SpecMode::Dflash, k: spec_k, k_min: None },
         spec_draft: Some(dir.clone()),
         spec_k_given: true,
         max_batch: Some(1),

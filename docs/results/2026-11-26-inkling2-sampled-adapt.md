@@ -133,8 +133,9 @@ mtp`, `--spec auto` and the batching engine's keyed MTP are unchanged (same k, s
 are not updated):
 
 - discounted counts for rows j = 1..c: `N_j = g N_j + 1`, `Q_j = g Q_j + [row j proposed]`, `S_j = g S_j + [row j accepted]`;
-  estimates `q_j = (Q_j + n0 q0_j) / (N_j + n0)`, `s_j = (S_j + n0 s0_j) / (N_j + n0)` with the prior `q0_j = 1`, `s0_j = a0^j`
-  (a0 = 0.6, n0 = 1: a request starts at cap K, as fixed k does). An empty call is `proposed = accepted = 0`.
+  estimates `q_j = (Q_j + n0 q0_j) / (N_j + n0)`, `s_j = (S_j + n0 s0_j) / (N_j + n0)` with the prior `q0_j = a0^(j-1)`, `s0_j = a0^j`
+  (a0 = 0.6, n0 = 1: a request starts at cap K, as fixed k does; amended 20:15 before any measurement: the first draft had `q0_j = 1`,
+  which made the prior pick k3 on the hip table, caught by the unit test). An empty call is `proposed = accepted = 0`.
 - expected tokens of a call with cap k: `T(k) = 1 + sum_{j<=k} s_j`; expected cost in plain steps (P): `C(k) = d + 1 + sum_{j<=k} q_j
   (r_j - r_{j-1})` (r_0 = 0), from a static per-backend cost table: d = the draft call, r_m = the extra cost of a verify pass with m
   drafts over a plain step, all over the plain step's time P.
