@@ -108,13 +108,14 @@ int g_gemv_r = -1, g_gemv_u = -1, g_inproj_u = -1;
 struct RU {
     int r, u;
 };
-// instantiated (R, U): M 1..4 R 1..2, U 2/4/8; M 5..16 R 1..2, U 1/2
-constexpr bool ru_few(int r, int u) { return (r == 1 || r == 2) && (u == 2 || u == 4 || u == 8); }
+// instantiated (R, U): M 1..4 R 1..2, U 1/2/4/8; M 5..16 R 1..2, U 1/2
+constexpr bool ru_few(int r, int u) { return (r == 1 || r == 2) && (u == 1 || u == 2 || u == 4 || u == 8); }
 constexpr bool ru_many(int r, int u) { return (r == 1 || r == 2) && (u == 1 || u == 2); }
 
 template <int M>
 RU gemv_ru() {
-    const RU d = M == 1 ? RU{1, 8} : (M <= 4 ? RU{1, 4} : RU{2, 2});
+    // defaults from window 1 (fleetq #12302, docs/results/2026-11-26-inkling2-hip-i8.md): U >= 4 spills at 4 rows (wo 61 us against 16 at U = 2)
+    const RU d = M <= 4 ? RU{1, 2} : RU{2, 2};
     if (g_gemv_r < 0 || g_gemv_u < 0) return d;
     const bool ok = M <= 4 ? ru_few(g_gemv_r, g_gemv_u) : ru_many(g_gemv_r, g_gemv_u);
     return ok ? RU{g_gemv_r, g_gemv_u} : d;
@@ -131,7 +132,7 @@ bool i8_gemv_go(const ik_bf16* x, const uint8_t* q, const float* sc, OutT* out, 
         return true;                                                                                         \
     }
     if constexpr (M <= 4) {
-        IK_I8_RU(1, 2) IK_I8_RU(1, 4) IK_I8_RU(1, 8) IK_I8_RU(2, 2) IK_I8_RU(2, 4) IK_I8_RU(2, 8)
+        IK_I8_RU(1, 1) IK_I8_RU(1, 2) IK_I8_RU(1, 4) IK_I8_RU(1, 8) IK_I8_RU(2, 1) IK_I8_RU(2, 2) IK_I8_RU(2, 4) IK_I8_RU(2, 8)
     } else {
         IK_I8_RU(1, 1) IK_I8_RU(1, 2) IK_I8_RU(2, 1) IK_I8_RU(2, 2)
     }
@@ -235,12 +236,13 @@ i8_in_proj_kernel(GemvSegs sg, const uint8_t* __restrict__ q, const float* __res
     }
 }
 
-// U chunk loads in flight per lane: D = 2304 has 144 chunks (4.5 per lane): U 5 = one masked pass; U 3 / 2 / 1 sweep
+// U chunk loads in flight per lane: D = 2304 has 144 chunks (4.5 per lane). Window 1: one row U 3 (35.0 us, 1..5 within 4 %); 4 rows U 1
+// (36.4 us; U 4 / 5 spill: 172-198 us)
 template <int M>
 bool in_proj_go(const GemvSegs& sg, const uint8_t* qp, const float* sp, int64_t N, int64_t D, hipStream_t s) {
     const unsigned grid = (unsigned)((N + kWarps - 1) / kWarps);
     const unsigned block = kWarps * IK_WARP;
-    const int u = g_inproj_u > 0 ? g_inproj_u : (M <= 4 ? 5 : 2);
+    const int u = g_inproj_u > 0 ? g_inproj_u : (M == 1 ? 3 : 1);
     switch (u) {
         case 1: i8_in_proj_kernel<M, 1><<<grid, block, 0, s>>>(sg, qp, sp, N, D); return true;
         case 2: i8_in_proj_kernel<M, 2><<<grid, block, 0, s>>>(sg, qp, sp, N, D); return true;

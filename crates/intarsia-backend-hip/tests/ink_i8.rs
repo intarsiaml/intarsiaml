@@ -202,7 +202,7 @@ fn check_in_proj(b: &dyn Backend, rng: &mut SplitMix64, ns: [usize; 3], d: usize
     checked
 }
 
-const GEMV_SHAPES_FEW: [(i32, i32); 6] = [(1, 2), (1, 4), (1, 8), (2, 2), (2, 4), (2, 8)];
+const GEMV_SHAPES_FEW: [(i32, i32); 8] = [(1, 1), (1, 2), (1, 4), (1, 8), (2, 1), (2, 2), (2, 4), (2, 8)];
 const GEMV_SHAPES_MANY: [(i32, i32); 4] = [(1, 1), (1, 2), (2, 1), (2, 2)];
 
 #[test]
