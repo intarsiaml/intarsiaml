@@ -1,0 +1,30 @@
+
+running 1 test
+test decode_graph_recorded_without_drafting_is_not_replayed_by_a_drafting_state ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dflash: draft of 2 layers (taps [2, 6, 10, 16], block 8, DFlash2) loaded in 0.0 s
+dflash: DFlash2 draft head mxfp4 [300 x 64] in 0.0 s (INTARSIA_DFLASH2_HEAD; drafts only)
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dflash: draft of 2 layers (taps [2, 6, 10, 16], block 8, DFlash2) loaded in 0.0 s
+dflash: DFlash2 draft head mxfp4 [300 x 64] in 0.0 s (INTARSIA_DFLASH2_HEAD; drafts only)
+/target/tmp/inkling2_dflash2/seed5: graphs enabled true captures 3 replays 4
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dspark: Markov fold [300 x 16] in 0.0 s
+dspark: draft head mxfp4 [300 x 64] in 0.0 s
+dflash: draft of 3 layers (taps [2, 6, 10, 16], block 7) loaded in 0.0 s
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dspark: Markov fold [300 x 16] in 0.0 s
+dspark: draft head mxfp4 [300 x 64] in 0.0 s
+dflash: draft of 3 layers (taps [2, 6, 10, 16], block 7) loaded in 0.0 s
+/work/crates/intarsia-models/../../golden/inkling2-tiny-dspark: graphs enabled true captures 3 replays 4
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.46s
+

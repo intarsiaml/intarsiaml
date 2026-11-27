@@ -1,0 +1,25 @@
+
+running 1 test
+test decode_graph_recorded_without_drafting_is_not_replayed_by_a_drafting_state ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dflash: draft of 2 layers (taps [2, 6, 10, 16], block 8, DFlash2) loaded in 0.0 s
+dflash: DFlash2 draft head mxfp4 [300 x 64] in 0.0 s (INTARSIA_DFLASH2_HEAD; drafts only)
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dflash: draft of 2 layers (taps [2, 6, 10, 16], block 8, DFlash2) loaded in 0.0 s
+dflash: DFlash2 draft head mxfp4 [300 x 64] in 0.0 s (INTARSIA_DFLASH2_HEAD; drafts only)
+
+thread 'decode_graph_recorded_without_drafting_is_not_replayed_by_a_drafting_state' panicked at crates/intarsia-models/tests/inkling2_dflash2.rs:435:13:
+/target/tmp/inkling2_dflash2/seed5: tap 0 of the drafting state's plain step is not the eager step's (a decode graph recorded without the tap copies was replayed)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    decode_graph_recorded_without_drafting_is_not_replayed_by_a_drafting_state
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.35s
+

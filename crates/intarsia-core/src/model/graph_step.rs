@@ -47,8 +47,8 @@ pub(super) struct GraphState {
     /// Solo decode steps: one recording per (sequence state, head) because a solo recording names that state's own buffers.
     /// Several states alternating (a batched server with one running row at a time) keep one recording each instead of
     /// re-recording at every switch (Fable review m3); the table is cleared at `SOLO_GRAPHS_MAX` entries.
-    /// keyed by (state, head recorded, full head: a `LastLogits` step must not replay a screened head)
-    captured: Mutex<std::collections::HashMap<(u64, bool, bool), Captured>>,
+    /// keyed by (state, head recorded, full head: a `LastLogits` step must not replay a screened head, draft taps: [`decode_taps`])
+    captured: Mutex<std::collections::HashMap<(u64, bool, bool, u8), Captured>>,
     /// Batched decode steps (R3c): one recording per row count, valid for any set of sequences because every state buffer a
     /// batched step touches is named by the row table the host rewrites before each replay (`Model::row_tab`).
     batched: Mutex<std::collections::HashMap<usize, Captured>>,
@@ -158,6 +158,19 @@ impl Drop for Model {
     }
 }
 
+/// Which draft taps a decode step of `st` writes, part of the solo recording's key (lane ink-plain-tax): 0 none, 1 the first
+/// DFlash-family draft's, 2 the second's (`Model::dflash_alt`). A forward writes the taps only while the state drafts
+/// (`d.active && d.synced`, `inkling2.rs`), so a recording made while it did not (a request that did not draft: logprobs, a
+/// constraint, the resync rule of `Seq::new`) holds no tap copies; replayed by the next request that drafts on the same state, its
+/// plain steps would stash stale rows and the draft would propose from them (acceptance only, never a token). And a request that
+/// does not draft must not replay a recording that writes them. A draft swap also drops the recordings (`select_dflash`).
+fn decode_taps(st: &SequenceState) -> u8 {
+    match &st.dflash {
+        Some(d) if d.active && d.synced => 1 + st.dflash_alt_on as u8,
+        _ => 0,
+    }
+}
+
 impl Model {
     /// Turn graph replay of the decode step on or off (`--no-graphs`). Off drops the recording.
     pub fn set_graphs(&self, on: bool) {
@@ -256,7 +269,7 @@ impl Model {
         self.backend.upload(&self.ws.ids, 0, &(id as i32).to_le_bytes(), self.stream)?;
         self.backend.upload(&self.ws.pos, 0, &(st.len as i32).to_le_bytes(), self.stream)?;
         let mut cache = self.graphs.captured.lock().unwrap();
-        let key = (st.id, head, full_logits);
+        let key = (st.id, head, full_logits, decode_taps(st));
         if !cache.contains_key(&key) {
             if cache.len() >= SOLO_GRAPHS_MAX {
                 cache.clear(); // recordings of states that are gone, or too many alternating ones

@@ -1,0 +1,92 @@
+# Inkling-2 on HIP: a decode graph recorded without drafting is replayed by a drafting request (stale draft taps)
+
+Lane ink-plain-tax, 2026-11-27. It started from the follow-up of `docs/results/2026-11-27-inkling2-metal-sampled-retune.md`: a plain step
+of a request in sampled-drafting (policy) mode costs 3.1 % more than an off request's on Metal, and HIP likely pays the same. A code
+read (explorer, Sonnet) of the single-sequence engine found that the retune doc's guess at the cause does not hold, and found a bug
+on HIP's default path instead.
+
+## What the code read found
+
+- **The graph theory does not hold, on either backend.** Metal has no decode graphs (`Backend::supports_graphs` is false). On HIP,
+  the graph capture records `ink_copy`. Only the plan dry-run (`Model::recorder`) skips it. The 3.1 % on Metal is most likely the
+  lost token feedback (`Seq::feedback_ok` requires `!spec_on`, so a policy-mode request never pipelines its plain steps) plus 5 copy
+  dispatches per step. This is an inference, not measured. Metal sampled drafting is opt-in, so no default pays it. Not pursued here.
+- **The bug: the solo decode-graph key ignores the draft taps.** The key is `(st.id, head, full_logits)`
+  (`crates/intarsia-core/src/model/graph_step.rs`). A forward writes the draft's tap copies only while the state drafts
+  (`d.active && d.synced`, `crates/intarsia-core/src/model/inkling2.rs`). Nothing drops the recordings when that changes. So:
+  1. A request that does not draft records the decode graph without tap copies.
+  2. The next request that drafts on the same state replays that recording. Its plain steps write no taps, so `dflash_stash`
+     copies stale rows from the staging buffer.
+  3. The draft then proposes from those stale rows.
+
+  Tokens never change, because drafts only propose. Acceptance (speed) drops.
+
+### How a default HIP server reaches it
+
+The setup is both drafts loaded (#550), greedy requests drafting with DFlash2 and sampled requests with DSpark.
+
+- **Requests that do not draft:**
+  - a sampled request with logprobs or top_logprobs (`trace_logits`), or with a constraint;
+  - a sampled turn that reuses more than `DFLASH_RESYNC_REUSE_MAX` = 128 rows while the draft is unsynced (`Seq::new`). This
+    happens, for example, after a greedy turn, which swaps in DFlash2. Swapping back to DSpark drops the graphs, the draft starts
+    unsynced, and the long turn runs without drafting.
+- **Requests that replay the stale recording:** the next sampled request that drafts on the state, for example a new conversation.
+  `truncate(0)` resyncs the draft, and `select_dflash` returns early because no swap is needed, so nothing drops the recording.
+- **The recording survives until** the next draft swap or `configure_plan`.
+
+## Fix
+
+The key gets a byte for the taps a step writes: `decode_taps(st)` = 0 none, 1 the first draft's, 2 the second draft's. This is one
+function and the key type. A request that does not draft also stops replaying a recording that writes the taps (wasted copies). A
+change of drafting state costs one extra capture.
+
+## Gates (pre-registered 2026-11-27 ~16:15 EST, before the first GPU run)
+
+Test `decode_graph_recorded_without_drafting_is_not_replayed_by_a_drafting_state` (`crates/intarsia-models/tests/inkling2_dflash2.rs`).
+It runs on the tiny fixture, for DFlash2 and for DSpark:
+
+1. One state does not draft: prefill, then two plain steps (record, replay).
+2. `truncate(0)`, then the same state drafts: prefill, one plain step.
+3. Its taps must equal bitwise those of a fresh state that drafts on the same model (its own recording). They must also be within
+   1e-2 of an eager model's.
+4. It asserts that the decode graph was replayed (>= 2), so the test cannot pass vacuously on a backend with graphs.
+
+| # | Rule |
+|---|---|
+| T1 | HIP, test-only build (red, `7fd1808e7` = 418c122bd's code plus the test): the test **FAILS** on the tap assertion (not on the vacuous one) |
+| T2 | HIP, fix build (green): the test **PASSES**, with graph replays >= 2, for both drafts |
+| T3 | HIP, fix build: the whole `inkling2_dflash2` suite passes |
+| T4 | cpu (tatooine dev image): the fix build passes `inkling2_dflash2`, `inkling2_dspark`, `inkling2_dspark_sampled`, `inkling2_dspark_sampled_adapt`, `inkling2_sampled_default`, and the intarsia-core lib tests |
+
+Merge rule: T1-T4 hold → PR, merge on green CI. If T1 passes on red, the bug as described is not real. In that case report it and
+merge nothing.
+
+Not measured: the real-model speed effect (acceptance of a drafting request after one that did not draft). That needs a longer
+radiance window.
+
+## Results
+
+All four gates hold.
+
+| # | Result | Evidence |
+|---|---|---|
+| T1 | **PASS**: red fails on the tap assertion | `inkling2_dflash2.rs:435`: "tap 0 of the drafting state's plain step is not the eager step's (a decode graph recorded without the tap copies was replayed)", first draft (DFlash2 tiny, `seed5`), 0.35 s |
+| T2 | **PASS**: green passes, for both drafts | `graphs enabled true captures 3 replays 4`, DFlash2 tiny (`seed5`) and DSpark tiny (`golden/inkling2-tiny-dspark`), 0.46 s |
+| T3 | **PASS**: green, the whole `inkling2_dflash2` suite on HIP | `test result: ok. 13 passed; 0 failed`, 164.98 s. The stage's `timeout 120` returned 124, but the suite still ran to its end and printed the result. Likely cause: the test binary is PID 1 in the container (`env` execs it), and PID 1 ignores a SIGTERM it has no handler for. No FAILED line, no panic. |
+| T4 | **PASS**: cpu, fix build | `inkling2_dflash2` 13/13, `inkling2_dspark` 4/4, `inkling2_dspark_sampled` 2/2 (3 ignored), `inkling2_dspark_sampled_adapt` 2/2, `inkling2_sampled_default` 2/2, intarsia-core lib 284/284 (4 ignored) |
+
+Runs:
+
+- **Build:** fleetq #12730, `--load cpu`, radiance up, 16:11 to 16:22 EST. Test exes `t-red` md5 `1be2204c…` (`7fd1808e7`), `t-green` md5 `9bfbd42a…` (`3595a7f37`).
+- **GPU window:** fleetq #12736, `--takes-down radiance`, R9700 card 1. Radiance stopped at 16:22:58 and answered `/v1/models` again at 16:26:00: 3 min 2 s down. Script: `raw/window.sh` + `raw/stage.sh`, CAP 280 s.
+
+Scope of the fix:
+
+- **Models without a DFlash-family draft:** `decode_taps` is 0, so they keep their key and their recordings.
+- **Metal:** never reaches this code (`supports_graphs` is false).
+- **Qwen DFlash states (HIP, CUDA):** the byte also splits their recordings into drafting (1) and not drafting (0). Their forward
+  writes the taps whenever a draft head is loaded, with no gate on `d.active` (`model.rs`, the `head.taps` copy in the layer loop).
+  So both recordings hold the same copies. The only cost is one extra capture when a state changes drafting mode, and tokens and
+  taps do not change.
+
+Still not measured: the real-model acceptance (speed) recovered by the fix.

@@ -377,6 +377,75 @@ fn taps_are_the_visit_partials_and_the_final_norm() {
     }
 }
 
+/// Lane ink-plain-tax: a single-token decode step writes the draft's taps only while the state drafts (`d.active && d.synced`,
+/// `inkling2.rs`), so a decode graph recorded while the state did not draft (a request that did not draft: a sampled request with
+/// logprobs or a constraint, or one past the resync rule) holds no tap copies. The next request that drafts on the same state (a new
+/// conversation: `truncate(0)` resyncs the draft) must not replay that recording: its plain steps would stash stale tap rows and the
+/// draft would propose from them (never a token change, only acceptance). Its taps equal an eager model's, for both drafts (DFlash2,
+/// and DSpark, HIP's sampled default). Meaningful on a backend with decode graphs (HIP; cpu and Metal have none and pass trivially).
+#[test]
+fn decode_graph_recorded_without_drafting_is_not_replayed_by_a_drafting_state() {
+    let ds = golden().join("inkling2-tiny-dspark");
+    if target_dir().is_none() || !ds.join("mtp.safetensors").exists() {
+        eprintln!("skipped: no tiny fixtures");
+        return;
+    }
+    let load = |dir: &Path, graphs: bool| {
+        let (recipe, dims) = recipe_dims();
+        let src = SafeTensors::open_dir(&target_dir().unwrap()).unwrap();
+        let dflash = Some(intarsia_models::load::open_dflash(Some(dir), false).unwrap());
+        let opts = LoadOptions { max_seq: 256, prefill_chunk: 16, graphs, dflash, ..Default::default() };
+        let mut m = Model::load(backend(false), &recipe, &dims, &src, &opts, Arc::new(Telemetry::new())).unwrap();
+        m.enable_verify(4).unwrap();
+        m.configure_plan(&Default::default(), Some(&*intarsia_backend_cpu::CpuBackend::arc())).unwrap();
+        m
+    };
+    let p = prompts().into_iter().find(|p| p.len() >= 8 && p.len() <= 16).expect("a prompt of 8-16 ids");
+    let (a, b) = (p[1], p[2]);
+    for dir in [draft_dir(), ds.clone()] {
+        let g = load(&dir, true);
+        let mut st = g.new_state().unwrap();
+        // a request that does not draft: prefill and two plain steps (the first records the decode graph, the second replays it)
+        st.dflash.as_mut().unwrap().active = false;
+        g.forward(&mut st, &p, HeadMode::None, None).unwrap();
+        g.forward(&mut st, &[a], HeadMode::LastLogits, None).unwrap();
+        g.forward(&mut st, &[b], HeadMode::LastLogits, None).unwrap();
+        assert!(!st.dflash.as_ref().unwrap().synced, "{}: a pass without drafting leaves the draft unsynced", dir.display());
+        // then a request that drafts on the same state, from an empty sequence (as `Seq::new` runs it after such a request)
+        st.truncate(0, &*g.backend).unwrap();
+        st.dflash.as_mut().unwrap().active = true;
+        assert!(st.dflash.as_ref().unwrap().synced, "truncate(0) resyncs the draft");
+        g.forward(&mut st, &p, HeadMode::None, None).unwrap();
+        g.forward(&mut st, &[a], HeadMode::LastLogits, None).unwrap();
+        let got = g.dflash_taps(1).unwrap();
+        // the same drafting request alone, on a fresh state of the same model (its own recording, made while it drafts), and eagerly
+        let mut st2 = g.new_state().unwrap();
+        g.forward(&mut st2, &p, HeadMode::None, None).unwrap();
+        g.forward(&mut st2, &[a], HeadMode::LastLogits, None).unwrap();
+        let want = g.dflash_taps(1).unwrap();
+        let e = load(&dir, false);
+        let mut st3 = e.new_state().unwrap();
+        e.forward(&mut st3, &p, HeadMode::None, None).unwrap();
+        e.forward(&mut st3, &[a], HeadMode::LastLogits, None).unwrap();
+        let eager = e.dflash_taps(1).unwrap();
+        let close = want.iter().flatten().zip(eager.iter().flatten()).all(|(x, y)| (x - y).abs() <= 1e-2 * (1.0 + y.abs()));
+        assert!(close, "{}: the fresh state's graph-replayed taps are not the eager step's", dir.display());
+        assert_eq!(got.len(), want.len());
+        for (i, (x, y)) in got.iter().zip(&want).enumerate() {
+            assert!(
+                x.iter().map(|v| v.to_bits()).eq(y.iter().map(|v| v.to_bits())),
+                "{}: tap {i} of the drafting state's plain step is not the eager step's (a decode graph recorded without the tap copies was replayed)",
+                dir.display()
+            );
+        }
+        let gs = g.graph_stats();
+        if g.backend.supports_graphs() {
+            assert!(gs.replays >= 2, "{}: the decode graph was never replayed (vacuous): {gs:?}", dir.display());
+        }
+        eprintln!("{}: graphs enabled {} captures {} replays {}", dir.display(), gs.enabled, gs.captures, gs.replays);
+    }
+}
+
 // ------------------------------------------------------------------------------------------------------------------
 // the draft pass against an f64 host reference
 // ------------------------------------------------------------------------------------------------------------------
