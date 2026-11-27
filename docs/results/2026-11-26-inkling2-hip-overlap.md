@@ -6,6 +6,45 @@ Branch `ink/hip-overlap` from the `ink/hip-bpf` head 2561d5957 (PR #538: packed 
 
 ## Overlap stalls (lane ink-hip-overlap2)
 
+### Result (2026-11-27 ~00:35): the stalls were the client path; gate 4 passes with the client on tatooine; overlap stays opt-in
+
+Paired windows S6 (BA), S7 (AB), S8 (BA), card 0, `serve --max-batch 16 --max-seq 4608 --kv-fraction 0.9`: A = main6 (origin/main
+1bf40e29f), B = o6 (the merged head 408e902b9) with `INTARSIA_OVERLAP=1`; the real-prompt client on tatooine (cores 10, 11, 22, 23),
+filler by localeval from endor. Ratio B / A, mean over the 3 windows with the 95 % t interval (n = 3, t = 4.303); lower is better
+for TTFT and ITL. Gated cells in bold.
+
+| streams | ITL p99 | aggregate tok/s | TTFT p50 | ITL p90 (not gated) | TTFT max (not gated) |
+|---|---|---|---|---|---|
+| real 4 | 0.773 [-1.01, 2.56] (1.60, 0.40, 0.31) | **1.005 [0.999, 1.011]** | **0.792 [0.768, 0.816]** | 1.048 [0.03, 2.07] | 1.058 [1.047, 1.069] |
+| real 8 | **0.322 [0.291, 0.353]** | **0.993 [0.991, 0.995]** | **0.833 [0.777, 0.888]** | 3.268 [3.115, 3.420] | 1.096 [1.068, 1.123] |
+| real 16 | **0.363 [0.219, 0.508]** | **0.995 [0.993, 0.998]** | **0.956 [0.946, 0.967]** | 1.379 [1.360, 1.398] | 1.195 [1.190, 1.201] |
+| filler 1 | - | **1.005 [1.001, 1.009]** | **1.056 [0.824, 1.288]** | - | 1.056 [0.824, 1.288] |
+| filler 4 | - | **1.008 [0.993, 1.023]** | **0.884 [0.857, 0.910]** | - | 1.038 [1.028, 1.049] |
+| filler 8 | - | **0.994 [0.975, 1.013]** | **0.938 [0.875, 1.000]** | - | 1.063 [1.036, 1.089] |
+| filler 16 | - | **0.991 [0.987, 0.996]** | **1.012 [0.997, 1.027]** | - | 1.156 [1.146, 1.167] |
+
+Absolute, mean of the 3 windows, A -> B: real ITL p99 at 8 streams 0.589 -> 0.189 s, at 16 0.626 -> 0.228 s; ITL p90 at 8 0.041 ->
+0.135 s. Server's own ITL histogram (both clients agree): p99 bucket A (0.5, 1] s -> B (150, 250] ms at 8 and 16 streams in all of
+S1-S3 and S6-S8.
+
+1. **Stall cause: client-path delay on endor, not the engine.** S3's three 0.34-0.41 s stalls are absent from the server's own ITL
+   histogram (0 of 1016 gaps above 0.25 s); each is a "late pair" (the next token 0-2 ms later, in 5-7 streams at once); main5 had
+   one too (S3 A); 2-28 % of all gaps were under 5 ms in every endor-client run and 0 in every tatooine-client run (18 regate runs, 14
+   W0 runs, S1 / S3 card 1). The regate with the client on tatooine has 0 late pairs and 0 gaps under 5 ms. Step 1 below.
+2. **Gate 4 regate (section 4's rule, thresholds unchanged): PASS 16 / 16.** The endor-client verdict on S1-S3 (**FAIL**, 8 streams
+   0.863 > 0.70) stays on record. The rule's one change, where the client runs, was written down before any window (amendment
+   below) and approved by the coordinator (23:59); order BA / AB / BA per the 00:06 go-ahead's condition 1.
+3. **Not gated, against overlap:** ITL p90 at 8 streams 3.3x main's (a decode step beside a chunk is ~110-150 ms; the endor client
+   had hidden part of this by inflating main's p90), at 16 1.4x; TTFT max 1.06-1.20x real, 1.04-1.16x filler; ITL p99 at 4 streams
+   noisy (better in 2 of 3 windows, 1.6x in S6).
+4. **No-op gates:** Qwen3.6-35B on HIP: greedy md5 main6 = o6 with `INTARSIA_OVERLAP` unset and `=1` (short and 4k, 256 tokens),
+   batched `--max-batch 4` at 4 streams = solo for o6 unset, o6 `=1`, main6 `=1` (4 waves each). Inkling HIP on the merged head:
+   batched 4 / 8 / 16 at once = solo with `=1` and unset, poisoned 16/16 and 4 x 4/4, B = A in every speed window, greedy md5 8 / 8 =
+   main's recorded values, G2 = main, hip tiny `inkling2_batch` 10/10 / `inkling2_packed` 6/6. cpu suite of the merged head on endor
+   (#12483): core lib 283, `tests/scheduler.rs` 54, models 625, cli 208 (`docs_env_vars` among them), 0 failed. Metal: see the Metal
+   slot below.
+5. **Default unchanged: `INK_OVERLAP_DEFAULT = false`** (opt-in `INTARSIA_OVERLAP=1`). Default-on is the user's call.
+
 ### Brief (coordinator, 2026-11-26 23:38 EST; written here 23:36 by `date`; the user is asleep and said "keep working")
 
 In substance, every rule kept:
@@ -210,6 +249,36 @@ the branch are doc / script only.
   167.2-168.1 tok/s short, 161.6-161.8 4k, 256 graph replays / 1 capture / 0 eager in every run. o6's solo server (`--max-seq 8192
   --mem-budget 29`, first start: 31 kernels, 380 cases run) answered the 16 prompts one at a time; o6 `--max-batch 4` with
   `INTARSIA_OVERLAP` unset (40 kernels, 46 run / 380 cached): **4 waves x 4/4 equal to the solo replies**, 0 overlap steps.
+
+### S8: regate rep 3, order BA (fleetq #12496; radiance down 00:24:39 - 00:27:49 = 3:10)
+
+`raw/window_r.sh 8` (BGCAP 175), raw `raw/s8/`, card 1 `raw/s8/card1/`.
+- B (o6 `=1`) up after 20 s, A (main6) after 17 s, both cached; B: decode lane at -1, 215 overlap steps, no "unavailable"; both KV
+  73728. Every cell exit 0. **B = A replies 4/4, 8/8, 16/16.** Client path: 0 gaps under 5 ms, 0 late pairs.
+- Server histogram p99 bucket, A -> B: (0.5, 1] s -> (150, 250] ms at 4, 8 and 16 streams.
+- **Card 1, the Qwen-on-HIP no-op (part 2)**, Qwen3.6-35B-A3B-NVFP4 `--max-batch 4 --max-seq 8192 --mem-budget 29` with
+  `INTARSIA_OVERLAP=1`: **o6 4 waves x 4/4 and main6 4 waves x 4/4 equal to o6's solo replies (S7)**. On o6, `=1` does run the
+  overlap for the 35B (158 decode phases beside chunks; its log has no decode-lane line: only the Inkling twin calls that hook)
+  and stays bitwise.
+- Card 1, Inkling on o6: **G2 short 4.491e-3 / long 4.083e-3** (= main5 / o4, section "Bitwise"); hip tiny **`inkling2_batch`
+  10/10, `inkling2_packed` 6/6** (its overlap cases: pace 0 ms 47, pace 2 ms 32 decode phases beside chunks).
+
+Radiance total for this lane: W0 3:53 + S6 3:29 + S7 3:20 + S8 3:10 = **13:52** of the 16:00 cap; radiance answered after each
+window (`curl http://tatooine:8080/v1/models`: Qwen3.8).
+
+### Gate 4 regate verdict (S6-S8, n = 3, tatooine-side client): PASS, 16 of 16 checks
+
+`regate_sum.sh s6 s7 s8` -> `raw/regate-s6-s8.txt`. Rule of section 4 unchanged: (a) real ITL p99 at 8 and 16, upper <= 0.70: **8
+streams 0.322 [0.291, 0.353], 16 streams 0.363 [0.219, 0.508]**; (b) aggregate upper >= 0.99 at every N: lowest fill16 0.996, real8
+0.995; (c) TTFT p50 lower <= 1.01: highest fill16 0.997. The endor-client verdict on S1-S3 (FAIL at 8 streams, 0.863) stays on
+record; the two differ only in where the client ran (amendment above), and the engine-side picture is the same in both: server ITL
+p99 bucket A (0.5, 1] s, B (150, 250] ms at 8 and 16 streams in all six windows.
+
+Not gated, and against overlap (the user's call on default-on): **ITL p90 at 8 streams 3.27x** [3.12, 3.42] (A 0.041 s -> B 0.135 s:
+a decode step beside a chunk is ~110-150 ms; with the endor client it read 1.77x because the client inflated A's p90 to 0.071 s), at
+16 1.38x, at 4 1.05 [0.03, 2.07]; **TTFT max** real 1.06 / 1.10 / 1.20x, filler 4 / 8 / 16 1.04 / 1.06 / 1.16x; ITL p99 at 4 streams
+0.77 [-1.01, 2.56] (1.60, 0.40, 0.31: in S6 A's chunk waits stayed under the 1 % line); filler 1-stream TTFT 1.06 [0.82, 1.29] (S6
+1.16, then 1.01 / 1.00).
 
 ## Result (2026-11-26 ~21:45): overlap works and is bitwise, but gate 4 fails at 8 streams, so it ships opt-in
 
