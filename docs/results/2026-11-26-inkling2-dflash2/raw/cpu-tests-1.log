@@ -4,3 +4,18 @@ dsv41: the tensor-parallel group failed (backend error: dsv41 engine worker pani
 dsv41: the tensor-parallel group failed (backend error: dsv41 engine worker panicked: scripted panic); aborting the communicator and marking the engine failed
 test result: ok. 80 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.60s
 == intarsia-models --test inkling2_dflash2
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 79.60s
+== intarsia-models --test dflash2_cpu
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 117.57s
+== intarsia-models --test dflash_cpu
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 59.30s
+== intarsia-models --test inkling2_dspark
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 68.44s
+== intarsia-models --test inkling2_dspark_cut
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.41s
+== intarsia-models --test recipes_doc
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+== intarsia-cli --test docs_env_vars
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+cpu tests exit 0
+fleetq: #12269 done (exit 0)

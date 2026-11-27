@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Window 1 (lane ink-dflash2), card 0, binary dfl1 (branch head). Each step only before its time limit, in the order (3) (4) (5) (2) (1):
+# Window 1 (lane ink-dflash2), card 0, binary dfl2 (branch head). Each step only before its time limit, in the order (3) (4) (5) (2) (1):
 # (1) tests/inkling2_dflash2.rs on HIP (INTARSIA_INKLING2_BACKEND=hip): taps = DSpark's, greedy ids = spec off, admitted kernels only
 # (2) admission: kernels test --backend hip --op dyn_conv --model /models/Inkling-2-Mini --quick (H 2304, K 2, G 144)
 # (3) greedy ids gate: md5.json (golden code 101 ids, 4108 ids), --ignore-eos, 64 and 256 tokens: --spec off vs DFlash2 k7
@@ -13,10 +13,10 @@ O=$REPO/logs/w1
 rm -rf "$O"; mkdir -p "$O"
 M=/models/Inkling-2-Mini
 D=/models/Inkling-2-Mini-DFlash2
-BR=${BR:-dfl1}
+BR=${BR:-dfl2}
 B=/work/.scratch/bin/intarsia-$BR
 [ -x "$S/bin/intarsia-$BR" ] || { echo "[stage] guard: $BR missing"; exit 3; }
-cp "$RAW/md5.json" "$RAW/trace.json" "$RAW/var.json" "$S/prompts/"
+mkdir -p "$S/prompts"; cp "$RAW/speed.json" "$RAW/md5.json" "$RAW/trace.json" "$RAW/var.json" "$S/prompts/"
 T0=$(date +%s)
 now() { date '+%T'; }
 el() { echo $(( $(date +%s) - T0 )); }

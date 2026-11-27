@@ -3,3 +3,13 @@ fleetq: #12268 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'env NAM
 cp: preserving times for '/d/.': Operation not permitted
 [setup] seeded exit 1 19:17:48
 [setup] build dfl1 19:17:48
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 2m 19s
+cli build exit 0
+95a9036f804fb38ca176f9e11240a8ed  /home/josef/intarsiaml-ink-dflash2/.scratch/bin/intarsia-dfl1
+    Finished `release` profile [optimized] target(s) in 17.34s
+  Executable tests/inkling2_dflash2.rs (/target/release/deps/inkling2_dflash2-084f19932525da27)
+models test inkling2_dflash2 build exit 0
+[setup] done 19:20:26
+fleetq: #12268 done (exit 0)

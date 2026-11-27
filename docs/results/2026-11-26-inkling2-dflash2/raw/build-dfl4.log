@@ -1,0 +1,3 @@
+fleetq: #12282 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/build.sh dfl4'
+fleetq: #12282 went ahead of the line and must end within 40m (by Thu 20:12); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not

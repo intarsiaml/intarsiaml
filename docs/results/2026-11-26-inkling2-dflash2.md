@@ -75,6 +75,40 @@ Work folders: Mac `.worktrees/ink-dflash2`; tatooine `~/intarsiaml-ink-dflash2`,
   `INTARSIA_DFLASH2_EMBED_NORM=1` (Inkling's `embed_norm` on the block rows) and `INTARSIA_DFLASH2_HEAD=mxfp4` (a quantised draft
   head) on the variant set for tokens per pass and tok/s.
 
+## Download (fleetq #12261)
+
+`/data/models/intarsia/Inkling-2-Mini-DFlash2` on tatooine (mounted as `/models/Inkling-2-Mini-DFlash2`), HF revision
+`4f9088ea66c21f2b99ed657d1941c306b03e84d2` (in `REVISION`), `model.safetensors` 989,975,616 bytes, sha256
+`217980ab00d116693fa5946df7bbfd967caf5fac1f529afd541fbd470ddb54ee` = the HF LFS sha256. Files read-only. `raw/download.sh`.
+`sglang_inkling_dflash2.py` read as text only (never run). What it says about Inkling:
+- taps: `set_dflash_layers_to_capture` is an alias of `set_dspark_layers_to_capture` ("both drafts use native post-residual visit
+  features and final norm"), ids sorted, unique, ending at `num_layer_visits` (48). So the DFlash2 taps are the DSpark taps.
+- vocabulary: candidate logits over the real `vocab_size` (200058) rows of the target head; 201024 is padded storage.
+- softcap: `selector_softcap_mode = "after_correction"`: no softcap on the unary logits, `cap * tanh(score / cap)` on the selector's
+  path scores (`_score_edges` output). Monotonic, so greedy picks equal the uncapped ones except f32 ties.
+- the draft has no head and no embedding of its own: it uses the target's (the worker points `lm_head` at the target's).
+  The file does not show the embedding call; window 1 settled it (below).
+
+## Window 1 (fleetq #12276, 19:24:25-19:27:58 EST, radiance down 3 min 33 s), binary `dfl2`
+
+`raw/stage_w1.sh`, `raw/window1-12276.log`, `raw/w1/`.
+- **Raw `embed[id]` block rows (the generic DFlash path): 0 of 616 drafts accepted** (k7, trace set; 1.00 tokens a pass, 70-75
+  tok/s). With `INTARSIA_DFLASH2_EMBED_NORM=1` (block rows `rms(embed[id], embed_norm)`, the target's embedding output): **51.4 %,
+  4.57 tokens a pass, 139.1 tok/s** on the variant set (code 6.07 tokens a pass 184.3 tok/s, code_tests 7.08 / 214.2, prose_300
+  3.34 / 101.3, warm 3.08 / 95.0). So the reference embeds with the target's embedding module, which includes `embed_norm`.
+  Fixed on the branch: embed_norm is the default for Inkling DFlash2 drafts (`INTARSIA_DFLASH2_EMBED_NORM=0` = raw rows).
+- md5 (off = dfl k7, 64 and 256 tokens) was equal, **but does not count**: with nothing accepted every token was a verify row's own
+  argmax. Redone in window 2.
+- The k-choice trace is void (zero acceptance). Its timing still holds: DFlash2 draft 4.9-5.5 ms a pass (flush 0.4, block 2.36,
+  bf16 head 1.80, download + select 0.25); verify + rollback by rows 2 / 3 / 4 / 5 / 6 / 8 = 15.29 / 17.71 / 19.35 / 22.41 /
+  24.85 / 28.49 ms (`raw/trace.py`); DSpark draft 2.9-3.7 ms.
+- `INTARSIA_DFLASH2_HEAD=mxfp4` ran with the raw rows (0 accepted): uninformative, redone in window 2.
+- Admission: `kernels test --backend hip --op dyn_conv --model /models/Inkling-2-Mini --quick`: dyn_conv_bf16 2 cases ADMITTED
+  (max_abs 0). No op is added or changed by this lane.
+- HIP tiny suite: `timeout 30` killed it after one test (it rebuilt test deps first). Redone in window 2 from the built executable.
+- Script bug: `stage_w1.sh` named a function `tr`, which the admission / tiny lines' `tr '\n' ' '` called: two extra DSpark trace
+  runs (about 45 s of the window). Renamed in later scripts.
+
 ## Later messages from the coordinator
 
 - **~19:10 EST, file ownership:** lane ink-hip-bpf (prefill overlap) now owns `kernels/hip/ink_mix.hip`, `kernels/hip/ink_attn.hip` and
