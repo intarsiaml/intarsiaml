@@ -1,6 +1,6 @@
 # Inkling-2-Mini + DFlash2 k5 on Metal: readiness checks for a default flip (lane ink-metal-dflash2-ready, 2026-11-27)
 
-Status: **IN PROGRESS** (rules written 2026-11-27 03:55 EST, before the first Metal slot). Verification only: no default, recipe or code change.
+Status: **IN PROGRESS** (rules written 2026-11-27 03:50 EST, before the first Metal slot). Verification only: no default, recipe or code change.
 Branch `ink/metal-dflash2-ready` from origin/main `f25bb273a` (PR #546 in). Binary `br1` built from this tree (own target dir
 `target/`, sources touched first, `[build]` job #12556, git `f25bb273a`, md5 `49a4d94be3648ec35ed2c7128dd513cb`).
 Question for the user: is DFlash2 k5 (`--spec dflash --spec-draft <Inkling-2-Mini-DFlash2> --spec-k 5`, #546) safe to make Metal's greedy default for
