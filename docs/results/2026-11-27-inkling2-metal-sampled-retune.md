@@ -2,10 +2,10 @@
 
 Branch `ink/metal-sampled2`, from origin/main `aa7beaa73`, merged with origin/main `4b629184c` before the PR (docs only; no code or recipe change). Metal sampled drafting stays opt-in.
 
-## Result (2026-11-27 03:10 EST): **the gate FAILS on Metal, clause 1, `short_b`, and the miss is structural, not noise**
+## Result (2026-11-27 03:10 EST): **the gate FAILS on Metal, clause 1, `short_b`: clearly at T 1.0, on the point estimate at T 0.7**
 
 Clauses 2, 3 and 4 pass. The story prompt `short_b` is at **0.946 [0.934-0.959] of plain sampling at T 1.0** (seeds 7 / 23 / 29: 0.945 / 0.952 / 0.942) and 0.971 [0.889-1.061] at T 0.7 (0.952 / 1.012 / 0.950). Fixed k3 is
-0.894 / 0.974 on the same seeds, so the policy recovers about half of the loss, but not up to 0.98. The cause is measured in the calibration slot: **a plain step of a request in the policy mode costs 3.1 % more than a plain step of an
+0.894 / 0.974 on the same seeds: at T 1.0 the policy recovers about half of the loss (T 1.0 is the clear miss: all three seeds are 0.942-0.952 and the interval lies below 0.98); at T 0.7 it is equal to fixed k3 and the interval (0.889-1.061) straddles 0.98, a miss on the point estimate only. The cause is measured in the calibration slot: **a plain step of a request in the policy mode costs 3.1 % more than a plain step of an
 off request** (plainonly / off = 0.970, section 2.1: four tap copies and one stash copy per step, and no replayed decode graph, a reading of the code). A request that stops drafting at once therefore tops out at about 0.97, whatever the stop rule.
 No recipe string can lift that ceiling above 0.98; it needs an engine change (the request leaves the draft for good once drafting has failed), which this lane did not make (section 2.2, stage B).
 
