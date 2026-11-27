@@ -291,3 +291,15 @@ DSpark k5 on all six cells.
   3. The speed windows of this brief are done (ABBA 4 + 4 at k7, verdict OPT-IN). The open speed work is an ABBA 4 + 4 at k4 and k5
      vs DSpark k5 on all six cells, about 2 windows of 3.75 min each per k. That needs a new radiance budget, since 2 min 47 s are
      left of this lane's 20.
+
+- **~21:00 EST, RESUME (coordinator brief to the new agent):**
+  1. Push `ink/dflash2` from endor via fleetq. 2. Rewrite the PR #541 body (what it adds, speed table + k sweep, bitwise results,
+  embed_norm finding, how to turn it on, not verified; ends with the Claude Code line). 3. New radiance budget **12 min on top of
+  the 2 min 47 s left (about 14 min 45 s)**: ABBA 4 + 4 at k4 vs DSpark k5 on all six cells with `dfl6`, 2 windows of about 3.75 min;
+  then k5 with what is left (ABBA 2 + 2 is OK, state n). Same rule. If a k meets GO, change no default, report it (the coordinator
+  asks the user). If the best k is an obvious better default for `--spec dflash` itself (opt-in), it may be set, with a test.
+  4. Results in this doc (speed table first), LOG.md row, unanimis (leave pending edit `801edc93`; new capture for the k4 / k5
+  result; no `project` / `scope`, "intarsiaml" in source). 5. Push again, update the PR body, do not merge. Windows: `--host
+  tatooine-r9700 --takes-down radiance --quiet gpu,cpu`, each <= 5 min, none started after 06:00 EST. Never `fleetq release` a
+  running window job; abort = kill the driver's process tree and confirm `curl -s http://tatooine:8080/v1/models` answers; confirm
+  radiance after every window. Merge origin/main, never rebase. Waits <= 4 min per call.
