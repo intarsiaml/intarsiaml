@@ -50,6 +50,9 @@ S1-S3 and S6-S8.
    - main6's own Inkling HIP greedy md5: o6 was compared with the values main a4c8f3b19 printed;
    - the two hip tiny `inkling2` screen tests on main6: they fail on o6 for lack of HIP kernels that main lacks too (W9);
    - a default-on build (`INK_OVERLAP_DEFAULT = true`): `=1` takes the same code path but was the config measured.
+7. **Records:** PR #542 (draft, head 2f9552ad9 + this doc commit), LOG.md row 2026-11-27 00:40, unanimis capture
+   bbcaab8f-1be7-4c8a-b028-de0e923047f3. Folders: this lane created result folders `raw/w0`, `raw/s6`-`raw/s8` (each with `card1/`) and
+   `raw/w9` here and `logs/w0`, `logs/s6`-`logs/s8` on tatooine (the s1-s5 pattern); it deleted none.
 
 ### Brief (coordinator, 2026-11-26 23:38 EST; written here 23:36 by `date`; the user is asleep and said "keep working")
 
