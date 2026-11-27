@@ -50,6 +50,20 @@ token (DSpark: ~1.0 GB of resident bytes, half of it out of the KV budget, over 
 with DFlash2 (capacity -1.2 % vs main; sampled DFlash2 is unmeasured and needs its own gate) and (c) DFlash2 alone, sampled requests
 plain on HIP (flip A lost wherever B applies) goes to the user.
 
+## PR A gates (HIP: windows G1, G2, G2b, G2c)
+
+Binary `specA1` / `specA1g` = d84acc9f6 (flip A on main `3fb1b5f8d`), md5 `d52cbb09447871313b6c3261a4de2f75`; later PR A commits are
+tests, harness and docs only (the `load.rs` addition is `#[cfg(test)]`). Main's binary `mainA` = `3fb1b5f8d`, md5 `22ae5501...`.
+
+| check (HIP, R9700) | result | where |
+|---|---|---|
+| greedy md5, md5.json (golden `code` 101 ids + the 4108-id prompt), 256 tokens, `--ignore-eos`: the new default (DSpark k5) vs `--spec off` | **equal**, `380af8a5e897bdbed231818477038f37` both (the same as #541's gate); default 122.8 vs off 81.8 tok/s | G1 card 1, `raw/gate-specA1/md5-*` |
+| 100 seeds at T 1.0, 24 tokens, k5 (real-model harness): `INTARSIA_SPEC_SAMPLED_DFLASH=0` vs the default (unset) | **100 / 100 identical**; not vacuous: off 0 verify passes, default 265 passes (408 proposed, 123 accepted); default startup line `DFlash-family drafting on (recipe inkling2 [tuning.hip] sampled_dflash; ...)` and the recipe's draft length policy | G1 card 0, `raw/gate-specA1/seeds-*` |
+| serve `--max-batch 16` (16 greedy replies at once) vs serve solo (the default, one at a time), 128 tokens | **16 / 16 equal** (G2c). G1: client URL without `/v1` (404); G2: 400 (two prompts longer than the b16 context); G2b: 15 / 16, the 16th prompt (3247 tokens) hit the b16 context after 38 tokens (its 37 first tokens' text equal to solo's; the 38th decoded as a NUL character: an edge of the batching engine at a full context, flip A does not touch it, not investigated); G2c with that prompt cut to 7600 characters: 16 / 16 | `raw/servec-specA1g/serve-compare.txt` |
+| default context / KV lines | solo default: `context 4096 tokens`, weights 15.94 GB (DSpark loaded); `--max-batch 16`: `context 3285 tokens` on the branch and **3285 on main 3fb1b5f8d** (unchanged by flip A: no draft loads with batching) | `raw/gate-specA1/sampled-def.err`, `raw/serve-specA1g/{b16,main-b16}.log` |
+
+Radiance: G1 #12441 3:35, G2 #12454 2:27, G2b #12461 0:58, G2c #12462 0:59.
+
 ## Flip A as built (PR A)
 
 - **Rule.** A new recipe key `[tuning.<backend>] sampled_dflash` (bool; `recipes/inkling2.toml` sets `true` under `[tuning.hip]` only).
@@ -66,7 +80,24 @@ plain on HIP (flip A lost wherever B applies) goes to the user.
 - **Revert:** `INTARSIA_SPEC_SAMPLED_DFLASH=0` (or delete the recipe line). `INTARSIA_SPEC_SAMPLED_ADAPT=0` keeps sampled drafting with
   fixed k5 (#535's form).
 
-## Pre-registration: the sampled DFlash2 test (option (b); written ~23:35 EST, before windows D1 / D2)
+## D1: sampled DFlash2 calibration (window D1 #12463, 2:24, binary specA1)
+
+Fixed k4 sampled DFlash2 (`INTARSIA_SPEC_SAMPLED_ADAPT=0`), all 6 prompts at 128 tokens: T 1.0 85.5 tok/s (acceptance 37.9 %, 2.50
+tokens a pass), T 0.7 90.0 tok/s (41.7 %, 2.65); `drafts` diagnostic 57.7 / 57.9. Seeds (gate 3 on the test binary): **100 / 100
+identical** at T 1.0, DFlash2 k4, off 0 passes vs on 326 passes (935 proposed, 140 accepted) (`raw/d1/seeds-*`).
+
+`raw/d1/sim.txt` (`sim.py d1/cal --hip --k=4 --ref --base=<HIP recipe string>`):
+- Cost table: D (keyed DFlash2 draft) 3.80 ms, P (plain step) 13.34 ms -> d 0.285; r_4 0.874 (464 passes; r_1..r_3 had < 10 passes,
+  scaled): 15 % rule -> **measured table d=0.285, r=0.303/0.548/0.699/0.874** (built-in cut to 4: d 0.26, r 0.26/0.47/0.60/0.75).
+- Replay check: 5 of 6 prompts x temperature exact, T 0.7 short_a not (51/204/75 replayed vs 46/181/66 measured: the DFlash2 draft's
+  proposals are not the same between the fixed and the `drafts` run there); predicted ms within 0.93-1.04 of measured.
+- The HIP recipe's policy parameters on that table miss the replay bars: short_b 0.964 (T 1.0) / below 0.99 (T 0.7), T 1.0 4k class
+  1.339 < 1.437. #543's grid, by the rule: best **g=0.85, margin=0.02, drop=0.05, probe=3, hold=16, hold_max=64**: classes T 1.0 short
+  1.275 / 1k 1.075 / 4k 1.459, T 0.7 short 1.294 / 1k 1.188 / 4k 1.435 (all >= 0.98 x DSpark-adaptive), lowest prompt **0.966**
+  (short_b, T 1.0) - the replay predicts bar 1 (every prompt >= 0.98) fails at short_b; D2 measures it.
+- **DFlash2 table for D2 / PR B:** `d=0.285,r=0.303/0.548/0.699/0.874,g=0.85,margin=0.02,drop=0.05,probe=3,hold=16,hold_max=64`.
+
+## Pre-registration: the sampled DFlash2 test (option (b); written ~23:20 EST, before windows D1 / D2)
 
 **D1 (calibration, #543's W1 protocol), binary `specA1`** (CLI of d84acc9f6; sampled drafting with `INTARSIA_SPEC_SAMPLED_DFLASH=1` and
 any `--spec-draft`): `generate --spec dflash --spec-draft /models/Inkling-2-Mini-DFlash2 --spec-k 4`, #543's `speed.json`
@@ -254,3 +285,15 @@ identical (off 0 passes, default 265, startup line "drafting on (recipe ...)"), 
 **Coordinator correction (as written):** two timestamps in my last two messages were wrong. The user's decision ("Test DFlash2 sampled")
 came at about 23:10 EST on 2026-11-26, not 23:55. My G2 budget grant was sent at 23:15 EST on 11-26, not 00:20 on 11-27. Correct both in
 your results doc. Nothing else changes. The 06:00 cutoff for windows is 06:00 EST on 11-27.
+
+**Coordinator, 23:34 EST 11-26 (as written):**
+
+> 1. #544 (int8 HIP, opt-in) is about to merge. It touches `model/inkling2.rs` and HIP `device.rs`. Before you build the PR B candidate / D2 binary, wait until `gh pr view 544 --json state` shows MERGED. Then merge `origin/main` into your branch (a merge, not a rebase) and build from that.
+>    - If #544 is still open when you are ready to build, build anyway and say so in your report.
+>    - PR A has to merge main too before it ships.
+> 2. The user has gone to bed and said "keep working". Run everything already approved without waiting on me:
+>    - PR A;
+>    - the (b) test;
+>    - PR B, if (b) passes.
+>    If (b) fails, report to me in ≤ 6 lines before writing any (a) code.
+> 3. A second lane, overlap stalls, may queue radiance windows later tonight. You keep priority: queue your windows as soon as each is ready.

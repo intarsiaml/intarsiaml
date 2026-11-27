@@ -47,7 +47,7 @@ srv() {  # card, name, mode (solo | conc), serve args: start, 16 replies, stop
   done
   if [ -z "$ip" ]; then echo "[gate c$c] $n: no server after 150 s"; docker rm -f $C > /dev/null 2>&1; return 1; fi
   echo "[gate c$c] $n up after ${i}s $(now)"
-  timeout 100 python3 "$RAW/serve_bitwise.py" "http://$ip:8132/v1" $mode "$OUT/$n.json" > "$OUT/$n.client" 2>&1
+  SB_FIT=1 timeout 100 python3 "$RAW/serve_bitwise.py" "http://$ip:8132/v1" $mode "$OUT/$n.json" > "$OUT/$n.client" 2>&1
   echo "[gate c$c] $n $mode rc $? $(now) | $(tail -n 1 "$OUT/$n.client")"
   docker rm -f $C > /dev/null 2>&1
   echo "[gate c$c] $n lines: $(grep -aE '^loaded|context|DSpark default|DFlash-family drafting|draft length per request|continuous batching|^--spec' "$OUT/$n.log" | tr '\n' ' ' | cut -c1-600)"

@@ -173,3 +173,17 @@ if mm:
         mw = sum(s) / len(s) if s else float("nan")
         rs = " ".join(f"{rate(data[k], v) or 0:.2f}" for v in CLASSES.values())
         print(f"  {k[0]:6s} r{k[1]}  {hi:5.1f} s  {mw:5.1f} W  {rs}")
+
+# lane ink-hip-specflip (sampled DFlash2, the coordinator's gate): `--ref`: bar 2 against #543's DSpark-adaptive ratios on HIP
+if "--ref" in sys.argv:
+    REF = {("1.0", "short"): 1.172, ("1.0", "1k"): 1.042, ("1.0", "4k"): 1.466, ("0.7", "short"): 1.163, ("0.7", "1k"): 1.068, ("0.7", "4k"): 1.458}
+    print("\nthe coordinator's gate (sampled DFlash2 vs flip A's DSpark-adaptive, #543 HIP ratios):")
+    print(f"  1. every prompt pol / off >= 0.98: {'PASS' if c1 else 'FAIL'} (lowest {worst[0]:.3f} at T {worst[1][0]} {worst[1][1]})" if worst else "  1. n/a")
+    g2 = True
+    for k, (f, p, _) in res.items():
+        if p:
+            ok = p[0] >= 0.98 * REF[k]
+            g2 &= ok
+            print(f"  2. T {k[0]} {k[1]}: pol / off {p[0]:.3f} vs 0.98 x {REF[k]} = {0.98 * REF[k]:.3f}: {'ok' if ok else 'FAIL'}")
+    print(f"  2. every class >= 0.98 x DSpark-adaptive: {'PASS' if g2 else 'FAIL'}")
+    print(f"  ids identical across the arms (speed processes): {'PASS' if ids_ok else 'FAIL'}")

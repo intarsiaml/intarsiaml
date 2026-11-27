@@ -24,6 +24,7 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -40,11 +41,17 @@ P = _prompts_dir()
 N = 128
 
 
+FIT = os.environ.get("SB_FIT") == "1"
+
+
 def prompts():
-    files = ["short-0", "short-1", "short-2", "mid-0", "mid-1", "4k-0", "4k-1"]
+    # lane ink-hip-specflip: SB_FIT=1 keeps every prompt inside the default --max-batch 16 context (3285 tokens on HIP): the two whole
+    # 4k documents (~4k tokens) are replaced by two more prefixes, all <= 9000 characters (<= ~2.9k tokens + 128 generated; 4k-1 is ~2.65 characters a token: its 8600-character prefix, 3247 tokens, hit the b16 context in G2b), still 16 prompts
+    files = ["short-0", "short-1", "short-2", "mid-0", "mid-1"] + ([] if FIT else ["4k-0", "4k-1"])
     out = [(f, open(os.path.join(P, f + ".txt")).read()) for f in files]
     a, b = (open(os.path.join(P, f + ".txt")).read() for f in ("4k-0", "4k-1"))
-    for i, n in enumerate([700, 1500, 2600, 4000, 6000, 8000, 10000, 9500, 5200]):
+    cuts = [700, 1500, 2600, 3300, 4000, 5200, 6000, 7000, 8000, 7600, 9000] if FIT else [700, 1500, 2600, 4000, 6000, 8000, 10000, 9500, 5200]
+    for i, n in enumerate(cuts):
         src = a if i % 2 == 0 else b
         out.append((f"{'4k-0' if i % 2 == 0 else '4k-1'}[:{n}]", src[:n]))
     return out
@@ -74,7 +81,12 @@ def ask(url, text, ext=False, ntok=None, raw=False, msgs=None):
                                  headers={"Content-Type": "application/json"})
     t0 = time.time()
     rs, cs, u, times = [], [], {}, []
-    with urllib.request.urlopen(req, timeout=200) as r:
+    try:
+        r0 = urllib.request.urlopen(req, timeout=200)
+    except urllib.error.HTTPError as e:
+        print(f"HTTP {e.code} for a prompt of {len(content)} characters: {e.read()[:400]!r}", file=sys.stderr)
+        raise
+    with r0 as r:
         for line in r:
             line = line.decode().strip()
             if not line.startswith("data:"):

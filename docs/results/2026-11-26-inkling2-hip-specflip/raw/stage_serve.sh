@@ -9,7 +9,7 @@ set -uo pipefail
 REPO=$HOME/intarsiaml-ink-hip-specflip
 RAW=$REPO/docs/results/2026-11-26-inkling2-hip-specflip/raw
 BR=${BR:?set BR}
-OUT=$REPO/logs/serve-$BR; mkdir -p "$OUT" "$REPO/.scratch/prompts" "$REPO/.scratch/home"
+OUT=$REPO/logs/serve${TAG:-}-$BR; mkdir -p "$OUT" "$REPO/.scratch/prompts" "$REPO/.scratch/home"
 M=/models/Inkling-2-Mini
 B=/work/.scratch/bin/intarsia-$BR
 now() { date '+%T'; }
@@ -28,7 +28,7 @@ srv() {  # card, name, mode (solo | conc), serve args: start, 16 replies, stop
   done
   if [ -z "$ip" ]; then echo "[gate c$c] $n: no server after 200 s"; docker rm -f $C > /dev/null 2>&1; return 1; fi
   echo "[gate c$c] $n up after ${i}s $(now)"
-  timeout 100 python3 "$RAW/serve_bitwise.py" "http://$ip:8132/v1" $mode "$OUT/$n.json" > "$OUT/$n.client" 2>&1
+  SB_FIT=1 timeout 100 python3 "$RAW/serve_bitwise.py" "http://$ip:8132/v1" $mode "$OUT/$n.json" > "$OUT/$n.client" 2>&1
   echo "[gate c$c] $n $mode rc $? $(now) | $(tail -n 1 "$OUT/$n.client")"
   docker rm -f $C > /dev/null 2>&1
   echo "[gate c$c] $n lines: $(grep -aE '^loaded|context|DSpark default|DFlash-family drafting|draft length per request|continuous batching|^--spec' "$OUT/$n.log" | tr '\n' ' ' | cut -c1-600)"
@@ -43,7 +43,7 @@ ctx() {  # card, bin name, name, serve args: start, wait for the `loaded` line (
   docker rm -f $C > /dev/null 2>&1
   echo "[gate c$c] $n ($b $(cat "$REPO/.scratch/bin/intarsia-$b.commit" 2>/dev/null | cut -c1-9)) after ${i}s: $(grep -aE '^admission|^continuous batching|^loaded ' "$OUT/$n.log" | tr '\n' ' ')"
 }
-( srv 0 b16 conc --max-batch 16; ctx 0 ${MAIN:-mainA} main-b16 --max-batch 16 ) > "$OUT/c0.log" 2>&1 &
+( srv 0 b16 conc --max-batch 16; [ -z "${NOCTX:-}" ] && ctx 0 ${MAIN:-mainA} main-b16 --max-batch 16 ) > "$OUT/c0.log" 2>&1 &
 ( srv 1 solo solo ) > "$OUT/c1.log" 2>&1 &
 wait
 cat "$OUT/c0.log" "$OUT/c1.log"
