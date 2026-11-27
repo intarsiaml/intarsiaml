@@ -1,0 +1,29 @@
+fleetq: #12357 waiting (#5 in line): in line behind #12353 "ink-hip-overlap: window S2 (paired speed BA: o4 vs main5; card 1 o5 md5 + solo servers o4 / o5)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12353 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12353 set, or it will wait for #12353 to be released.
+fleetq: #12357 waiting (#4 in line): in line behind #12354 "ink-hip-i8: W4 (plain decode + prefill, 4k ABBA 4+4, 16k 2+2)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12354 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12354 set, or it will wait for #12354 to be released.
+fleetq: #12357 waiting (#3 in line): in line behind #12355 "ink-hip-overlap: window S3 (paired speed AB: main5 vs o4; card 1 pace 0/150/300 on merged o5, batched bitwise)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12355 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12355 set, or it will wait for #12355 to be released.
+fleetq: #12357 waiting (#2 in line): in line behind #12356 "ink-sampled-adapt: W2 (speed off/fix/pol, HIP)" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12356 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12356 set, or it will wait for #12356 to be released.
+fleetq: #12357 waiting (#1 in line): radiance-rank0 is also taken down by #12356 "ink-sampled-adapt: W2 (speed off/fix/pol, HIP)" (claude-04c0e1cd)
+fleetq:   #12356 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12356 set, or it will wait for #12356 to be released.
+fleetq: #12357 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 42% busy with work fleetq does not track
+fleetq: #12357 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12357 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 47% busy with work fleetq does not track
+fleetq: #12357 running on tatooine-r9700, tatooine-r9700-2: bash .scratch/win.sh 290 stage_w6.sh
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-i8/docs/results/2026-11-26-inkling2-hip-i8/raw/stage_w6.sh; cap 290s; stopping radiance 2026-11-26 21:38:08
+[window] radiance stopped 2026-11-26 21:38:12 (inactive)
+[stage] inkling2-i8 21:38:12
+TEST inkling2-i8 exit 101 | test result: FAILED. 14 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.61s  | FAILED: inkling2_tiny_chunked_and_decode_match_prefill_bitwise inkling2_tiny_g1a_f32_vs_f64 inkling2_tiny_screen_keeps_batching inkling2_tiny_screened_head_one_row_only result: FAILED. 14 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.61s 
+[stage] inkling2_batch-i8 21:38:15
+TEST inkling2_batch-i8 exit 101 | test result: FAILED. 7 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.82s  | FAILED: inkling2_batched_engine_equals_solo_engine inkling2_loaded_to_batch_packs_no_p12 result: FAILED. 7 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.82s 
+[stage] inkling2-main 21:38:21
+TEST inkling2-main exit 101 | test result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.41s  | FAILED: inkling2_tiny_screen_keeps_batching inkling2_tiny_screened_head_one_row_only result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.41s 
+[stage] inkling2_batch-main 21:38:23
+TEST inkling2_batch-main exit 0 | test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.72s  | FAILED: 
+[stage] done 21:38:30
+[window] stage done 2026-11-26 21:38:31 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 21:38:31
+[window] radiance answers 2026-11-26 21:38:41 (after 15 s)
+fleetq: #12357 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

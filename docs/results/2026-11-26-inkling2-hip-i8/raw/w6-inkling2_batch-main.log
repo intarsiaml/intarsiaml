@@ -1,0 +1,121 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:370:9
+    |
+370 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+370 -     Ink(usize),
+370 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1387:4
+     |
+1387 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:373:9
+    |
+369 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+373 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: function `split_keys` is never used
+   --> crates/intarsia-backend-cuda/src/inkattn.rs:127:4
+    |
+127 | fn split_keys() -> i32 {
+    |    ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+warning: `intarsia-backend-hip` (lib) generated 6 warnings
+warning: function `on_metal` is never used
+  --> crates/intarsia-models/tests/inkling2_batch.rs:36:4
+   |
+36 | fn on_metal() -> bool {
+   |    ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "inkling2_batch") generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/inkling2_batch.rs (/target/release/deps/inkling2_batch-4078c269fe83f39e)
+
+running 9 tests
+test inkling2_batch_argmax_equals_solo ... ok
+test inkling2_batch_equals_solo_2_5_16 ... ok
+test inkling2_batch_failed_pass_resets_every_sequence ... ok
+test inkling2_batch_membership_changes ... ok
+test inkling2_batch_plan_configures_with_p12_default_and_matches_p12_solo ... ok
+test inkling2_batch_rollback_per_sequence ... ok
+test inkling2_batch_sampler_rows_are_softcapped ... ok
+test inkling2_batched_engine_equals_solo_engine ... ok
+test inkling2_loaded_to_batch_packs_no_p12 ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.72s
+
