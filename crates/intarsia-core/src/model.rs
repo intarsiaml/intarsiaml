@@ -1245,6 +1245,7 @@ impl Model {
             crate::quant::head::HeadQuant::resolve(env.as_deref(), recipe.lm_head_quant(backend.name()))?
         };
         let head_quant_note: std::cell::RefCell<Option<String>> = Default::default();
+        let head_i8: std::cell::RefCell<Option<QTensor>> = Default::default();
         let load_head = |vocab_par: bool| -> Result<Option<QTensor>> {
             if tp.rank != 0 && !vocab_par {
                 return Ok(None);
@@ -1262,6 +1263,30 @@ impl Model {
                     }
                     let t0 = std::time::Instant::now();
                     let all = &src.bytes(&nm)?[..dims.vocab * dims.hidden * i.dtype.size_bytes()];
+                    // real i8 weights (lane ink-hip-i8): the codes + row scales go to `head_p12`'s slot, the bf16 weight the codes mean is the head
+                    if kind.i8_real(&*backend) {
+                        if vocab_par {
+                            return Err(Error::model(format!("{}: int8_row with a vocabulary-sharded head is not supported", crate::quant::head::ENV)));
+                        }
+                        crate::quant::head::emulation_guard(kind, &*backend)?;
+                        let r = crate::quant::head::quantize_i8_rows(i.dtype, all, dims.hidden, 0, dims.vocab)?;
+                        let i8q = r.upload(&*backend, dims.vocab, dims.hidden)?;
+                        let deq = crate::backend::upload_new(&*backend, &r.deq_bf16)?;
+                        weights_bytes.set(weights_bytes.get() + (r.deq_bf16.len() + r.q.len() + 4 * r.scales.len()) as u64);
+                        let note = format!(
+                            "lm_head as int8 + one f32 scale per row ({} unembed rows x {}, {:.2} GB of i8 copy for 1..={} rows; {} = int8_row, {:.1} s)",
+                            dims.vocab,
+                            dims.hidden,
+                            (r.q.len() + 4 * r.scales.len()) as f64 / 1e9,
+                            crate::quant::i8row::ROWS_MAX,
+                            crate::quant::head::ENV,
+                            t0.elapsed().as_secs_f64()
+                        );
+                        eprintln!("{note}");
+                        *head_quant_note.borrow_mut() = Some(note);
+                        *head_i8.borrow_mut() = Some(i8q);
+                        return Ok(Some(dense(TensorRef::new(deq, DType::Bf16, &[dims.vocab, dims.hidden]), dims.vocab)));
+                    }
                     let q = crate::quant::head::load_rows(kind, b, i.dtype, all, dims.vocab, 0, dims.vocab, dims.hidden)?;
                     weights_bytes.set(weights_bytes.get() + q.weight_bytes() as u64);
                     if kind.is_row_emulated() {
@@ -1377,6 +1402,8 @@ impl Model {
                     Some(q)
                 }
             }
+            // the i8 copy of the unembed (lane ink-hip-i8, `INTARSIA_LMHEAD_QUANT=int8_row` on a backend with the kernels)
+            (Some(_), Some(_)) if head_i8.borrow().is_some() && !vocab_par => head_i8.borrow_mut().take(),
             _ => None,
         };
 

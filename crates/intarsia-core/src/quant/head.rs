@@ -146,17 +146,73 @@ fn par_rows<T: Send>(n: usize, chunk: usize, f: impl Fn(usize, usize) -> T + Syn
 
 const CHUNK_ROWS: usize = 512;
 
-/// The per-row study formats exist only as host emulation (no GPU kernel): refuse them on any backend but the cpu reference.
+/// The per-row study formats exist only as host emulation (no GPU kernel): refuse them on any backend but the cpu reference, except
+/// `int8_row` on a backend that registers the `MatmulI8` kernels (lane ink-hip-i8: HIP), which loads real i8 weights.
 pub fn emulation_guard(kind: HeadQuant, backend: &dyn Backend) -> Result<()> {
-    emulation_guard_for(kind, backend.name())
+    emulation_guard_for(kind, backend.name(), has_i8_kernel(backend))
 }
 
-/// [`emulation_guard`] on the backend's name (the part the tests can reach without a backend).
-pub fn emulation_guard_for(kind: HeadQuant, backend: &str) -> Result<()> {
-    if kind.is_row_emulated() && backend != "cpu" {
+/// Whether `backend` registers a device `MatmulI8` kernel: any `MatmulI8` kernel but the cpu reference's (`cpu_*`, which the accuracy
+/// study's f32 emulation stands in for).
+pub fn has_i8_kernel(backend: &dyn Backend) -> bool {
+    backend.kernels().iter().any(|k| k.op == crate::ops::Op::MatmulI8 && !k.name.starts_with("cpu"))
+}
+
+/// [`emulation_guard`] on the backend's name and whether it has the i8 kernels (the part the tests can reach without a backend).
+pub fn emulation_guard_for(kind: HeadQuant, backend: &str, i8_kernels: bool) -> Result<()> {
+    if kind.is_row_emulated() && backend != "cpu" && !(kind == HeadQuant::Int8Row && i8_kernels) {
         return Err(Error::model(format!("{} is a cpu-reference accuracy study format (no {backend} kernel)", kind.name())));
     }
     Ok(())
+}
+
+impl HeadQuant {
+    /// `int8_row` on a backend that is not the cpu reference and has the i8 kernels: real i8 weights and scales (the cpu keeps the
+    /// f32 emulation, so the accuracy study's numbers stay reproducible).
+    pub fn i8_real(self, backend: &dyn Backend) -> bool {
+        self == HeadQuant::Int8Row && has_i8_kernel(backend)
+    }
+}
+
+/// Rows `[row0, row0 + n)` of an `[n_all, k]` float tensor as real int8 per-row weights (lane ink-hip-i8): the codes, the f32 scales
+/// and the weight the codes mean as bf16 bytes (`bf16(q * scale)`: what prefill and the calls without an i8 kernel read).
+pub struct I8Rows {
+    pub q: Vec<u8>,
+    pub scales: Vec<f32>,
+    pub deq_bf16: Vec<u8>,
+}
+
+pub fn quantize_i8_rows(dtype: DType, all: &[u8], k: usize, row0: usize, n: usize) -> Result<I8Rows> {
+    if dtype != DType::Bf16 || k == 0 || all.len() % (k * 2) != 0 || (row0 + n) * k * 2 > all.len() {
+        return Err(Error::model(format!("int8_row: needs a bf16 [rows, {k}] weight with rows {row0}..{} (got {dtype}, {} bytes)", row0 + n, all.len())));
+    }
+    let parts = par_rows(n, CHUNK_ROWS, |s, r| {
+        let v = rows_f32(dtype, all, k, row0 + s, r);
+        let mut q = vec![0i8; r * k];
+        let mut sc = Vec::with_capacity(r);
+        for (xr, qr) in v.chunks(k).zip(q.chunks_mut(k)) {
+            sc.push(crate::quant::i8row::quantize_row(xr, qr, true));
+        }
+        let qb: Vec<u8> = q.iter().map(|c| *c as u8).collect();
+        let deq = crate::quant::i8row::dequant_bf16_bytes(&qb, &sc, k);
+        (qb, sc, deq)
+    });
+    let mut o = I8Rows { q: Vec::with_capacity(n * k), scales: Vec::with_capacity(n), deq_bf16: Vec::with_capacity(n * k * 2) };
+    for (q, s, d) in parts {
+        o.q.extend_from_slice(&q);
+        o.scales.extend_from_slice(&s);
+        o.deq_bf16.extend_from_slice(&d);
+    }
+    Ok(o)
+}
+
+impl I8Rows {
+    /// The i8 weight as a [`QTensor`] on `backend` (`parts = [q, scales]`).
+    pub fn upload(&self, backend: &dyn Backend, n: usize, k: usize) -> Result<QTensor> {
+        let q = HostTensor::new(DType::I8, vec![n, k], self.q.clone())?;
+        let sc = HostTensor::from_f32(&[n, 1], &self.scales);
+        HostQTensor { format: crate::quant::i8row::I8ROW, n, k, parts: vec![q, sc], act_quant: false }.upload(backend)
+    }
 }
 
 /// e4m3 with one scale per row: `scale = amax / 448` (f32), `out = e4m3(x / scale) * scale` (the dequantised row, in f32).
@@ -426,17 +482,20 @@ mod tests {
     }
 
     #[test]
-    fn row_study_formats_are_refused_off_the_cpu() {
+    fn row_study_formats_are_refused_off_the_cpu_except_int8_with_kernels() {
         for kind in [HeadQuant::Fp8Row, HeadQuant::Int8Row, HeadQuant::Int8AmaxRow, HeadQuant::IdRow, HeadQuant::NoiseRow] {
-            assert!(emulation_guard_for(kind, "cpu").is_ok());
+            assert!(emulation_guard_for(kind, "cpu", false).is_ok());
             for b in ["hip", "metal", "cuda"] {
-                let e = emulation_guard_for(kind, b).unwrap_err().to_string();
+                // a backend without the i8 kernels refuses every study format
+                let e = emulation_guard_for(kind, b, false).unwrap_err().to_string();
                 assert!(e.contains("cpu-reference") && e.contains(b), "{e}");
+                // with them (HIP) only int8_row loads (real i8 weights); the other study formats stay cpu-only
+                assert_eq!(emulation_guard_for(kind, b, true).is_ok(), kind == HeadQuant::Int8Row, "{kind:?} on {b}");
             }
         }
         // the real formats are not touched
         for kind in [HeadQuant::Fp8, HeadQuant::Mxfp4] {
-            assert!(emulation_guard_for(kind, "hip").is_ok());
+            assert!(emulation_guard_for(kind, "hip", false).is_ok());
         }
     }
 

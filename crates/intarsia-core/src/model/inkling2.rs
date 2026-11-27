@@ -582,7 +582,11 @@ pub(super) fn load(
     let mut p12_stats = P12Stats::default();
     // lane ink-q8: the per-row 8-bit study formats are host emulation (dequantised f32 weights), cpu only; the nominal 8-bit bytes
     // of one layer's in-projection and wo, summed over the visits at the end
-    let row_emul = attn_quant.is_some_and(|k| k.is_row_emulated());
+    // lane ink-hip-i8: `int8_row` on a backend with the i8 kernels (HIP) loads REAL i8 weights instead: the in-projection and wo as i8 +
+    // row scales in the `in_p12` / `wo_p12` slots (decode / verify calls, 1..=16 rows), and the bf16 weight the codes mean as the
+    // resident weight for prefill and every call without an i8 kernel
+    let i8_real = attn_quant.is_some_and(|k| k.i8_real(b));
+    let row_emul = attn_quant.is_some_and(|k| k.is_row_emulated()) && !i8_real;
     if let Some(k) = attn_quant {
         crate::quant::head::emulation_guard(k, b)?;
     }
@@ -655,8 +659,16 @@ pub(super) fn load(
         let nk = ckv + if local { 0 } else { hk * kc };
         // per tensor class: the in-projection only where its P12 kernel is faster (`p12::pack_in_proj`)
         let in_p12 = if pack12 && crate::quant::p12::pack_in_proj(b.name()) { Some(p12_stats.pack(b, &stacked, nq + 2 * nk, d)?) } else { None };
+        let mut in_i8: Option<QTensor> = None;
         let in_w = match attn_quant {
             None => InkInW::Stacked(put(&stacked, wdt, &[nq + 2 * nk, d])?),
+            // real i8 weights (lane ink-hip-i8): the codes + row scales for decode, `bf16(q * scale)` as the stacked weight
+            Some(kind) if kind.i8_real(b) => {
+                let r = crate::quant::head::quantize_i8_rows(wdt, &stacked, d, 0, nq + 2 * nk)?;
+                qbytes.set(qbytes.get() + (r.q.len() + 4 * r.scales.len()) as u64);
+                in_i8 = Some(r.upload(b, nq + 2 * nk, d)?);
+                InkInW::Stacked(put(&r.deq_bf16, DType::Bf16, &[nq + 2 * nk, d])?)
+            }
             // per-row 8-bit study formats: each segment quantised row by row, dequantised to f32 (the kept segments exactly)
             Some(kind) if kind.is_row_emulated() => {
                 let es = wdt.size_bytes();
@@ -899,6 +911,22 @@ pub(super) fn load(
         let attn_sconv = sconv(&mut put, "attn_sconv")?;
         let mlp_sconv = sconv(&mut put, "mlp_sconv")?;
         let wo_p12 = if pack12 { Some(p12_stats.pack(b, src.bytes(&t("attn.wo_ud.weight"))?, d, h * dh)?) } else { None };
+        // real i8 wo (lane ink-hip-i8): codes + scales for decode, the dequantised bf16 weight as `wo`
+        let (wo_i8, wo_deq) = match attn_quant {
+            Some(kind) if kind.i8_real(b) => {
+                let name = t("attn.wo_ud.weight");
+                let info = src.info(&name).ok_or_else(|| Error::model(format!("tensor '{name}' not found in checkpoint")))?;
+                if info.shape != [d, h * dh] {
+                    return Err(Error::model(format!("tensor '{name}' is {:?}, expected [{d}, {}]", info.shape, h * dh)));
+                }
+                let r = crate::quant::head::quantize_i8_rows(info.dtype, src.bytes(&name)?, h * dh, 0, d)?;
+                qbytes.set(qbytes.get() + (r.q.len() + 4 * r.scales.len()) as u64);
+                let q = r.upload(b, d, h * dh)?;
+                let w = put(&r.deq_bf16, DType::Bf16, &[d, h * dh])?;
+                (Some(q), Some(w))
+            }
+            _ => (None, None),
+        };
         layers.push(InkLayer {
             local,
             first: li % ink.block == 0,
@@ -913,6 +941,7 @@ pub(super) fn load(
             wo: {
                 let name = t("attn.wo_ud.weight");
                 match attn_quant {
+                    Some(_) if wo_deq.is_some() => QTensor { format: crate::quant::BF16, n: d, k: h * dh, parts: vec![wo_deq.clone().unwrap()], act_quant: false, act_fp8: false },
                     None => {
                         let w = direct(&name, Some(&[d, h * dh]))?;
                         QTensor { format: crate::quant::BF16, n: d, k: h * dh, parts: vec![w], act_quant: false, act_fp8: false }
@@ -931,8 +960,8 @@ pub(super) fn load(
                     }
                 }
             },
-            in_p12,
-            wo_p12,
+            in_p12: in_p12.or(in_i8),
+            wo_p12: wo_p12.or(wo_i8),
             norm3,
             mlp_norm: direct(&t("mlp_norm.weight"), Some(&[d]))?.reshaped(&[1, d]),
             attn_sconv,
@@ -954,6 +983,13 @@ pub(super) fn load(
     let ws = InkWs::alloc(b, mt, act, dims, &ink, n_stack)?;
     let msg_q_all = if ink.looped() { Some(queries(&mut put, all_q4, 4 * n_core)?) } else { None };
     *bytes += qbytes.get();
+    if i8_real {
+        eprintln!(
+            "inkling2: in_proj + wo as int8 + one f32 scale per row (INTARSIA_INK_ATTN_QUANT = int8_row; changes outputs): {:.3} GB of i8 copies for 1..={} rows (decode / verify), bf16(q * scale) kept for prefill",
+            qbytes.get() as f64 / 1e9,
+            crate::quant::i8row::ROWS_MAX
+        );
+    }
     if row_emul {
         // nominal 8-bit bytes read per token: every visit reads its layer's in-projection and wo
         let (inp, wo) = visits.iter().fold((0u64, 0u64), |(a, w), v| (a + nominal[v.layer].0, w + nominal[v.layer].1));
