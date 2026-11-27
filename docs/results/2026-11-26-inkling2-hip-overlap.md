@@ -245,3 +245,29 @@ beside a chunk takes 0.29 s at p50). With stream 1 at high priority (Y1, Y2) a s
 62-73 %. Pace 150 keeps that and gives the chunk more of the GPU: TTFT p50 is better than main at 8 and 16, aggregate -1.9 % at 8
 and -0.3 % at 16 (single runs; the 8-stream wall time ends on one long request, so it is noisy). Y2 is the candidate; it needs
 paired reps against main5 (a4c8f3b19, built: #12304, md5 42fdf7a7d871d6694625fba108e086c7) at 1 / 4 / 8 / 16, filler and real.
+
+## 4. o4 (the candidate) and the gate-4 plan
+
+o4 (8ed77739d, md5 38475e68394d85800f5e970d39006508) is Y2 wired as the default, scoped as the brief's guard asks:
+- `INTARSIA_OVERLAP` unset: on for Inkling-2 on HIP in a batching engine without a prefix store (`Model::overlap_default`,
+  `inkling2::INK_OVERLAP_DEFAULT`); off for every other model and backend (CUDA keeps its opt-in). `=0` off, `=1` on.
+- `INTARSIA_OVERLAP_PACE_MS` unset: 150 for Inkling-2 (`INK_OVERLAP_PACE_MS_DEFAULT`), 0 elsewhere.
+- `Backend::decode_lane(stream)` (new, default no-op): the Inkling twin calls it for stream 1 before its first use; the HIP backend
+  then creates that stream at the greatest priority and gives it its own host staging. No other stream changes: the 35B's
+  single-card serve path never calls it (stream 1 there is only the TP all-reduce lane, `model.rs` `stream_wait(1, ..)`, and the
+  twin; the shared-expert side stream is `self.stream + 2`), so its streams and staging are main's. `INTARSIA_HIP_DECODE_LANE=0`
+  ignores the hook (replaces o2's `INTARSIA_HIP_STREAM1_PRIORITY`).
+- cpu (#12319): `intarsia-core` lib 274 + `tests/scheduler.rs` 54, `inkling2` 17, `inkling2_batch` 10, `inkling2_packed` 6,
+  `docs_env_vars` 2, `intarsia-server` lib 71: pass.
+
+VRAM (O3, `--kv-fraction 0.9`): the twin adds 62 MiB (card 0 peak 28530 -> 28592 MiB). The KV plan is fixed at load, before the
+engine makes the twin, so the twin cannot lower the context; window O4 checks it at the recipe default (`--max-batch 16` alone).
+
+**Gate-4 rule (written before the paired windows).** A = main5 (origin/main a4c8f3b19), B = o4 with no env; card 0, `--max-batch 16
+--max-seq 4608 --kv-fraction 0.9`; per window one A visit and one B visit (order AB, BA, AB), each: the real prompts at 4 / 8 / 16
+(tagged, a nonce per window) and the 1k filler sweep at 1 / 4 / 8 / 16 (localeval, 128 tokens). Ratios B / A per window, mean and
+95 % t interval over the 3 windows (n = 3, t = 4.303). Pass: (a) real-prompt ITL p99 at 8 and 16: interval upper bound <= 0.70;
+(b) aggregate at every N, real and filler: interval upper bound >= 0.99 (not shown more than 1 % worse); (c) TTFT p50 at every N,
+real and filler: interval lower bound <= 1.01. Filler ITL comes from the server's histograms (bucketed, reported, not gated).
+1 stream has nothing to overlap (no decode beside a chunk): its rows are reported from the same visits. Budget: O1-O3 used 11:53 of
+brief 3's 30:00; O4 (gates) plus 3 speed windows at <= 4:30 each fit in the rest.

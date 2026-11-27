@@ -2,4 +2,4 @@
 # O4 (lane ink-hip-overlap): gates on o4 (overlap default-on for Inkling-2 on HIP, pace 150 ms, decode lane). After the pre-stage
 # (main5 default-config prime + KV + md5 spec off on card 0): o4 at the speed config, the 16 real prompts at 4 (4 waves), 8 (2 waves)
 # and 16 at once, every reply compared offline with W4's solo replies.
-G4;o4;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;wait:/home/josef/intarsiaml-ink-hip-bpf/logs/o4/o4-primed:60 && bitwise:conc:4:0+conc:4:1+conc:4:2+conc:4:3+conc:8:0+conc:8:1+conc
+G4;o4;--max-batch 16 --max-seq 4608 --kv-fraction 0.9;wait:/home/josef/intarsiaml-ink-hip-bpf/logs/o4/o4-primed:60 && bitwise:conc:4:0+conc:8:0+conc+conc:4:1+conc:4:2+conc:4:3+conc:8:1

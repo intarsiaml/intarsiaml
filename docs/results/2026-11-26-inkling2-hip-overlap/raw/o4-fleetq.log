@@ -1,0 +1,2 @@
+fleetq: #12322 waiting (#3 in line): in line behind #12316 "ink-hip-i8: copy 3 goldens (2.5 MB), sync, build retuned cli + ink_i8" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12316 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12316 set, or it will wait for #12316 to be released.
