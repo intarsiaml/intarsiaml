@@ -19,6 +19,12 @@ if [ -n "${TESTS:-}" ]; then
   # the binary is the merged head (#544 in): greedy ids again, 256 tokens (md5.json, --ignore-eos), off / default / k$K
   NAME=s3-md5 PROMPTS=md5 TOK=256 IDLE=0 LIMIT=300 ARMS="off@r1 dspark@r1 dfl$K@r1" $R/slot.sh
 fi
+if [ -n "${FULL:-}" ]; then
+  # the whole Inkling DFlash2 suite (all 9 tests) on the Metal backend, on the head being shipped
+  mkdir -p .scratch/metal/s4
+  env INTARSIA_INKLING2_BACKEND=metal cargo test --release -p intarsia-models --test inkling2_dflash2 > .scratch/metal/s4/full-suite-metal.txt 2>&1
+  echo "== full inkling2_dflash2 suite on metal rc $? $(date +%T) | $(grep -aE '^test result' .scratch/metal/s4/full-suite-metal.txt | tr '\n' ' ')"
+fi
 if [ "${ORDER:-a}" = a ]; then A="dspark@$R1 dfl$K@$R1 dfl$K@$R2 dspark@$R2"; else A="dfl$K@$R1 dspark@$R1 dspark@$R2 dfl$K@$R2"; fi
 NAME=${NAME:?} PROMPTS=speed TOK=256 IDLE=45 LIMIT=${LIMIT:-1000} ARMS="$A" $R/slot.sh
 echo "slot end $(date +%T)"
