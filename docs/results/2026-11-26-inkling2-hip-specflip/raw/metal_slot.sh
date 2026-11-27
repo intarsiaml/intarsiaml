@@ -20,12 +20,15 @@ M=$HOME/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshot
 others=$(pgrep -fl '^[^ ]*/intarsia[^ /]* (serve|generate)' | head -3)
 [ -n "$others" ] && { echo "GUARD: another intarsia run on the box: $others"; exit 1; }
 echo "[metal] start $(date +%T)"
+# (a) (coordinator 01:14 item 3): the DFlash2 drafter sits next to the checkpoint on endor; the default must still load DSpark k3 alone
+echo "[metal] DFlash2 drafter beside the checkpoint: $(ls -d "$M/../Inkling-2-Mini-DFlash2" 2>/dev/null || echo absent) ($(ls "$M/../Inkling-2-Mini-DFlash2" 2>/dev/null | tr '\n' ' ' | cut -c1-120))"
 for b in $MAIN $BR; do echo "[metal] bin $b $(md5 -q "$S/bin/intarsia-$b") $(cat "$S/bin/intarsia-$b.commit" 2>/dev/null)"; done
 for b in $MAIN $BR; do for sp in off def; do
   x=""; [ $sp = off ] && x="--spec off"
   f=$O/md5-$b-$sp
   "$S/bin/intarsia-$b" generate -m "$M" --backend metal --max-seq 8192 --profile-every 0 --show-ids --ignore-eos --max-tokens 256 --prompt-ids "$RAW/md5.json" $x > "$f.out" 2> "$f.err"
   echo "[metal] md5 $b $sp rc $? $(date +%T) ids-md5 $(cat "$f.out" "$f.err" | grep -a '^ids\[' | md5 -q) lines $(cat "$f.out" "$f.err" | grep -ac '^ids\[') | $(grep -aE '^spec: verify' "$f.err" | cut -c1-110)"
+  [ $sp = def ] && echo "[metal]   $b default load: $(grep -aE 'DSpark default|DFlash2|second draft|^dflash: ' "$f.err" | tr '\n' ' ' | cut -c1-400)"
 done; done
 for b in $BR; do
   f=$O/sampled-def-$b
