@@ -9,7 +9,8 @@
 set -u
 : "${FLEETQ_JOB:?run under fleetq}"
 kill_tree() { local c; for c in $(pgrep -P "$1" 2>/dev/null); do kill_tree "$c"; done; kill "$1" 2>/dev/null; }
-cleanup() { for c in $(pgrep -P $$ 2>/dev/null); do kill_tree "$c"; done; }
+LINK=""  # set when this slot made the drafter symlink beside the checkpoint; removed on exit (the link only)
+cleanup() { for c in $(pgrep -P $$ 2>/dev/null); do kill_tree "$c"; done; [ -n "$LINK" ] && [ -L "$LINK" ] && rm "$LINK" && echo "[metal] removed the drafter link $LINK"; }
 trap cleanup EXIT; trap 'cleanup; exit 130' INT TERM
 for v in $(env | grep -oE '^INTARSIA_[A-Z0-9_]+'); do unset "$v"; done
 W=/opt/code/intarsiaml/.worktrees/ink-hip-specflip; S=$W/.scratch; RAW=$(cd "$(dirname "$0")" && pwd)  # the raw dir this copy sits in
@@ -20,7 +21,16 @@ M=$HOME/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshot
 others=$(pgrep -fl '^[^ ]*/intarsia[^ /]* (serve|generate)' | head -3)
 [ -n "$others" ] && { echo "GUARD: another intarsia run on the box: $others"; exit 1; }
 echo "[metal] start $(date +%T)"
+T0=$(date +%s); CAP=${CAP:-1080}  # the slot stops its own work at CAP s (default 18 min) so it ends inside the <= 20 min grant
+for b in $MAIN $BR; do [ -x "$S/bin/intarsia-$b" ] || { echo "GUARD: no binary $S/bin/intarsia-$b"; exit 2; }; done
+# run_capped NAME CMD...: runs CMD in the background, kills its tree if the slot's CAP is reached (rc 124)
+run_capped() { local n=$1; shift; "$@" & local p=$!; while kill -0 $p 2>/dev/null; do
+  [ $(( $(date +%s) - T0 )) -ge $CAP ] && { echo "[metal] CAP reached during $n: stopped"; kill_tree $p; wait $p 2>/dev/null; return 124; }; sleep 2; done; wait $p; }
 # (a) (coordinator 01:14 item 3): the DFlash2 drafter sits next to the checkpoint on endor; the default must still load DSpark k3 alone
+# endor keeps the drafter (fleetq #12464's copy) in its own HF cache entry; DRAFT_SRC=<that dir> makes a symlink named as the recipe's
+# dflash2_draft beside the checkpoint for this slot only (no folder is made; the link is removed on exit)
+D=$M/../Inkling-2-Mini-DFlash2
+if [ -n "${DRAFT_SRC:-}" ] && [ ! -e "$D" ]; then ln -s "$DRAFT_SRC" "$D" && LINK=$D && echo "[metal] linked $D -> $DRAFT_SRC"; fi
 echo "[metal] DFlash2 drafter beside the checkpoint: $(ls -d "$M/../Inkling-2-Mini-DFlash2" 2>/dev/null || echo absent) ($(ls "$M/../Inkling-2-Mini-DFlash2" 2>/dev/null | tr '\n' ' ' | cut -c1-120))"
 for b in $MAIN $BR; do echo "[metal] bin $b $(md5 -q "$S/bin/intarsia-$b") $(cat "$S/bin/intarsia-$b.commit" 2>/dev/null)"; done
 for b in $MAIN $BR; do sleep ${GAP:-45}; for sp in off def; do
@@ -38,7 +48,8 @@ for b in $BR; do
   for t in inkling2_sampled_default inkling2_dspark_sampled inkling2_dspark_sampled_adapt inkling2_dspark inkling2_dflash2; do
     exe=$S/bin/mt-$b-$t
     [ -x "$exe" ] || { echo "[metal] $b tiny $t: no executable"; continue; }
-    env INTARSIA_INKLING2_BACKEND=metal "$exe" --test-threads=1 > "$O/tiny-$b-$t.txt" 2>&1
+    [ $(( $(date +%s) - T0 )) -ge $CAP ] && { echo "[metal] $b tiny $t: skipped (CAP)"; continue; }
+    run_capped "tiny $t" env INTARSIA_INKLING2_BACKEND=metal "$exe" --test-threads=1 > "$O/tiny-$b-$t.txt" 2>&1
     echo "[metal] $b tiny $t (metal) rc $? $(date +%T) | $(grep -aE '^test result' "$O/tiny-$b-$t.txt") | $(grep -aE ' FAILED|panicked' "$O/tiny-$b-$t.txt" | head -2 | tr '\n' ' ')"
   done
 done
