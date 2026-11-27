@@ -622,3 +622,41 @@ not a per-switch creep. The rule's verdict stands: (a) stops, `ink/hip-specflip-
 
 Radiance: 39:25 + WA4 1:15 = **40:40** of the raised 47:00 ceiling.
 
+## New task: verify main on HIP (Part 1), then (a) prep (Part 2) (coordinator brief, 02:08 EST 11-27, as written)
+
+> New task, two parts. Part 1 is urgent.
+>
+> PART 1. Verify new main on HIP, the default path. It must start before 06:00 EST.
+> Main now has #545 (896198dcc, 01:11) and #546 (aa7beaa73, 01:51, Metal DFlash2 opt-in). #542 (overlap, opt-in, default off) is about to merge: my watcher marks it ready and merges once CI is green on edd4812e1. Wait until `gh pr view 542 --repo intarsiaml/intarsiaml --json mergeCommit` shows a merge commit (poll ≤ every 4 min), then build exactly that origin/main head ("main7").
+> - Why: #542 changes ink_attn/ink_mix/ink_route_fused/ink_tick.h/ik_runtime and scheduler.rs. Flip A plus #542 have never run together on a HIP GPU, and nobody has measured overlap-off solo speed against pre-#542 main.
+> - Pre-register in your results doc before queuing anything:
+>   - Bitwise on main7:
+>     - greedy md5.json default = off = 380af8a5 (256 tokens), plus the 64-token check;
+>     - 100 seeds at T 1.0, default = off;
+>     - b16 serve = solo, 16/16, solo first and alone with up to 240 s cold admission.
+>   - Speed ABBA, main7 vs specA2 (136b4dc16, already in `~/intarsiaml-ink-hip-specflip`):
+>     - solo plain decode at short / 4k / 16k;
+>     - default-spec decode at short / 1k / 4k / 16k;
+>     - prefill at 4k / 16k.
+>     - Report each ratio with its 95 % CI and n.
+>   - Pass rule: every bitwise check equal, and no default-path cell with a CI upper bound below 0.99. A miss means STOP and report to me; I'll decide on reverting #542.
+> - Radiance: a separate grant of ≤ 10 min total, outside your 47-min cap, in at most 2 windows of ≤ 5 min each. Prefer 1 if the admission fits. Same window rules: never cancel a running window, none starting after 06:00.
+> - You may use the main6 build in `~/intarsiaml-ink-hip-bpf` as a second baseline if useful. Don't delete anything there yet.
+> - Report as one table: main7 vs specA2, plus absolute tok/s for main7. It becomes the "now" column of the morning speed table.
+>
+> PART 2. (a) prep, only after Part 1 is reported. cpu and Metal only, no radiance windows, no PR.
+> 1. Merge origin/main (main7) into `ink/hip-specflip-b` in `.scratch/wt-a`. Expect a conflict in `crates/intarsia-models/tests/inkling2_dflash2.rs`: #546 added a `#[cfg(target_os = "macos")]` Metal arm in `backend()` and a bf16 draft-pass test. Keep both sides.
+> 2. Confirm 106ccd06f (or the merge) has tests that `dflash2_default_draft(recipe, "metal", …)` and "cuda" return NotSet. Add them if missing.
+> 3. Full cpu suite on endor (core, models incl. inkling2_dflash2 / dflash2_cpu / mtp / sampled tests / scheduler, cli docs_env_vars, server lib).
+> 4. The Metal no-op slot with the DFlash2 drafter present next to the checkpoint on endor:
+>    - greedy md5 main7 = (a) head for off and default;
+>    - the default still loads DSpark k3 only;
+>    - sampled drafting stays off on Metal;
+>    - Metal tiny suites pass.
+>    - Endor rules: exclusive slot ≤ 20 min, 45 s idle gaps, none after 07:00. Another lane (Metal sampled re-tune) shares endor, so fleetq orders it.
+> 5. Push `ink/hip-specflip-b`, still no PR. What will remain for the morning is WA3 alone (sampled contention ABBA + b16 serve, ~5 min radiance), if the user accepts the bounded 38 MiB swing.
+>
+> Write this brief (02:08 EST) into the results doc first. Report Part 1 as soon as it's done, then Part 2.
+
+(Lane, 02:09 EST: #542 still OPEN at head edd4812e1, no merge commit; origin/main aa7beaa73.)
+
