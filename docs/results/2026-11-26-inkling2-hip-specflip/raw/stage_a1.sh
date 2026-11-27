@@ -126,7 +126,7 @@ def ids(p):
     for l in (p.with_suffix(".out").read_text(errors="replace") + p.with_suffix(".err").read_text(errors="replace")).splitlines():
         m = re.match(r"^ids\[([^\]]*)\]: (.*)$", l)
         if m:
-            out[m.group(1)] = m.group(2).split()
+            out[m.group(1)] = m.group(2).strip().strip('[]').replace(',', ' ').split()  # generate prints a Debug list
     return out
 off, d64 = ids(d / "md5-off.err"), ids(d / "md5-def64.err")
 eq = all(off.get(k, [])[:len(v)] == v and len(v) == 64 for k, v in d64.items()) and len(d64) == len(off) > 0

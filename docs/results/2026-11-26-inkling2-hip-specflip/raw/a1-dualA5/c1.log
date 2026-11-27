@@ -1,0 +1,55 @@
+[a1 c1] seeds off T 0.6 rc 0 t+48s lines 100 | DFlash2 drafter /models/Inkling-2-Mini-DFlash2 (k 4): loaded beside the DSpark default of recipe inkling2 on hip for greedy requests ([tuning.hip] dflash2_draft; sampled requests keep the DSpark draft; INTARSIA_SPEC_DFLASH2_DEFAULT=0 loads the DSpark default alone) dflash: second draft (greedy requests, k 4) of 5 layers (taps [5, 23, 41, 48], block 8, DFlash2) loaded in 0.1 s dflash: second draft'
+[a1 c1] seeds def T 0.6 rc 0 t+98s lines 100 | DFlash2 drafter /models/Inkling-2-Mini-DFlash2 (k 4): loaded beside the DSpark default of recipe inkling2 on hip for greedy requests ([tuning.hip] dflash2_draft; sampled requests keep the DSpark draft; INTARSIA_SPEC_DFLASH2_DEFAULT=0 loads the DSpark default alone) dflash: second draft (greedy requests, k 4) of 5 layers (taps [5, 23, 41, 48], block 8, DFlash2) loaded in 0.1 s dflash: second draft'
+[a1 c1] md5 def64 rc 0 t+108s f2e334dd8f1657b3ece2c7f8aa125deb | DFlash2 drafter /models/Inkling-2-Mini-DFlash2 (k 4): loaded beside the DSpark default of recipe inkling2 on hip for greedy requests ([tuning.hip] dflash2_draft; sampled requests keep the DSpark draft; INTARSIA_SPEC_DFLASH2_DEFAULT=0 loads the DSpark default alone) --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequen
+[a1 c1] mixed off x1 rc 0 t+119s lines 12 | free_mem before 11400 MiB free_mem after 11338 MiB (change -62 MiB) 12 requests in 4.7 s; spec verify passes 0 proposed 0 accepted 0 
+[a1 c1]   mixed off x1 request 0 T 0 seed 0: wall 386.2 ms, ttft 90.7 ms
+[a1 c1]   mixed off x1 request 1 T 1 seed 0: wall 450.9 ms, ttft 53.1 ms
+[a1 c1]   mixed off x1 request 2 T 0 seed 1: wall 349.8 ms, ttft 54.4 ms
+[a1 c1]   mixed off x1 request 3 T 1 seed 1: wall 485.3 ms, ttft 61.4 ms
+[a1 c1]   mixed off x1 request 4 T 0 seed 2: wall 349.0 ms, ttft 53.7 ms
+[a1 c1]   mixed off x1 request 5 T 1 seed 2: wall 451.4 ms, ttft 57.5 ms
+[a1 c1]   mixed off x1 request 6 T 0 seed 3: wall 346.0 ms, ttft 53.8 ms
+[a1 c1]   mixed off x1 request 7 T 1 seed 3: wall 384.2 ms, ttft 52.5 ms
+[a1 c1]   mixed off x1 request 8 T 0 seed 4: wall 357.4 ms, ttft 65.9 ms
+[a1 c1]   mixed off x1 request 9 T 1 seed 4: wall 377.4 ms, ttft 52.4 ms
+[a1 c1]   mixed off x1 request 10 T 0 seed 5: wall 342.1 ms, ttft 51.6 ms
+[a1 c1]   mixed off x1 request 11 T 1 seed 5: wall 373.7 ms, ttft 52.3 ms
+[a1 c1] mixed def x1 rc 0 t+133s lines 12 | DFlash2 drafter /models/Inkling-2-Mini-DFlash2 (k 4): loaded beside the DSpark default of recipe inkling2 on hip for greedy requests ([tuning.hip] dflash2_draft; sampled requests keep the DSpark draft; INTARSIA_SPEC_DFLASH2_DEFAULT=0 loads the DSpark default alone) free_mem before 9520 MiB free_mem after 9433 MiB (change -87 MiB) 12 requests in 5.4 s; spec verify passes 95 proposed 302 accepted 72 
+[a1 c1]   mixed def x1 request 0 T 0 seed 0: wall 511.8 ms, ttft 89.7 ms
+[a1 c1]   mixed def x1 request 1 T 1 seed 0: wall 436.5 ms, ttft 54.8 ms
+[a1 c1]   mixed def x1 request 2 T 0 seed 1: wall 469.9 ms, ttft 53.1 ms
+[a1 c1]   mixed def x1 request 3 T 1 seed 1: wall 448.0 ms, ttft 53.9 ms
+[a1 c1]   mixed def x1 request 4 T 0 seed 2: wall 465.7 ms, ttft 52.8 ms
+[a1 c1]   mixed def x1 request 5 T 1 seed 2: wall 456.2 ms, ttft 53.3 ms
+[a1 c1]   mixed def x1 request 6 T 0 seed 3: wall 465.3 ms, ttft 53.1 ms
+[a1 c1]   mixed def x1 request 7 T 1 seed 3: wall 393.1 ms, ttft 53.2 ms
+[a1 c1]   mixed def x1 request 8 T 0 seed 4: wall 465.1 ms, ttft 52.7 ms
+[a1 c1]   mixed def x1 request 9 T 1 seed 4: wall 379.9 ms, ttft 53.5 ms
+[a1 c1]   mixed def x1 request 10 T 0 seed 5: wall 467.2 ms, ttft 54.5 ms
+[a1 c1]   mixed def x1 request 11 T 1 seed 5: wall 409.7 ms, ttft 53.5 ms
+[a1 c1] mixed off x12 rc 0 t+145s lines 12 | free_mem before 11400 MiB free_mem after 11352 MiB (change -48 MiB) 12 requests in 7.0 s; spec verify passes 0 proposed 0 accepted 0 
+[a1 c1]   mixed off x12 request 0 T 0 seed 0: wall 603.0 ms, ttft 305.7 ms
+[a1 c1]   mixed off x12 request 1 T 1 seed 0: wall 602.3 ms, ttft 270.2 ms
+[a1 c1]   mixed off x12 request 2 T 0 seed 1: wall 566.2 ms, ttft 270.1 ms
+[a1 c1]   mixed off x12 request 3 T 1 seed 1: wall 599.9 ms, ttft 271.2 ms
+[a1 c1]   mixed off x12 request 4 T 0 seed 2: wall 569.6 ms, ttft 273.4 ms
+[a1 c1]   mixed off x12 request 5 T 1 seed 2: wall 596.7 ms, ttft 267.6 ms
+[a1 c1]   mixed off x12 request 6 T 0 seed 3: wall 567.0 ms, ttft 270.8 ms
+[a1 c1]   mixed off x12 request 7 T 1 seed 3: wall 598.7 ms, ttft 269.1 ms
+[a1 c1]   mixed off x12 request 8 T 0 seed 4: wall 563.4 ms, ttft 267.1 ms
+[a1 c1]   mixed off x12 request 9 T 1 seed 4: wall 599.2 ms, ttft 269.9 ms
+[a1 c1]   mixed off x12 request 10 T 0 seed 5: wall 569.1 ms, ttft 272.8 ms
+[a1 c1]   mixed off x12 request 11 T 1 seed 5: wall 597.6 ms, ttft 270.5 ms
+[a1 c1] mixed def x12 rc 0 t+160s lines 12 | DFlash2 drafter /models/Inkling-2-Mini-DFlash2 (k 4): loaded beside the DSpark default of recipe inkling2 on hip for greedy requests ([tuning.hip] dflash2_draft; sampled requests keep the DSpark draft; INTARSIA_SPEC_DFLASH2_DEFAULT=0 loads the DSpark default alone) free_mem before 9520 MiB free_mem after 9432 MiB (change -88 MiB) 12 requests in 6.2 s; spec verify passes 49 proposed 167 accepted 148 
+[a1 c1]   mixed def x12 request 0 T 0 seed 0: wall 487.6 ms, ttft 314.4 ms
+[a1 c1]   mixed def x12 request 1 T 1 seed 0: wall 629.1 ms, ttft 269.7 ms
+[a1 c1]   mixed def x12 request 2 T 0 seed 1: wall 442.3 ms, ttft 272.7 ms
+[a1 c1]   mixed def x12 request 3 T 1 seed 1: wall 646.1 ms, ttft 271.3 ms
+[a1 c1]   mixed def x12 request 4 T 0 seed 2: wall 444.5 ms, ttft 274.5 ms
+[a1 c1]   mixed def x12 request 5 T 1 seed 2: wall 627.5 ms, ttft 273.7 ms
+[a1 c1]   mixed def x12 request 6 T 0 seed 3: wall 443.3 ms, ttft 274.0 ms
+[a1 c1]   mixed def x12 request 7 T 1 seed 3: wall 532.7 ms, ttft 272.8 ms
+[a1 c1]   mixed def x12 request 8 T 0 seed 4: wall 444.1 ms, ttft 274.6 ms
+[a1 c1]   mixed def x12 request 9 T 1 seed 4: wall 541.4 ms, ttft 272.4 ms
+[a1 c1]   mixed def x12 request 10 T 0 seed 5: wall 443.3 ms, ttft 273.7 ms
+[a1 c1]   mixed def x12 request 11 T 1 seed 5: wall 542.5 ms, ttft 272.4 ms

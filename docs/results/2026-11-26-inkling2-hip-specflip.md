@@ -545,3 +545,25 @@ says off on Metal; Metal tiny suites inkling2_sampled_default 2 / 2, inkling2_ds
 2 / 2, inkling2_dspark 4 / 4. (#12509 before it exited at once: its process guard matched a shell line; the guard now matches only commands
 that start with an intarsia binary.)
 
+**WA2 (#12524, 01:13:34-01:17:26, 3:52; dualA5; `raw/a1-dualA5/`, `raw/window-wa2-12524.log`):**
+- GO ABBA half 2 (card 0, B A A B, r3 r4): dual 125.62 / 125.49 tok/s overall, dspark 108.81 / 108.72; counts per process as WA1b.
+- **Greedy GO (WA1b + WA2, n = 4 + 4, card 0; `raw/a-greedy/`, `raw/a-greedy-analysis.txt`), dual default / DSpark k5:** short **1.191**
+  [1.186-1.196], 1k **1.142** [1.134-1.150], prose **1.048** [1.044-1.052], chat **1.218** [1.213-1.223], 4k **0.993** [0.988-0.998],
+  16k **1.101** [1.097-1.105]; geometric mean of the six **1.113** (>= 1.03), no upper bound < 0.99: **GO passes** (ids identical in all 8
+  processes; code 1.304, not in the rule).
+- Seeds T 0.6: 100 / 100 equal off. Greedy 64 tokens: the stage printed DIFFER, wrongly: its compare split `generate`'s Debug list
+  (`[a, b, ..., z]`) on spaces, so the 64th id `150167]` did not equal `150167,`; ids 0-63 are equal in both prompts (checked by hand).
+- **Mixed switch (12 requests, each a draft switch on def): ids off = def (x1 and x12).** Free memory (`Backend::info().free_mem`, before
+  the first request / after the last): **def x1 9520 -> 9433 MiB (-87), def x12 9520 -> 9432 (-88)**; no speculation (off) x1 11400 ->
+  11338 (-62), x12 11400 -> 11352 (-48). **The pre-registered line (after >= before - 64 MiB) fails for def.** The off arm, which never
+  switches, also loses 48-62 MiB (first-use allocations), so the switch-related part is ~25-40 MiB over 12 switches; two points per run
+  cannot tell a one-time cost (both drafts' first graph captures) from a per-switch creep (a destroyed graph exec's memory kept by the HIP
+  runtime: `HipGraph::drop` calls hipGraphExecDestroy, and every switch drops and re-captures the graphs). Per the coordinator's rule
+  ("a leak or creep stops the flip") and the stop rule, **the flip stops here; WA3 not run.**
+- Switch cost (medians of requests 2-12): ttft def / off x1 53.1 / 53.8 ms, x12 274.0 / 270.8 ms (no measurable ttft cost); wall of a
+  greedy request after a switch (24 tokens): x1 466 ms vs 349 ms without speculation (the incoming draft re-prefills and the graphs
+  re-capture: slower than plain at this length), x12 443 ms vs 567 ms; sampled x1 423 / 418 ms, x12 585 / 599 ms. Def runs drafted (x1 95
+  passes, x12 49).
+
+Radiance: 28:37 (to GS2) + WA1 2:42 + WA1b 4:14 + WA2 3:52 = **39:25** of the 45 ceiling.
+
