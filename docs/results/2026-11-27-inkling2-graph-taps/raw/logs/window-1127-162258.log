@@ -1,0 +1,16 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-plain-tax/docs/results/2026-11-27-inkling2-graph-taps/raw/stage.sh; cap 280s; stopping radiance 2026-11-27 16:22:58
+[window] radiance stopped 2026-11-27 16:23:02 (inactive)
+[stage] red 7fd1808e7 1be2204c17d3e854d09dd5eb0953f3fb 16:23:02
+[stage] red rc 101 | test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.35s | skipped: 0
+thread 'decode_graph_recorded_without_drafting_is_not_replayed_by_a_drafting_state' panicked at crates/intarsia-models/tests/inkling2_dflash2.rs:435:13:
+/target/tmp/inkling2_dflash2/seed5: tap 0 of the drafting state's plain step is not the eager step's (a decode graph recorded without the tap copies was replayed)
+[stage] green 3595a7f37 9bfbd42ae53e0b8ad95ee4044c7e69c9 16:23:03
+[stage] green rc 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.46s | skipped: 0
+/target/tmp/inkling2_dflash2/seed5: graphs enabled true captures 3 replays 4
+/work/crates/intarsia-models/../../golden/inkling2-tiny-dspark: graphs enabled true captures 3 replays 4
+[stage] green full inkling2_dflash2 suite on hip 16:23:03
+[stage] green-all rc 124 | test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 164.98s
+[stage] end 16:25:49
+[window] stage done 2026-11-27 16:25:50 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-27 16:25:50
+[window] radiance answers 2026-11-27 16:26:00 (after 15 s)
