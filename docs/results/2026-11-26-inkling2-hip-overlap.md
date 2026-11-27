@@ -294,3 +294,26 @@ instructions: the slot term of the counter address), `ink_attn_dec_k` (6 instant
 +5..6 instructions: the slot from `flags` bits 24..27), and `ink_route_kernel` (one more argument, so its mangled name changed; its
 body differs by the slot index). `ik_runtime.hip` is host code only (3 identical, the new `ik_rt_stream_create_prio` is host).
 `__hip_cuid_*` are per-compile ids.
+
+## Parked 2026-11-26 20:40 (coordinator: Claude Desktop restart)
+
+- **Head**: the commit that adds this section (parent 32bd1e389), branch `ink/hip-overlap`, local only (not pushed; origin has none of it).
+  Candidate binary o4 = 8ed77739d (md5 38475e68394d85800f5e970d39006508), baseline main5 = origin/main a4c8f3b19 (md5
+  42fdf7a7d871d6694625fba108e086c7); both in tatooine `~/intarsiaml-ink-hip-bpf/.scratch/bin/`, both admission-primed.
+- **Passed**: cpu tests (#12319: core lib 274, scheduler 54, inkling2 17, inkling2_batch 10, inkling2_packed 6, docs_env_vars 2,
+  server 71); same-ISA check (#12325: 168 kernels identical, diffs only in the 3 ticket kernels); O4 (#12322): default budget
+  unchanged (context 3285, 52560 KV both), real prompts 4 x 4/4, 2 x 8/8, 16/16 with overlap default-on, md5 main5 spec off and o4
+  DSpark = W3's, hip tiny batch 10/10 and packed 6/6, admission conv_mix / loop_blend / ink_attn_decode / ink_route ADMITTED.
+  O1-O3 (#12281, #12293, #12303): overlap bitwise everywhere incl. the poisoned o2 run (16/16, 4 x 4/4).
+- **Not verified**: gate 4 (no paired speed rep of o4 vs main5 yet: O3's single runs only); the poisoned run on o4 (o2's predates
+  side_staging and the decode-lane hook); md5 of o4 `--spec off` and main5 DSpark; G2 short / long; the solo server on o4.
+- **Radiance for brief 3**: O1 4:04, O2 3:32, O3 4:17, O4 4:02 = 15:55, plus S1 (#12331), which fleetq started at 20:38:20 just
+  before the park; released at ~20:39, its tatooine window.sh (trap) restored radiance (active at 20:42:08). S1 data are partial
+  (A visit started only) and are not used. Left: about 10 min.
+- **Logs**: Mac `docs/results/2026-11-26-inkling2-hip-overlap/raw/{o1,o2,o3,o4,s1}/`, `*-fleetq.log`, `isa-check.log`; tatooine
+  `~/intarsiaml-ink-hip-bpf/logs/{o1,o2,o3,o4,s1,isa,serve}/`.
+- **Next step**: window S1 as specified (`raw/visits-s1.txt`, `raw/stage_s1bg.sh`; then S2 = BA with `stage_s2bg.sh`, S3 = AB with
+  `stage_s3bg.sh`), each: `fleetq run --host tatooine-r9700 --takes-down radiance --quiet gpu,cpu --expect 8 -- ... serve_window.sh`
+  with `VISITS=raw/visits-sN.txt OUT=raw/sN CAP=250 LE_MIN=20 LE_MARGIN=6 REAL_OFF=N-1 BG=stage_sNbg.sh BG_CAP=240` (sync.sh first);
+  then `python3 raw/speed_sum.py s1 s2 s3` against the section-4 rule; default-on stays (INK_OVERLAP_DEFAULT) only if it passes,
+  else set it false (opt-in) and record the numbers. The 10 min left fit 2 windows: ask the coordinator for a third or run n = 2.
