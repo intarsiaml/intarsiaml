@@ -1,0 +1,17 @@
+EQUAL        short-0: prompt    56 tok, 128 / 128 out, md5 2aac1fe54b88 / 2aac1fe54b88, cached 0 / 0
+EQUAL        short-1: prompt    49 tok, 128 / 128 out, md5 6d1c9868b552 / 6d1c9868b552, cached 0 / 0
+EQUAL        short-2: prompt    57 tok, 128 / 128 out, md5 b090e7cc5642 / b090e7cc5642, cached 0 / 0
+EQUAL          mid-0: prompt   570 tok, 128 / 128 out, md5 cbeba43e08a9 / cbeba43e08a9, cached 0 / 0
+EQUAL          mid-1: prompt   234 tok, 128 / 128 out, md5 653d8a0ed9fd / 653d8a0ed9fd, cached 0 / 0
+EQUAL     4k-0[:700]: prompt   226 tok, 128 / 128 out, md5 0827408680cd / 0827408680cd, cached 0 / 0
+EQUAL    4k-1[:1500]: prompt   546 tok, 128 / 128 out, md5 7fbdce70e4c9 / 7fbdce70e4c9, cached 0 / 0
+EQUAL    4k-0[:2600]: prompt   823 tok, 128 / 128 out, md5 745ddc08d51f / 745ddc08d51f, cached 0 / 0
+EQUAL    4k-1[:3300]: prompt  1167 tok, 128 / 128 out, md5 c51ba18fbfe7 / c51ba18fbfe7, cached 0 / 0
+EQUAL    4k-0[:4000]: prompt  1292 tok, 128 / 128 out, md5 83b603538c48 / 83b603538c48, cached 0 / 0
+EQUAL    4k-1[:5200]: prompt  1790 tok, 128 / 128 out, md5 7b7e05fa6d1d / 7b7e05fa6d1d, cached 0 / 0
+EQUAL    4k-0[:6000]: prompt  1914 tok, 128 / 128 out, md5 9bac0fa88f8e / 9bac0fa88f8e, cached 0 / 0
+EQUAL    4k-1[:7000]: prompt  2559 tok, 128 / 128 out, md5 55f2f21fa55a / 55f2f21fa55a, cached 0 / 0
+EQUAL    4k-0[:8000]: prompt  2549 tok, 128 / 128 out, md5 0c86f039e1af / 0c86f039e1af, cached 0 / 0
+EQUAL    4k-1[:7600]: prompt  2807 tok, 128 / 128 out, md5 7a97c4525e21 / 7a97c4525e21, cached 0 / 0
+EQUAL    4k-0[:9000]: prompt  2864 tok, 128 / 128 out, md5 8adff1f0521f / 8adff1f0521f, cached 0 / 0
+16 / 16 replies equal

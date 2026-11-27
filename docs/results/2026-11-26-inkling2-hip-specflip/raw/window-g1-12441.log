@@ -1,0 +1,20 @@
+fleetq: #12441 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=275 BR=specA1 bash ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/window.sh ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_gate.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_gate.sh; cap 275s; stopping radiance 2026-11-26 23:08:49
+[window] radiance stopped 2026-11-26 23:08:53 (inactive)
+[gate] start 23:08:53 specA1 d52cbb09447871313b6c3261a4de2f75 commit d84acc9f67fccc512af0baabef69ce2ff68d5e93
+[gate c0] seeds off rc 0 23:09:40 lines 100 | speculative decoding: Dflash, up to 5 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_bf16_gemv_rows ink_attn_decode=ink_attn_decode_bf16 matmul=matmul_bf16_gemv_rows conv_mix=conv_mix_bf16 logits=logits_bf16_gemv_rows moe_route=moe_route moe_experts=moe_experts_situ_bf16_rows attn_res_mix=attn_res_mix_bf16 loop_blend=loop_blend_bf16 mo
+[gate c0] seeds def rc 0 23:10:30 lines 100 | speculative decoding: Dflash, up to 5 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_bf16_gemv_rows ink_attn_decode=ink_attn_decode_bf16 matmul=matmul_bf16_gemv_rows conv_mix=conv_mix_bf16 logits=logits_bf16_gemv_rows moe_route=moe_route moe_experts=moe_experts_situ_bf16_rows attn_res_mix=attn_res_mix_bf16 loop_blend=loop_blend_bf16 mo
+[gate c0] b16 up after 103s 23:12:13
+[gate c0] b16 conc rc 1 23:12:13 | urllib.error.HTTPError: HTTP Error 404: Not Found
+[gate c0] b16 lines: continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 102.1s, context 3285 tokens 
+[gate c1] md5 off rc 0 23:09:07 380af8a5e897bdbed231818477038f37 | decode overall: 510 tokens after the first, 6235 ms (81.80 tok/s) spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) 
+[gate c1] md5 def rc 0 23:09:21 380af8a5e897bdbed231818477038f37 | decode overall: 510 tokens after the first, 4152 ms (122.84 tok/s) spec: verify passes=151 proposed=538 accepted=335 (acceptance 62.3%, 3.22 tokens per pass) 
+[gate c1] solo: no server after 150 s
+[gate c1] sampled default rc 0 23:12:03 | --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) sampled requests (temperature > 0): DFlash-family drafting on (recipe inkling2 [tuning.hip] sampled_dflash; INTARSIA_SPEC_SAMPLED_DFLASH=0 turns it off; single sequence, one rank, seed-exact keyed rule) loaded Inkling-2-Mini on AMD Radeon Graphics in 8.1s: 24 layers, hidden 2304, act bf16, kv bf16, weights 15.94 GB, context 4096 tokens (recipe builtin:inkling2, chat template chat_templat
+[gate] serve b16 (card 0) vs solo (card 1): FileNotFoundError: [Errno 2] No such file or directory: '/home/josef/intarsiaml-ink-hip-specflip/logs/gate-specA1/solo.json'
+[gate] seeds T 1.0: off 100 default 100 shared 100 identical 100
+[gate] done 23:12:13
+[window] stage done 2026-11-26 23:12:14 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 23:12:14
+[window] radiance answers 2026-11-26 23:12:24 (after 15 s)
+fleetq: #12441 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

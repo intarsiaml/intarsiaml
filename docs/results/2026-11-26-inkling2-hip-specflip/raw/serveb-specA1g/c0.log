@@ -1,0 +1,3 @@
+[gate c0] b16 up after 18s 23:30:48
+[gate c0] b16 conc rc 0 23:31:02 | conc: 16 replies, 1958 tokens -> /home/josef/intarsiaml-ink-hip-specflip/logs/serveb-specA1g/b16.json
+[gate c0] b16 lines: continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 17.0s, context 3285 tokens 

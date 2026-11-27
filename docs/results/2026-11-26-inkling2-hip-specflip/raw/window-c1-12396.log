@@ -1,0 +1,21 @@
+fleetq: #12396 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 CARD=1 K=4 ORDER=a R1=r1 R2=r2 BR=main7 PART=1 bash ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/window.sh ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_conf.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_conf.sh; cap 285s; stopping radiance 2026-11-26 22:43:42
+[window] radiance stopped 2026-11-26 22:43:46 (inactive)
+[stage] start 22:43:46 card 1 7763e4744bb4abcfef7a19552708b9cf main7 689cde21f795f1e38ba968c25d06daea K 4 TOK 256 ORDER a r1 r2
+[speed] dspark@r1 rc 0 t+55s | up to 5 drafts | decode overall: 4195 tokens after the first, 38132 ms (110.01 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[speed] dfl@r1 rc 0 t+103s | up to 4 drafts | decode overall: 4195 tokens after the first, 33257 ms (126.14 tok/s) | spec: verify passes=1265 proposed=5038 accepted=2935 (acceptance 58.3%, 3.32 tokens per pass)
+[speed] dfl@r2 rc 0 t+152s | up to 4 drafts | decode overall: 4195 tokens after the first, 33274 ms (126.07 tok/s) | spec: verify passes=1265 proposed=5038 accepted=2935 (acceptance 58.3%, 3.32 tokens per pass)
+[speed] dspark@r2 rc 0 t+207s | up to 5 drafts | decode overall: 4195 tokens after the first, 38326 ms (109.46 tok/s) | spec: verify passes=1396 proposed=4412 accepted=2406 (acceptance 54.5%, 2.72 tokens per pass)
+[stage] done 22:47:13 t+207s
+[kv] start 22:47:13 part 1 card 1 main7
+[kv] off-big rc 0
+[kv] off-big t+6s | loaded Inkling-2-Mini on AMD Radeon Graphics in 5.4s: 24 layers, hidden 2304, act bf16, kv bf16, weights 14.97 GB, context 192960 tokens (recipe builtin:inkling2, chat template chat_template.jinja) 
+[kv] dspark-big rc 0
+[kv] dspark-big t+14s | --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 2.4 s --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row) loaded Inkling-2-Mini on AMD Radeon Graphics in 7.9s: 24 layers, hidden 2304, act bf16, kv bf16, weights 15.94 GB, context 177504 tokens (recipe builtin:inkling2, chat t
+[kv] dfl-big rc 0
+[kv] dfl-big t+21s | dflash: draft of 5 layers (taps [5, 23, 41, 48], block 8, DFlash2) loaded in 0.1 s --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row) loaded Inkling-2-Mini on AMD Radeon Graphics in 5.7s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.05 GB, context 175424 tokens (recipe builtin:inkling2, chat template chat_template.jinja) 
+[kv] done 22:47:34 t+21s
+[window] stage done 2026-11-26 22:47:35 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 22:47:35
+[window] radiance answers 2026-11-26 22:47:45 (after 15 s)
+fleetq: #12396 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

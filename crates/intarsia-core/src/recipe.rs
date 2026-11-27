@@ -449,6 +449,11 @@ pub struct BackendTuning {
     /// built-in table, [`crate::spec::AdaptParams::apply`]) when that variable is not set. Unset: the built-in table
     /// ([`crate::spec::AdaptParams::default_for`]). Acts only on sampled DFlash-family requests.
     pub sampled_adapt: Option<String>,
+    /// Lane ink-hip-specflip (flip A, user decision 2026-11-26 "Both, confirm first"): sampled requests (temperature > 0) draft with the
+    /// checkpoint's own DSpark draft by default on this backend when `INTARSIA_SPEC_SAMPLED_DFLASH` is not set
+    /// ([`crate::spec::sampled_dflash_resolve`]; with [`BackendTuning::sampled_adapt`]'s draft length policy). Unset: off. Only
+    /// `recipes/inkling2.toml` sets it, `true` on HIP (docs/results/2026-11-26-inkling2-hip-specflip.md); Metal failed the gate and stays opt-in.
+    pub sampled_dflash: Option<bool>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -557,6 +562,12 @@ impl Recipe {
     /// The recipe's `sampled_adapt` for `backend` (`[tuning.<backend>]`), unparsed ([`crate::spec::AdaptMode::resolve`]).
     pub fn sampled_adapt(&self, backend: &str) -> Option<&str> {
         self.tuning.backends.get(backend).and_then(|b| b.sampled_adapt.as_deref())
+    }
+
+    /// The recipe's `sampled_dflash` for `backend` (`[tuning.<backend>]`); `INTARSIA_SPEC_SAMPLED_DFLASH` and the draft are resolved by
+    /// [`crate::spec::sampled_dflash_resolve`].
+    pub fn sampled_dflash(&self, backend: &str) -> Option<bool> {
+        self.tuning.backends.get(backend).and_then(|b| b.sampled_dflash)
     }
 
     /// The recipe's `ink_attn_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.

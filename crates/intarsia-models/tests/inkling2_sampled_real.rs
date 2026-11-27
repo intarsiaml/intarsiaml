@@ -10,6 +10,8 @@
 //!   (stop starting requests after this many seconds of generation; unset: no limit);
 //! * `INTARSIA_SS_K` (lane ink-sampled-adapt): `--spec-k` (default 3); `INTARSIA_SPEC_SAMPLED_ADAPT` picks the draft length policy as in
 //!   `serve` (with `INTARSIA_SPEC_TRACE=1` its `adapt:` lines count the plain stretches and re-entries).
+//! * `INTARSIA_SS_DRAFT` (lane ink-hip-specflip): the `--spec-draft` directory (default `INTARSIA_INK_MODEL`, the DSpark draft; e.g. the
+//!   DFlash2 drafter `Inkling-2-Mini-DFlash2`).
 //!
 //! Every request is the same short prompt, `--spec dflash --spec-k 3`, `ignore_eos`. Token 1 comes from prefill; tokens 2.. are the
 //! speculative positions. `docs/results/2026-11-26-inkling2-sampled-dspark/raw/law.py` compares the arms (seed equality on shared seeds,
@@ -64,7 +66,7 @@ fn inkling2_sampled_dspark_real_model_runs() {
     let spec_k: usize = var("INTARSIA_SS_K").map_or(3, |v| v.parse().unwrap());
     let opts = intarsia_models::EngineOptions {
         spec: SpecConfig { mode: SpecMode::Dflash, k: spec_k, k_min: None },
-        spec_draft: Some(dir.clone()),
+        spec_draft: Some(var("INTARSIA_SS_DRAFT").map(PathBuf::from).unwrap_or_else(|| dir.clone())),
         spec_k_given: true,
         max_batch: Some(1),
         ..Default::default()
@@ -73,9 +75,10 @@ fn inkling2_sampled_dspark_real_model_runs() {
     let loaded = intarsia_models::load_engine(&dir, backend(), &opts).unwrap();
     let e = loaded.engine;
     eprintln!(
-        "loaded in {:.1} s, INTARSIA_SPEC_SAMPLED_DFLASH={:?}",
+        "loaded in {:.1} s, INTARSIA_SPEC_SAMPLED_DFLASH={:?}, draft {:?}",
         t_load.elapsed().as_secs_f64(),
-        var("INTARSIA_SPEC_SAMPLED_DFLASH")
+        var("INTARSIA_SPEC_SAMPLED_DFLASH"),
+        var("INTARSIA_SS_DRAFT")
     );
     let prompt = e.tokenize("Once upon a time, in a small village by the sea, there lived", false).unwrap();
     let mut f = out.map(|p| std::fs::OpenOptions::new().create(true).append(true).open(p).unwrap());

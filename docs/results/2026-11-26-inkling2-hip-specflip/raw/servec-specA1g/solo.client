@@ -1,0 +1,2 @@
+wall 25.53 s, aggregate 80.2 tok/s, latency median 1.48 s max 2.23 s, prompt tokens 19503, cached 0, ttft median 0.4247 max 0.956974983215332, itl p50 0.0 p99 0.0362
+solo: 16 replies, 2048 tokens -> /home/josef/intarsiaml-ink-hip-specflip/logs/servec-specA1g/solo.json

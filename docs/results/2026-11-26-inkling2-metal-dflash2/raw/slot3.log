@@ -1,0 +1,22 @@
+fleetq: #12495 waiting (#2 in line): in line behind #12486 "dynamo: Phase 3 full G2 + profile + speed + SSD + fp8attn + localeval" (josef@endor) on endor
+fleetq: #12495 waiting (#1 in line): needs endor to itself; running there: #12480 "ink-hip-specflip: gate 1 full cpu suite on PR A final head 136b4dc16 (after #544 merge)" (claude-04c0e1cd), #12483 "ink-hip-overlap2: full cpu suite (core lib, scheduler, models, cli) on merged head 0304d4ce8 + Metal cli/test build" (claude-04c0e1cd); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #12480 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12480 set, or it will wait for #12480 to be released.
+fleetq: #12495 waiting (#1 in line): needs endor to itself; running there: #12480 "ink-hip-specflip: gate 1 full cpu suite on PR A final head 136b4dc16 (after #544 merge)" (claude-04c0e1cd); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #12480 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12480 set, or it will wait for #12480 to be released.
+fleetq: #12495 running on endor: env BR=br3 NAME=s3-abba-a ORDER=a TESTS=1 K=5 /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/docs/results/2026-11-26-inkling2-metal-dflash2/raw/slot3.sh
+slot start 00:25:17 K 5 order a r1 r2
+== bf16 draft pass on metal rc 0 | test draft_pass_matches_host_reference ... ok test draft_pass_in_bf16_on_the_backend_matches_host_reference ... ok test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.56s 
+== metal backend dflash2 tests rc 0 | test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s 
+start 00:25:29 out /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/.scratch/metal/s3-md5 binary md5 7940c0132b6d0b77a409989013d7b525 git 19390eb01 prompts md5 tok 256 idle 0 limit 300
+off@r1 rc 0 00:25:46 t+17s |  | decode overall: 510 tokens after the first, 6621 ms (77.03 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+dspark@r1 rc 0 00:26:01 t+32s | up to 3 drafts | decode overall: 510 tokens after the first, 4730 ms (107.83 tok/s) | spec: verify passes=169 proposed=429 accepted=311 (acceptance 72.5%, 2.84 tokens per pass)
+dfl5@r1 rc 0 00:26:11 t+42s | up to 5 drafts | decode overall: 510 tokens after the first, 4190 ms (121.72 tok/s) | spec: verify passes=123 proposed=608 accepted=386 (acceptance 63.5%, 4.14 tokens per pass)
+end 00:26:11
+start 00:26:11 out /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/.scratch/metal/s3-abba-a binary md5 7940c0132b6d0b77a409989013d7b525 git 19390eb01 prompts speed tok 256 idle 45 limit 1000
+dspark@r1 rc 0 00:27:58 t+107s | up to 3 drafts | decode overall: 4261 tokens after the first, 43845 ms (97.18 tok/s) | spec: verify passes=1627 proposed=3779 accepted=2277 (acceptance 60.3%, 2.40 tokens per pass)
+dfl5@r1 rc 0 00:29:41 t+210s | up to 5 drafts | decode overall: 4261 tokens after the first, 39401 ms (108.15 tok/s) | spec: verify passes=1215 proposed=6042 accepted=3042 (acceptance 50.3%, 3.50 tokens per pass)
+dfl5@r2 rc 0 00:31:19 t+308s | up to 5 drafts | decode overall: 4261 tokens after the first, 39192 ms (108.72 tok/s) | spec: verify passes=1215 proposed=6042 accepted=3042 (acceptance 50.3%, 3.50 tokens per pass)
+dspark@r2 rc 0 00:33:06 t+415s | up to 3 drafts | decode overall: 4261 tokens after the first, 43895 ms (97.07 tok/s) | spec: verify passes=1627 proposed=3779 accepted=2277 (acceptance 60.3%, 2.40 tokens per pass)
+end 00:33:06
+slot end 00:33:06
+fleetq: #12495 done (exit 0)

@@ -1,0 +1,22 @@
+fleetq: #12478 waiting (#1 in line): needs endor to itself; running there: #12475 "ink-hip-specflip: push PR A branch ink/hip-specflip (pre-push docs tests)" (claude-04c0e1cd), #12476 "dynamo: p12 smoke + G2 KL21 + parity" (josef@endor)
+fleetq:   #12475 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12475 set, or it will wait for #12475 to be released.
+fleetq: #12478 waiting (#1 in line): needs endor to itself; running there: #12475 "ink-hip-specflip: push PR A branch ink/hip-specflip (pre-push docs tests)" (claude-04c0e1cd); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #12475 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12475 set, or it will wait for #12475 to be released.
+fleetq: #12478 running on endor: /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/docs/results/2026-11-26-inkling2-metal-dflash2/raw/slot2.sh
+slot2 start 23:53:38
+== metal backend dflash2 tests rc 0 23:53:39 | test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s 
+start 23:53:39 out /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/.scratch/metal/s2-sweep binary md5 74219febe8cb328860760dd76eb67698 git 3fb1b5f8d prompts speed tok 256 idle 45 limit 960
+dspark@r1 rc 0 23:55:27 t+108s | up to 3 drafts | decode overall: 4261 tokens after the first, 45209 ms (94.25 tok/s) | spec: verify passes=1627 proposed=3779 accepted=2277 (acceptance 60.3%, 2.40 tokens per pass)
+dfl4@r1 rc 0 23:57:07 t+208s | up to 4 drafts | decode overall: 4261 tokens after the first, 40164 ms (106.09 tok/s) | spec: verify passes=1306 proposed=5205 accepted=2950 (acceptance 56.7%, 3.26 tokens per pass)
+dfl7@r1 rc 0 23:58:47 t+308s | up to 7 drafts | decode overall: 4261 tokens after the first, 41522 ms (102.62 tok/s) | spec: verify passes=1118 proposed=7769 accepted=3138 (acceptance 40.4%, 3.81 tokens per pass)
+dfl3@r1 rc 0 00:00:28 t+409s | up to 3 drafts | decode overall: 4261 tokens after the first, 40779 ms (104.49 tok/s) | spec: verify passes=1443 proposed=4317 accepted=2813 (acceptance 65.2%, 2.95 tokens per pass)
+dfl5@r1 rc 0 00:02:07 t+508s | up to 5 drafts | decode overall: 4261 tokens after the first, 39733 ms (107.24 tok/s) | spec: verify passes=1215 proposed=6042 accepted=3042 (acceptance 50.3%, 3.50 tokens per pass)
+end 00:02:07
+start 00:02:07 out /opt/code/intarsiaml/.worktrees/ink-metal-dflash2/.scratch/metal/s2-md5-64 binary md5 74219febe8cb328860760dd76eb67698 git 3fb1b5f8d prompts md5 tok 64 idle 0 limit 300
+off@r1 rc 0 00:02:15 t+8s |  | decode overall: 126 tokens after the first, 1669 ms (75.51 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+dspark@r1 rc 0 00:02:27 t+20s | up to 3 drafts | decode overall: 126 tokens after the first, 1083 ms (116.39 tok/s) | spec: verify passes=38 proposed=102 accepted=84 (acceptance 82.4%, 3.21 tokens per pass)
+dfl4@r1 rc 0 00:02:34 t+27s | up to 4 drafts | decode overall: 126 tokens after the first, 921 ms (136.74 tok/s) | spec: verify passes=28 proposed=109 accepted=98 (acceptance 89.9%, 4.50 tokens per pass)
+dfl7@r1 rc 0 00:02:41 t+34s | up to 7 drafts | decode overall: 126 tokens after the first, 708 ms (177.87 tok/s) | spec: verify passes=18 proposed=118 accepted=108 (acceptance 91.5%, 7.00 tokens per pass)
+end 00:02:41
+slot2 end 00:02:41
+fleetq: #12478 done (exit 0)
