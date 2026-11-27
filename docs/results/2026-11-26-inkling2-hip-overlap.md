@@ -41,6 +41,7 @@ too); hip tiny `inkling2_batch` 10/10 and `inkling2_packed` 6/6 on the PR-head t
 - **Not verified**: speed of the PR head itself (gate 4 measured o4; the merge adds only opt-in sampled-DSpark code, and o5's
   md5 / decode tok/s match o4's); the PR head binary with the flipped constant was built (`--features hip`) but not run on the GPU:
   its unset default takes the branch S4 ran with `INTARSIA_OVERLAP=0`. The cause of S3's three 0.34-0.41 s stalls with overlap on.
+- unanimis capture a5bd873f-8f41-4794-85f4-5bd4dbdb2477; PR #542.
 
 ## Briefs received
 
