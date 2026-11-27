@@ -1,0 +1,9 @@
+inkling2_dspark_sampled_adapt rc 0 | test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 171.29s 
+inkling2_dspark_sampled rc 0 | test result: ok. 2 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 60.01s 
+inkling2_dspark_sampled_gumbel rc 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 56.75s 
+inkling2_dspark rc 0 | test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.86s 
+inkling2_dspark_cut rc 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.39s 
+inkling2_verify_softcap rc 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s 
+recipes_doc rc 0 | test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 
+docs_env_vars rc 0 | test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+core lib rc 0 | test result: ok. 280 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 15.82s

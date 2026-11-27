@@ -1,0 +1,7 @@
+
+running 2 tests
+test adapt_seeded_ids_equal_spec_off ... ok
+test plain_steps_keep_the_draft_in_sync ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.99s
+

@@ -91,6 +91,18 @@ impl Seq {
 
     /// [`Seq::keyed_draft`] after the drafts (lane mdraft: they may come from a batched draft).
     pub(super) fn keyed_finish(&mut self, model: &Model, st: &mut SequenceState, drafts: Vec<u32>, defer: bool) -> Result<Prep> {
+        if let Some(a) = self.adapt.as_mut() {
+            // lane ink-sampled-adapt: an empty call cost the draft and yields the plain step's token; `=drafts` (diagnostic) logs the
+            // drafts and takes the plain step
+            if drafts.is_empty() {
+                a.empty(self.generated);
+            } else if a.drafts_only() {
+                a.drafts(&drafts, self.generated, st.len);
+                self.cost_begin(false);
+                let (t, m) = self.plain_input();
+                return Ok(Prep::Plain(t, m));
+            }
+        }
         if drafts.is_empty() {
             // no room for a draft block near the end of the context window: a plain step
             self.cost_begin(false);
@@ -206,6 +218,9 @@ impl Seq {
             }
         });
         spec_cut(model, st, len0 + accepted + 1)?;
+        if let Some(a) = self.adapt.as_mut() {
+            a.pass(drafts.len(), accepted, self.generated);
+        }
         self.account_verify(len0, drafts, SpecStep { emit, accepted, accepted_exact: accepted, plain_next: false });
         Ok(())
     }

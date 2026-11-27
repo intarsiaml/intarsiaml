@@ -1,0 +1,42 @@
+backend metal, K 3; runs [('0', '1.0'), ('drafts', '1.0')]
+D (keyed draft, fixed run) median 3.223 ms (n 326); drafts run: step median 16.926 ms, draft median 3.304 ms -> P 13.622 ms
+  pass with 1 drafts: n 81, cycle median 20.056 ms -> r_1 = 0.236
+  pass with 2 drafts: n 43, cycle median 22.538 ms -> r_2 = 0.418
+  pass with 3 drafts: n 104, cycle median 24.783 ms -> r_3 = 0.583
+built-in d 0.24, r [0.32, 0.51, 0.7]; measured d 0.237, r 1:0.236 2:0.418 3:0.583
+15 % rule: MEASURED TABLE (r_1 0.236 vs 0.32; r_2 0.418 vs 0.51; r_3 0.583 vs 0.7)
+measured table: d=0.237,r=0.236/0.418/0.583
+
+replay of fixed k on the drafts run's proposals vs the fixed run (passes / proposed / accepted; ms predicted vs decode ms):
+  T 1.0 warm     replay 60/139/54 measured 60/139/54 same; 1611 ms predicted vs 1598 measured (1.008)
+  T 1.0 short_b  replay 54/81/38 measured 54/81/38 same; 1738 ms predicted vs 1713 measured (1.015)
+  T 1.0 short_a  replay 51/118/63 measured 51/118/63 same; 1398 ms predicted vs 1362 measured (1.026)
+  T 1.0 short_c  replay 40/103/81 measured 40/103/81 same; 1050 ms predicted vs 1037 measured (1.012)
+  T 1.0 len1k    replay 46/90/50 measured 44/88/50 DIFFERENT; 1547 ms predicted vs 1605 measured (0.964)
+  T 1.0 len4k    replay 40/91/71 measured 40/91/71 same; 1190 ms predicted vs 1329 measured (0.895)
+replay check: NOT exact
+
+policy replay, table d=0.237, r=[0.236, 0.418, 0.583] (other parameters built-in):
+| T | prompt | fix / off | pol / off | pol / fix | pol passes, accepted, plain steps | stops / holds / resumes |
+|---|---|---:|---:|---:|---|---|
+| 1.0 | short_b | 0.995 | 0.987 | 0.992 | 12, 7, 108 | 3 / 4 / 2 |
+| 1.0 | short_a | 1.238 | 1.240 | 1.002 | 53, 62, 12 | 0 / 0 / 0 |
+| 1.0 | short_c | 1.648 | 1.648 | 1.000 | 40, 81, 6 | 0 / 0 / 0 |
+| 1.0 | len1k | 1.118 | 1.131 | 1.011 | 32, 41, 54 | 2 / 1 / 1 |
+| 1.0 | len4k | 1.454 | 1.452 | 0.999 | 36, 68, 23 | 1 / 1 / 0 |
+  T 1.0 short: fix / off 1.240, pol / off 1.236, pol / (0.99 x fix) 1.007
+  T 1.0 1k: fix / off 1.118, pol / off 1.131, pol / (0.99 x fix) 1.022
+  T 1.0 4k: fix / off 1.454, pol / off 1.452, pol / (0.99 x fix) 1.009
+  lowest prompt pol / off 0.987; defaults miss the 0.99 bars at [('1.0', 'short_b')]: grid
+grid best: min prompt 1.017 at ADAPT=g=0.85,margin=0.0,drop=0.0,probe=3,hold=8,hold_max=32
+| T | prompt | fix / off | pol / off | pol / fix | pol passes, accepted, plain steps | stops / holds / resumes |
+|---|---|---:|---:|---:|---|---|
+| 1.0 | short_b | 0.995 | 1.017 | 1.022 | 23, 17, 87 | 2 / 3 / 2 |
+| 1.0 | short_a | 1.238 | 1.246 | 1.007 | 53, 62, 12 | 0 / 0 / 0 |
+| 1.0 | short_c | 1.648 | 1.648 | 1.000 | 40, 81, 6 | 0 / 0 / 0 |
+| 1.0 | len1k | 1.118 | 1.128 | 1.008 | 30, 40, 57 | 2 / 1 / 1 |
+| 1.0 | len4k | 1.454 | 1.467 | 1.009 | 30, 65, 32 | 1 / 1 / 0 |
+  T 1.0 short: fix / off 1.240, pol / off 1.254
+  T 1.0 1k: fix / off 1.118, pol / off 1.128
+  T 1.0 4k: fix / off 1.454, pol / off 1.467
+adapt string: d=0.237,r=0.236/0.418/0.583,g=0.85,margin=0.0,drop=0.0,probe=3,hold=8,hold_max=32

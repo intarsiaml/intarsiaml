@@ -1,0 +1,2452 @@
+--spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe inkling2, hip)
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.4 s)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 3.8 s
+dspark: Markov fold [200058 x 256] in 4.3 s
+dspark: draft head mxfp4 [200058 x 2304] in 0.4 s
+dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 4.7 s
+--spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)
+speculative decoding: Dflash, up to 5 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_bf16_gemv_rows ink_attn_decode=ink_attn_decode_bf16 matmul=matmul_bf16_gemv_rows conv_mix=conv_mix_bf16 logits=logits_bf16_gemv_rows moe_route=moe_route moe_experts=moe_experts_situ_bf16_rows attn_res_mix=attn_res_mix_bf16 loop_blend=loop_blend_bf16 moe_experts_mxfp8=moe_experts_mxfp8_bf16_rows hc_pre=hc_pre_bf16 matmul=matmul_bf16_gemv qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 matmul=matmul_bf16 attn_decode=attn_decode_bf16_splitkv add=add_bf16 silu_glu=silu_glu_bf16 matmul_mxfp4=matmul_mxfp4_gemv logits=logits_bf16_gemv matmul_mxfp4=matmul_mxfp4_gemv_rows logits=logits_bf16 attn_decode=attn_decode_bf16_window matmul_p12=matmul_p12_logits_gemv_rows argmax=argmax_f32
+sampled requests (temperature > 0): DFlash-family drafting on (INTARSIA_SPEC_SAMPLED_DFLASH; single sequence, one rank, seed-exact keyed rule)
+loaded Inkling-2-Mini on AMD Radeon Graphics in 10.3s: 24 layers, hidden 2304, act bf16, kv bf16, weights 15.94 GB, context 8192 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+sampled DFlash-family drafting: draft length per request off: fixed draft length (INTARSIA_SPEC_SAMPLED_ADAPT=0)
+dspark: pos 23 step 0 draft 200008 p1 1.000
+dspark: pos 23 step 1 draft 371 p1 0.997
+dspark: pos 23 step 2 draft 150409 p1 1.000
+dspark: pos 23 step 3 draft 171960 p1 1.000
+dspark: pos 23 step 4 draft 150396 p1 0.961
+spec: keyed draft 9.594 ms, 5 drafts
+spec: token 2 pos 23 drafted 5 accepted 4 emits 5 drafts [200008, 371, 150409, 171960, 150396]
+spec: keyed verify 6 rows (logits) 29.809 ms, accept 6.015 ms
+adapt: step pass 5 5 tokens 45.457 ms
+dspark: pos 28 step 0 draft 150396 p1 0.997
+dspark: pos 28 step 1 draft 167182 p1 1.000
+dspark: pos 28 step 2 draft 167182 p1 0.993
+dspark: pos 28 step 3 draft 151098 p1 0.761
+dspark: pos 28 step 4 draft 151170 p1 0.421
+spec: keyed draft 3.757 ms, 4 drafts
+spec: token 7 pos 28 drafted 4 accepted 2 emits 3 drafts [150396, 167182, 167182, 151098]
+spec: keyed verify 5 rows (logits) 25.178 ms, accept 3.393 ms
+adapt: step pass 4 3 tokens 32.348 ms
+dspark: pos 31 step 0 draft 151098 p1 0.996
+dspark: pos 31 step 1 draft 149878 p1 0.943
+dspark: pos 31 step 2 draft 150046 p1 0.983
+dspark: pos 31 step 3 draft 151170 p1 1.000
+dspark: pos 31 step 4 draft 13 p1 0.999
+spec: keyed draft 3.148 ms, 5 drafts
+spec: token 10 pos 31 drafted 5 accepted 5 emits 6 drafts [151098, 149878, 150046, 151170, 13]
+spec: keyed verify 6 rows (logits) 24.594 ms, accept 5.915 ms
+adapt: step pass 5 6 tokens 33.676 ms
+dspark: pos 37 step 0 draft 150893 p1 0.888
+dspark: pos 37 step 1 draft 149911 p1 0.831
+dspark: pos 37 step 2 draft 4123 p1 1.000
+dspark: pos 37 step 3 draft 13 p1 0.998
+dspark: pos 37 step 4 draft 150166 p1 0.923
+spec: keyed draft 3.594 ms, 5 drafts
+spec: token 16 pos 37 drafted 5 accepted 4 emits 5 drafts [150893, 149911, 4123, 13, 150166]
+spec: keyed verify 6 rows (logits) 24.408 ms, accept 4.752 ms
+adapt: step pass 5 5 tokens 32.778 ms
+dspark: pos 42 step 0 draft 150396 p1 0.994
+dspark: pos 42 step 1 draft 167182 p1 0.981
+dspark: pos 42 step 2 draft 13 p1 0.989
+dspark: pos 42 step 3 draft 174520 p1 0.684
+dspark: pos 42 step 4 draft 149923 p1 0.922
+spec: keyed draft 3.588 ms, 5 drafts
+spec: token 21 pos 42 drafted 5 accepted 1 emits 2 drafts [150396, 167182, 13, 174520, 149923]
+spec: keyed verify 6 rows (logits) 23.660 ms, accept 2.064 ms
+adapt: step pass 5 2 tokens 29.328 ms
+dspark: pos 44 step 0 draft 167182 p1 0.986
+dspark: pos 44 step 1 draft 13 p1 0.999
+dspark: pos 44 step 2 draft 174520 p1 0.812
+dspark: pos 44 step 3 draft 149923 p1 0.985
+dspark: pos 44 step 4 draft 13 p1 0.818
+spec: keyed draft 3.134 ms, 5 drafts
+spec: token 23 pos 44 drafted 5 accepted 2 emits 3 drafts [167182, 13, 174520, 149923, 13]
+spec: keyed verify 6 rows (logits) 24.043 ms, accept 2.887 ms
+adapt: step pass 5 3 tokens 30.077 ms
+dspark: pos 47 step 0 draft 151469 p1 0.551
+dspark: pos 47 step 1 draft 157054 p1 0.437
+spec: keyed draft 3.031 ms, 1 drafts
+spec: token 26 pos 47 drafted 1 accepted 0 emits 1 drafts [151469]
+spec: keyed verify 2 rows (logits) 17.131 ms, accept 3.225 ms
+adapt: step pass 1 1 tokens 23.400 ms
+dspark: pos 48 step 0 draft 13 p1 0.481
+spec: keyed draft 3.065 ms, 0 drafts
+adapt: step empty 0 1 tokens 18.426 ms
+dspark: pos 49 step 0 draft 13 p1 0.999
+dspark: pos 49 step 1 draft 174520 p1 0.492
+spec: keyed draft 3.054 ms, 1 drafts
+spec: token 28 pos 49 drafted 1 accepted 1 emits 2 drafts [13]
+spec: keyed verify 2 rows (logits) 15.472 ms, accept 2.470 ms
+adapt: step pass 1 2 tokens 21.011 ms
+dspark: pos 51 step 0 draft 150400 p1 0.806
+dspark: pos 51 step 1 draft 13 p1 0.620
+spec: keyed draft 3.075 ms, 1 drafts
+spec: token 30 pos 51 drafted 1 accepted 1 emits 2 drafts [150400]
+spec: keyed verify 2 rows (logits) 14.996 ms, accept 1.946 ms
+adapt: step pass 1 2 tokens 20.032 ms
+dspark: pos 53 step 0 draft 13 p1 0.856
+dspark: pos 53 step 1 draft 179027 p1 0.978
+dspark: pos 53 step 2 draft 150893 p1 0.894
+dspark: pos 53 step 3 draft 13 p1 0.777
+dspark: pos 53 step 4 draft 18 p1 0.305
+spec: keyed draft 3.163 ms, 4 drafts
+spec: token 32 pos 53 drafted 4 accepted 2 emits 3 drafts [13, 179027, 150893, 13]
+spec: keyed verify 5 rows (logits) 21.763 ms, accept 3.031 ms
+adapt: step pass 4 3 tokens 27.974 ms
+dspark: pos 56 step 0 draft 158068 p1 0.305
+spec: keyed draft 2.989 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.680 ms
+dspark: pos 57 step 0 draft 862 p1 0.528
+dspark: pos 57 step 1 draft 11 p1 0.889
+spec: keyed draft 2.963 ms, 1 drafts
+spec: token 36 pos 57 drafted 1 accepted 0 emits 1 drafts [862]
+spec: keyed verify 2 rows (logits) 15.303 ms, accept 1.087 ms
+adapt: step pass 1 1 tokens 19.366 ms
+dspark: pos 58 step 0 draft 11 p1 0.995
+dspark: pos 58 step 1 draft 155595 p1 0.520
+dspark: pos 58 step 2 draft 155595 p1 0.715
+spec: keyed draft 2.882 ms, 2 drafts
+spec: token 37 pos 58 drafted 2 accepted 1 emits 2 drafts [11, 155595]
+spec: keyed verify 3 rows (logits) 20.204 ms, accept 1.964 ms
+adapt: step pass 2 2 tokens 25.064 ms
+dspark: pos 60 step 0 draft 152765 p1 0.251
+spec: keyed draft 3.001 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.092 ms
+dspark: pos 61 step 0 draft 11 p1 0.999
+dspark: pos 61 step 1 draft 154092 p1 0.888
+dspark: pos 61 step 2 draft 175568 p1 0.676
+dspark: pos 61 step 3 draft 11 p1 0.989
+dspark: pos 61 step 4 draft 11 p1 0.558
+spec: keyed draft 3.070 ms, 4 drafts
+spec: token 40 pos 61 drafted 4 accepted 1 emits 2 drafts [11, 154092, 175568, 11]
+spec: keyed verify 5 rows (logits) 21.515 ms, accept 2.052 ms
+adapt: step pass 4 2 tokens 26.648 ms
+dspark: pos 63 step 0 draft 14 p1 0.436
+spec: keyed draft 2.968 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.241 ms
+dspark: pos 64 step 0 draft 13 p1 0.431
+spec: keyed draft 2.935 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.063 ms
+dspark: pos 65 step 0 draft 170289 p1 0.776
+dspark: pos 65 step 1 draft 150400 p1 0.435
+spec: keyed draft 2.947 ms, 1 drafts
+spec: token 44 pos 65 drafted 1 accepted 0 emits 1 drafts [170289]
+spec: keyed verify 2 rows (logits) 15.310 ms, accept 1.019 ms
+adapt: step pass 1 1 tokens 19.286 ms
+dspark: pos 66 step 0 draft 149911 p1 0.879
+dspark: pos 66 step 1 draft 4123 p1 1.000
+dspark: pos 66 step 2 draft 13 p1 1.000
+dspark: pos 66 step 3 draft 200010 p1 1.000
+dspark: pos 66 step 4 draft 200004 p1 0.969
+spec: keyed draft 2.903 ms, 5 drafts
+spec: token 45 pos 66 drafted 5 accepted 0 emits 1 drafts [149911, 4123, 13, 200010, 200004]
+spec: keyed verify 6 rows (logits) 24.715 ms, accept 1.078 ms
+adapt: step pass 5 1 tokens 28.716 ms
+dspark: pos 67 step 0 draft 13 p1 0.993
+dspark: pos 67 step 1 draft 200010 p1 0.999
+dspark: pos 67 step 2 draft 200001 p1 1.000
+dspark: pos 67 step 3 draft 200004 p1 1.000
+dspark: pos 67 step 4 draft 18 p1 0.561
+spec: keyed draft 2.876 ms, 5 drafts
+spec: token 46 pos 67 drafted 5 accepted 4 emits 5 drafts [13, 200010, 200001, 200004, 18]
+spec: keyed verify 6 rows (logits) 24.608 ms, accept 4.946 ms
+adapt: step pass 5 5 tokens 32.457 ms
+dspark: pos 72 step 0 draft 13 p1 0.999
+dspark: pos 72 step 1 draft 150133 p1 0.513
+dspark: pos 72 step 2 draft 2112 p1 0.423
+spec: keyed draft 3.785 ms, 2 drafts
+spec: token 51 pos 72 drafted 2 accepted 1 emits 2 drafts [13, 150133]
+spec: keyed verify 3 rows (logits) 17.882 ms, accept 3.051 ms
+adapt: step pass 2 2 tokens 24.771 ms
+dspark: pos 74 step 0 draft 151812 p1 0.830
+dspark: pos 74 step 1 draft 37470 p1 0.467
+spec: keyed draft 3.052 ms, 1 drafts
+spec: token 53 pos 74 drafted 1 accepted 0 emits 1 drafts [151812]
+spec: keyed verify 2 rows (logits) 15.250 ms, accept 1.128 ms
+adapt: step pass 1 1 tokens 19.446 ms
+dspark: pos 75 step 0 draft 150220 p1 0.800
+dspark: pos 75 step 1 draft 151812 p1 0.987
+dspark: pos 75 step 2 draft 23064 p1 0.524
+spec: keyed draft 3.153 ms, 2 drafts
+spec: token 54 pos 75 drafted 2 accepted 0 emits 1 drafts [150220, 151812]
+spec: keyed verify 3 rows (logits) 17.844 ms, accept 1.088 ms
+adapt: step pass 2 1 tokens 22.100 ms
+dspark: pos 76 step 0 draft 150054 p1 0.933
+dspark: pos 76 step 1 draft 149878 p1 0.746
+dspark: pos 76 step 2 draft 150739 p1 0.534
+spec: keyed draft 2.843 ms, 2 drafts
+spec: token 55 pos 76 drafted 2 accepted 0 emits 1 drafts [150054, 149878]
+spec: keyed verify 3 rows (logits) 17.154 ms, accept 1.451 ms
+adapt: step pass 2 1 tokens 21.513 ms
+dspark: pos 77 step 0 draft 386 p1 0.802
+dspark: pos 77 step 1 draft 152024 p1 0.747
+dspark: pos 77 step 2 draft 23059 p1 0.674
+spec: keyed draft 3.095 ms, 2 drafts
+spec: token 56 pos 77 drafted 2 accepted 0 emits 1 drafts [386, 152024]
+spec: keyed verify 3 rows (logits) 17.284 ms, accept 1.119 ms
+adapt: step pass 2 1 tokens 21.546 ms
+dspark: pos 78 step 0 draft 68026 p1 0.826
+dspark: pos 78 step 1 draft 23058 p1 0.626
+dspark: pos 78 step 2 draft 68020 p1 0.507
+spec: keyed draft 2.866 ms, 2 drafts
+spec: token 57 pos 78 drafted 2 accepted 2 emits 3 drafts [68026, 23058]
+spec: keyed verify 3 rows (logits) 17.424 ms, accept 3.452 ms
+adapt: step pass 2 3 tokens 23.752 ms
+dspark: pos 81 step 0 draft 152024 p1 0.999
+dspark: pos 81 step 1 draft 155595 p1 0.520
+dspark: pos 81 step 2 draft 154092 p1 0.692
+spec: keyed draft 3.085 ms, 2 drafts
+spec: token 60 pos 81 drafted 2 accepted 0 emits 1 drafts [152024, 155595]
+spec: keyed verify 3 rows (logits) 16.732 ms, accept 1.295 ms
+adapt: step pass 2 1 tokens 21.122 ms
+dspark: pos 82 step 0 draft 152024 p1 1.000
+dspark: pos 82 step 1 draft 155336 p1 0.826
+dspark: pos 82 step 2 draft 154092 p1 0.452
+spec: keyed draft 3.076 ms, 2 drafts
+spec: token 61 pos 82 drafted 2 accepted 1 emits 2 drafts [152024, 155336]
+spec: keyed verify 3 rows (logits) 17.351 ms, accept 2.370 ms
+adapt: step pass 2 2 tokens 22.830 ms
+dspark: pos 84 step 0 draft 82 p1 1.000
+dspark: pos 84 step 1 draft 149878 p1 0.734
+dspark: pos 84 step 2 draft 153501 p1 0.321
+spec: keyed draft 3.046 ms, 2 drafts
+spec: token 63 pos 84 drafted 2 accepted 0 emits 1 drafts [82, 149878]
+spec: keyed verify 3 rows (logits) 16.167 ms, accept 2.378 ms
+adapt: step pass 2 1 tokens 21.599 ms
+dspark: pos 85 step 0 draft 266 p1 0.999
+dspark: pos 85 step 1 draft 150317 p1 0.750
+dspark: pos 85 step 2 draft 13 p1 0.990
+dspark: pos 85 step 3 draft 17 p1 0.706
+dspark: pos 85 step 4 draft 13 p1 0.957
+spec: keyed draft 3.246 ms, 5 drafts
+spec: token 64 pos 85 drafted 5 accepted 2 emits 3 drafts [266, 150317, 13, 17, 13]
+spec: keyed verify 6 rows (logits) 24.950 ms, accept 3.388 ms
+adapt: step pass 5 3 tokens 31.599 ms
+dspark: pos 88 step 0 draft 13 p1 0.997
+dspark: pos 88 step 1 draft 150054 p1 0.760
+dspark: pos 88 step 2 draft 154092 p1 0.784
+dspark: pos 88 step 3 draft 13 p1 0.984
+dspark: pos 88 step 4 draft 186380 p1 0.570
+spec: keyed draft 3.134 ms, 4 drafts
+spec: token 67 pos 88 drafted 4 accepted 1 emits 2 drafts [13, 150054, 154092, 13]
+spec: keyed verify 5 rows (logits) 22.965 ms, accept 2.344 ms
+adapt: step pass 4 2 tokens 28.456 ms
+dspark: pos 90 step 0 draft 17 p1 1.000
+dspark: pos 90 step 1 draft 13 p1 1.000
+dspark: pos 90 step 2 draft 151860 p1 0.945
+dspark: pos 90 step 3 draft 154092 p1 0.624
+dspark: pos 90 step 4 draft 175568 p1 0.496
+spec: keyed draft 3.096 ms, 4 drafts
+spec: token 69 pos 90 drafted 4 accepted 2 emits 3 drafts [17, 13, 151860, 154092]
+spec: keyed verify 5 rows (logits) 22.723 ms, accept 3.340 ms
+adapt: step pass 4 3 tokens 29.188 ms
+dspark: pos 93 step 0 draft 41844 p1 0.985
+dspark: pos 93 step 1 draft 36613 p1 0.923
+dspark: pos 93 step 2 draft 150054 p1 0.895
+dspark: pos 93 step 3 draft 150258 p1 0.788
+dspark: pos 93 step 4 draft 150054 p1 0.486
+spec: keyed draft 3.124 ms, 4 drafts
+spec: token 72 pos 93 drafted 4 accepted 1 emits 2 drafts [41844, 36613, 150054, 150258]
+spec: keyed verify 5 rows (logits) 22.066 ms, accept 2.431 ms
+adapt: step pass 4 2 tokens 27.632 ms
+dspark: pos 95 step 0 draft 25 p1 0.993
+dspark: pos 95 step 1 draft 150054 p1 0.990
+dspark: pos 95 step 2 draft 159527 p1 0.223
+spec: keyed draft 3.098 ms, 2 drafts
+spec: token 74 pos 95 drafted 2 accepted 1 emits 2 drafts [25, 150054]
+spec: keyed verify 3 rows (logits) 17.307 ms, accept 2.115 ms
+adapt: step pass 2 2 tokens 22.543 ms
+dspark: pos 97 step 0 draft 149881 p1 0.460
+spec: keyed draft 2.983 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.211 ms
+dspark: pos 98 step 0 draft 155582 p1 0.464
+spec: keyed draft 2.890 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.099 ms
+dspark: pos 99 step 0 draft 11 p1 0.998
+dspark: pos 99 step 1 draft 155582 p1 0.755
+dspark: pos 99 step 2 draft 11 p1 0.999
+dspark: pos 99 step 3 draft 155582 p1 0.902
+dspark: pos 99 step 4 draft 11 p1 0.987
+spec: keyed draft 3.032 ms, 5 drafts
+spec: token 78 pos 99 drafted 5 accepted 1 emits 2 drafts [11, 155582, 11, 155582, 11]
+spec: keyed verify 6 rows (logits) 22.806 ms, accept 2.083 ms
+adapt: step pass 5 2 tokens 27.932 ms
+dspark: pos 101 step 0 draft 11 p1 0.977
+dspark: pos 101 step 1 draft 155582 p1 0.381
+spec: keyed draft 2.989 ms, 1 drafts
+spec: token 80 pos 101 drafted 1 accepted 0 emits 1 drafts [11]
+spec: keyed verify 2 rows (logits) 15.071 ms, accept 1.092 ms
+adapt: step pass 1 1 tokens 19.165 ms
+dspark: pos 102 step 0 draft 11 p1 0.862
+dspark: pos 102 step 1 draft 154458 p1 0.972
+dspark: pos 102 step 2 draft 11 p1 0.995
+dspark: pos 102 step 3 draft 155582 p1 0.345
+spec: keyed draft 2.844 ms, 3 drafts
+spec: token 81 pos 102 drafted 3 accepted 1 emits 2 drafts [11, 154458, 11]
+spec: keyed verify 4 rows (logits) 21.306 ms, accept 1.996 ms
+adapt: step pass 3 2 tokens 26.167 ms
+dspark: pos 104 step 0 draft 150546 p1 0.981
+dspark: pos 104 step 1 draft 152110 p1 0.428
+spec: keyed draft 3.058 ms, 1 drafts
+spec: token 83 pos 104 drafted 1 accepted 1 emits 2 drafts [150546]
+spec: keyed verify 2 rows (logits) 15.222 ms, accept 2.102 ms
+adapt: step pass 1 2 tokens 20.444 ms
+dspark: pos 106 step 0 draft 149876 p1 0.984
+dspark: pos 106 step 1 draft 151170 p1 0.999
+dspark: pos 106 step 2 draft 151170 p1 0.986
+dspark: pos 106 step 3 draft 11 p1 0.955
+dspark: pos 106 step 4 draft 149880 p1 0.993
+spec: keyed draft 3.137 ms, 5 drafts
+spec: token 85 pos 106 drafted 5 accepted 2 emits 3 drafts [149876, 151170, 151170, 11, 149880]
+spec: keyed verify 6 rows (logits) 24.096 ms, accept 2.986 ms
+adapt: step pass 5 3 tokens 30.233 ms
+dspark: pos 109 step 0 draft 149865 p1 0.545
+dspark: pos 109 step 1 draft 18 p1 1.000
+dspark: pos 109 step 2 draft 13 p1 1.000
+dspark: pos 109 step 3 draft 151860 p1 0.985
+dspark: pos 109 step 4 draft 152409 p1 0.480
+spec: keyed draft 3.137 ms, 4 drafts
+spec: token 88 pos 109 drafted 4 accepted 4 emits 5 drafts [149865, 18, 13, 151860]
+spec: keyed verify 5 rows (logits) 22.084 ms, accept 5.441 ms
+adapt: step pass 4 5 tokens 30.733 ms
+dspark: pos 114 step 0 draft 149881 p1 0.716
+dspark: pos 114 step 1 draft 150258 p1 0.775
+dspark: pos 114 step 2 draft 152409 p1 0.504
+spec: keyed draft 3.778 ms, 2 drafts
+spec: token 93 pos 114 drafted 2 accepted 0 emits 1 drafts [149881, 150258]
+spec: keyed verify 3 rows (logits) 16.831 ms, accept 1.268 ms
+adapt: step pass 2 1 tokens 21.890 ms
+dspark: pos 115 step 0 draft 25 p1 1.000
+dspark: pos 115 step 1 draft 152409 p1 0.556
+dspark: pos 115 step 2 draft 150039 p1 0.466
+spec: keyed draft 3.075 ms, 2 drafts
+spec: token 94 pos 115 drafted 2 accepted 1 emits 2 drafts [25, 152409]
+spec: keyed verify 3 rows (logits) 17.369 ms, accept 2.236 ms
+adapt: step pass 2 2 tokens 22.694 ms
+dspark: pos 117 step 0 draft 11 p1 0.516
+dspark: pos 117 step 1 draft 172307 p1 0.526
+spec: keyed draft 3.031 ms, 1 drafts
+spec: token 96 pos 117 drafted 1 accepted 0 emits 1 drafts [11]
+spec: keyed verify 2 rows (logits) 15.260 ms, accept 1.356 ms
+adapt: step pass 1 1 tokens 19.659 ms
+dspark: pos 118 step 0 draft 150318 p1 0.438
+spec: keyed draft 2.987 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.288 ms
+dspark: pos 119 step 0 draft 82 p1 0.998
+dspark: pos 119 step 1 draft 149918 p1 1.000
+dspark: pos 119 step 2 draft 157822 p1 0.483
+spec: keyed draft 2.971 ms, 2 drafts
+spec: token 98 pos 119 drafted 2 accepted 2 emits 3 drafts [82, 149918]
+spec: keyed verify 3 rows (logits) 17.369 ms, accept 3.525 ms
+adapt: step pass 2 3 tokens 23.881 ms
+dspark: pos 122 step 0 draft 187809 p1 0.778
+dspark: pos 122 step 1 draft 11 p1 0.995
+dspark: pos 122 step 2 draft 151974 p1 0.991
+dspark: pos 122 step 3 draft 11 p1 0.987
+dspark: pos 122 step 4 draft 151974 p1 0.942
+spec: keyed draft 3.129 ms, 5 drafts
+spec: token 101 pos 122 drafted 5 accepted 0 emits 1 drafts [187809, 11, 151974, 11, 151974]
+spec: keyed verify 6 rows (logits) 23.576 ms, accept 1.265 ms
+adapt: step pass 5 1 tokens 27.980 ms
+dspark: pos 123 step 0 draft 11 p1 0.979
+dspark: pos 123 step 1 draft 151974 p1 0.884
+dspark: pos 123 step 2 draft 11 p1 0.992
+dspark: pos 123 step 3 draft 151974 p1 0.539
+spec: keyed draft 3.073 ms, 3 drafts
+spec: token 102 pos 123 drafted 3 accepted 0 emits 1 drafts [11, 151974, 11]
+spec: keyed verify 4 rows (logits) 18.645 ms, accept 1.468 ms
+adapt: step pass 3 1 tokens 23.198 ms
+dspark: pos 124 step 0 draft 151481 p1 0.260
+spec: keyed draft 2.982 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.203 ms
+dspark: pos 125 step 0 draft 149881 p1 0.379
+spec: keyed draft 2.892 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.151 ms
+dspark: pos 126 step 0 draft 167608 p1 0.583
+dspark: pos 126 step 1 draft 13 p1 0.923
+dspark: pos 126 step 2 draft 23068 p1 0.834
+spec: keyed draft 2.980 ms, 2 drafts
+spec: token 105 pos 126 drafted 2 accepted 0 emits 1 drafts [167608, 13]
+spec: keyed verify 3 rows (logits) 18.156 ms, accept 1.155 ms
+adapt: step pass 2 1 tokens 22.301 ms
+dspark: pos 127 step 0 draft 13 p1 0.432
+spec: keyed draft 3.003 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.261 ms
+dspark: pos 128 step 0 draft 152175 p1 0.408
+spec: keyed draft 2.888 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.137 ms
+dspark: pos 129 step 0 draft 13 p1 0.453
+spec: keyed draft 2.882 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.146 ms
+dspark: pos 130 step 0 draft 13 p1 1.000
+dspark: pos 130 step 1 draft 200010 p1 1.000
+dspark: pos 130 step 2 draft 200006 p1 1.000
+dspark: pos 130 step 3 draft 200006 p1 0.983
+dspark: pos 130 step 4 draft 200006 p1 0.976
+spec: keyed draft 3.014 ms, 5 drafts
+spec: token 109 pos 130 drafted 5 accepted 4 emits 5 drafts [13, 200010, 200006, 200006, 200006]
+spec: keyed verify 6 rows (logits) 24.330 ms, accept 5.705 ms
+adapt: step pass 5 5 tokens 33.064 ms
+dspark: pos 135 step 0 draft 200010 p1 0.997
+dspark: pos 135 step 1 draft 200006 p1 1.000
+dspark: pos 135 step 2 draft 200006 p1 0.964
+dspark: pos 135 step 3 draft 200006 p1 0.936
+dspark: pos 135 step 4 draft 200006 p1 0.999
+spec: keyed draft 3.628 ms, 5 drafts
+spec: token 114 pos 135 drafted 5 accepted 0 emits 1 drafts [200010, 200006, 200006, 200006, 200006]
+spec: keyed verify 6 rows (logits) 22.459 ms, accept 1.049 ms
+adapt: step pass 5 1 tokens 27.147 ms
+dspark: pos 136 step 0 draft 200010 p1 0.996
+dspark: pos 136 step 1 draft 200006 p1 1.000
+dspark: pos 136 step 2 draft 200006 p1 0.999
+dspark: pos 136 step 3 draft 200006 p1 0.993
+dspark: pos 136 step 4 draft 200006 p1 0.997
+spec: keyed draft 2.865 ms, 5 drafts
+spec: token 115 pos 136 drafted 5 accepted 0 emits 1 drafts [200010, 200006, 200006, 200006, 200006]
+spec: keyed verify 6 rows (logits) 22.720 ms, accept 1.596 ms
+adapt: step pass 5 1 tokens 27.194 ms
+dspark: pos 137 step 0 draft 198 p1 0.378
+spec: keyed draft 3.000 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.094 ms
+dspark: pos 138 step 0 draft 82 p1 0.296
+spec: keyed draft 2.881 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.975 ms
+dspark: pos 139 step 0 draft 220 p1 0.308
+spec: keyed draft 2.855 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.964 ms
+dspark: pos 140 step 0 draft 150548 p1 0.904
+dspark: pos 140 step 1 draft 149941 p1 0.756
+dspark: pos 140 step 2 draft 151624 p1 0.830
+dspark: pos 140 step 3 draft 149878 p1 0.633
+spec: keyed draft 3.019 ms, 3 drafts
+spec: token 119 pos 140 drafted 3 accepted 0 emits 1 drafts [150548, 149941, 151624]
+spec: keyed verify 4 rows (logits) 18.975 ms, accept 1.097 ms
+adapt: step pass 3 1 tokens 23.098 ms
+dspark: pos 141 step 0 draft 220 p1 0.536
+dspark: pos 141 step 1 draft 32374 p1 0.153
+spec: keyed draft 2.767 ms, 1 drafts
+spec: token 120 pos 141 drafted 1 accepted 1 emits 2 drafts [220]
+spec: keyed verify 2 rows (logits) 15.163 ms, accept 2.057 ms
+adapt: step pass 1 2 tokens 19.997 ms
+dspark: pos 143 step 0 draft 149878 p1 0.377
+spec: keyed draft 2.957 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.189 ms
+dspark: pos 144 step 0 draft 149881 p1 0.302
+spec: keyed draft 2.875 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.991 ms
+dspark: pos 145 step 0 draft 220 p1 0.505
+dspark: pos 145 step 1 draft 20 p1 0.157
+spec: keyed draft 2.887 ms, 1 drafts
+spec: token 124 pos 145 drafted 1 accepted 0 emits 1 drafts [220]
+spec: keyed verify 2 rows (logits) 15.064 ms, accept 1.073 ms
+adapt: step pass 1 1 tokens 19.035 ms
+dspark: pos 146 step 0 draft 220 p1 0.516
+dspark: pos 146 step 1 draft 68026 p1 0.385
+spec: keyed draft 2.679 ms, 1 drafts
+spec: token 125 pos 146 drafted 1 accepted 0 emits 1 drafts [220]
+spec: keyed verify 2 rows (logits) 15.138 ms, accept 1.128 ms
+adapt: step pass 1 1 tokens 18.955 ms
+dspark: pos 147 step 0 draft 266 p1 1.000
+dspark: pos 147 step 1 draft 155634 p1 0.749
+spec: keyed draft 2.626 ms, 2 drafts
+spec: token 126 pos 147 drafted 2 accepted 2 emits 3 drafts [266, 155634]
+spec: keyed verify 3 rows (logits) 17.620 ms, accept 3.045 ms
+ids[warm]: [200001, 200008, 371, 150409, 171960, 149887, 150396, 167182, 149887, 151098, 149878, 150046, 151170, 13, 170289, 150893, 149911, 4123, 13, 166910, 150396, 151537, 167182, 13, 150166, 154040, 152118, 13, 174520, 150400, 150130, 13, 179027, 153522, 151812, 36613, 11, 154092, 152284, 11, 152409, 150054, 13, 170248, 150744, 13, 200010, 200001, 200004, 16, 13, 164575, 155595, 25, 150405, 220, 68026, 23058, 68063, 159469, 152024, 161580, 156750, 266, 150317, 165638, 13, 149865, 17, 13, 150756, 41844, 156672, 25, 162723, 149882, 154395, 11, 154458, 151600, 11, 149918, 150546, 149881, 149876, 151170, 13, 149865, 18, 13, 151860, 149921, 178502, 25, 152710, 149899, 156953, 82, 149918, 151170, 165077, 149880, 151016, 150921, 155907, 149882, 155292, 151098, 13, 200010, 200006, 200006, 199999, 3980, 150322, 164166, 150322, 151337, 149882, 220, 47728, 163570, 25, 149897, 173155, 266, 155634, 149887]
+decode[warm]: 128 tokens, 1587 ms (80.02 tok/s)
+prefill[warm]: 23 tokens, 90 ms
+spec[warm]: verify passes=51 proposed=149 accepted=58 (acceptance 38.9%, 2.14 tokens per pass)
+dspark: pos 36 step 0 draft 200008 p1 1.000
+dspark: pos 36 step 1 draft 371 p1 0.999
+dspark: pos 36 step 2 draft 150409 p1 0.988
+dspark: pos 36 step 3 draft 171960 p1 0.998
+dspark: pos 36 step 4 draft 151231 p1 0.441
+spec: keyed draft 3.095 ms, 4 drafts
+spec: token 2 pos 36 drafted 4 accepted 4 emits 5 drafts [200008, 371, 150409, 171960]
+spec: keyed verify 5 rows (logits) 22.396 ms, accept 5.698 ms
+adapt: step pass 4 5 tokens 31.202 ms
+dspark: pos 41 step 0 draft 158808 p1 0.562
+dspark: pos 41 step 1 draft 149884 p1 0.999
+dspark: pos 41 step 2 draft 152778 p1 0.999
+dspark: pos 41 step 3 draft 152778 p1 0.997
+dspark: pos 41 step 4 draft 13 p1 0.999
+spec: keyed draft 3.643 ms, 5 drafts
+spec: token 7 pos 41 drafted 5 accepted 0 emits 1 drafts [158808, 149884, 152778, 152778, 13]
+spec: keyed verify 6 rows (logits) 24.276 ms, accept 1.213 ms
+adapt: step pass 5 1 tokens 29.153 ms
+dspark: pos 42 step 0 draft 158808 p1 1.000
+dspark: pos 42 step 1 draft 149884 p1 0.999
+dspark: pos 42 step 2 draft 152778 p1 0.996
+dspark: pos 42 step 3 draft 13 p1 0.995
+dspark: pos 42 step 4 draft 170289 p1 0.982
+spec: keyed draft 3.109 ms, 5 drafts
+spec: token 8 pos 42 drafted 5 accepted 5 emits 6 drafts [158808, 149884, 152778, 13, 170289]
+spec: keyed verify 6 rows (logits) 24.349 ms, accept 6.733 ms
+adapt: step pass 5 6 tokens 34.207 ms
+dspark: pos 48 step 0 draft 149911 p1 0.937
+dspark: pos 48 step 1 draft 4123 p1 1.000
+dspark: pos 48 step 2 draft 13 p1 0.898
+dspark: pos 48 step 3 draft 170289 p1 0.999
+dspark: pos 48 step 4 draft 150103 p1 0.563
+spec: keyed draft 3.729 ms, 4 drafts
+spec: token 14 pos 48 drafted 4 accepted 0 emits 1 drafts [149911, 4123, 13, 170289]
+spec: keyed verify 5 rows (logits) 22.941 ms, accept 1.144 ms
+adapt: step pass 4 1 tokens 27.842 ms
+dspark: pos 49 step 0 draft 149922 p1 0.686
+dspark: pos 49 step 1 draft 150230 p1 0.992
+dspark: pos 49 step 2 draft 150103 p1 0.991
+dspark: pos 49 step 3 draft 167608 p1 0.999
+dspark: pos 49 step 4 draft 13 p1 0.499
+spec: keyed draft 2.840 ms, 4 drafts
+spec: token 15 pos 49 drafted 4 accepted 4 emits 5 drafts [149922, 150230, 150103, 167608]
+spec: keyed verify 5 rows (logits) 22.409 ms, accept 5.572 ms
+adapt: step pass 4 5 tokens 30.835 ms
+dspark: pos 54 step 0 draft 170289 p1 0.644
+dspark: pos 54 step 1 draft 149911 p1 0.999
+dspark: pos 54 step 2 draft 4123 p1 1.000
+dspark: pos 54 step 3 draft 13 p1 0.591
+spec: keyed draft 3.867 ms, 3 drafts
+spec: token 20 pos 54 drafted 3 accepted 1 emits 2 drafts [170289, 149911, 4123]
+spec: keyed verify 4 rows (logits) 20.141 ms, accept 2.374 ms
+adapt: step pass 3 2 tokens 26.398 ms
+dspark: pos 56 step 0 draft 149911 p1 0.971
+dspark: pos 56 step 1 draft 4123 p1 1.000
+dspark: pos 56 step 2 draft 13 p1 0.999
+dspark: pos 56 step 3 draft 154710 p1 0.988
+dspark: pos 56 step 4 draft 149911 p1 0.623
+spec: keyed draft 3.157 ms, 5 drafts
+spec: token 22 pos 56 drafted 5 accepted 0 emits 1 drafts [149911, 4123, 13, 154710, 149911]
+spec: keyed verify 6 rows (logits) 24.220 ms, accept 1.185 ms
+adapt: step pass 5 1 tokens 28.576 ms
+dspark: pos 57 step 0 draft 25 p1 0.562
+dspark: pos 57 step 1 draft 150932 p1 0.586
+spec: keyed draft 3.000 ms, 1 drafts
+spec: token 23 pos 57 drafted 1 accepted 1 emits 2 drafts [25]
+spec: keyed verify 2 rows (logits) 15.322 ms, accept 2.439 ms
+adapt: step pass 1 2 tokens 20.772 ms
+dspark: pos 59 step 0 draft 47157 p1 0.897
+dspark: pos 59 step 1 draft 150489 p1 0.547
+spec: keyed draft 3.011 ms, 1 drafts
+spec: token 25 pos 59 drafted 1 accepted 1 emits 2 drafts [47157]
+spec: keyed verify 2 rows (logits) 15.354 ms, accept 2.306 ms
+adapt: step pass 1 2 tokens 20.683 ms
+dspark: pos 61 step 0 draft 25 p1 0.809
+dspark: pos 61 step 1 draft 158808 p1 0.469
+spec: keyed draft 3.084 ms, 1 drafts
+spec: token 27 pos 61 drafted 1 accepted 0 emits 1 drafts [25]
+spec: keyed verify 2 rows (logits) 15.391 ms, accept 1.244 ms
+adapt: step pass 1 1 tokens 19.728 ms
+dspark: pos 62 step 0 draft 152778 p1 0.349
+spec: keyed draft 2.958 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.295 ms
+dspark: pos 63 step 0 draft 12 p1 0.871
+dspark: pos 63 step 1 draft 30727 p1 0.553
+spec: keyed draft 2.967 ms, 1 drafts
+spec: token 29 pos 63 drafted 1 accepted 0 emits 1 drafts [12]
+spec: keyed verify 2 rows (logits) 14.949 ms, accept 1.243 ms
+adapt: step pass 1 1 tokens 19.171 ms
+dspark: pos 64 step 0 draft 149910 p1 0.564
+dspark: pos 64 step 1 draft 150932 p1 0.431
+spec: keyed draft 2.991 ms, 1 drafts
+spec: token 30 pos 64 drafted 1 accepted 1 emits 2 drafts [149910]
+spec: keyed verify 2 rows (logits) 15.105 ms, accept 2.370 ms
+adapt: step pass 1 2 tokens 20.477 ms
+dspark: pos 66 step 0 draft 161777 p1 0.988
+dspark: pos 66 step 1 draft 161777 p1 0.838
+dspark: pos 66 step 2 draft 82 p1 0.923
+dspark: pos 66 step 3 draft 26 p1 0.999
+dspark: pos 66 step 4 draft 152778 p1 0.624
+spec: keyed draft 3.117 ms, 4 drafts
+spec: token 32 pos 66 drafted 4 accepted 1 emits 2 drafts [161777, 161777, 82, 26]
+spec: keyed verify 5 rows (logits) 21.597 ms, accept 2.331 ms
+adapt: step pass 4 2 tokens 27.060 ms
+dspark: pos 68 step 0 draft 152778 p1 0.425
+spec: keyed draft 2.963 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.143 ms
+dspark: pos 69 step 0 draft 152778 p1 0.871
+dspark: pos 69 step 1 draft 161777 p1 0.903
+dspark: pos 69 step 2 draft 150033 p1 0.512
+spec: keyed draft 3.004 ms, 2 drafts
+spec: token 35 pos 69 drafted 2 accepted 1 emits 2 drafts [152778, 161777]
+spec: keyed verify 3 rows (logits) 16.468 ms, accept 2.275 ms
+adapt: step pass 2 2 tokens 21.758 ms
+dspark: pos 71 step 0 draft 82 p1 1.000
+dspark: pos 71 step 1 draft 159486 p1 0.603
+dspark: pos 71 step 2 draft 150033 p1 0.995
+dspark: pos 71 step 3 draft 11 p1 0.980
+dspark: pos 71 step 4 draft 150378 p1 0.361
+spec: keyed draft 3.107 ms, 4 drafts
+spec: token 37 pos 71 drafted 4 accepted 4 emits 5 drafts [82, 159486, 150033, 11]
+spec: keyed verify 5 rows (logits) 21.030 ms, accept 5.654 ms
+adapt: step pass 4 5 tokens 29.805 ms
+dspark: pos 76 step 0 draft 158808 p1 0.997
+dspark: pos 76 step 1 draft 158808 p1 0.780
+dspark: pos 76 step 2 draft 158808 p1 0.724
+dspark: pos 76 step 3 draft 13 p1 0.520
+spec: keyed draft 3.664 ms, 3 drafts
+spec: token 42 pos 76 drafted 3 accepted 1 emits 2 drafts [158808, 158808, 158808]
+spec: keyed verify 4 rows (logits) 19.026 ms, accept 2.236 ms
+adapt: step pass 3 2 tokens 24.964 ms
+dspark: pos 78 step 0 draft 152778 p1 0.999
+dspark: pos 78 step 1 draft 13 p1 0.995
+dspark: pos 78 step 2 draft 154710 p1 0.876
+dspark: pos 78 step 3 draft 149911 p1 0.968
+dspark: pos 78 step 4 draft 4123 p1 1.000
+spec: keyed draft 3.099 ms, 5 drafts
+spec: token 44 pos 78 drafted 5 accepted 2 emits 3 drafts [152778, 13, 154710, 149911, 4123]
+spec: keyed verify 6 rows (logits) 24.653 ms, accept 3.474 ms
+adapt: step pass 5 3 tokens 31.236 ms
+dspark: pos 81 step 0 draft 149911 p1 0.644
+dspark: pos 81 step 1 draft 4123 p1 1.000
+dspark: pos 81 step 2 draft 13 p1 0.906
+dspark: pos 81 step 3 draft 150166 p1 0.946
+dspark: pos 81 step 4 draft 161043 p1 0.840
+spec: keyed draft 3.090 ms, 4 drafts
+spec: token 47 pos 81 drafted 4 accepted 0 emits 1 drafts [149911, 4123, 13, 150166]
+spec: keyed verify 5 rows (logits) 22.283 ms, accept 1.295 ms
+adapt: step pass 4 1 tokens 26.676 ms
+dspark: pos 82 step 0 draft 149911 p1 0.980
+dspark: pos 82 step 1 draft 4123 p1 1.000
+dspark: pos 82 step 2 draft 13 p1 0.969
+dspark: pos 82 step 3 draft 150166 p1 0.517
+spec: keyed draft 3.078 ms, 3 drafts
+spec: token 48 pos 82 drafted 3 accepted 3 emits 4 drafts [149911, 4123, 13]
+spec: keyed verify 4 rows (logits) 19.462 ms, accept 4.503 ms
+adapt: step pass 3 4 tokens 27.053 ms
+dspark: pos 86 step 0 draft 151469 p1 0.876
+dspark: pos 86 step 1 draft 13 p1 0.796
+dspark: pos 86 step 2 draft 174520 p1 0.834
+dspark: pos 86 step 3 draft 150103 p1 0.778
+spec: keyed draft 3.599 ms, 3 drafts
+spec: token 52 pos 86 drafted 3 accepted 0 emits 1 drafts [151469, 13, 174520]
+spec: keyed verify 4 rows (logits) 18.457 ms, accept 1.096 ms
+adapt: step pass 3 1 tokens 23.160 ms
+dspark: pos 87 step 0 draft 151469 p1 0.448
+spec: keyed draft 2.720 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.769 ms
+dspark: pos 88 step 0 draft 13 p1 0.905
+dspark: pos 88 step 1 draft 174520 p1 0.997
+dspark: pos 88 step 2 draft 150103 p1 0.550
+spec: keyed draft 2.913 ms, 2 drafts
+spec: token 54 pos 88 drafted 2 accepted 0 emits 1 drafts [13, 174520]
+spec: keyed verify 3 rows (logits) 17.478 ms, accept 0.951 ms
+adapt: step pass 2 1 tokens 21.350 ms
+dspark: pos 89 step 0 draft 13 p1 1.000
+dspark: pos 89 step 1 draft 174520 p1 0.477
+spec: keyed draft 2.744 ms, 1 drafts
+spec: token 55 pos 89 drafted 1 accepted 1 emits 2 drafts [13]
+spec: keyed verify 2 rows (logits) 15.284 ms, accept 1.864 ms
+adapt: step pass 1 2 tokens 19.901 ms
+dspark: pos 91 step 0 draft 150130 p1 0.224
+spec: keyed draft 2.940 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.861 ms
+dspark: pos 92 step 0 draft 167608 p1 0.999
+dspark: pos 92 step 1 draft 13 p1 1.000
+dspark: pos 92 step 2 draft 200010 p1 0.887
+dspark: pos 92 step 3 draft 200001 p1 1.000
+dspark: pos 92 step 4 draft 200004 p1 1.000
+spec: keyed draft 2.997 ms, 5 drafts
+spec: token 58 pos 92 drafted 5 accepted 1 emits 2 drafts [167608, 13, 200010, 200001, 200004]
+spec: keyed verify 6 rows (logits) 24.622 ms, accept 1.871 ms
+adapt: step pass 5 2 tokens 29.501 ms
+dspark: pos 94 step 0 draft 13 p1 0.983
+dspark: pos 94 step 1 draft 174520 p1 0.808
+dspark: pos 94 step 2 draft 149923 p1 0.924
+dspark: pos 94 step 3 draft 13 p1 0.938
+dspark: pos 94 step 4 draft 200010 p1 1.000
+spec: keyed draft 3.151 ms, 5 drafts
+spec: token 60 pos 94 drafted 5 accepted 1 emits 2 drafts [13, 174520, 149923, 13, 200010]
+spec: keyed verify 6 rows (logits) 24.326 ms, accept 2.085 ms
+adapt: step pass 5 2 tokens 29.619 ms
+dspark: pos 96 step 0 draft 200001 p1 1.000
+dspark: pos 96 step 1 draft 200004 p1 1.000
+dspark: pos 96 step 2 draft 4393 p1 0.512
+dspark: pos 96 step 3 draft 13 p1 0.561
+spec: keyed draft 3.146 ms, 3 drafts
+spec: token 62 pos 96 drafted 3 accepted 2 emits 3 drafts [200001, 200004, 4393]
+spec: keyed verify 4 rows (logits) 19.156 ms, accept 3.337 ms
+adapt: step pass 3 3 tokens 25.690 ms
+dspark: pos 99 step 0 draft 149884 p1 0.987
+dspark: pos 99 step 1 draft 152778 p1 0.968
+dspark: pos 99 step 2 draft 152778 p1 0.995
+dspark: pos 99 step 3 draft 149910 p1 0.966
+dspark: pos 99 step 4 draft 150932 p1 0.459
+spec: keyed draft 3.124 ms, 4 drafts
+spec: token 65 pos 99 drafted 4 accepted 0 emits 1 drafts [149884, 152778, 152778, 149910]
+spec: keyed verify 5 rows (logits) 21.694 ms, accept 1.237 ms
+adapt: step pass 4 1 tokens 26.065 ms
+dspark: pos 100 step 0 draft 159486 p1 0.999
+dspark: pos 100 step 1 draft 159486 p1 0.998
+dspark: pos 100 step 2 draft 159486 p1 0.715
+dspark: pos 100 step 3 draft 3791 p1 0.515
+spec: keyed draft 3.043 ms, 3 drafts
+spec: token 66 pos 100 drafted 3 accepted 0 emits 1 drafts [159486, 159486, 159486]
+spec: keyed verify 4 rows (logits) 18.477 ms, accept 2.122 ms
+adapt: step pass 3 1 tokens 23.696 ms
+dspark: pos 101 step 0 draft 159486 p1 0.905
+dspark: pos 101 step 1 draft 23064 p1 0.825
+dspark: pos 101 step 2 draft 11 p1 0.951
+dspark: pos 101 step 3 draft 159486 p1 0.447
+spec: keyed draft 3.056 ms, 3 drafts
+spec: token 67 pos 101 drafted 3 accepted 0 emits 1 drafts [159486, 23064, 11]
+spec: keyed verify 4 rows (logits) 19.516 ms, accept 1.291 ms
+adapt: step pass 3 1 tokens 23.955 ms
+dspark: pos 102 step 0 draft 166386 p1 0.959
+dspark: pos 102 step 1 draft 166386 p1 0.999
+dspark: pos 102 step 2 draft 11 p1 1.000
+dspark: pos 102 step 3 draft 149876 p1 0.734
+dspark: pos 102 step 4 draft 159486 p1 0.763
+spec: keyed draft 3.093 ms, 5 drafts
+spec: token 68 pos 102 drafted 5 accepted 1 emits 2 drafts [166386, 166386, 11, 149876, 159486]
+spec: keyed verify 6 rows (logits) 24.028 ms, accept 2.306 ms
+adapt: step pass 5 2 tokens 29.475 ms
+dspark: pos 104 step 0 draft 11 p1 0.625
+dspark: pos 104 step 1 draft 149876 p1 0.929
+dspark: pos 104 step 2 draft 158808 p1 0.434
+spec: keyed draft 3.012 ms, 2 drafts
+spec: token 70 pos 104 drafted 2 accepted 1 emits 2 drafts [11, 149876]
+spec: keyed verify 3 rows (logits) 17.246 ms, accept 2.275 ms
+adapt: step pass 2 2 tokens 22.543 ms
+dspark: pos 106 step 0 draft 150924 p1 0.733
+dspark: pos 106 step 1 draft 150924 p1 0.821
+dspark: pos 106 step 2 draft 159486 p1 0.787
+spec: keyed draft 3.010 ms, 2 drafts
+spec: token 72 pos 106 drafted 2 accepted 0 emits 1 drafts [150924, 150924]
+spec: keyed verify 3 rows (logits) 17.573 ms, accept 1.224 ms
+adapt: step pass 2 1 tokens 21.815 ms
+dspark: pos 107 step 0 draft 152778 p1 0.980
+dspark: pos 107 step 1 draft 166386 p1 0.999
+dspark: pos 107 step 2 draft 159486 p1 0.402
+spec: keyed draft 3.015 ms, 2 drafts
+spec: token 73 pos 107 drafted 2 accepted 2 emits 3 drafts [152778, 166386]
+spec: keyed verify 3 rows (logits) 16.404 ms, accept 3.424 ms
+adapt: step pass 2 3 tokens 22.854 ms
+dspark: pos 110 step 0 draft 159486 p1 1.000
+dspark: pos 110 step 1 draft 159486 p1 0.852
+dspark: pos 110 step 2 draft 150033 p1 0.996
+dspark: pos 110 step 3 draft 150033 p1 0.829
+dspark: pos 110 step 4 draft 11 p1 0.822
+spec: keyed draft 3.083 ms, 5 drafts
+spec: token 76 pos 110 drafted 5 accepted 0 emits 1 drafts [159486, 159486, 150033, 150033, 11]
+spec: keyed verify 6 rows (logits) 23.173 ms, accept 1.322 ms
+adapt: step pass 5 1 tokens 27.587 ms
+dspark: pos 111 step 0 draft 159486 p1 1.000
+dspark: pos 111 step 1 draft 150033 p1 0.974
+dspark: pos 111 step 2 draft 150033 p1 0.493
+spec: keyed draft 2.999 ms, 2 drafts
+spec: token 77 pos 111 drafted 2 accepted 1 emits 2 drafts [159486, 150033]
+spec: keyed verify 3 rows (logits) 16.972 ms, accept 2.217 ms
+adapt: step pass 2 2 tokens 22.209 ms
+dspark: pos 113 step 0 draft 150033 p1 0.985
+dspark: pos 113 step 1 draft 149910 p1 0.958
+dspark: pos 113 step 2 draft 150924 p1 0.893
+dspark: pos 113 step 3 draft 150924 p1 0.563
+spec: keyed draft 3.120 ms, 3 drafts
+spec: token 79 pos 113 drafted 3 accepted 0 emits 1 drafts [150033, 149910, 150924]
+spec: keyed verify 4 rows (logits) 18.420 ms, accept 1.205 ms
+adapt: step pass 3 1 tokens 22.756 ms
+dspark: pos 114 step 0 draft 150033 p1 0.987
+dspark: pos 114 step 1 draft 149910 p1 0.969
+dspark: pos 114 step 2 draft 150924 p1 0.990
+dspark: pos 114 step 3 draft 150924 p1 0.831
+dspark: pos 114 step 4 draft 11 p1 0.862
+spec: keyed draft 3.071 ms, 5 drafts
+spec: token 80 pos 114 drafted 5 accepted 1 emits 2 drafts [150033, 149910, 150924, 150924, 11]
+spec: keyed verify 6 rows (logits) 23.684 ms, accept 1.997 ms
+adapt: step pass 5 2 tokens 28.763 ms
+dspark: pos 116 step 0 draft 149910 p1 0.999
+dspark: pos 116 step 1 draft 150924 p1 0.999
+dspark: pos 116 step 2 draft 161777 p1 0.965
+dspark: pos 116 step 3 draft 149910 p1 0.731
+dspark: pos 116 step 4 draft 150924 p1 0.991
+spec: keyed draft 3.112 ms, 5 drafts
+spec: token 82 pos 116 drafted 5 accepted 3 emits 4 drafts [149910, 150924, 161777, 149910, 150924]
+spec: keyed verify 6 rows (logits) 23.133 ms, accept 3.852 ms
+adapt: step pass 5 4 tokens 30.114 ms
+dspark: pos 120 step 0 draft 149917 p1 0.656
+dspark: pos 120 step 1 draft 158808 p1 0.730
+spec: keyed draft 2.981 ms, 1 drafts
+spec: token 86 pos 120 drafted 1 accepted 0 emits 1 drafts [149917]
+spec: keyed verify 2 rows (logits) 15.160 ms, accept 1.076 ms
+adapt: step pass 1 1 tokens 19.230 ms
+dspark: pos 121 step 0 draft 159486 p1 0.982
+dspark: pos 121 step 1 draft 163143 p1 0.520
+dspark: pos 121 step 2 draft 149876 p1 0.588
+spec: keyed draft 2.798 ms, 2 drafts
+spec: token 87 pos 121 drafted 2 accepted 0 emits 1 drafts [159486, 163143]
+spec: keyed verify 3 rows (logits) 17.090 ms, accept 1.081 ms
+adapt: step pass 2 1 tokens 20.982 ms
+dspark: pos 122 step 0 draft 149879 p1 0.445
+spec: keyed draft 2.713 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.844 ms
+dspark: pos 123 step 0 draft 82 p1 0.999
+dspark: pos 123 step 1 draft 149876 p1 0.959
+dspark: pos 123 step 2 draft 158808 p1 1.000
+dspark: pos 123 step 3 draft 158808 p1 0.916
+dspark: pos 123 step 4 draft 11 p1 0.896
+spec: keyed draft 3.045 ms, 5 drafts
+spec: token 89 pos 123 drafted 5 accepted 1 emits 2 drafts [82, 149876, 158808, 158808, 11]
+spec: keyed verify 6 rows (logits) 23.007 ms, accept 1.959 ms
+adapt: step pass 5 2 tokens 28.025 ms
+dspark: pos 125 step 0 draft 151553 p1 0.650
+dspark: pos 125 step 1 draft 149876 p1 0.998
+dspark: pos 125 step 2 draft 158808 p1 0.999
+dspark: pos 125 step 3 draft 11 p1 0.956
+dspark: pos 125 step 4 draft 149982 p1 0.987
+spec: keyed draft 3.066 ms, 5 drafts
+spec: token 91 pos 125 drafted 5 accepted 0 emits 1 drafts [151553, 149876, 158808, 11, 149982]
+spec: keyed verify 6 rows (logits) 23.551 ms, accept 1.176 ms
+adapt: step pass 5 1 tokens 27.804 ms
+dspark: pos 126 step 0 draft 151553 p1 0.539
+dspark: pos 126 step 1 draft 149876 p1 0.999
+dspark: pos 126 step 2 draft 158808 p1 0.999
+dspark: pos 126 step 3 draft 11 p1 0.927
+spec: keyed draft 3.117 ms, 3 drafts
+spec: token 92 pos 126 drafted 3 accepted 3 emits 4 drafts [151553, 149876, 158808]
+spec: keyed verify 4 rows (logits) 18.251 ms, accept 4.955 ms
+adapt: step pass 3 4 tokens 26.339 ms
+dspark: pos 130 step 0 draft 149982 p1 0.525
+dspark: pos 130 step 1 draft 149876 p1 0.626
+spec: keyed draft 3.594 ms, 1 drafts
+spec: token 96 pos 130 drafted 1 accepted 0 emits 1 drafts [149982]
+spec: keyed verify 2 rows (logits) 14.851 ms, accept 1.060 ms
+adapt: step pass 1 1 tokens 19.516 ms
+dspark: pos 131 step 0 draft 149921 p1 0.988
+dspark: pos 131 step 1 draft 158808 p1 0.684
+dspark: pos 131 step 2 draft 152778 p1 0.991
+dspark: pos 131 step 3 draft 13 p1 1.000
+dspark: pos 131 step 4 draft 200010 p1 0.996
+spec: keyed draft 2.871 ms, 5 drafts
+spec: token 97 pos 131 drafted 5 accepted 1 emits 2 drafts [149921, 158808, 152778, 13, 200010]
+spec: keyed verify 6 rows (logits) 24.967 ms, accept 2.005 ms
+adapt: step pass 5 2 tokens 29.856 ms
+dspark: pos 133 step 0 draft 152778 p1 0.995
+dspark: pos 133 step 1 draft 13 p1 0.999
+dspark: pos 133 step 2 draft 200010 p1 0.999
+dspark: pos 133 step 3 draft 200006 p1 1.000
+dspark: pos 133 step 4 draft 200006 p1 0.978
+spec: keyed draft 3.076 ms, 5 drafts
+spec: token 99 pos 133 drafted 5 accepted 5 emits 6 drafts [152778, 13, 200010, 200006, 200006]
+spec: keyed verify 6 rows (logits) 24.854 ms, accept 7.477 ms
+adapt: step pass 5 6 tokens 35.433 ms
+dspark: pos 139 step 0 draft 200010 p1 1.000
+dspark: pos 139 step 1 draft 200006 p1 1.000
+dspark: pos 139 step 2 draft 200006 p1 0.805
+dspark: pos 139 step 3 draft 200010 p1 0.762
+dspark: pos 139 step 4 draft 200006 p1 1.000
+spec: keyed draft 3.602 ms, 5 drafts
+spec: token 105 pos 139 drafted 5 accepted 0 emits 1 drafts [200010, 200006, 200006, 200010, 200006]
+spec: keyed verify 6 rows (logits) 22.883 ms, accept 2.529 ms
+adapt: step pass 5 1 tokens 29.034 ms
+dspark: pos 140 step 0 draft 200010 p1 0.722
+dspark: pos 140 step 1 draft 200006 p1 1.000
+dspark: pos 140 step 2 draft 200006 p1 0.917
+dspark: pos 140 step 3 draft 200006 p1 0.693
+spec: keyed draft 3.073 ms, 3 drafts
+spec: token 106 pos 140 drafted 3 accepted 0 emits 1 drafts [200010, 200006, 200006]
+spec: keyed verify 4 rows (logits) 17.812 ms, accept 1.071 ms
+adapt: step pass 3 1 tokens 22.124 ms
+dspark: pos 141 step 0 draft 58 p1 0.457
+spec: keyed draft 2.698 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.621 ms
+dspark: pos 142 step 0 draft 38681 p1 0.103
+spec: keyed draft 2.860 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.709 ms
+dspark: pos 143 step 0 draft 220 p1 0.429
+spec: keyed draft 2.860 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.807 ms
+dspark: pos 144 step 0 draft 198 p1 0.568
+dspark: pos 144 step 1 draft 200010 p1 0.615
+spec: keyed draft 2.890 ms, 1 drafts
+spec: token 110 pos 144 drafted 1 accepted 0 emits 1 drafts [198]
+spec: keyed verify 2 rows (logits) 15.244 ms, accept 0.985 ms
+adapt: step pass 1 1 tokens 19.128 ms
+dspark: pos 145 step 0 draft 220 p1 0.661
+dspark: pos 145 step 1 draft 38451 p1 0.344
+spec: keyed draft 2.739 ms, 1 drafts
+spec: token 111 pos 145 drafted 1 accepted 0 emits 1 drafts [220]
+spec: keyed verify 2 rows (logits) 14.751 ms, accept 1.009 ms
+adapt: step pass 1 1 tokens 18.518 ms
+dspark: pos 146 step 0 draft 220 p1 0.514
+dspark: pos 146 step 1 draft 38451 p1 0.345
+spec: keyed draft 2.744 ms, 1 drafts
+spec: token 112 pos 146 drafted 1 accepted 1 emits 2 drafts [220]
+spec: keyed verify 2 rows (logits) 15.023 ms, accept 1.915 ms
+adapt: step pass 1 2 tokens 19.736 ms
+dspark: pos 148 step 0 draft 220 p1 0.474
+spec: keyed draft 2.952 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.890 ms
+dspark: pos 149 step 0 draft 40980 p1 0.078
+spec: keyed draft 2.864 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.873 ms
+dspark: pos 150 step 0 draft 149879 p1 0.455
+spec: keyed draft 2.831 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.778 ms
+dspark: pos 151 step 0 draft 371 p1 0.446
+spec: keyed draft 2.901 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.863 ms
+dspark: pos 152 step 0 draft 371 p1 0.197
+spec: keyed draft 2.869 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.825 ms
+dspark: pos 153 step 0 draft 25 p1 0.887
+dspark: pos 153 step 1 draft 153438 p1 0.623
+dspark: pos 153 step 2 draft 145054 p1 0.973
+dspark: pos 153 step 3 draft 13 p1 0.450
+spec: keyed draft 2.970 ms, 3 drafts
+spec: token 119 pos 153 drafted 3 accepted 1 emits 2 drafts [25, 153438, 145054]
+spec: keyed verify 4 rows (logits) 19.426 ms, accept 1.820 ms
+adapt: step pass 3 2 tokens 24.225 ms
+dspark: pos 155 step 0 draft 220 p1 0.914
+dspark: pos 155 step 1 draft 68111 p1 0.698
+dspark: pos 155 step 2 draft 16 p1 0.957
+dspark: pos 155 step 3 draft 145054 p1 0.514
+spec: keyed draft 3.044 ms, 3 drafts
+spec: token 121 pos 155 drafted 3 accepted 0 emits 1 drafts [220, 68111, 16]
+spec: keyed verify 4 rows (logits) 19.354 ms, accept 1.122 ms
+adapt: step pass 3 1 tokens 23.528 ms
+dspark: pos 156 step 0 draft 220 p1 0.999
+dspark: pos 156 step 1 draft 68111 p1 0.663
+dspark: pos 156 step 2 draft 68063 p1 0.978
+dspark: pos 156 step 3 draft 25751 p1 0.808
+dspark: pos 156 step 4 draft 197033 p1 0.777
+spec: keyed draft 2.875 ms, 4 drafts
+spec: token 122 pos 156 drafted 4 accepted 1 emits 2 drafts [220, 68111, 68063, 25751]
+spec: keyed verify 5 rows (logits) 22.396 ms, accept 1.766 ms
+adapt: step pass 4 2 tokens 27.047 ms
+dspark: pos 158 step 0 draft 11 p1 0.905
+dspark: pos 158 step 1 draft 68111 p1 0.703
+dspark: pos 158 step 2 draft 197033 p1 0.692
+spec: keyed draft 2.950 ms, 2 drafts
+spec: token 124 pos 158 drafted 2 accepted 1 emits 2 drafts [11, 68111]
+spec: keyed verify 3 rows (logits) 17.267 ms, accept 1.949 ms
+adapt: step pass 2 2 tokens 22.216 ms
+dspark: pos 160 step 0 draft 68111 p1 1.000
+dspark: pos 160 step 1 draft 17 p1 0.789
+spec: keyed draft 2.824 ms, 2 drafts
+spec: token 126 pos 160 drafted 2 accepted 1 emits 2 drafts [68111, 17]
+spec: keyed verify 3 rows (logits) 17.342 ms, accept 1.871 ms
+adapt: step pass 2 2 tokens 22.046 ms
+ids[short_a]: [200001, 200008, 371, 150409, 171960, 151661, 149876, 158808, 149884, 152778, 13, 170289, 150893, 149881, 149922, 150230, 150103, 167608, 13, 170289, 151791, 153606, 25, 220, 47157, 180553, 149879, 151483, 1638, 149910, 150924, 161777, 26, 177113, 152778, 166386, 82, 159486, 150033, 11, 149982, 158808, 156090, 152778, 13, 170289, 150400, 149911, 4123, 13, 150166, 150261, 150033, 152804, 13, 154879, 150103, 167608, 150896, 13, 200010, 200001, 200004, 3744, 1638, 152068, 150332, 166386, 82, 11, 150022, 150921, 152778, 166386, 82, 149914, 159486, 302, 150548, 150033, 163485, 149910, 150924, 161777, 13, 151787, 180553, 155872, 82, 152778, 150932, 151553, 149876, 158808, 11, 151467, 149921, 150927, 152778, 13, 200010, 200006, 200006, 199999, 198, 2, 220, 38451, 153855, 25, 149917, 220, 37311, 220, 40900, 68014, 145054, 2187, 25, 145054, 151911, 220, 68084, 11, 220, 68111, 19, 198]
+decode[short_a]: 128 tokens, 1603 ms (79.23 tok/s)
+prefill[short_a]: 36 tokens, 77 ms
+spec[short_a]: verify passes=55 proposed=172 accepted=58 (acceptance 33.7%, 2.05 tokens per pass)
+dspark: pos 40 step 0 draft 302 p1 1.000
+dspark: pos 40 step 1 draft 149882 p1 0.634
+dspark: pos 40 step 2 draft 149876 p1 0.826
+dspark: pos 40 step 3 draft 158842 p1 0.319
+spec: keyed draft 2.869 ms, 3 drafts
+spec: token 2 pos 40 drafted 3 accepted 3 emits 4 drafts [302, 149882, 149876]
+spec: keyed verify 4 rows (logits) 18.999 ms, accept 3.683 ms
+adapt: step pass 3 4 tokens 25.564 ms
+dspark: pos 44 step 0 draft 82 p1 0.973
+dspark: pos 44 step 1 draft 11 p1 0.349
+spec: keyed draft 2.958 ms, 1 drafts
+spec: token 6 pos 44 drafted 1 accepted 0 emits 1 drafts [82]
+spec: keyed verify 2 rows (logits) 14.567 ms, accept 1.090 ms
+adapt: step pass 1 1 tokens 18.628 ms
+dspark: pos 45 step 0 draft 149879 p1 0.778
+dspark: pos 45 step 1 draft 149876 p1 0.958
+dspark: pos 45 step 2 draft 158842 p1 0.276
+spec: keyed draft 2.778 ms, 2 drafts
+spec: token 7 pos 45 drafted 2 accepted 2 emits 3 drafts [149879, 149876]
+spec: keyed verify 3 rows (logits) 16.812 ms, accept 2.808 ms
+adapt: step pass 2 3 tokens 22.412 ms
+dspark: pos 48 step 0 draft 158842 p1 0.416
+spec: keyed draft 2.940 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.949 ms
+dspark: pos 49 step 0 draft 36926 p1 0.416
+spec: keyed draft 2.855 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.960 ms
+dspark: pos 50 step 0 draft 13 p1 0.391
+spec: keyed draft 2.858 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.962 ms
+dspark: pos 51 step 0 draft 149984 p1 0.565
+dspark: pos 51 step 1 draft 149876 p1 0.379
+spec: keyed draft 2.886 ms, 1 drafts
+spec: token 13 pos 51 drafted 1 accepted 0 emits 1 drafts [149984]
+spec: keyed verify 2 rows (logits) 14.907 ms, accept 1.103 ms
+adapt: step pass 1 1 tokens 18.907 ms
+dspark: pos 52 step 0 draft 149882 p1 0.999
+dspark: pos 52 step 1 draft 150546 p1 0.455
+spec: keyed draft 2.787 ms, 1 drafts
+spec: token 14 pos 52 drafted 1 accepted 1 emits 2 drafts [149882]
+spec: keyed verify 2 rows (logits) 14.571 ms, accept 2.159 ms
+adapt: step pass 1 2 tokens 19.531 ms
+dspark: pos 54 step 0 draft 150161 p1 0.319
+spec: keyed draft 2.938 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.043 ms
+dspark: pos 55 step 0 draft 150038 p1 0.190
+spec: keyed draft 2.840 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.010 ms
+dspark: pos 56 step 0 draft 149879 p1 0.980
+dspark: pos 56 step 1 draft 149876 p1 0.817
+dspark: pos 56 step 2 draft 153242 p1 0.234
+spec: keyed draft 2.920 ms, 2 drafts
+spec: token 18 pos 56 drafted 2 accepted 1 emits 2 drafts [149879, 149876]
+spec: keyed verify 3 rows (logits) 16.804 ms, accept 2.238 ms
+adapt: step pass 2 2 tokens 21.972 ms
+dspark: pos 58 step 0 draft 13 p1 0.853
+dspark: pos 58 step 1 draft 150966 p1 0.481
+spec: keyed draft 2.960 ms, 1 drafts
+spec: token 20 pos 58 drafted 1 accepted 1 emits 2 drafts [13]
+spec: keyed verify 2 rows (logits) 15.428 ms, accept 2.268 ms
+adapt: step pass 1 2 tokens 20.664 ms
+dspark: pos 60 step 0 draft 153419 p1 0.377
+spec: keyed draft 2.917 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.008 ms
+dspark: pos 61 step 0 draft 11 p1 0.534
+dspark: pos 61 step 1 draft 149876 p1 0.658
+spec: keyed draft 2.863 ms, 1 drafts
+spec: token 23 pos 61 drafted 1 accepted 1 emits 2 drafts [11]
+spec: keyed verify 2 rows (logits) 14.893 ms, accept 2.328 ms
+adapt: step pass 1 2 tokens 20.092 ms
+dspark: pos 63 step 0 draft 149878 p1 0.602
+dspark: pos 63 step 1 draft 150026 p1 0.310
+spec: keyed draft 2.951 ms, 1 drafts
+spec: token 25 pos 63 drafted 1 accepted 0 emits 1 drafts [149878]
+spec: keyed verify 2 rows (logits) 14.762 ms, accept 1.120 ms
+adapt: step pass 1 1 tokens 18.842 ms
+dspark: pos 64 step 0 draft 149933 p1 0.294
+spec: keyed draft 2.692 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.777 ms
+dspark: pos 65 step 0 draft 11 p1 0.859
+dspark: pos 65 step 1 draft 149876 p1 0.433
+spec: keyed draft 2.873 ms, 1 drafts
+spec: token 27 pos 65 drafted 1 accepted 0 emits 1 drafts [11]
+spec: keyed verify 2 rows (logits) 14.805 ms, accept 1.008 ms
+adapt: step pass 1 1 tokens 18.695 ms
+dspark: pos 66 step 0 draft 149876 p1 0.960
+dspark: pos 66 step 1 draft 170850 p1 0.373
+spec: keyed draft 2.727 ms, 1 drafts
+spec: token 28 pos 66 drafted 1 accepted 1 emits 2 drafts [149876]
+spec: keyed verify 2 rows (logits) 14.921 ms, accept 1.989 ms
+adapt: step pass 1 2 tokens 19.645 ms
+dspark: pos 68 step 0 draft 11 p1 0.943
+dspark: pos 68 step 1 draft 149876 p1 0.594
+dspark: pos 68 step 2 draft 150026 p1 0.366
+spec: keyed draft 2.971 ms, 2 drafts
+spec: token 30 pos 68 drafted 2 accepted 0 emits 1 drafts [11, 149876]
+spec: keyed verify 3 rows (logits) 17.324 ms, accept 1.129 ms
+adapt: step pass 2 1 tokens 21.431 ms
+dspark: pos 69 step 0 draft 82 p1 1.000
+dspark: pos 69 step 1 draft 170850 p1 0.306
+spec: keyed draft 2.711 ms, 1 drafts
+spec: token 31 pos 69 drafted 1 accepted 1 emits 2 drafts [82]
+spec: keyed verify 2 rows (logits) 15.629 ms, accept 2.217 ms
+adapt: step pass 1 2 tokens 20.567 ms
+dspark: pos 71 step 0 draft 11 p1 0.996
+dspark: pos 71 step 1 draft 149878 p1 0.379
+spec: keyed draft 2.962 ms, 1 drafts
+spec: token 33 pos 71 drafted 1 accepted 1 emits 2 drafts [11]
+spec: keyed verify 2 rows (logits) 15.105 ms, accept 2.167 ms
+adapt: step pass 1 2 tokens 20.244 ms
+dspark: pos 73 step 0 draft 149933 p1 0.219
+spec: keyed draft 2.917 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.001 ms
+dspark: pos 74 step 0 draft 149878 p1 0.612
+dspark: pos 74 step 1 draft 188057 p1 0.551
+spec: keyed draft 2.889 ms, 1 drafts
+spec: token 36 pos 74 drafted 1 accepted 0 emits 1 drafts [149878]
+spec: keyed verify 2 rows (logits) 14.810 ms, accept 1.104 ms
+adapt: step pass 1 1 tokens 18.811 ms
+dspark: pos 75 step 0 draft 149890 p1 0.770
+dspark: pos 75 step 1 draft 149876 p1 0.649
+spec: keyed draft 2.726 ms, 1 drafts
+spec: token 37 pos 75 drafted 1 accepted 0 emits 1 drafts [149890]
+spec: keyed verify 2 rows (logits) 14.706 ms, accept 1.042 ms
+adapt: step pass 1 1 tokens 18.482 ms
+dspark: pos 76 step 0 draft 25 p1 0.799
+dspark: pos 76 step 1 draft 149878 p1 0.762
+dspark: pos 76 step 2 draft 157679 p1 0.189
+spec: keyed draft 2.768 ms, 2 drafts
+spec: token 38 pos 76 drafted 2 accepted 1 emits 2 drafts [25, 149878]
+spec: keyed verify 3 rows (logits) 17.431 ms, accept 2.362 ms
+adapt: step pass 2 2 tokens 22.571 ms
+dspark: pos 78 step 0 draft 172843 p1 0.157
+spec: keyed draft 2.883 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.794 ms
+dspark: pos 79 step 0 draft 150030 p1 0.412
+spec: keyed draft 2.847 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.784 ms
+dspark: pos 80 step 0 draft 155503 p1 0.722
+dspark: pos 80 step 1 draft 13 p1 0.526
+spec: keyed draft 2.909 ms, 1 drafts
+spec: token 42 pos 80 drafted 1 accepted 1 emits 2 drafts [155503]
+spec: keyed verify 2 rows (logits) 14.805 ms, accept 1.956 ms
+adapt: step pass 1 2 tokens 19.679 ms
+dspark: pos 82 step 0 draft 799 p1 0.580
+dspark: pos 82 step 1 draft 149876 p1 0.762
+spec: keyed draft 2.976 ms, 1 drafts
+spec: token 44 pos 82 drafted 1 accepted 0 emits 1 drafts [799]
+spec: keyed verify 2 rows (logits) 15.003 ms, accept 0.955 ms
+adapt: step pass 1 1 tokens 18.941 ms
+dspark: pos 83 step 0 draft 149935 p1 0.465
+spec: keyed draft 2.705 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.637 ms
+dspark: pos 84 step 0 draft 149876 p1 0.771
+dspark: pos 84 step 1 draft 158842 p1 0.846
+dspark: pos 84 step 2 draft 13 p1 0.986
+dspark: pos 84 step 3 draft 150266 p1 0.808
+dspark: pos 84 step 4 draft 150030 p1 0.215
+spec: keyed draft 3.000 ms, 4 drafts
+spec: token 46 pos 84 drafted 4 accepted 0 emits 1 drafts [149876, 158842, 13, 150266]
+spec: keyed verify 5 rows (logits) 22.067 ms, accept 1.020 ms
+adapt: step pass 4 1 tokens 26.095 ms
+dspark: pos 85 step 0 draft 149876 p1 0.889
+dspark: pos 85 step 1 draft 150350 p1 0.552
+spec: keyed draft 2.739 ms, 1 drafts
+spec: token 47 pos 85 drafted 1 accepted 1 emits 2 drafts [149876]
+spec: keyed verify 2 rows (logits) 14.719 ms, accept 2.543 ms
+adapt: step pass 1 2 tokens 20.009 ms
+dspark: pos 87 step 0 draft 149876 p1 0.793
+dspark: pos 87 step 1 draft 151800 p1 0.547
+spec: keyed draft 2.951 ms, 1 drafts
+spec: token 49 pos 87 drafted 1 accepted 1 emits 2 drafts [149876]
+spec: keyed verify 2 rows (logits) 14.834 ms, accept 2.377 ms
+adapt: step pass 1 2 tokens 20.169 ms
+dspark: pos 89 step 0 draft 150201 p1 0.356
+spec: keyed draft 2.909 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.108 ms
+dspark: pos 90 step 0 draft 165460 p1 0.772
+dspark: pos 90 step 1 draft 13 p1 0.669
+dspark: pos 90 step 2 draft 149917 p1 0.502
+spec: keyed draft 2.938 ms, 2 drafts
+spec: token 52 pos 90 drafted 2 accepted 0 emits 1 drafts [165460, 13]
+spec: keyed verify 3 rows (logits) 17.371 ms, accept 1.278 ms
+adapt: step pass 2 1 tokens 21.595 ms
+dspark: pos 91 step 0 draft 13 p1 0.992
+dspark: pos 91 step 1 draft 149917 p1 0.335
+spec: keyed draft 2.960 ms, 1 drafts
+spec: token 53 pos 91 drafted 1 accepted 0 emits 1 drafts [13]
+spec: keyed verify 2 rows (logits) 15.435 ms, accept 1.237 ms
+adapt: step pass 1 1 tokens 19.641 ms
+dspark: pos 92 step 0 draft 149906 p1 0.942
+dspark: pos 92 step 1 draft 13 p1 1.000
+dspark: pos 92 step 2 draft 68014 p1 0.435
+spec: keyed draft 2.987 ms, 2 drafts
+spec: token 54 pos 92 drafted 2 accepted 2 emits 3 drafts [149906, 13]
+spec: keyed verify 3 rows (logits) 17.445 ms, accept 2.958 ms
+adapt: step pass 2 3 tokens 23.402 ms
+dspark: pos 95 step 0 draft 220 p1 0.216
+spec: keyed draft 2.934 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.914 ms
+dspark: pos 96 step 0 draft 149933 p1 0.674
+dspark: pos 96 step 1 draft 149935 p1 0.506
+spec: keyed draft 2.890 ms, 1 drafts
+spec: token 58 pos 96 drafted 1 accepted 0 emits 1 drafts [149933]
+spec: keyed verify 2 rows (logits) 15.110 ms, accept 1.023 ms
+adapt: step pass 1 1 tokens 19.029 ms
+dspark: pos 97 step 0 draft 157740 p1 0.415
+spec: keyed draft 2.686 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.671 ms
+dspark: pos 98 step 0 draft 153145 p1 0.496
+spec: keyed draft 2.856 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.829 ms
+dspark: pos 99 step 0 draft 386 p1 1.000
+dspark: pos 99 step 1 draft 11 p1 0.779
+dspark: pos 99 step 2 draft 149876 p1 0.898
+dspark: pos 99 step 3 draft 153962 p1 0.873
+dspark: pos 99 step 4 draft 155230 p1 0.349
+spec: keyed draft 2.998 ms, 4 drafts
+spec: token 61 pos 99 drafted 4 accepted 2 emits 3 drafts [386, 11, 149876, 153962]
+spec: keyed verify 5 rows (logits) 22.560 ms, accept 2.976 ms
+adapt: step pass 4 3 tokens 28.545 ms
+dspark: pos 102 step 0 draft 149876 p1 0.139
+spec: keyed draft 2.925 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.883 ms
+dspark: pos 103 step 0 draft 149880 p1 0.457
+spec: keyed draft 2.839 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.815 ms
+dspark: pos 104 step 0 draft 149880 p1 0.705
+dspark: pos 104 step 1 draft 155503 p1 0.198
+spec: keyed draft 2.873 ms, 1 drafts
+spec: token 66 pos 104 drafted 1 accepted 0 emits 1 drafts [149880]
+spec: keyed verify 2 rows (logits) 15.133 ms, accept 1.035 ms
+adapt: step pass 1 1 tokens 19.049 ms
+dspark: pos 105 step 0 draft 149878 p1 0.535
+dspark: pos 105 step 1 draft 150038 p1 0.608
+spec: keyed draft 2.742 ms, 1 drafts
+spec: token 67 pos 105 drafted 1 accepted 0 emits 1 drafts [149878]
+spec: keyed verify 2 rows (logits) 15.056 ms, accept 1.041 ms
+adapt: step pass 1 1 tokens 18.846 ms
+dspark: pos 106 step 0 draft 11 p1 0.409
+spec: keyed draft 2.692 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.608 ms
+dspark: pos 107 step 0 draft 149880 p1 0.726
+dspark: pos 107 step 1 draft 149876 p1 0.533
+spec: keyed draft 2.880 ms, 1 drafts
+spec: token 69 pos 107 drafted 1 accepted 1 emits 2 drafts [149880]
+spec: keyed verify 2 rows (logits) 14.725 ms, accept 2.277 ms
+adapt: step pass 1 2 tokens 19.893 ms
+dspark: pos 109 step 0 draft 153962 p1 0.276
+spec: keyed draft 2.935 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.937 ms
+dspark: pos 110 step 0 draft 150127 p1 0.201
+spec: keyed draft 2.855 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.862 ms
+dspark: pos 111 step 0 draft 302 p1 0.947
+dspark: pos 111 step 1 draft 155503 p1 0.233
+spec: keyed draft 2.890 ms, 1 drafts
+spec: token 73 pos 111 drafted 1 accepted 1 emits 2 drafts [302]
+spec: keyed verify 2 rows (logits) 14.738 ms, accept 1.984 ms
+adapt: step pass 1 2 tokens 19.621 ms
+dspark: pos 113 step 0 draft 68014 p1 0.287
+spec: keyed draft 2.920 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.928 ms
+dspark: pos 114 step 0 draft 371 p1 0.754
+dspark: pos 114 step 1 draft 151346 p1 0.798
+dspark: pos 114 step 2 draft 158842 p1 0.687
+spec: keyed draft 2.922 ms, 2 drafts
+spec: token 76 pos 114 drafted 2 accepted 1 emits 2 drafts [371, 151346]
+spec: keyed verify 3 rows (logits) 17.588 ms, accept 2.762 ms
+adapt: step pass 2 2 tokens 23.281 ms
+dspark: pos 116 step 0 draft 86828 p1 1.000
+dspark: pos 116 step 1 draft 150105 p1 0.293
+spec: keyed draft 3.011 ms, 1 drafts
+spec: token 78 pos 116 drafted 1 accepted 1 emits 2 drafts [86828]
+spec: keyed verify 2 rows (logits) 14.728 ms, accept 2.378 ms
+adapt: step pass 1 2 tokens 20.127 ms
+dspark: pos 118 step 0 draft 149878 p1 0.264
+spec: keyed draft 2.929 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.168 ms
+dspark: pos 119 step 0 draft 11 p1 0.968
+dspark: pos 119 step 1 draft 149933 p1 0.243
+spec: keyed draft 2.867 ms, 1 drafts
+spec: token 81 pos 119 drafted 1 accepted 1 emits 2 drafts [11]
+spec: keyed verify 2 rows (logits) 15.216 ms, accept 1.930 ms
+adapt: step pass 1 2 tokens 20.024 ms
+dspark: pos 121 step 0 draft 149876 p1 0.646
+dspark: pos 121 step 1 draft 158842 p1 0.557
+spec: keyed draft 2.959 ms, 1 drafts
+spec: token 83 pos 121 drafted 1 accepted 1 emits 2 drafts [149876]
+spec: keyed verify 2 rows (logits) 14.654 ms, accept 1.989 ms
+adapt: step pass 1 2 tokens 19.609 ms
+dspark: pos 123 step 0 draft 150079 p1 0.283
+spec: keyed draft 2.937 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.074 ms
+dspark: pos 124 step 0 draft 149880 p1 0.514
+dspark: pos 124 step 1 draft 149921 p1 0.131
+spec: keyed draft 2.921 ms, 1 drafts
+spec: token 86 pos 124 drafted 1 accepted 0 emits 1 drafts [149880]
+spec: keyed verify 2 rows (logits) 15.059 ms, accept 1.053 ms
+adapt: step pass 1 1 tokens 19.043 ms
+dspark: pos 125 step 0 draft 150129 p1 0.630
+dspark: pos 125 step 1 draft 150105 p1 0.718
+spec: keyed draft 2.748 ms, 1 drafts
+spec: token 87 pos 125 drafted 1 accepted 0 emits 1 drafts [150129]
+spec: keyed verify 2 rows (logits) 15.056 ms, accept 1.035 ms
+adapt: step pass 1 1 tokens 18.846 ms
+dspark: pos 126 step 0 draft 149933 p1 0.230
+spec: keyed draft 2.701 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.697 ms
+dspark: pos 127 step 0 draft 149878 p1 0.370
+spec: keyed draft 2.836 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.876 ms
+dspark: pos 128 step 0 draft 153200 p1 0.184
+spec: keyed draft 2.838 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.812 ms
+dspark: pos 129 step 0 draft 153200 p1 0.363
+spec: keyed draft 2.832 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.853 ms
+dspark: pos 130 step 0 draft 149878 p1 0.273
+spec: keyed draft 2.847 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.022 ms
+dspark: pos 131 step 0 draft 220 p1 0.413
+spec: keyed draft 2.842 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.007 ms
+dspark: pos 132 step 0 draft 82 p1 0.995
+dspark: pos 132 step 1 draft 149890 p1 0.873
+dspark: pos 132 step 2 draft 150030 p1 0.860
+dspark: pos 132 step 3 draft 149878 p1 0.425
+spec: keyed draft 2.940 ms, 3 drafts
+spec: token 94 pos 132 drafted 3 accepted 1 emits 2 drafts [82, 149890, 150030]
+spec: keyed verify 4 rows (logits) 18.634 ms, accept 2.163 ms
+adapt: step pass 3 2 tokens 23.745 ms
+dspark: pos 134 step 0 draft 168243 p1 0.530
+dspark: pos 134 step 1 draft 155907 p1 0.409
+spec: keyed draft 2.949 ms, 1 drafts
+spec: token 96 pos 134 drafted 1 accepted 1 emits 2 drafts [168243]
+spec: keyed verify 2 rows (logits) 14.580 ms, accept 1.996 ms
+adapt: step pass 1 2 tokens 19.533 ms
+dspark: pos 136 step 0 draft 82 p1 1.000
+dspark: pos 136 step 1 draft 149890 p1 0.965
+dspark: pos 136 step 2 draft 149876 p1 0.671
+dspark: pos 136 step 3 draft 158842 p1 0.540
+spec: keyed draft 3.019 ms, 3 drafts
+spec: token 98 pos 136 drafted 3 accepted 1 emits 2 drafts [82, 149890, 149876]
+spec: keyed verify 4 rows (logits) 19.239 ms, accept 2.546 ms
+adapt: step pass 3 2 tokens 24.811 ms
+dspark: pos 138 step 0 draft 149880 p1 0.417
+spec: keyed draft 2.957 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.138 ms
+dspark: pos 139 step 0 draft 220 p1 0.271
+spec: keyed draft 2.849 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.073 ms
+dspark: pos 140 step 0 draft 52146 p1 0.435
+spec: keyed draft 2.848 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.043 ms
+dspark: pos 141 step 0 draft 386 p1 0.991
+dspark: pos 141 step 1 draft 165439 p1 0.381
+spec: keyed draft 2.887 ms, 1 drafts
+spec: token 103 pos 141 drafted 1 accepted 1 emits 2 drafts [386]
+spec: keyed verify 2 rows (logits) 14.731 ms, accept 2.456 ms
+adapt: step pass 1 2 tokens 20.084 ms
+dspark: pos 143 step 0 draft 149882 p1 0.621
+dspark: pos 143 step 1 draft 149876 p1 0.486
+spec: keyed draft 2.956 ms, 1 drafts
+spec: token 105 pos 143 drafted 1 accepted 1 emits 2 drafts [149882]
+spec: keyed verify 2 rows (logits) 15.098 ms, accept 2.327 ms
+adapt: step pass 1 2 tokens 20.390 ms
+dspark: pos 145 step 0 draft 149876 p1 0.892
+dspark: pos 145 step 1 draft 158842 p1 0.639
+dspark: pos 145 step 2 draft 82 p1 0.764
+spec: keyed draft 3.065 ms, 2 drafts
+spec: token 107 pos 145 drafted 2 accepted 1 emits 2 drafts [149876, 158842]
+spec: keyed verify 3 rows (logits) 17.855 ms, accept 2.363 ms
+adapt: step pass 2 2 tokens 23.291 ms
+dspark: pos 147 step 0 draft 151920 p1 0.440
+spec: keyed draft 2.925 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.094 ms
+dspark: pos 148 step 0 draft 13 p1 0.697
+dspark: pos 148 step 1 draft 150266 p1 0.849
+dspark: pos 148 step 2 draft 149876 p1 0.416
+spec: keyed draft 2.923 ms, 2 drafts
+spec: token 110 pos 148 drafted 2 accepted 0 emits 1 drafts [13, 150266]
+spec: keyed verify 3 rows (logits) 18.017 ms, accept 1.281 ms
+adapt: step pass 2 1 tokens 22.229 ms
+dspark: pos 149 step 0 draft 149878 p1 0.823
+dspark: pos 149 step 1 draft 150350 p1 0.641
+dspark: pos 149 step 2 draft 13 p1 0.809
+spec: keyed draft 2.992 ms, 2 drafts
+spec: token 111 pos 149 drafted 2 accepted 0 emits 1 drafts [149878, 150350]
+spec: keyed verify 3 rows (logits) 16.607 ms, accept 1.168 ms
+adapt: step pass 2 1 tokens 20.774 ms
+dspark: pos 150 step 0 draft 149890 p1 0.397
+spec: keyed draft 2.948 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.004 ms
+dspark: pos 151 step 0 draft 150030 p1 0.335
+spec: keyed draft 2.845 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.976 ms
+dspark: pos 152 step 0 draft 50696 p1 0.927
+dspark: pos 152 step 1 draft 149876 p1 0.974
+dspark: pos 152 step 2 draft 150038 p1 0.651
+dspark: pos 152 step 3 draft 13 p1 0.960
+dspark: pos 152 step 4 draft 150860 p1 0.639
+spec: keyed draft 2.998 ms, 4 drafts
+spec: token 114 pos 152 drafted 4 accepted 1 emits 2 drafts [50696, 149876, 150038, 13]
+spec: keyed verify 5 rows (logits) 23.051 ms, accept 2.188 ms
+adapt: step pass 4 2 tokens 28.244 ms
+dspark: pos 154 step 0 draft 150038 p1 0.529
+dspark: pos 154 step 1 draft 13 p1 0.994
+dspark: pos 154 step 2 draft 149917 p1 0.363
+spec: keyed draft 2.992 ms, 2 drafts
+spec: token 116 pos 154 drafted 2 accepted 2 emits 3 drafts [150038, 13]
+spec: keyed verify 3 rows (logits) 17.859 ms, accept 3.258 ms
+adapt: step pass 2 3 tokens 24.119 ms
+dspark: pos 157 step 0 draft 150105 p1 0.355
+spec: keyed draft 2.993 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.004 ms
+dspark: pos 158 step 0 draft 149890 p1 0.612
+dspark: pos 158 step 1 draft 149876 p1 0.804
+spec: keyed draft 2.894 ms, 1 drafts
+spec: token 120 pos 158 drafted 1 accepted 1 emits 2 drafts [149890]
+spec: keyed verify 2 rows (logits) 14.708 ms, accept 2.338 ms
+adapt: step pass 1 2 tokens 19.951 ms
+dspark: pos 160 step 0 draft 158842 p1 0.937
+dspark: pos 160 step 1 draft 149933 p1 0.663
+dspark: pos 160 step 2 draft 149935 p1 0.386
+spec: keyed draft 3.060 ms, 2 drafts
+spec: token 122 pos 160 drafted 2 accepted 2 emits 3 drafts [158842, 149933]
+spec: keyed verify 3 rows (logits) 17.407 ms, accept 3.274 ms
+adapt: step pass 2 3 tokens 23.752 ms
+dspark: pos 163 step 0 draft 149878 p1 0.723
+dspark: pos 163 step 1 draft 158842 p1 0.746
+dspark: pos 163 step 2 draft 26 p1 0.848
+spec: keyed draft 2.918 ms, 2 drafts
+spec: token 125 pos 163 drafted 2 accepted 0 emits 1 drafts [149878, 158842]
+spec: keyed verify 3 rows (logits) 16.895 ms, accept 1.152 ms
+adapt: step pass 2 1 tokens 20.972 ms
+dspark: pos 164 step 0 draft 149878 p1 0.722
+dspark: pos 164 step 1 draft 150038 p1 0.927
+spec: keyed draft 2.863 ms, 2 drafts
+spec: token 126 pos 164 drafted 2 accepted 1 emits 2 drafts [149878, 150038]
+spec: keyed verify 3 rows (logits) 16.935 ms, accept 2.051 ms
+adapt: step pass 2 2 tokens 21.857 ms
+ids[short_b]: [162723, 302, 149882, 149876, 172843, 279, 149879, 149876, 151544, 220, 129814, 11, 153221, 149882, 151624, 149876, 153536, 149879, 150038, 13, 151373, 150580, 11, 149891, 150026, 170370, 150463, 149876, 158842, 23064, 82, 151273, 11, 150026, 169944, 151178, 172396, 25, 149876, 155472, 150030, 155503, 23059, 902, 149935, 149881, 149876, 150350, 149876, 158842, 149933, 154627, 149882, 149906, 13, 149917, 157679, 150547, 157740, 172396, 386, 11, 155503, 150387, 89951, 149922, 150879, 11, 149880, 149876, 155428, 184730, 302, 13, 68014, 371, 158842, 86828, 11, 187982, 11, 152930, 149876, 158842, 153706, 13, 150266, 150422, 158366, 158730, 11, 150739, 163648, 82, 149880, 168243, 156689, 82, 11, 149971, 220, 33433, 386, 153697, 149882, 150259, 149876, 155472, 166432, 149881, 155104, 149890, 220, 50696, 168284, 150038, 13, 150266, 166391, 149890, 149876, 158842, 149933, 149935, 171439, 149878, 151955, 149887]
+decode[short_b]: 128 tokens, 1663 ms (76.37 tok/s)
+prefill[short_b]: 40 tokens, 78 ms
+spec[short_b]: verify passes=51 proposed=80 accepted=39 (acceptance 48.8%, 1.76 tokens per pass)
+dspark: pos 101 step 0 draft 150003 p1 0.977
+dspark: pos 101 step 1 draft 149934 p1 1.000
+dspark: pos 101 step 2 draft 196982 p1 0.901
+dspark: pos 101 step 3 draft 149934 p1 0.665
+dspark: pos 101 step 4 draft 13 p1 0.560
+spec: keyed draft 3.124 ms, 4 drafts
+spec: token 2 pos 101 drafted 4 accepted 3 emits 4 drafts [150003, 149934, 196982, 149934]
+spec: keyed verify 5 rows (logits) 21.953 ms, accept 4.415 ms
+adapt: step pass 4 4 tokens 29.502 ms
+dspark: pos 105 step 0 draft 17 p1 1.000
+dspark: pos 105 step 1 draft 25 p1 1.000
+dspark: pos 105 step 2 draft 198 p1 0.986
+dspark: pos 105 step 3 draft 149860 p1 1.000
+dspark: pos 105 step 4 draft 149860 p1 0.958
+spec: keyed draft 3.694 ms, 5 drafts
+spec: token 6 pos 105 drafted 5 accepted 4 emits 5 drafts [17, 25, 198, 149860, 149860]
+spec: keyed verify 6 rows (logits) 25.166 ms, accept 5.349 ms
+adapt: step pass 5 5 tokens 34.222 ms
+dspark: pos 110 step 0 draft 150583 p1 1.000
+dspark: pos 110 step 1 draft 152486 p1 1.000
+dspark: pos 110 step 2 draft 286 p1 0.592
+dspark: pos 110 step 3 draft 39998 p1 0.811
+spec: keyed draft 3.901 ms, 3 drafts
+spec: token 11 pos 110 drafted 3 accepted 2 emits 3 drafts [150583, 152486, 286]
+spec: keyed verify 4 rows (logits) 20.733 ms, accept 3.610 ms
+adapt: step pass 3 3 tokens 28.255 ms
+dspark: pos 113 step 0 draft 149862 p1 1.000
+dspark: pos 113 step 1 draft 149887 p1 0.837
+dspark: pos 113 step 2 draft 149900 p1 1.000
+dspark: pos 113 step 3 draft 149881 p1 0.999
+dspark: pos 113 step 4 draft 150354 p1 1.000
+spec: keyed draft 3.107 ms, 5 drafts
+spec: token 14 pos 113 drafted 5 accepted 1 emits 2 drafts [149862, 149887, 149900, 149881, 150354]
+spec: keyed verify 6 rows (logits) 24.432 ms, accept 2.230 ms
+adapt: step pass 5 2 tokens 29.777 ms
+dspark: pos 115 step 0 draft 196977 p1 0.991
+dspark: pos 115 step 1 draft 150354 p1 0.621
+dspark: pos 115 step 2 draft 197034 p1 0.805
+spec: keyed draft 3.035 ms, 2 drafts
+spec: token 16 pos 115 drafted 2 accepted 1 emits 2 drafts [196977, 150354]
+spec: keyed verify 3 rows (logits) 16.845 ms, accept 2.064 ms
+adapt: step pass 2 2 tokens 21.952 ms
+dspark: pos 117 step 0 draft 17 p1 1.000
+dspark: pos 117 step 1 draft 198 p1 1.000
+dspark: pos 117 step 2 draft 150419 p1 0.321
+spec: keyed draft 3.044 ms, 2 drafts
+spec: token 18 pos 117 drafted 2 accepted 2 emits 3 drafts [17, 198]
+spec: keyed verify 3 rows (logits) 17.284 ms, accept 2.733 ms
+adapt: step pass 2 3 tokens 23.070 ms
+dspark: pos 120 step 0 draft 150419 p1 1.000
+dspark: pos 120 step 1 draft 149900 p1 1.000
+dspark: pos 120 step 2 draft 196982 p1 0.936
+dspark: pos 120 step 3 draft 149934 p1 0.998
+dspark: pos 120 step 4 draft 149880 p1 0.935
+spec: keyed draft 3.103 ms, 5 drafts
+spec: token 21 pos 120 drafted 5 accepted 2 emits 3 drafts [150419, 149900, 196982, 149934, 149880]
+spec: keyed verify 6 rows (logits) 23.351 ms, accept 2.849 ms
+adapt: step pass 5 3 tokens 29.313 ms
+dspark: pos 123 step 0 draft 149900 p1 0.451
+spec: keyed draft 2.927 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.947 ms
+dspark: pos 124 step 0 draft 197012 p1 0.990
+dspark: pos 124 step 1 draft 149934 p1 1.000
+dspark: pos 124 step 2 draft 77 p1 0.533
+dspark: pos 124 step 3 draft 198 p1 0.989
+dspark: pos 124 step 4 draft 149860 p1 1.000
+spec: keyed draft 2.998 ms, 5 drafts
+spec: token 25 pos 124 drafted 5 accepted 2 emits 3 drafts [197012, 149934, 77, 198, 149860]
+spec: keyed verify 6 rows (logits) 24.044 ms, accept 2.823 ms
+adapt: step pass 5 3 tokens 29.877 ms
+dspark: pos 127 step 0 draft 198 p1 1.000
+dspark: pos 127 step 1 draft 149860 p1 1.000
+dspark: pos 127 step 2 draft 149860 p1 0.690
+dspark: pos 127 step 3 draft 149900 p1 0.932
+dspark: pos 127 step 4 draft 197023 p1 0.880
+spec: keyed draft 3.128 ms, 5 drafts
+spec: token 28 pos 127 drafted 5 accepted 2 emits 3 drafts [198, 149860, 149860, 149900, 197023]
+spec: keyed verify 6 rows (logits) 25.138 ms, accept 2.732 ms
+adapt: step pass 5 3 tokens 31.007 ms
+dspark: pos 130 step 0 draft 150003 p1 0.999
+dspark: pos 130 step 1 draft 149934 p1 1.000
+dspark: pos 130 step 2 draft 150003 p1 0.374
+spec: keyed draft 3.048 ms, 2 drafts
+spec: token 31 pos 130 drafted 2 accepted 2 emits 3 drafts [150003, 149934]
+spec: keyed verify 3 rows (logits) 17.271 ms, accept 2.843 ms
+adapt: step pass 2 3 tokens 23.171 ms
+dspark: pos 133 step 0 draft 149900 p1 1.000
+dspark: pos 133 step 1 draft 197010 p1 1.000
+dspark: pos 133 step 2 draft 197010 p1 0.999
+dspark: pos 133 step 3 draft 15 p1 0.965
+dspark: pos 133 step 4 draft 197010 p1 0.778
+spec: keyed draft 3.070 ms, 5 drafts
+spec: token 34 pos 133 drafted 5 accepted 2 emits 3 drafts [149900, 197010, 197010, 15, 197010]
+spec: keyed verify 6 rows (logits) 23.712 ms, accept 2.843 ms
+adapt: step pass 5 3 tokens 29.634 ms
+dspark: pos 136 step 0 draft 15 p1 1.000
+dspark: pos 136 step 1 draft 25 p1 1.000
+dspark: pos 136 step 2 draft 198 p1 1.000
+dspark: pos 136 step 3 draft 149861 p1 1.000
+dspark: pos 136 step 4 draft 149861 p1 0.995
+spec: keyed draft 3.103 ms, 5 drafts
+spec: token 37 pos 136 drafted 5 accepted 4 emits 5 drafts [15, 25, 198, 149861, 149861]
+spec: keyed verify 6 rows (logits) 25.276 ms, accept 4.534 ms
+adapt: step pass 5 5 tokens 32.924 ms
+dspark: pos 141 step 0 draft 150583 p1 1.000
+dspark: pos 141 step 1 draft 152486 p1 1.000
+dspark: pos 141 step 2 draft 149860 p1 0.598
+dspark: pos 141 step 3 draft 149860 p1 0.998
+dspark: pos 141 step 4 draft 149900 p1 0.899
+spec: keyed draft 3.802 ms, 5 drafts
+spec: token 42 pos 141 drafted 5 accepted 2 emits 3 drafts [150583, 152486, 149860, 149860, 149900]
+spec: keyed verify 6 rows (logits) 24.448 ms, accept 3.156 ms
+adapt: step pass 5 3 tokens 31.416 ms
+dspark: pos 144 step 0 draft 149860 p1 1.000
+dspark: pos 144 step 1 draft 149862 p1 1.000
+dspark: pos 144 step 2 draft 149900 p1 1.000
+dspark: pos 144 step 3 draft 197021 p1 1.000
+dspark: pos 144 step 4 draft 149900 p1 1.000
+spec: keyed draft 3.086 ms, 5 drafts
+spec: token 45 pos 144 drafted 5 accepted 4 emits 5 drafts [149860, 149862, 149900, 197021, 149900]
+spec: keyed verify 6 rows (logits) 25.112 ms, accept 5.177 ms
+adapt: step pass 5 5 tokens 33.386 ms
+dspark: pos 149 step 0 draft 16 p1 1.000
+dspark: pos 149 step 1 draft 198 p1 1.000
+dspark: pos 149 step 2 draft 149862 p1 1.000
+dspark: pos 149 step 3 draft 150583 p1 1.000
+dspark: pos 149 step 4 draft 151663 p1 0.647
+spec: keyed draft 3.671 ms, 5 drafts
+spec: token 50 pos 149 drafted 5 accepted 5 emits 6 drafts [16, 198, 149862, 150583, 151663]
+spec: keyed verify 6 rows (logits) 24.782 ms, accept 5.514 ms
+adapt: step pass 5 6 tokens 33.977 ms
+dspark: pos 155 step 0 draft 1719 p1 0.992
+dspark: pos 155 step 1 draft 150170 p1 0.676
+dspark: pos 155 step 2 draft 1125 p1 0.285
+spec: keyed draft 3.876 ms, 2 drafts
+spec: token 56 pos 155 drafted 2 accepted 1 emits 2 drafts [1719, 150170]
+spec: keyed verify 3 rows (logits) 17.694 ms, accept 1.990 ms
+adapt: step pass 2 2 tokens 23.567 ms
+dspark: pos 157 step 0 draft 96529 p1 0.362
+spec: keyed draft 2.947 ms, 0 drafts
+adapt: step empty 0 1 tokens 15.911 ms
+dspark: pos 158 step 0 draft 62 p1 0.983
+dspark: pos 158 step 1 draft 70633 p1 0.314
+spec: keyed draft 2.894 ms, 1 drafts
+spec: token 59 pos 158 drafted 1 accepted 0 emits 1 drafts [62]
+spec: keyed verify 2 rows (logits) 14.792 ms, accept 0.974 ms
+adapt: step pass 1 1 tokens 18.668 ms
+dspark: pos 159 step 0 draft 64 p1 1.000
+dspark: pos 159 step 1 draft 11 p1 0.999
+dspark: pos 159 step 2 draft 150167 p1 1.000
+dspark: pos 159 step 3 draft 11 p1 1.000
+dspark: pos 159 step 4 draft 150167 p1 0.717
+spec: keyed draft 2.857 ms, 5 drafts
+spec: token 60 pos 159 drafted 5 accepted 1 emits 2 drafts [64, 11, 150167, 11, 150167]
+spec: keyed verify 6 rows (logits) 23.439 ms, accept 1.984 ms
+adapt: step pass 5 2 tokens 28.292 ms
+dspark: pos 161 step 0 draft 150167 p1 1.000
+dspark: pos 161 step 1 draft 11 p1 1.000
+dspark: pos 161 step 2 draft 149963 p1 1.000
+dspark: pos 161 step 3 draft 150167 p1 0.730
+dspark: pos 161 step 4 draft 150167 p1 0.447
+spec: keyed draft 3.124 ms, 4 drafts
+spec: token 62 pos 161 drafted 4 accepted 3 emits 4 drafts [150167, 11, 149963, 150167]
+spec: keyed verify 5 rows (logits) 22.272 ms, accept 4.933 ms
+adapt: step pass 4 4 tokens 30.346 ms
+dspark: pos 165 step 0 draft 150167 p1 1.000
+dspark: pos 165 step 1 draft 150167 p1 0.179
+spec: keyed draft 3.615 ms, 1 drafts
+spec: token 66 pos 165 drafted 1 accepted 1 emits 2 drafts [150167]
+spec: keyed verify 2 rows (logits) 15.494 ms, accept 2.293 ms
+adapt: step pass 1 2 tokens 21.411 ms
+dspark: pos 167 step 0 draft 197005 p1 1.000
+dspark: pos 167 step 1 draft 150167 p1 1.000
+dspark: pos 167 step 2 draft 58 p1 0.996
+dspark: pos 167 step 3 draft 407 p1 0.996
+dspark: pos 167 step 4 draft 77053 p1 0.418
+spec: keyed draft 3.096 ms, 4 drafts
+spec: token 68 pos 167 drafted 4 accepted 2 emits 3 drafts [197005, 150167, 58, 407]
+spec: keyed verify 5 rows (logits) 22.582 ms, accept 3.423 ms
+adapt: step pass 4 3 tokens 29.111 ms
+dspark: pos 170 step 0 draft 198 p1 1.000
+dspark: pos 170 step 1 draft 172706 p1 0.497
+spec: keyed draft 2.969 ms, 1 drafts
+spec: token 71 pos 170 drafted 1 accepted 1 emits 2 drafts [198]
+spec: keyed verify 2 rows (logits) 15.558 ms, accept 2.274 ms
+adapt: step pass 1 2 tokens 20.810 ms
+dspark: pos 172 step 0 draft 172706 p1 1.000
+dspark: pos 172 step 1 draft 72358 p1 0.999
+dspark: pos 172 step 2 draft 150896 p1 0.661
+dspark: pos 172 step 3 draft 150134 p1 0.303
+spec: keyed draft 3.055 ms, 3 drafts
+spec: token 73 pos 172 drafted 3 accepted 2 emits 3 drafts [172706, 72358, 150896]
+spec: keyed verify 4 rows (logits) 19.847 ms, accept 3.491 ms
+adapt: step pass 3 3 tokens 26.411 ms
+dspark: pos 175 step 0 draft 162692 p1 0.981
+dspark: pos 175 step 1 draft 178061 p1 0.864
+dspark: pos 175 step 2 draft 150134 p1 0.998
+dspark: pos 175 step 3 draft 150103 p1 0.872
+dspark: pos 175 step 4 draft 161002 p1 0.996
+spec: keyed draft 3.155 ms, 5 drafts
+spec: token 76 pos 175 drafted 5 accepted 1 emits 2 drafts [162692, 178061, 150134, 150103, 161002]
+spec: keyed verify 6 rows (logits) 23.524 ms, accept 2.535 ms
+adapt: step pass 5 2 tokens 29.230 ms
+dspark: pos 177 step 0 draft 178061 p1 0.954
+dspark: pos 177 step 1 draft 149879 p1 1.000
+dspark: pos 177 step 2 draft 150134 p1 0.958
+dspark: pos 177 step 3 draft 150103 p1 0.857
+dspark: pos 177 step 4 draft 161002 p1 0.903
+spec: keyed draft 3.123 ms, 5 drafts
+spec: token 78 pos 177 drafted 5 accepted 2 emits 3 drafts [178061, 149879, 150134, 150103, 161002]
+spec: keyed verify 6 rows (logits) 23.132 ms, accept 3.704 ms
+adapt: step pass 5 3 tokens 29.973 ms
+dspark: pos 180 step 0 draft 149880 p1 1.000
+dspark: pos 180 step 1 draft 149963 p1 1.000
+dspark: pos 180 step 2 draft 13 p1 0.976
+dspark: pos 180 step 3 draft 70646 p1 0.995
+dspark: pos 180 step 4 draft 70646 p1 0.942
+spec: keyed draft 3.195 ms, 5 drafts
+spec: token 81 pos 180 drafted 5 accepted 4 emits 5 drafts [149880, 149963, 13, 70646, 70646]
+spec: keyed verify 6 rows (logits) 24.799 ms, accept 5.440 ms
+adapt: step pass 5 5 tokens 33.461 ms
+dspark: pos 185 step 0 draft 149862 p1 1.000
+dspark: pos 185 step 1 draft 150419 p1 0.801
+dspark: pos 185 step 2 draft 149878 p1 0.998
+dspark: pos 185 step 3 draft 196982 p1 0.423
+spec: keyed draft 3.705 ms, 3 drafts
+spec: token 86 pos 185 drafted 3 accepted 2 emits 3 drafts [149862, 150419, 149878]
+spec: keyed verify 4 rows (logits) 20.190 ms, accept 3.319 ms
+adapt: step pass 3 3 tokens 27.229 ms
+dspark: pos 188 step 0 draft 25 p1 0.704
+dspark: pos 188 step 1 draft 149935 p1 0.714
+dspark: pos 188 step 2 draft 15 p1 0.387
+spec: keyed draft 3.157 ms, 2 drafts
+spec: token 89 pos 188 drafted 2 accepted 0 emits 1 drafts [25, 149935]
+spec: keyed verify 3 rows (logits) 17.567 ms, accept 1.118 ms
+adapt: step pass 2 1 tokens 21.852 ms
+dspark: pos 189 step 0 draft 193508 p1 0.638
+dspark: pos 189 step 1 draft 15 p1 0.948
+dspark: pos 189 step 2 draft 198 p1 0.808
+spec: keyed draft 2.801 ms, 2 drafts
+spec: token 90 pos 189 drafted 2 accepted 0 emits 1 drafts [193508, 15]
+spec: keyed verify 3 rows (logits) 17.323 ms, accept 1.108 ms
+adapt: step pass 2 1 tokens 21.242 ms
+dspark: pos 190 step 0 draft 15 p1 1.000
+dspark: pos 190 step 1 draft 25 p1 1.000
+dspark: pos 190 step 2 draft 198 p1 1.000
+dspark: pos 190 step 3 draft 149860 p1 1.000
+dspark: pos 190 step 4 draft 149860 p1 1.000
+spec: keyed draft 2.872 ms, 5 drafts
+spec: token 91 pos 190 drafted 5 accepted 4 emits 5 drafts [15, 25, 198, 149860, 149860]
+spec: keyed verify 6 rows (logits) 24.995 ms, accept 5.369 ms
+adapt: step pass 5 5 tokens 33.249 ms
+dspark: pos 195 step 0 draft 149878 p1 1.000
+dspark: pos 195 step 1 draft 149878 p1 0.372
+spec: keyed draft 3.805 ms, 1 drafts
+spec: token 96 pos 195 drafted 1 accepted 1 emits 2 drafts [149878]
+spec: keyed verify 2 rows (logits) 15.372 ms, accept 2.316 ms
+adapt: step pass 1 2 tokens 21.501 ms
+dspark: pos 197 step 0 draft 149963 p1 1.000
+dspark: pos 197 step 1 draft 196977 p1 1.000
+dspark: pos 197 step 2 draft 149963 p1 0.999
+dspark: pos 197 step 3 draft 11 p1 1.000
+dspark: pos 197 step 4 draft 149963 p1 1.000
+spec: keyed draft 3.084 ms, 5 drafts
+spec: token 98 pos 197 drafted 5 accepted 4 emits 5 drafts [149963, 196977, 149963, 11, 149963]
+spec: keyed verify 6 rows (logits) 23.043 ms, accept 5.366 ms
+adapt: step pass 5 5 tokens 31.507 ms
+dspark: pos 202 step 0 draft 196996 p1 0.999
+dspark: pos 202 step 1 draft 149963 p1 1.000
+dspark: pos 202 step 2 draft 198 p1 1.000
+dspark: pos 202 step 3 draft 65 p1 0.719
+dspark: pos 202 step 4 draft 198 p1 0.769
+spec: keyed draft 3.792 ms, 5 drafts
+spec: token 103 pos 202 drafted 5 accepted 3 emits 4 drafts [196996, 149963, 198, 65, 198]
+spec: keyed verify 6 rows (logits) 24.429 ms, accept 4.562 ms
+adapt: step pass 5 4 tokens 32.797 ms
+dspark: pos 206 step 0 draft 150583 p1 1.000
+dspark: pos 206 step 1 draft 149878 p1 1.000
+dspark: pos 206 step 2 draft 68019 p1 0.998
+dspark: pos 206 step 3 draft 1719 p1 0.932
+dspark: pos 206 step 4 draft 68019 p1 0.703
+spec: keyed draft 3.727 ms, 5 drafts
+spec: token 107 pos 206 drafted 5 accepted 4 emits 5 drafts [150583, 149878, 68019, 1719, 68019]
+spec: keyed verify 6 rows (logits) 24.831 ms, accept 6.270 ms
+adapt: step pass 5 5 tokens 34.845 ms
+dspark: pos 211 step 0 draft 62 p1 1.000
+dspark: pos 211 step 1 draft 1175 p1 0.516
+dspark: pos 211 step 2 draft 11 p1 0.675
+spec: keyed draft 3.728 ms, 2 drafts
+spec: token 112 pos 211 drafted 2 accepted 1 emits 2 drafts [62, 1175]
+spec: keyed verify 3 rows (logits) 16.535 ms, accept 2.416 ms
+adapt: step pass 2 2 tokens 22.692 ms
+dspark: pos 213 step 0 draft 7 p1 0.989
+dspark: pos 213 step 1 draft 77 p1 0.994
+dspark: pos 213 step 2 draft 11 p1 0.997
+dspark: pos 213 step 3 draft 150167 p1 0.943
+dspark: pos 213 step 4 draft 11 p1 0.997
+spec: keyed draft 3.102 ms, 5 drafts
+spec: token 114 pos 213 drafted 5 accepted 1 emits 2 drafts [7, 77, 11, 150167, 11]
+spec: keyed verify 6 rows (logits) 23.644 ms, accept 2.581 ms
+adapt: step pass 5 2 tokens 29.338 ms
+dspark: pos 215 step 0 draft 25 p1 1.000
+dspark: pos 215 step 1 draft 150299 p1 0.995
+dspark: pos 215 step 2 draft 58 p1 0.896
+dspark: pos 215 step 3 draft 407 p1 0.960
+dspark: pos 215 step 4 draft 11 p1 1.000
+spec: keyed draft 3.105 ms, 5 drafts
+spec: token 116 pos 215 drafted 5 accepted 4 emits 5 drafts [25, 150299, 58, 407, 11]
+spec: keyed verify 6 rows (logits) 23.320 ms, accept 6.204 ms
+adapt: step pass 5 5 tokens 32.641 ms
+dspark: pos 220 step 0 draft 11 p1 1.000
+dspark: pos 220 step 1 draft 149934 p1 0.732
+dspark: pos 220 step 2 draft 11 p1 0.969
+dspark: pos 220 step 3 draft 150167 p1 0.999
+dspark: pos 220 step 4 draft 197005 p1 0.985
+spec: keyed draft 3.945 ms, 5 drafts
+spec: token 121 pos 220 drafted 5 accepted 1 emits 2 drafts [11, 149934, 11, 150167, 197005]
+spec: keyed verify 6 rows (logits) 23.450 ms, accept 2.039 ms
+adapt: step pass 5 2 tokens 29.446 ms
+dspark: pos 222 step 0 draft 25 p1 1.000
+dspark: pos 222 step 1 draft 150167 p1 1.000
+dspark: pos 222 step 2 draft 68619 p1 0.876
+dspark: pos 222 step 3 draft 197005 p1 0.499
+spec: keyed draft 3.043 ms, 3 drafts
+spec: token 123 pos 222 drafted 3 accepted 2 emits 3 drafts [25, 150167, 68619]
+spec: keyed verify 4 rows (logits) 20.084 ms, accept 3.341 ms
+adapt: step pass 3 3 tokens 26.481 ms
+dspark: pos 225 step 0 draft 197005 p1 1.000
+dspark: pos 225 step 1 draft 150167 p1 0.708
+spec: keyed draft 2.868 ms, 2 drafts
+spec: token 126 pos 225 drafted 2 accepted 2 emits 3 drafts [197005, 150167]
+spec: keyed verify 3 rows (logits) 16.638 ms, accept 3.510 ms
+ids[short_c]: [149862, 150003, 149934, 196982, 220, 17, 25, 198, 149860, 149862, 150583, 152486, 198, 149862, 149900, 196977, 220, 17, 198, 149862, 150419, 149900, 196987, 149900, 197012, 149934, 25, 198, 149860, 149862, 150003, 149934, 196996, 149900, 197010, 220, 15, 25, 198, 149861, 149862, 150583, 152486, 198, 149860, 149862, 149900, 197021, 220, 16, 198, 149862, 150583, 151663, 68019, 1719, 220, 39352, 7, 64, 25, 150167, 11, 149963, 25, 150167, 8, 197005, 150167, 25, 198, 149862, 172706, 72358, 149876, 162692, 150990, 178061, 149879, 149878, 149880, 149963, 13, 70646, 198, 149862, 150419, 149963, 197011, 220, 15, 25, 198, 149860, 149862, 149878, 11, 149963, 196977, 149963, 11, 149878, 196996, 149963, 198, 149862, 150583, 149878, 68019, 1719, 154767, 62, 1404, 7, 4754, 25, 150299, 58, 407, 60, 11, 150968, 25, 150167, 8, 197005, 150167, 25]
+decode[short_c]: 128 tokens, 1152 ms (110.20 tok/s)
+prefill[short_c]: 101 tokens, 155 ms
+spec[short_c]: verify passes=40 proposed=149 accepted=85 (acceptance 57.0%, 3.12 tokens per pass)
+dspark: pos 1021 step 0 draft 167608 p1 1.000
+dspark: pos 1021 step 1 draft 13 p1 1.000
+dspark: pos 1021 step 2 draft 200010 p1 0.624
+dspark: pos 1021 step 3 draft 200001 p1 1.000
+dspark: pos 1021 step 4 draft 200008 p1 1.000
+spec: keyed draft 3.738 ms, 5 drafts
+spec: token 2 pos 1021 drafted 5 accepted 5 emits 6 drafts [167608, 13, 200010, 200001, 200008]
+spec: keyed verify 6 rows (logits) 26.000 ms, accept 7.051 ms
+adapt: step pass 5 6 tokens 36.804 ms
+dspark: pos 1027 step 0 draft 150409 p1 1.000
+dspark: pos 1027 step 1 draft 171960 p1 0.689
+dspark: pos 1027 step 2 draft 161646 p1 0.835
+dspark: pos 1027 step 3 draft 150396 p1 0.964
+dspark: pos 1027 step 4 draft 167182 p1 0.957
+spec: keyed draft 4.329 ms, 5 drafts
+spec: token 8 pos 1027 drafted 5 accepted 2 emits 3 drafts [150409, 171960, 161646, 150396, 167182]
+spec: keyed verify 6 rows (logits) 25.850 ms, accept 3.650 ms
+adapt: step pass 5 3 tokens 33.842 ms
+dspark: pos 1030 step 0 draft 25 p1 0.814
+dspark: pos 1030 step 1 draft 150396 p1 0.933
+dspark: pos 1030 step 2 draft 150396 p1 0.927
+dspark: pos 1030 step 3 draft 167182 p1 0.849
+dspark: pos 1030 step 4 draft 150396 p1 0.801
+spec: keyed draft 3.703 ms, 4 drafts
+spec: token 11 pos 1030 drafted 4 accepted 1 emits 2 drafts [25, 150396, 150396, 167182]
+spec: keyed verify 5 rows (logits) 23.100 ms, accept 2.321 ms
+adapt: step pass 4 2 tokens 29.135 ms
+dspark: pos 1032 step 0 draft 4836 p1 1.000
+dspark: pos 1032 step 1 draft 149991 p1 0.999
+dspark: pos 1032 step 2 draft 150396 p1 1.000
+dspark: pos 1032 step 3 draft 167182 p1 1.000
+dspark: pos 1032 step 4 draft 151098 p1 0.941
+spec: keyed draft 3.714 ms, 5 drafts
+spec: token 13 pos 1032 drafted 5 accepted 4 emits 5 drafts [4836, 149991, 150396, 167182, 151098]
+spec: keyed verify 6 rows (logits) 26.017 ms, accept 4.608 ms
+adapt: step pass 5 5 tokens 34.352 ms
+dspark: pos 1037 step 0 draft 151098 p1 1.000
+dspark: pos 1037 step 1 draft 149878 p1 1.000
+dspark: pos 1037 step 2 draft 150046 p1 1.000
+dspark: pos 1037 step 3 draft 151170 p1 1.000
+dspark: pos 1037 step 4 draft 13 p1 1.000
+spec: keyed draft 4.458 ms, 5 drafts
+spec: token 18 pos 1037 drafted 5 accepted 5 emits 6 drafts [151098, 149878, 150046, 151170, 13]
+spec: keyed verify 6 rows (logits) 26.266 ms, accept 5.461 ms
+adapt: step pass 5 6 tokens 36.204 ms
+dspark: pos 1043 step 0 draft 170289 p1 0.469
+spec: keyed draft 4.327 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.752 ms
+dspark: pos 1044 step 0 draft 149884 p1 0.546
+dspark: pos 1044 step 1 draft 150056 p1 0.940
+dspark: pos 1044 step 2 draft 149878 p1 0.804
+spec: keyed draft 3.672 ms, 2 drafts
+spec: token 25 pos 1044 drafted 2 accepted 0 emits 1 drafts [149884, 150056]
+spec: keyed verify 3 rows (logits) 17.120 ms, accept 1.030 ms
+adapt: step pass 2 1 tokens 21.834 ms
+dspark: pos 1045 step 0 draft 82 p1 1.000
+dspark: pos 1045 step 1 draft 150056 p1 0.533
+dspark: pos 1045 step 2 draft 149878 p1 0.746
+spec: keyed draft 3.457 ms, 2 drafts
+spec: token 26 pos 1045 drafted 2 accepted 1 emits 2 drafts [82, 150056]
+spec: keyed verify 3 rows (logits) 17.845 ms, accept 2.352 ms
+adapt: step pass 2 2 tokens 23.663 ms
+dspark: pos 1047 step 0 draft 151983 p1 0.356
+spec: keyed draft 3.593 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.111 ms
+dspark: pos 1048 step 0 draft 149879 p1 1.000
+dspark: pos 1048 step 1 draft 151004 p1 0.193
+spec: keyed draft 3.556 ms, 1 drafts
+spec: token 29 pos 1048 drafted 1 accepted 1 emits 2 drafts [149879]
+spec: keyed verify 2 rows (logits) 15.064 ms, accept 3.002 ms
+adapt: step pass 1 2 tokens 21.634 ms
+dspark: pos 1050 step 0 draft 34795 p1 0.442
+spec: keyed draft 3.642 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.315 ms
+dspark: pos 1051 step 0 draft 149881 p1 0.637
+dspark: pos 1051 step 1 draft 149876 p1 0.537
+spec: keyed draft 3.618 ms, 1 drafts
+spec: token 32 pos 1051 drafted 1 accepted 1 emits 2 drafts [149881]
+spec: keyed verify 2 rows (logits) 15.374 ms, accept 2.228 ms
+adapt: step pass 1 2 tokens 21.236 ms
+dspark: pos 1053 step 0 draft 157282 p1 0.721
+dspark: pos 1053 step 1 draft 150735 p1 0.443
+spec: keyed draft 3.642 ms, 1 drafts
+spec: token 34 pos 1053 drafted 1 accepted 1 emits 2 drafts [157282]
+spec: keyed verify 2 rows (logits) 15.524 ms, accept 2.247 ms
+adapt: step pass 1 2 tokens 21.423 ms
+dspark: pos 1055 step 0 draft 103137 p1 0.345
+spec: keyed draft 3.620 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.152 ms
+dspark: pos 1056 step 0 draft 150406 p1 0.357
+spec: keyed draft 3.502 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.283 ms
+dspark: pos 1057 step 0 draft 11 p1 0.403
+spec: keyed draft 3.828 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.576 ms
+dspark: pos 1058 step 0 draft 157282 p1 0.238
+spec: keyed draft 3.531 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.093 ms
+dspark: pos 1059 step 0 draft 11 p1 0.883
+dspark: pos 1059 step 1 draft 150681 p1 0.627
+dspark: pos 1059 step 2 draft 13 p1 1.000
+dspark: pos 1059 step 3 draft 11 p1 0.998
+dspark: pos 1059 step 4 draft 152482 p1 0.405
+spec: keyed draft 3.849 ms, 4 drafts
+spec: token 40 pos 1059 drafted 4 accepted 1 emits 2 drafts [11, 150681, 13, 11]
+spec: keyed verify 5 rows (logits) 23.366 ms, accept 2.032 ms
+adapt: step pass 4 2 tokens 29.262 ms
+dspark: pos 1061 step 0 draft 85886 p1 0.992
+dspark: pos 1061 step 1 draft 11 p1 0.668
+dspark: pos 1061 step 2 draft 150681 p1 0.929
+dspark: pos 1061 step 3 draft 13 p1 0.997
+dspark: pos 1061 step 4 draft 170289 p1 0.537
+spec: keyed draft 3.770 ms, 4 drafts
+spec: token 42 pos 1061 drafted 4 accepted 1 emits 2 drafts [85886, 11, 150681, 13]
+spec: keyed verify 5 rows (logits) 24.101 ms, accept 2.038 ms
+adapt: step pass 4 2 tokens 29.921 ms
+dspark: pos 1063 step 0 draft 150022 p1 0.479
+spec: keyed draft 3.603 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.068 ms
+dspark: pos 1064 step 0 draft 150022 p1 0.841
+dspark: pos 1064 step 1 draft 149876 p1 0.470
+spec: keyed draft 3.571 ms, 1 drafts
+spec: token 45 pos 1064 drafted 1 accepted 1 emits 2 drafts [150022]
+spec: keyed verify 2 rows (logits) 15.042 ms, accept 1.884 ms
+adapt: step pass 1 2 tokens 20.509 ms
+dspark: pos 1066 step 0 draft 151082 p1 0.652
+dspark: pos 1066 step 1 draft 150400 p1 0.473
+spec: keyed draft 3.679 ms, 1 drafts
+spec: token 47 pos 1066 drafted 1 accepted 1 emits 2 drafts [151082]
+spec: keyed verify 2 rows (logits) 14.831 ms, accept 1.936 ms
+adapt: step pass 1 2 tokens 20.455 ms
+dspark: pos 1068 step 0 draft 149884 p1 0.971
+dspark: pos 1068 step 1 draft 151537 p1 0.676
+dspark: pos 1068 step 2 draft 13 p1 0.927
+dspark: pos 1068 step 3 draft 170289 p1 0.981
+dspark: pos 1068 step 4 draft 150396 p1 0.843
+spec: keyed draft 3.780 ms, 5 drafts
+spec: token 49 pos 1068 drafted 5 accepted 2 emits 3 drafts [149884, 151537, 13, 170289, 150396]
+spec: keyed verify 6 rows (logits) 25.703 ms, accept 3.099 ms
+adapt: step pass 5 3 tokens 32.592 ms
+dspark: pos 1071 step 0 draft 150744 p1 0.555
+dspark: pos 1071 step 1 draft 13 p1 0.999
+dspark: pos 1071 step 2 draft 170289 p1 1.000
+dspark: pos 1071 step 3 draft 150893 p1 0.752
+spec: keyed draft 3.707 ms, 3 drafts
+spec: token 52 pos 1071 drafted 3 accepted 0 emits 1 drafts [150744, 13, 170289]
+spec: keyed verify 4 rows (logits) 19.684 ms, accept 1.091 ms
+adapt: step pass 3 1 tokens 24.490 ms
+dspark: pos 1072 step 0 draft 13 p1 0.982
+dspark: pos 1072 step 1 draft 170289 p1 0.848
+dspark: pos 1072 step 2 draft 150893 p1 0.840
+dspark: pos 1072 step 3 draft 149911 p1 0.658
+spec: keyed draft 3.473 ms, 3 drafts
+spec: token 53 pos 1072 drafted 3 accepted 1 emits 2 drafts [13, 170289, 150893]
+spec: keyed verify 4 rows (logits) 19.861 ms, accept 2.159 ms
+adapt: step pass 3 2 tokens 25.501 ms
+dspark: pos 1074 step 0 draft 150261 p1 0.505
+dspark: pos 1074 step 1 draft 150893 p1 0.835
+spec: keyed draft 3.616 ms, 1 drafts
+spec: token 55 pos 1074 drafted 1 accepted 0 emits 1 drafts [150261]
+spec: keyed verify 2 rows (logits) 15.040 ms, accept 1.072 ms
+adapt: step pass 1 1 tokens 19.740 ms
+dspark: pos 1075 step 0 draft 150893 p1 0.914
+dspark: pos 1075 step 1 draft 150396 p1 0.810
+dspark: pos 1075 step 2 draft 11 p1 0.797
+dspark: pos 1075 step 3 draft 150396 p1 0.480
+spec: keyed draft 3.489 ms, 3 drafts
+spec: token 56 pos 1075 drafted 3 accepted 1 emits 2 drafts [150893, 150396, 11]
+spec: keyed verify 4 rows (logits) 19.914 ms, accept 2.353 ms
+adapt: step pass 3 2 tokens 25.766 ms
+dspark: pos 1077 step 0 draft 4123 p1 1.000
+dspark: pos 1077 step 1 draft 386 p1 0.970
+dspark: pos 1077 step 2 draft 13 p1 0.974
+dspark: pos 1077 step 3 draft 170289 p1 1.000
+dspark: pos 1077 step 4 draft 150396 p1 0.409
+spec: keyed draft 3.724 ms, 4 drafts
+spec: token 58 pos 1077 drafted 4 accepted 2 emits 3 drafts [4123, 386, 13, 170289]
+spec: keyed verify 5 rows (logits) 23.079 ms, accept 3.294 ms
+adapt: step pass 4 3 tokens 30.111 ms
+dspark: pos 1080 step 0 draft 149922 p1 0.912
+dspark: pos 1080 step 1 draft 150230 p1 0.999
+dspark: pos 1080 step 2 draft 150103 p1 0.686
+dspark: pos 1080 step 3 draft 167608 p1 0.995
+dspark: pos 1080 step 4 draft 13 p1 0.992
+spec: keyed draft 3.771 ms, 5 drafts
+spec: token 61 pos 1080 drafted 5 accepted 0 emits 1 drafts [149922, 150230, 150103, 167608, 13]
+spec: keyed verify 6 rows (logits) 25.513 ms, accept 1.051 ms
+adapt: step pass 5 1 tokens 30.346 ms
+dspark: pos 1081 step 0 draft 167182 p1 1.000
+dspark: pos 1081 step 1 draft 13 p1 0.671
+dspark: pos 1081 step 2 draft 170289 p1 0.999
+dspark: pos 1081 step 3 draft 150230 p1 0.753
+dspark: pos 1081 step 4 draft 150011 p1 0.755
+spec: keyed draft 3.734 ms, 4 drafts
+spec: token 62 pos 1081 drafted 4 accepted 1 emits 2 drafts [167182, 13, 170289, 150230]
+spec: keyed verify 5 rows (logits) 23.621 ms, accept 1.991 ms
+adapt: step pass 4 2 tokens 29.357 ms
+dspark: pos 1083 step 0 draft 149881 p1 0.827
+dspark: pos 1083 step 1 draft 150230 p1 0.995
+dspark: pos 1083 step 2 draft 150103 p1 0.887
+dspark: pos 1083 step 3 draft 167608 p1 0.999
+dspark: pos 1083 step 4 draft 13 p1 0.996
+spec: keyed draft 3.714 ms, 5 drafts
+spec: token 64 pos 1083 drafted 5 accepted 0 emits 1 drafts [149881, 150230, 150103, 167608, 13]
+spec: keyed verify 6 rows (logits) 25.496 ms, accept 1.176 ms
+adapt: step pass 5 1 tokens 30.397 ms
+dspark: pos 1084 step 0 draft 150230 p1 1.000
+dspark: pos 1084 step 1 draft 150103 p1 1.000
+dspark: pos 1084 step 2 draft 167608 p1 0.999
+dspark: pos 1084 step 3 draft 13 p1 0.996
+dspark: pos 1084 step 4 draft 170289 p1 0.911
+spec: keyed draft 3.733 ms, 5 drafts
+spec: token 65 pos 1084 drafted 5 accepted 5 emits 6 drafts [150230, 150103, 167608, 13, 170289]
+spec: keyed verify 6 rows (logits) 25.543 ms, accept 6.027 ms
+adapt: step pass 5 6 tokens 35.325 ms
+dspark: pos 1090 step 0 draft 150826 p1 0.556
+dspark: pos 1090 step 1 draft 151469 p1 0.454
+spec: keyed draft 4.247 ms, 1 drafts
+spec: token 71 pos 1090 drafted 1 accepted 0 emits 1 drafts [150826]
+spec: keyed verify 2 rows (logits) 15.217 ms, accept 1.038 ms
+adapt: step pass 1 1 tokens 20.511 ms
+dspark: pos 1091 step 0 draft 43218 p1 0.823
+dspark: pos 1091 step 1 draft 220 p1 0.344
+spec: keyed draft 3.419 ms, 1 drafts
+spec: token 72 pos 1091 drafted 1 accepted 0 emits 1 drafts [43218]
+spec: keyed verify 2 rows (logits) 15.413 ms, accept 1.510 ms
+adapt: step pass 1 1 tokens 20.353 ms
+dspark: pos 1092 step 0 draft 149882 p1 0.393
+spec: keyed draft 3.608 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.031 ms
+dspark: pos 1093 step 0 draft 152334 p1 0.350
+spec: keyed draft 3.537 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.004 ms
+dspark: pos 1094 step 0 draft 13 p1 0.771
+dspark: pos 1094 step 1 draft 152671 p1 0.474
+spec: keyed draft 3.570 ms, 1 drafts
+spec: token 75 pos 1094 drafted 1 accepted 1 emits 2 drafts [13]
+spec: keyed verify 2 rows (logits) 15.994 ms, accept 1.972 ms
+adapt: step pass 1 2 tokens 21.548 ms
+dspark: pos 1096 step 0 draft 149923 p1 0.678
+dspark: pos 1096 step 1 draft 150893 p1 0.437
+spec: keyed draft 3.676 ms, 1 drafts
+spec: token 77 pos 1096 drafted 1 accepted 0 emits 1 drafts [149923]
+spec: keyed verify 2 rows (logits) 15.072 ms, accept 1.111 ms
+adapt: step pass 1 1 tokens 19.867 ms
+dspark: pos 1097 step 0 draft 150103 p1 0.998
+dspark: pos 1097 step 1 draft 167608 p1 1.000
+dspark: pos 1097 step 2 draft 13 p1 0.999
+dspark: pos 1097 step 3 draft 179027 p1 0.642
+dspark: pos 1097 step 4 draft 153522 p1 0.436
+spec: keyed draft 3.494 ms, 4 drafts
+spec: token 78 pos 1097 drafted 4 accepted 0 emits 1 drafts [150103, 167608, 13, 179027]
+spec: keyed verify 5 rows (logits) 23.356 ms, accept 1.030 ms
+adapt: step pass 4 1 tokens 27.888 ms
+dspark: pos 1098 step 0 draft 167182 p1 1.000
+dspark: pos 1098 step 1 draft 13 p1 0.773
+dspark: pos 1098 step 2 draft 179027 p1 0.841
+dspark: pos 1098 step 3 draft 150657 p1 0.531
+spec: keyed draft 3.457 ms, 3 drafts
+spec: token 79 pos 1098 drafted 3 accepted 1 emits 2 drafts [167182, 13, 179027]
+spec: keyed verify 4 rows (logits) 20.153 ms, accept 2.193 ms
+adapt: step pass 3 2 tokens 25.812 ms
+dspark: pos 1100 step 0 draft 150011 p1 0.646
+dspark: pos 1100 step 1 draft 167608 p1 0.755
+spec: keyed draft 3.605 ms, 1 drafts
+spec: token 81 pos 1100 drafted 1 accepted 0 emits 1 drafts [150011]
+spec: keyed verify 2 rows (logits) 15.190 ms, accept 1.123 ms
+adapt: step pass 1 1 tokens 19.924 ms
+dspark: pos 1101 step 0 draft 167608 p1 1.000
+dspark: pos 1101 step 1 draft 13 p1 0.990
+dspark: pos 1101 step 2 draft 179027 p1 0.756
+dspark: pos 1101 step 3 draft 150657 p1 0.434
+spec: keyed draft 3.458 ms, 3 drafts
+spec: token 82 pos 1101 drafted 3 accepted 2 emits 3 drafts [167608, 13, 179027]
+spec: keyed verify 4 rows (logits) 20.452 ms, accept 3.300 ms
+adapt: step pass 3 3 tokens 27.223 ms
+dspark: pos 1104 step 0 draft 33175 p1 0.909
+dspark: pos 1104 step 1 draft 150893 p1 0.396
+spec: keyed draft 3.665 ms, 1 drafts
+spec: token 85 pos 1104 drafted 1 accepted 1 emits 2 drafts [33175]
+spec: keyed verify 2 rows (logits) 15.139 ms, accept 2.046 ms
+adapt: step pass 1 2 tokens 20.860 ms
+dspark: pos 1106 step 0 draft 162944 p1 0.992
+dspark: pos 1106 step 1 draft 149935 p1 0.884
+dspark: pos 1106 step 2 draft 150409 p1 0.390
+spec: keyed draft 3.661 ms, 2 drafts
+spec: token 87 pos 1106 drafted 2 accepted 1 emits 2 drafts [162944, 149935]
+spec: keyed verify 3 rows (logits) 17.351 ms, accept 2.295 ms
+adapt: step pass 2 2 tokens 23.317 ms
+dspark: pos 1108 step 0 draft 150409 p1 0.338
+spec: keyed draft 3.562 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.967 ms
+dspark: pos 1109 step 0 draft 150409 p1 0.354
+spec: keyed draft 3.515 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.060 ms
+dspark: pos 1110 step 0 draft 149881 p1 0.352
+spec: keyed draft 3.494 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.176 ms
+dspark: pos 1111 step 0 draft 150200 p1 0.222
+spec: keyed draft 3.531 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.236 ms
+dspark: pos 1112 step 0 draft 14 p1 0.401
+spec: keyed draft 3.518 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.551 ms
+dspark: pos 1113 step 0 draft 149880 p1 0.361
+spec: keyed draft 3.773 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.150 ms
+dspark: pos 1114 step 0 draft 150064 p1 0.154
+spec: keyed draft 3.530 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.067 ms
+dspark: pos 1115 step 0 draft 150377 p1 0.643
+dspark: pos 1115 step 1 draft 11 p1 0.626
+spec: keyed draft 3.560 ms, 1 drafts
+spec: token 96 pos 1115 drafted 1 accepted 0 emits 1 drafts [150377]
+spec: keyed verify 2 rows (logits) 15.368 ms, accept 1.127 ms
+adapt: step pass 1 1 tokens 20.069 ms
+dspark: pos 1116 step 0 draft 150022 p1 0.977
+dspark: pos 1116 step 1 draft 150409 p1 0.879
+dspark: pos 1116 step 2 draft 152473 p1 0.878
+dspark: pos 1116 step 3 draft 13 p1 0.677
+dspark: pos 1116 step 4 draft 152413 p1 0.909
+spec: keyed draft 3.520 ms, 4 drafts
+spec: token 97 pos 1116 drafted 4 accepted 1 emits 2 drafts [150022, 150409, 152473, 13]
+spec: keyed verify 5 rows (logits) 22.557 ms, accept 2.366 ms
+adapt: step pass 4 2 tokens 28.456 ms
+dspark: pos 1118 step 0 draft 150409 p1 0.888
+dspark: pos 1118 step 1 draft 171960 p1 0.813
+dspark: pos 1118 step 2 draft 150409 p1 0.568
+spec: keyed draft 3.653 ms, 2 drafts
+spec: token 99 pos 1118 drafted 2 accepted 1 emits 2 drafts [150409, 171960]
+spec: keyed verify 3 rows (logits) 17.280 ms, accept 2.083 ms
+adapt: step pass 2 2 tokens 23.031 ms
+dspark: pos 1120 step 0 draft 149884 p1 0.694
+dspark: pos 1120 step 1 draft 150239 p1 0.512
+spec: keyed draft 3.628 ms, 1 drafts
+spec: token 101 pos 1120 drafted 1 accepted 1 emits 2 drafts [149884]
+spec: keyed verify 2 rows (logits) 15.309 ms, accept 1.975 ms
+adapt: step pass 1 2 tokens 20.923 ms
+dspark: pos 1122 step 0 draft 151501 p1 0.874
+dspark: pos 1122 step 1 draft 13 p1 0.957
+dspark: pos 1122 step 2 draft 154710 p1 0.493
+spec: keyed draft 3.662 ms, 2 drafts
+spec: token 103 pos 1122 drafted 2 accepted 0 emits 1 drafts [151501, 13]
+spec: keyed verify 3 rows (logits) 18.617 ms, accept 1.057 ms
+adapt: step pass 2 1 tokens 23.348 ms
+dspark: pos 1123 step 0 draft 13 p1 0.967
+dspark: pos 1123 step 1 draft 150197 p1 0.595
+dspark: pos 1123 step 2 draft 150201 p1 0.726
+spec: keyed draft 3.470 ms, 2 drafts
+spec: token 104 pos 1123 drafted 2 accepted 1 emits 2 drafts [13, 150197]
+spec: keyed verify 3 rows (logits) 18.240 ms, accept 2.313 ms
+adapt: step pass 2 2 tokens 24.037 ms
+dspark: pos 1125 step 0 draft 149911 p1 0.266
+spec: keyed draft 3.605 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.124 ms
+dspark: pos 1126 step 0 draft 13 p1 0.928
+dspark: pos 1126 step 1 draft 154001 p1 0.357
+spec: keyed draft 3.555 ms, 1 drafts
+spec: token 107 pos 1126 drafted 1 accepted 1 emits 2 drafts [13]
+spec: keyed verify 2 rows (logits) 15.836 ms, accept 2.300 ms
+adapt: step pass 1 2 tokens 21.706 ms
+dspark: pos 1128 step 0 draft 33175 p1 0.403
+spec: keyed draft 3.572 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.109 ms
+dspark: pos 1129 step 0 draft 1534 p1 0.971
+dspark: pos 1129 step 1 draft 150103 p1 0.936
+dspark: pos 1129 step 2 draft 167608 p1 1.000
+dspark: pos 1129 step 3 draft 13 p1 0.993
+dspark: pos 1129 step 4 draft 16 p1 0.561
+spec: keyed draft 3.641 ms, 5 drafts
+spec: token 110 pos 1129 drafted 5 accepted 1 emits 2 drafts [1534, 150103, 167608, 13, 16]
+spec: keyed verify 6 rows (logits) 26.139 ms, accept 2.245 ms
+adapt: step pass 5 2 tokens 32.038 ms
+dspark: pos 1131 step 0 draft 196980 p1 0.982
+dspark: pos 1131 step 1 draft 1735 p1 0.397
+spec: keyed draft 3.667 ms, 1 drafts
+spec: token 112 pos 1131 drafted 1 accepted 1 emits 2 drafts [196980]
+spec: keyed verify 2 rows (logits) 14.951 ms, accept 1.966 ms
+adapt: step pass 1 2 tokens 20.595 ms
+dspark: pos 1133 step 0 draft 149878 p1 0.951
+dspark: pos 1133 step 1 draft 150396 p1 0.380
+spec: keyed draft 3.671 ms, 1 drafts
+spec: token 114 pos 1133 drafted 1 accepted 0 emits 1 drafts [149878]
+spec: keyed verify 2 rows (logits) 15.294 ms, accept 1.137 ms
+adapt: step pass 1 1 tokens 20.113 ms
+dspark: pos 1134 step 0 draft 11 p1 0.402
+spec: keyed draft 3.651 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.152 ms
+dspark: pos 1135 step 0 draft 150739 p1 0.510
+dspark: pos 1135 step 1 draft 162094 p1 0.455
+spec: keyed draft 3.572 ms, 1 drafts
+spec: token 116 pos 1135 drafted 1 accepted 1 emits 2 drafts [150739]
+spec: keyed verify 2 rows (logits) 15.239 ms, accept 2.028 ms
+adapt: step pass 1 2 tokens 20.851 ms
+dspark: pos 1137 step 0 draft 196976 p1 0.573
+dspark: pos 1137 step 1 draft 627 p1 0.754
+spec: keyed draft 3.658 ms, 1 drafts
+spec: token 118 pos 1137 drafted 1 accepted 0 emits 1 drafts [196976]
+spec: keyed verify 2 rows (logits) 15.898 ms, accept 0.999 ms
+adapt: step pass 1 1 tokens 20.565 ms
+dspark: pos 1138 step 0 draft 150054 p1 0.820
+dspark: pos 1138 step 1 draft 150258 p1 0.556
+spec: keyed draft 3.429 ms, 1 drafts
+spec: token 119 pos 1138 drafted 1 accepted 0 emits 1 drafts [150054]
+spec: keyed verify 2 rows (logits) 15.668 ms, accept 1.177 ms
+adapt: step pass 1 1 tokens 20.286 ms
+dspark: pos 1139 step 0 draft 150039 p1 0.220
+spec: keyed draft 3.584 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.999 ms
+dspark: pos 1140 step 0 draft 149880 p1 0.946
+dspark: pos 1140 step 1 draft 151370 p1 0.791
+dspark: pos 1140 step 2 draft 11 p1 0.999
+dspark: pos 1140 step 3 draft 11 p1 0.792
+dspark: pos 1140 step 4 draft 149880 p1 0.998
+spec: keyed draft 3.672 ms, 5 drafts
+spec: token 121 pos 1140 drafted 5 accepted 0 emits 1 drafts [149880, 151370, 11, 11, 149880]
+spec: keyed verify 6 rows (logits) 25.324 ms, accept 1.146 ms
+adapt: step pass 5 1 tokens 30.152 ms
+dspark: pos 1141 step 0 draft 74061 p1 0.363
+spec: keyed draft 3.326 ms, 0 drafts
+adapt: step empty 0 1 tokens 16.762 ms
+dspark: pos 1142 step 0 draft 149899 p1 0.821
+dspark: pos 1142 step 1 draft 153501 p1 0.854
+dspark: pos 1142 step 2 draft 153501 p1 0.674
+spec: keyed draft 3.562 ms, 2 drafts
+spec: token 123 pos 1142 drafted 2 accepted 1 emits 2 drafts [149899, 153501]
+spec: keyed verify 3 rows (logits) 18.266 ms, accept 2.535 ms
+adapt: step pass 2 2 tokens 24.373 ms
+dspark: pos 1144 step 0 draft 14 p1 0.730
+dspark: pos 1144 step 1 draft 74061 p1 0.633
+spec: keyed draft 3.510 ms, 1 drafts
+spec: token 125 pos 1144 drafted 1 accepted 1 emits 2 drafts [14]
+spec: keyed verify 2 rows (logits) 15.496 ms, accept 2.245 ms
+adapt: step pass 1 2 tokens 21.264 ms
+dspark: pos 1146 step 0 draft 11 p1 0.943
+spec: keyed draft 3.353 ms, 1 drafts
+spec: token 127 pos 1146 drafted 1 accepted 1 emits 2 drafts [11]
+spec: keyed verify 2 rows (logits) 15.765 ms, accept 2.181 ms
+ids[len1k]: [150103, 167608, 13, 200010, 200001, 200008, 371, 150409, 171960, 151433, 25, 196980, 4836, 149991, 150396, 167182, 149887, 151098, 149878, 150046, 151170, 13, 1, 150939, 6, 82, 149878, 151983, 149879, 220, 34795, 149881, 149876, 157282, 196976, 86583, 150406, 11, 152627, 11, 152236, 85886, 8, 11, 150022, 149876, 151082, 150377, 149884, 151537, 149880, 195307, 13, 149904, 150201, 150893, 149911, 4123, 386, 25, 150396, 167182, 11, 149922, 150230, 150103, 167608, 13, 170289, 149935, 149919, 1879, 149882, 150406, 13, 174520, 152703, 150396, 167182, 149881, 150103, 167608, 13, 68014, 33175, 149895, 162944, 25, 152334, 155494, 152105, 151226, 150383, 149880, 182416, 11, 150022, 155498, 150409, 151090, 149884, 151170, 167182, 13, 154710, 149890, 13, 68014, 1023, 1534, 25, 196980, 39619, 155595, 149881, 150739, 181345, 11, 156085, 174676, 14, 96680, 149899, 153103, 14, 74061, 11, 149880]
+decode[len1k]: 128 tokens, 1662 ms (76.41 tok/s)
+prefill[len1k]: 1021 tokens, 363 ms
+spec[len1k]: verify passes=51 proposed=129 accepted=54 (acceptance 41.9%, 2.06 tokens per pass)
+dspark: pos 4108 step 0 draft 25 p1 1.000
+dspark: pos 4108 step 1 draft 68063 p1 1.000
+dspark: pos 4108 step 2 draft 153961 p1 1.000
+dspark: pos 4108 step 3 draft 185473 p1 1.000
+dspark: pos 4108 step 4 draft 279 p1 1.000
+spec: keyed draft 3.760 ms, 5 drafts
+spec: token 2 pos 4108 drafted 5 accepted 5 emits 6 drafts [25, 68063, 153961, 185473, 279]
+spec: keyed verify 6 rows (logits) 26.005 ms, accept 6.390 ms
+adapt: step pass 5 6 tokens 36.176 ms
+dspark: pos 4114 step 0 draft 220 p1 1.000
+dspark: pos 4114 step 1 draft 68366 p1 1.000
+dspark: pos 4114 step 2 draft 150983 p1 1.000
+dspark: pos 4114 step 3 draft 14 p1 1.000
+dspark: pos 4114 step 4 draft 71 p1 1.000
+spec: keyed draft 4.469 ms, 5 drafts
+spec: token 8 pos 4114 drafted 5 accepted 5 emits 6 drafts [220, 68366, 150983, 14, 71]
+spec: keyed verify 6 rows (logits) 26.110 ms, accept 6.615 ms
+adapt: step pass 5 6 tokens 37.214 ms
+dspark: pos 4120 step 0 draft 149897 p1 1.000
+dspark: pos 4120 step 1 draft 150514 p1 1.000
+dspark: pos 4120 step 2 draft 151226 p1 1.000
+dspark: pos 4120 step 3 draft 160172 p1 1.000
+dspark: pos 4120 step 4 draft 149876 p1 0.995
+spec: keyed draft 4.561 ms, 5 drafts
+spec: token 14 pos 4120 drafted 5 accepted 5 emits 6 drafts [149897, 150514, 151226, 160172, 149876]
+spec: keyed verify 6 rows (logits) 26.673 ms, accept 6.649 ms
+adapt: step pass 5 6 tokens 37.901 ms
+dspark: pos 4126 step 0 draft 152275 p1 1.000
+dspark: pos 4126 step 1 draft 149922 p1 1.000
+dspark: pos 4126 step 2 draft 220 p1 1.000
+dspark: pos 4126 step 3 draft 19 p1 1.000
+dspark: pos 4126 step 4 draft 13 p1 0.946
+spec: keyed draft 4.530 ms, 5 drafts
+spec: token 20 pos 4126 drafted 5 accepted 4 emits 5 drafts [152275, 149922, 220, 19, 13]
+spec: keyed verify 6 rows (logits) 27.049 ms, accept 5.414 ms
+adapt: step pass 5 5 tokens 37.009 ms
+dspark: pos 4131 step 0 draft 68018 p1 1.000
+dspark: pos 4131 step 1 draft 153961 p1 1.000
+dspark: pos 4131 step 2 draft 149894 p1 1.000
+dspark: pos 4131 step 3 draft 149876 p1 1.000
+dspark: pos 4131 step 4 draft 150244 p1 1.000
+spec: keyed draft 4.597 ms, 5 drafts
+spec: token 25 pos 4131 drafted 5 accepted 5 emits 6 drafts [68018, 153961, 149894, 149876, 150244]
+spec: keyed verify 6 rows (logits) 27.455 ms, accept 6.391 ms
+adapt: step pass 5 6 tokens 38.459 ms
+dspark: pos 4137 step 0 draft 149881 p1 1.000
+dspark: pos 4137 step 1 draft 149876 p1 1.000
+dspark: pos 4137 step 2 draft 150244 p1 1.000
+dspark: pos 4137 step 3 draft 150983 p1 0.997
+dspark: pos 4137 step 4 draft 150983 p1 0.894
+spec: keyed draft 4.394 ms, 5 drafts
+spec: token 31 pos 4137 drafted 5 accepted 3 emits 4 drafts [149881, 149876, 150244, 150983, 150983]
+spec: keyed verify 6 rows (logits) 27.982 ms, accept 4.453 ms
+adapt: step pass 5 4 tokens 36.845 ms
+dspark: pos 4141 step 0 draft 149922 p1 1.000
+dspark: pos 4141 step 1 draft 220 p1 1.000
+dspark: pos 4141 step 2 draft 69580 p1 1.000
+dspark: pos 4141 step 3 draft 150983 p1 1.000
+dspark: pos 4141 step 4 draft 14 p1 0.978
+spec: keyed draft 4.299 ms, 5 drafts
+spec: token 35 pos 4141 drafted 5 accepted 5 emits 6 drafts [149922, 220, 69580, 150983, 14]
+spec: keyed verify 6 rows (logits) 27.421 ms, accept 6.628 ms
+adapt: step pass 5 6 tokens 38.365 ms
+dspark: pos 4147 step 0 draft 13 p1 1.000
+dspark: pos 4147 step 1 draft 150847 p1 1.000
+dspark: pos 4147 step 2 draft 150161 p1 0.978
+dspark: pos 4147 step 3 draft 150038 p1 0.982
+dspark: pos 4147 step 4 draft 150038 p1 0.958
+spec: keyed draft 4.430 ms, 5 drafts
+spec: token 41 pos 4147 drafted 5 accepted 4 emits 5 drafts [13, 150847, 150161, 150038, 150038]
+spec: keyed verify 6 rows (logits) 27.182 ms, accept 5.632 ms
+adapt: step pass 5 5 tokens 37.258 ms
+dspark: pos 4152 step 0 draft 149876 p1 1.000
+dspark: pos 4152 step 1 draft 150514 p1 1.000
+dspark: pos 4152 step 2 draft 151226 p1 1.000
+dspark: pos 4152 step 3 draft 152925 p1 1.000
+dspark: pos 4152 step 4 draft 150069 p1 0.780
+spec: keyed draft 4.327 ms, 5 drafts
+spec: token 46 pos 4152 drafted 5 accepted 5 emits 6 drafts [149876, 150514, 151226, 152925, 150069]
+spec: keyed verify 6 rows (logits) 26.541 ms, accept 6.712 ms
+adapt: step pass 5 6 tokens 37.594 ms
+dspark: pos 4158 step 0 draft 149876 p1 1.000
+dspark: pos 4158 step 1 draft 150135 p1 1.000
+dspark: pos 4158 step 2 draft 30 p1 1.000
+dspark: pos 4158 step 3 draft 155242 p1 1.000
+dspark: pos 4158 step 4 draft 150039 p1 1.000
+spec: keyed draft 4.423 ms, 5 drafts
+spec: token 52 pos 4158 drafted 5 accepted 5 emits 6 drafts [149876, 150135, 30, 155242, 150039]
+spec: keyed verify 6 rows (logits) 27.885 ms, accept 6.636 ms
+adapt: step pass 5 6 tokens 38.960 ms
+dspark: pos 4164 step 0 draft 151093 p1 1.000
+dspark: pos 4164 step 1 draft 149910 p1 1.000
+dspark: pos 4164 step 2 draft 151093 p1 1.000
+dspark: pos 4164 step 3 draft 151093 p1 0.831
+dspark: pos 4164 step 4 draft 11 p1 1.000
+spec: keyed draft 4.428 ms, 5 drafts
+spec: token 58 pos 4164 drafted 5 accepted 3 emits 4 drafts [151093, 149910, 151093, 151093, 11]
+spec: keyed verify 6 rows (logits) 27.340 ms, accept 4.436 ms
+adapt: step pass 5 4 tokens 36.216 ms
+dspark: pos 4168 step 0 draft 149880 p1 1.000
+dspark: pos 4168 step 1 draft 150372 p1 1.000
+dspark: pos 4168 step 2 draft 149876 p1 1.000
+dspark: pos 4168 step 3 draft 151263 p1 0.999
+dspark: pos 4168 step 4 draft 149920 p1 1.000
+spec: keyed draft 4.306 ms, 5 drafts
+spec: token 62 pos 4168 drafted 5 accepted 5 emits 6 drafts [149880, 150372, 149876, 151263, 149920]
+spec: keyed verify 6 rows (logits) 26.816 ms, accept 6.735 ms
+adapt: step pass 5 6 tokens 37.871 ms
+dspark: pos 4174 step 0 draft 152275 p1 1.000
+dspark: pos 4174 step 1 draft 149922 p1 1.000
+dspark: pos 4174 step 2 draft 149984 p1 1.000
+dspark: pos 4174 step 3 draft 150051 p1 1.000
+dspark: pos 4174 step 4 draft 152750 p1 0.997
+spec: keyed draft 4.367 ms, 5 drafts
+spec: token 68 pos 4174 drafted 5 accepted 5 emits 6 drafts [152275, 149922, 149984, 150051, 152750]
+spec: keyed verify 6 rows (logits) 27.193 ms, accept 6.879 ms
+adapt: step pass 5 6 tokens 38.452 ms
+dspark: pos 4180 step 0 draft 200010 p1 0.943
+dspark: pos 4180 step 1 draft 200001 p1 1.000
+dspark: pos 4180 step 2 draft 200008 p1 1.000
+dspark: pos 4180 step 3 draft 371 p1 0.975
+dspark: pos 4180 step 4 draft 150409 p1 0.969
+spec: keyed draft 4.449 ms, 5 drafts
+spec: token 74 pos 4180 drafted 5 accepted 5 emits 6 drafts [200010, 200001, 200008, 371, 150409]
+spec: keyed verify 6 rows (logits) 26.405 ms, accept 6.729 ms
+adapt: step pass 5 6 tokens 37.596 ms
+dspark: pos 4186 step 0 draft 159978 p1 0.747
+dspark: pos 4186 step 1 draft 149878 p1 0.744
+dspark: pos 4186 step 2 draft 150377 p1 0.371
+spec: keyed draft 4.349 ms, 2 drafts
+spec: token 80 pos 4186 drafted 2 accepted 2 emits 3 drafts [159978, 149878]
+spec: keyed verify 3 rows (logits) 18.250 ms, accept 3.366 ms
+adapt: step pass 2 3 tokens 25.977 ms
+dspark: pos 4189 step 0 draft 12 p1 0.588
+dspark: pos 4189 step 1 draft 31897 p1 0.538
+spec: keyed draft 3.808 ms, 1 drafts
+spec: token 83 pos 4189 drafted 1 accepted 0 emits 1 drafts [12]
+spec: keyed verify 2 rows (logits) 15.531 ms, accept 1.324 ms
+adapt: step pass 1 1 tokens 20.673 ms
+dspark: pos 4190 step 0 draft 149899 p1 0.330
+spec: keyed draft 3.755 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.537 ms
+dspark: pos 4191 step 0 draft 150879 p1 1.000
+dspark: pos 4191 step 1 draft 11 p1 0.609
+dspark: pos 4191 step 2 draft 150196 p1 0.572
+spec: keyed draft 3.756 ms, 2 drafts
+spec: token 85 pos 4191 drafted 2 accepted 2 emits 3 drafts [150879, 11]
+spec: keyed verify 3 rows (logits) 18.157 ms, accept 3.576 ms
+adapt: step pass 2 3 tokens 25.503 ms
+dspark: pos 4194 step 0 draft 150056 p1 0.641
+dspark: pos 4194 step 1 draft 152203 p1 0.548
+spec: keyed draft 3.781 ms, 1 drafts
+spec: token 88 pos 4194 drafted 1 accepted 0 emits 1 drafts [150056]
+spec: keyed verify 2 rows (logits) 15.432 ms, accept 1.102 ms
+adapt: step pass 1 1 tokens 20.325 ms
+dspark: pos 4195 step 0 draft 149876 p1 0.381
+spec: keyed draft 3.515 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.218 ms
+dspark: pos 4196 step 0 draft 171960 p1 0.668
+dspark: pos 4196 step 1 draft 149876 p1 0.924
+dspark: pos 4196 step 2 draft 150893 p1 0.279
+spec: keyed draft 3.838 ms, 2 drafts
+spec: token 90 pos 4196 drafted 2 accepted 0 emits 1 drafts [171960, 149876]
+spec: keyed verify 3 rows (logits) 17.948 ms, accept 1.162 ms
+adapt: step pass 2 1 tokens 22.960 ms
+dspark: pos 4197 step 0 draft 149876 p1 0.537
+dspark: pos 4197 step 1 draft 151082 p1 0.330
+spec: keyed draft 3.818 ms, 1 drafts
+spec: token 91 pos 4197 drafted 1 accepted 1 emits 2 drafts [149876]
+spec: keyed verify 2 rows (logits) 15.277 ms, accept 2.265 ms
+adapt: step pass 1 2 tokens 21.370 ms
+dspark: pos 4199 step 0 draft 150471 p1 0.432
+spec: keyed draft 3.771 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.564 ms
+dspark: pos 4200 step 0 draft 386 p1 1.000
+dspark: pos 4200 step 1 draft 150471 p1 0.517
+dspark: pos 4200 step 2 draft 149878 p1 0.576
+spec: keyed draft 3.772 ms, 2 drafts
+spec: token 94 pos 4200 drafted 2 accepted 2 emits 3 drafts [386, 150471]
+spec: keyed verify 3 rows (logits) 17.793 ms, accept 3.168 ms
+adapt: step pass 2 3 tokens 24.747 ms
+dspark: pos 4203 step 0 draft 151469 p1 0.355
+spec: keyed draft 3.770 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.436 ms
+dspark: pos 4204 step 0 draft 159106 p1 0.410
+spec: keyed draft 3.678 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.361 ms
+dspark: pos 4205 step 0 draft 13 p1 0.829
+dspark: pos 4205 step 1 draft 170289 p1 0.935
+dspark: pos 4205 step 2 draft 150893 p1 0.987
+dspark: pos 4205 step 3 draft 13 p1 0.784
+dspark: pos 4205 step 4 draft 149904 p1 0.990
+spec: keyed draft 3.814 ms, 5 drafts
+spec: token 99 pos 4205 drafted 5 accepted 4 emits 5 drafts [13, 170289, 150893, 13, 149904]
+spec: keyed verify 6 rows (logits) 25.891 ms, accept 5.626 ms
+adapt: step pass 5 5 tokens 35.343 ms
+dspark: pos 4210 step 0 draft 152134 p1 0.310
+spec: keyed draft 4.137 ms, 0 drafts
+adapt: step empty 0 1 tokens 17.759 ms
+dspark: pos 4211 step 0 draft 164966 p1 0.775
+dspark: pos 4211 step 1 draft 13 p1 0.990
+dspark: pos 4211 step 2 draft 152413 p1 0.982
+dspark: pos 4211 step 3 draft 152473 p1 0.743
+dspark: pos 4211 step 4 draft 13 p1 0.940
+spec: keyed draft 3.851 ms, 5 drafts
+spec: token 105 pos 4211 drafted 5 accepted 0 emits 1 drafts [164966, 13, 152413, 152473, 13]
+spec: keyed verify 6 rows (logits) 25.477 ms, accept 1.431 ms
+adapt: step pass 5 1 tokens 30.774 ms
+dspark: pos 4212 step 0 draft 149910 p1 1.000
+dspark: pos 4212 step 1 draft 151093 p1 0.999
+dspark: pos 4212 step 2 draft 13 p1 0.998
+dspark: pos 4212 step 3 draft 152413 p1 0.798
+dspark: pos 4212 step 4 draft 152473 p1 0.697
+spec: keyed draft 3.892 ms, 5 drafts
+spec: token 106 pos 4212 drafted 5 accepted 2 emits 3 drafts [149910, 151093, 13, 152413, 152473]
+spec: keyed verify 6 rows (logits) 26.296 ms, accept 3.602 ms
+adapt: step pass 5 3 tokens 33.804 ms
+dspark: pos 4215 step 0 draft 150400 p1 0.605
+dspark: pos 4215 step 1 draft 150130 p1 0.451
+spec: keyed draft 3.808 ms, 1 drafts
+spec: token 109 pos 4215 drafted 1 accepted 0 emits 1 drafts [150400]
+spec: keyed verify 2 rows (logits) 15.655 ms, accept 1.113 ms
+adapt: step pass 1 1 tokens 20.586 ms
+dspark: pos 4216 step 0 draft 4123 p1 1.000
+dspark: pos 4216 step 1 draft 13 p1 0.705
+dspark: pos 4216 step 2 draft 150197 p1 0.821
+dspark: pos 4216 step 3 draft 149951 p1 0.860
+spec: keyed draft 3.606 ms, 3 drafts
+spec: token 110 pos 4216 drafted 3 accepted 2 emits 3 drafts [4123, 13, 150197]
+spec: keyed verify 4 rows (logits) 20.705 ms, accept 3.732 ms
+adapt: step pass 3 3 tokens 28.054 ms
+dspark: pos 4219 step 0 draft 6 p1 1.000
+dspark: pos 4219 step 1 draft 82 p1 1.000
+dspark: pos 4219 step 2 draft 155262 p1 0.700
+dspark: pos 4219 step 3 draft 13 p1 0.857
+dspark: pos 4219 step 4 draft 164966 p1 0.255
+spec: keyed draft 3.936 ms, 4 drafts
+spec: token 113 pos 4219 drafted 4 accepted 2 emits 3 drafts [6, 82, 155262, 13]
+spec: keyed verify 5 rows (logits) 23.690 ms, accept 3.176 ms
+adapt: step pass 4 3 tokens 30.813 ms
+dspark: pos 4222 step 0 draft 13 p1 0.910
+dspark: pos 4222 step 1 draft 13 p1 0.670
+dspark: pos 4222 step 2 draft 83 p1 0.859
+dspark: pos 4222 step 3 draft 13 p1 0.803
+spec: keyed draft 3.837 ms, 3 drafts
+spec: token 116 pos 4222 drafted 3 accepted 0 emits 1 drafts [13, 13, 83]
+spec: keyed verify 4 rows (logits) 20.708 ms, accept 1.115 ms
+adapt: step pass 3 1 tokens 25.670 ms
+dspark: pos 4223 step 0 draft 13 p1 1.000
+dspark: pos 4223 step 1 draft 68014 p1 1.000
+dspark: pos 4223 step 2 draft 4716 p1 0.949
+dspark: pos 4223 step 3 draft 151226 p1 0.461
+spec: keyed draft 3.623 ms, 3 drafts
+spec: token 117 pos 4223 drafted 3 accepted 3 emits 4 drafts [13, 68014, 4716]
+spec: keyed verify 4 rows (logits) 20.920 ms, accept 4.324 ms
+adapt: step pass 3 4 tokens 28.882 ms
+dspark: pos 4227 step 0 draft 160235 p1 0.808
+dspark: pos 4227 step 1 draft 149922 p1 0.984
+dspark: pos 4227 step 2 draft 152275 p1 0.977
+dspark: pos 4227 step 3 draft 149922 p1 0.991
+dspark: pos 4227 step 4 draft 18 p1 0.676
+spec: keyed draft 4.684 ms, 5 drafts
+spec: token 121 pos 4227 drafted 5 accepted 0 emits 1 drafts [160235, 149922, 152275, 149922, 18]
+spec: keyed verify 6 rows (logits) 25.426 ms, accept 1.202 ms
+adapt: step pass 5 1 tokens 31.322 ms
+dspark: pos 4228 step 0 draft 149922 p1 0.618
+dspark: pos 4228 step 1 draft 152275 p1 0.958
+dspark: pos 4228 step 2 draft 149922 p1 0.993
+dspark: pos 4228 step 3 draft 68063 p1 0.567
+spec: keyed draft 3.803 ms, 3 drafts
+spec: token 122 pos 4228 drafted 3 accepted 0 emits 1 drafts [149922, 152275, 149922]
+spec: keyed verify 4 rows (logits) 19.198 ms, accept 1.113 ms
+adapt: step pass 3 1 tokens 24.125 ms
+dspark: pos 4229 step 0 draft 18 p1 1.000
+dspark: pos 4229 step 1 draft 149922 p1 0.974
+dspark: pos 4229 step 2 draft 68063 p1 0.999
+dspark: pos 4229 step 3 draft 153961 p1 0.964
+dspark: pos 4229 step 4 draft 149922 p1 0.867
+spec: keyed draft 3.659 ms, 5 drafts
+spec: token 123 pos 4229 drafted 5 accepted 1 emits 2 drafts [18, 149922, 68063, 153961, 149922]
+spec: keyed verify 6 rows (logits) 24.613 ms, accept 2.140 ms
+adapt: step pass 5 2 tokens 30.428 ms
+dspark: pos 4231 step 0 draft 68063 p1 1.000
+dspark: pos 4231 step 1 draft 153961 p1 0.919
+dspark: pos 4231 step 2 draft 149922 p1 0.931
+spec: keyed draft 3.685 ms, 3 drafts
+spec: token 125 pos 4231 drafted 3 accepted 3 emits 4 drafts [68063, 153961, 149922]
+spec: keyed verify 4 rows (logits) 20.210 ms, accept 4.224 ms
+ids[len4k]: [18, 25, 68063, 153961, 185473, 279, 149922, 220, 68366, 150983, 14, 71, 13, 149897, 150514, 151226, 160172, 149876, 150244, 152275, 149922, 220, 19, 25, 68018, 153961, 149894, 149876, 150244, 154182, 149881, 149876, 150244, 151390, 149922, 220, 69580, 150983, 14, 71, 13, 150847, 150161, 150038, 150441, 149876, 150514, 151226, 152925, 150069, 149899, 149876, 150135, 30, 155242, 150039, 169014, 151093, 149910, 151093, 11, 149880, 150372, 149876, 151263, 149920, 149876, 152275, 149922, 149984, 150051, 152750, 13, 200010, 200001, 200008, 371, 150409, 150008, 159978, 149878, 151226, 150383, 150332, 150879, 11, 150022, 150386, 153011, 155655, 149876, 150383, 154603, 386, 150471, 149876, 151469, 191701, 13, 170289, 150893, 13, 170289, 152134, 151093, 149910, 151093, 150022, 149911, 4123, 13, 151217, 6, 82, 152894, 164966, 13, 68014, 4716, 16, 160172, 220, 18, 25, 68063, 153961, 149922, 220]
+decode[len4k]: 128 tokens, 1140 ms (111.37 tok/s)
+prefill[len4k]: 4108 tokens, 1174 ms
+spec[len4k]: verify passes=33 proposed=126 accepted=88 (acceptance 69.8%, 3.67 tokens per pass)
+decode overall: 762 tokens after the first, 8808 ms (86.52 tok/s)
+prefill overall: 5329 tokens, 1937 ms (2751.4 tok/s)
+spec: verify passes=281 proposed=805 accepted=382 (acceptance 47.5%, 2.36 tokens per pass)

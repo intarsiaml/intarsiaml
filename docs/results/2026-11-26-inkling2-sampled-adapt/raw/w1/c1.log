@@ -1,0 +1,5 @@
+[w1 c1] cal 0 T 0.7 rc 0 2026-11-26 21:12:58 | decode overall: 762 tokens after the first, 8808 ms (86.52 tok/s) | spec: verify passes=281 proposed=805 accepted=382 (acceptance 47.5%, 2.36 tokens per pass)
+[w1 c1] cal drafts T 0.7 rc 0 2026-11-26 21:13:23 | decode overall: 762 tokens after the first, 12552 ms (60.71 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[w1 c1] cal 1 T 0.7 rc 0 2026-11-26 21:13:43 | decode overall: 762 tokens after the first, 8681 ms (87.77 tok/s) | spec: verify passes=221 proposed=605 accepted=329 (acceptance 54.4%, 2.49 tokens per pass)
+[w1 c1] seeds arm 1 rc 0 2026-11-26 21:15:16 lines 200 | 412 phase changes (217 stops, 28 resumes) | 200 requests in 83.0 s; spec verify passes 521 proposed 859 accepted 194
+[w1 c1] tiny inkling2_dspark_sampled_adapt (hip) rc 0 2026-11-26 21:15:47 | test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.99s

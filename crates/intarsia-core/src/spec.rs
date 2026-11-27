@@ -257,6 +257,10 @@ pub fn sampled_dflash_default_for(_backend: &str) -> bool {
     false
 }
 
+// lane ink-sampled-adapt: the per-request draft length of sampled DFlash-family speculation (`INTARSIA_SPEC_SAMPLED_ADAPT`)
+mod adapt;
+pub use adapt::{sampled_adapt_env, AdaptEvent, AdaptK, AdaptMode, AdaptParams, AdaptRun};
+
 /// The probability of accepting draft `x` drawn from `q` against the target `p`: `min(1, p(x) / q(x))` (0 when `q(x) = 0`,
 /// which a draw from `q` never gives).
 pub fn accept_prob(p: &crate::sampler::Dist, q: &crate::sampler::Dist, x: u32) -> f64 {

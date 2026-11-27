@@ -444,6 +444,11 @@ pub struct BackendTuning {
     /// `INTARSIA_GUMBEL_SAMPLING` is not set. It changes which token a given seed draws (same distribution): only
     /// `recipes/inkling2.toml` sets it, `true` on Metal (user decision 2026-11-22, lane ink-metal).
     pub gumbel_sampling: Option<bool>,
+    /// Lane ink-sampled-adapt: the draft length policy of sampled requests that draft with a DFlash-family draft
+    /// (`INTARSIA_SPEC_SAMPLED_DFLASH=1`) on this backend, in `INTARSIA_SPEC_SAMPLED_ADAPT`'s syntax (`off`, or `key=value` pairs over the
+    /// built-in table, [`crate::spec::AdaptParams::apply`]) when that variable is not set. Unset: the built-in table
+    /// ([`crate::spec::AdaptParams::default_for`]). Acts only on sampled DFlash-family requests.
+    pub sampled_adapt: Option<String>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -547,6 +552,11 @@ impl Recipe {
     /// The recipe's `gumbel_sampling` for `backend` (`[tuning.<backend>]`); the env var is resolved by [`crate::gumbel::wanted`].
     pub fn gumbel_sampling(&self, backend: &str) -> Option<bool> {
         self.tuning.backends.get(backend).and_then(|b| b.gumbel_sampling)
+    }
+
+    /// The recipe's `sampled_adapt` for `backend` (`[tuning.<backend>]`), unparsed ([`crate::spec::AdaptMode::resolve`]).
+    pub fn sampled_adapt(&self, backend: &str) -> Option<&str> {
+        self.tuning.backends.get(backend).and_then(|b| b.sampled_adapt.as_deref())
     }
 
     /// The recipe's `ink_attn_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.

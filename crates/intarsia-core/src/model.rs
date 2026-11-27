@@ -828,6 +828,9 @@ pub struct Model {
     /// Sampled requests draft with a DFlash-family draft (lane ink-sampled, [`crate::spec::sampled_dflash_from_env`]): 0 =
     /// `INTARSIA_SPEC_SAMPLED_DFLASH`, 1 = off, 2 = on ([`Model::set_spec_sampled_dflash`]).
     spec_sampled_dflash: std::sync::atomic::AtomicU8,
+    /// Lane ink-sampled-adapt: the per-request draft length policy of sampled DFlash-family requests set by
+    /// [`Model::set_spec_sampled_adapt`] (tests); `None`: `INTARSIA_SPEC_SAMPLED_ADAPT`, the recipe, the built-in table.
+    spec_sampled_adapt: std::sync::Mutex<Option<crate::spec::AdaptMode>>,
     /// Dispatches of a speculative feedback step submitted before the previous token is read (`model/feedback.rs`).
     feedback_hold: usize,
     /// Opt-in prefill tail merge in rows (`INTARSIA_PREFILL_TAIL_MERGE`, already clamped; 0 = off). The workspace holds
@@ -2303,6 +2306,7 @@ impl Model {
             spec_pipe: std::sync::atomic::AtomicU8::new(0),
             spec_sampled: std::sync::atomic::AtomicU8::new(0),
             spec_sampled_dflash: std::sync::atomic::AtomicU8::new(0),
+            spec_sampled_adapt: std::sync::Mutex::new(None),
             feedback_hold,
             tail_merge,
             // the recipe chunk also when an Inkling-2 packed-prefill workspace is larger than it (lane ink-hip-bpf)
