@@ -320,10 +320,15 @@ pub(super) fn load_head(
 }
 
 /// `INTARSIA_DFLASH2_HEAD` (lane ink-dflash2; Inkling-2 DFlash2 drafts): `mxfp4` / `fp8` quantise the target unembed's first
-/// `dims.vocab` rows for the draft's logits (`DflashHead::full_head`), `bf16` / unset keep the target's head (`None`).
+/// `dims.vocab` rows for the draft's logits (`DflashHead::full_head`), `bf16` keeps the target's head (`None`). Unset: `mxfp4` on
+/// HIP (window 2: 142.2 vs 138.9 tok/s, the same acceptance; the bf16 head is 1.8 of a 4.9 ms draft pass), `bf16` elsewhere.
 pub(super) fn dflash2_head_copy(b: &dyn Backend, target: &dyn WeightSource, unembed: &str, dims: &ModelDims, add_bytes: &dyn Fn(u64)) -> Result<Option<QTensor>> {
     let v = std::env::var("INTARSIA_DFLASH2_HEAD").unwrap_or_default();
-    let kind = match v.trim() {
+    let v = match v.trim() {
+        "" if b.name() == "hip" => "mxfp4",
+        x => x,
+    };
+    let kind = match v {
         "mxfp4" => crate::quant::head::HeadQuant::Mxfp4,
         "fp8" => crate::quant::head::HeadQuant::Fp8,
         "bf16" | "0" | "off" | "" => return Ok(None),

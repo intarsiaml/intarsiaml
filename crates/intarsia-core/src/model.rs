@@ -1978,8 +1978,8 @@ impl Model {
                     head.full_head = load_head(false)?;
                 }
                 // lane ink-dflash2: an Inkling-2 DFlash2 draft's logits on its own quantised copy of the unembed's real rows
-                // (`INTARSIA_DFLASH2_HEAD=mxfp4|fp8`, as the DSpark draft's `INTARSIA_DSPARK_HEAD`); unset / `bf16`: the target's head,
-                // as the reference does. Draft numerics only (the proposals), never the output.
+                // (`INTARSIA_DFLASH2_HEAD`, as the DSpark draft's `INTARSIA_DSPARK_HEAD`): mxfp4 by default on HIP, `bf16` = the target's
+                // head as the reference does. Draft numerics only (the proposals), never the output.
                 if head.v2.is_some() && dims.ink.is_some() {
                     head.full_head = dflash::dflash2_head_copy(b, src, &unembed, dims, &|n| weights_bytes.set(weights_bytes.get() + n))?.or(head.full_head);
                 }
