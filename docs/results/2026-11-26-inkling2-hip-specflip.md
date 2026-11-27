@@ -797,3 +797,31 @@ intarsia-models 635 (incl. inkling2_dflash2 with #546's `draft_pass_matches_host
 - Sampled default on Metal (T 1.0, seed 1): `sampled requests (temperature > 0): DFlash-family drafting off (default ...)`.
 - Metal tiny suites of the (a) head: inkling2_sampled_default 2/2, inkling2_dspark_sampled 2/2 (3 ignored), inkling2_dspark_sampled_adapt
   2/2, inkling2_dspark 4/4, inkling2_dflash2 12/12; 0 failed. 45 s idle gaps sat between run groups (nothing timed).
+
+## WA3 (morning 11-27): user accepts the bounded 38 MiB swing
+
+**User, 11-27 morning (as written):** "Accept, run WA3"
+
+### Pre-registration: WA3 on the merged head (written 09:36 EST 11-27, before building or queuing anything)
+
+Deviations from the 00:42 plan, and why:
+- **Binary `dualM`** = the (a) head `e6e8b4ee5` (the main7 merge `55f43e087` plus docs), built fresh on tatooine (`raw/prep_a.sh dualM`).
+  `dualA5` / `dualA6` predate the main7 merge; the merged head (dual drafters + #542's HIP kernels and scheduler + #546) has never run on a GPU.
+- **Control `main7`** (origin/main `4b629184c`, md5 `d644af53`, already on tatooine), not `specA2`: main7 is the merge base of the (a)
+  head, so the ratio isolates the (a) change. M2 showed main7 = specA2 only for greedy default and plain decode; the sampled default was
+  never compared, so a specA2 control would mix #542 into the contention ratio.
+- **Two windows, not one.** The admission cache is keyed by the exe's size and mtime (`host_fingerprint`), so `dualM`'s b16 start is cold
+  (~134 cases, ~150 s with the load), and the sampled ABBA takes ~2:25 (D2: 2:23). One window would need ~5:10 > the 285 s cap. Each
+  window stays <= 285 s.
+  - **WA3s** (`PART=sampled`): the sampled contention ABBA as planned (card 0 T 1.0, card 1 T 0.7, 4 reps each, off pol / pol off /
+    pol off / off pol; arm off = main7 default, pol = dualM default). Out: `logs/a-sampled-dualM/`.
+  - **WA3b** (`PART=serve`, only if WA3s passes): card 0 `serve --max-batch 16` of dualM (cold admission, up to 200 s), its 16 replies at
+    once; card 1 meanwhile (untimed) greedy md5.json 256 tokens `--ignore-eos`, dualM `--spec off` vs its default (the DFlash2 k4 greedy
+    default). Out: `logs/a3-serve-dualM/`.
+
+Gate (every item must pass; one try each, no re-run hoping for a pass; a void or any miss: stop and report, no PR):
+1. **Sampled speed:** `speed3.py logs/a-sampled-dualM`: every cell's pol / off ratio (short pooled, 1k, 4k; and each prompt) at T 1.0 and
+   T 0.7 has a 95 % CI upper bound >= 0.99 (n = 4 rep pairs).
+2. **Sampled ids:** every process of one temperature emits the same ids (both arms, all reps; same seed).
+3. **b16:** dualM's 16 b16 replies = main7's M1 b16 replies, 16 / 16 (also compared with PR A's GS2 b16, information).
+4. **Greedy on the merged head:** dualM `--spec off` = dualM default, ids md5 equal and = `380af8a5` (main7's); the default line names DFlash2.
