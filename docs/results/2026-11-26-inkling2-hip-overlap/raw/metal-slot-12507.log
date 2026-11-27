@@ -1,0 +1,18 @@
+fleetq: #12507 waiting (#1 in line): endor is held exclusively by #12502 "ink-metal-dflash2: slot 4 ABBA half B (dfl5 dspark dspark dfl5) + full inkling2_dflash2 suite on metal" (claude-04c0e1cd)
+fleetq:   #12502 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12502 set, or it will wait for #12502 to be released.
+fleetq: #12507 running on endor: bash .scratch/metal_slot.sh
+[metal] start 00:49:05; main6 1bf40e29f, o6 7830c114e
+[metal] md5 main6 off rc 0 ids256 1a6f15abda8878e2930712013320dcbd first64 a599cc45a7aeea5646b512904ba98b44 lines 7 00:49:35 | prefill overall: 4430 tokens, 2126 ms (2083.9 tok/s)
+[metal] md5 o6 off rc 0 ids256 1a6f15abda8878e2930712013320dcbd first64 a599cc45a7aeea5646b512904ba98b44 lines 7 00:50:04 | prefill overall: 4430 tokens, 2134 ms (2076.3 tok/s)
+[metal] md5 main6 def rc 0 ids256 1a6f15abda8878e2930712013320dcbd first64 a599cc45a7aeea5646b512904ba98b44 lines 7 00:50:34 | prefill overall: 4430 tokens, 2670 ms (1659.2 tok/s)
+[metal] md5 o6 def rc 0 ids256 1a6f15abda8878e2930712013320dcbd first64 a599cc45a7aeea5646b512904ba98b44 lines 7 00:51:03 | prefill overall: 4430 tokens, 2563 ms (1728.4 tok/s)
+[metal] tiny inkling2_batch rc 0 00:51:41 | test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 37.87s 
+[metal] tiny inkling2_packed rc 101 00:51:41 | test result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s 
+test inkling2_overlap_engine_equals_solo_engine ... FAILED
+test inkling2_packed_engine_equals_solo_engine ... FAILED
+test inkling2_packed_equals_solo_tiny ... FAILED
+test inkling2_packed_intermediates_equal_solo ... FAILED
+test inkling2_packed_refuses_what_cannot_pack ... FAILED
+[metal] tiny inkling2 rc 0 00:51:52 | test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.01s 
+[metal] end 00:51:52 (167 s)
+fleetq: #12507 done (exit 0)

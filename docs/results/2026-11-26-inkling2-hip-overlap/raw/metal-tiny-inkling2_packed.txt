@@ -1,0 +1,47 @@
+
+running 6 tests
+test inkling2_overlap_engine_equals_solo_engine ... FAILED
+test inkling2_packed_engine_equals_solo_engine ... FAILED
+test inkling2_packed_equals_solo_real ... ok
+test inkling2_packed_equals_solo_tiny ... FAILED
+test inkling2_packed_intermediates_equal_solo ... FAILED
+test inkling2_packed_refuses_what_cannot_pack ... FAILED
+
+failures:
+
+---- inkling2_overlap_engine_equals_solo_engine stdout ----
+
+thread 'inkling2_overlap_engine_equals_solo_engine' (126222822) panicked at crates/intarsia-models/tests/inkling2_packed.rs:55:22:
+INTARSIA_INKLING2_BACKEND=metal: cpu or hip
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- inkling2_packed_engine_equals_solo_engine stdout ----
+
+thread 'inkling2_packed_engine_equals_solo_engine' (126222823) panicked at crates/intarsia-models/tests/inkling2_packed.rs:55:22:
+INTARSIA_INKLING2_BACKEND=metal: cpu or hip
+
+---- inkling2_packed_equals_solo_tiny stdout ----
+
+thread 'inkling2_packed_equals_solo_tiny' (126222825) panicked at crates/intarsia-models/tests/inkling2_packed.rs:55:22:
+INTARSIA_INKLING2_BACKEND=metal: cpu or hip
+
+---- inkling2_packed_intermediates_equal_solo stdout ----
+
+thread 'inkling2_packed_intermediates_equal_solo' (126222826) panicked at crates/intarsia-models/tests/inkling2_packed.rs:55:22:
+INTARSIA_INKLING2_BACKEND=metal: cpu or hip
+
+---- inkling2_packed_refuses_what_cannot_pack stdout ----
+
+thread 'inkling2_packed_refuses_what_cannot_pack' (126222827) panicked at crates/intarsia-models/tests/inkling2_packed.rs:55:22:
+INTARSIA_INKLING2_BACKEND=metal: cpu or hip
+
+
+failures:
+    inkling2_overlap_engine_equals_solo_engine
+    inkling2_packed_engine_equals_solo_engine
+    inkling2_packed_equals_solo_tiny
+    inkling2_packed_intermediates_equal_solo
+    inkling2_packed_refuses_what_cannot_pack
+
+test result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

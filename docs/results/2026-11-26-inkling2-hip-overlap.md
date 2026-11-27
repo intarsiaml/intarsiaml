@@ -41,9 +41,15 @@ S1-S3 and S6-S8.
    batched `--max-batch 4` at 4 streams = solo for o6 unset, o6 `=1`, main6 `=1` (4 waves each). Inkling HIP on the merged head:
    batched 4 / 8 / 16 at once = solo with `=1` and unset, poisoned 16/16 and 4 x 4/4, B = A in every speed window, greedy md5 8 / 8 =
    main's recorded values, G2 = main, hip tiny `inkling2_batch` 10/10 / `inkling2_packed` 6/6. cpu suite of the merged head on endor
-   (#12483): core lib 283, `tests/scheduler.rs` 54, models 625, cli 208 (`docs_env_vars` among them), 0 failed. Metal: see the Metal
-   slot below.
+   (#12483): core lib 283, `tests/scheduler.rs` 54, models 625, cli 208 (`docs_env_vars` among them), 0 failed. **Metal** (#12507):
+   greedy md5 main6 = o6, `--spec off` and DSpark, 7 prompts x 256 tokens; Metal tiny `inkling2_batch` 10/10, `inkling2` 18/18.
 5. **Default unchanged: `INK_OVERLAP_DEFAULT = false`** (opt-in `INTARSIA_OVERLAP=1`). Default-on is the user's call.
+6. **Not verified:**
+   - which endor hop holds the tokens back (Wi-Fi, Tailscale, `fwd.py`, or the loaded laptop): the regate bypassed all four at once;
+   - o6's solo server (16 prompts one at a time): its solo admission was not primed (~100 s), so it did not fit a window;
+   - main6's own Inkling HIP greedy md5: o6 was compared with the values main a4c8f3b19 printed;
+   - the two hip tiny `inkling2` screen tests on main6: they fail on o6 for lack of HIP kernels that main lacks too (W9);
+   - a default-on build (`INK_OVERLAP_DEFAULT = true`): `=1` takes the same code path but was the config measured.
 
 ### Brief (coordinator, 2026-11-26 23:38 EST; written here 23:36 by `date`; the user is asleep and said "keep working")
 
@@ -278,6 +284,21 @@ older run; only this window's files were copied back).
 
 Radiance total for this lane: W0 3:53 + S6 3:29 + S7 3:20 + S8 3:10 + W9 0:54 = **14:46** of the 16:00 cap; radiance answered after
 each window (`curl http://tatooine:8080/v1/models`: Qwen3.8).
+
+### Metal no-op slot (fleetq #12507, exclusive endor, 00:49:05 - 00:51:52 = 2:47)
+
+`raw/metal_slot.sh`, log `raw/metal-slot-12507.log`. The first slot, #12501 (00:39:13), ran nothing in 1 s: macOS has no
+`timeout(1)`, so every step exited 127 (`raw/metal-slot-12501.log`); the retry wraps each step in a perl `alarm`.
+Metal minutes used: 0:01 + 2:47 = 2:48 of the 15:00 slot.
+- Binaries: main6 = lane ink-hip-specflip's Metal build of 1bf40e29f (`intarsia-mmain2`, clean tree, md5 086cf3166ebaa700474f3ccf22ffdbc0),
+  o6 = this branch's Metal cli (built at 7830c114e, code = 408e902b9; md5 2fd9395f5030ad1ff762b284f7818c9b).
+- **Greedy md5, Inkling-2-Mini on Metal**, the 7 prompts of `md5.json` (6 short + 4k), 256 tokens, `--ignore-eos`: **main6 `--spec
+  off`, o6 `--spec off`, main6 default (DSpark k3), o6 default: all four ids256 1a6f15abda8878e2930712013320dcbd, first 64 ids
+  a599cc45a7aeea5646b512904ba98b44** (7 lines each).
+- **Metal tiny suites on the branch** (`INTARSIA_INKLING2_BACKEND=metal`, executables from the 0304d4ce8 cpu run): `inkling2_batch`
+  **10/10**, `inkling2` **18/18**. `inkling2_packed` does not run on Metal by design: its `backend()` accepts only cpu or hip and
+  panics otherwise (5 of 6 tests stop there; the 6th, `inkling2_packed_equals_solo_real`, returns at once without
+  `INTARSIA_INK_PACK_REAL`); it passed on cpu (endor, #12483) and hip (S8, 6/6).
 
 ### Same-ISA check of the merged head (fleetq #12504, build only, `raw/isa-check-o6.log`)
 
