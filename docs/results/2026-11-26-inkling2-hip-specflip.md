@@ -66,6 +66,32 @@ plain on HIP (flip A lost wherever B applies) goes to the user.
 - **Revert:** `INTARSIA_SPEC_SAMPLED_DFLASH=0` (or delete the recipe line). `INTARSIA_SPEC_SAMPLED_ADAPT=0` keeps sampled drafting with
   fixed k5 (#535's form).
 
+## Pre-registration: the sampled DFlash2 test (option (b); written ~23:35 EST, before windows D1 / D2)
+
+**D1 (calibration, #543's W1 protocol), binary `specA1`** (CLI of d84acc9f6; sampled drafting with `INTARSIA_SPEC_SAMPLED_DFLASH=1` and
+any `--spec-draft`): `generate --spec dflash --spec-draft /models/Inkling-2-Mini-DFlash2 --spec-k 4`, #543's `speed.json`
+(`raw/speed-adapt.json`, md5 `0c1a62af18620f63255d4036c6843a40`: warm, short_a / short_b / short_c, len1k, len4k), 128 tokens,
+`--ignore-eos --top-k 0 --top-p 1.0 --seed 11`, `INTARSIA_SPEC_TRACE=1`; modes `0` (fixed k4) and `drafts`; card 0 T 1.0, card 1 T 0.7,
+one process at a time per card (`raw/stage_d1.sh`). Card 0 then (no timed run on it): 100 seeds at T 1.0, 24 tokens, DFlash2 k4,
+drafting off vs on (gate 3, on the test binary; repeated on the PR B binary in its gate window).
+
+**Calibration rule (`raw/sim.py`, #543's with `--k=4 --ref --base=<the HIP recipe string>`):** the cost table (d, r_1..r_4) from the
+traces by #543's 15 % rule against the HIP built-in table cut to 4 rows (a measured table where any value is > 15 % off); policy
+parameters start from the HIP recipe's (`g=0.95,margin=0.0,drop=0.05,probe=1,hold=16,hold_max=64`). If the offline replay of that
+policy has every prompt pol / off >= 0.99 and every class >= 0.98 x the DSpark-adaptive ratio below, it is the DFlash2 table; else #543's
+grid (g x margin x drop x probe x hold x hold_max) keeping every class at that bar and maximising the lowest prompt. No other tuning.
+
+**D2 (measurement), the PR B candidate binary** (built before D2 so its admission cache is warm for the gate): arms `off` (plain
+sampling: `INTARSIA_SPEC_SAMPLED_DFLASH=0`) and `pol` (the PR B default: DFlash2 found, sampled DFlash2 k4 with the D1 table), same
+binary and flags, #543's W2 protocol: speed-adapt.json, 128 tokens, `--ignore-eos --top-k 0 --top-p 1.0 --seed 7`; card 0 T 1.0, card 1
+T 0.7; 4 reps per card in A B B A / B A A B order (8 processes per card). Analysis `raw/speed3.py` (#543's): per prompt and per class
+(short pooled) pol / off, geometric mean over reps, 95 % t-interval.
+
+**Gate (the coordinator's, unchanged):** (1) every prompt's pol / off >= 0.98 at both temperatures, short_b included (point estimate);
+(2) every class's pol / off >= 0.98 x #543's DSpark-adaptive ratio on HIP: T 1.0 short 1.172 / 1k 1.042 / 4k 1.466 (bars 1.149 / 1.021
+/ 1.437), T 0.7 short 1.163 / 1k 1.068 / 4k 1.458 (bars 1.140 / 1.047 / 1.429); (3) 100 seeds at T 1.0 equal to `--spec off`; (4)
+greedy unchanged from the confirmed DFlash2 k4 (md5 gate). Fail: report <= 6 lines to the coordinator before any (a) code.
+
 ## Pre-registration: confirmation ABBA and KV check (written 22:40 EST by the lane clock, before any window)
 
 **Binary.** `main7` = the exact tree of origin/main `cd16cac1b` (#541 merged; `git archive`, nothing of this lane), built on tatooine in
