@@ -14,7 +14,7 @@ Sampled decode, on / off ratio (fixed = main's fixed k, adaptive = this PR's pol
 | Metal, 1.0 | 1.126 | 1.144 | 1.111 | 1.123 | 1.312 | 1.358 | 0.855 | **0.939** |
 | Metal, 0.7 | 1.110 | 1.133 | 1.085 | 1.059 | 1.425 | 1.342 | 0.923 | **0.944** |
 
-Gate (fixed in advance): HIP meets all four clauses on the point estimates (lowest prompt 0.981); **Metal fails clauses 1 and 2** (`short_b` 0.939 / 0.944;
+Gate (fixed in advance): HIP meets all four clauses on the point estimates in the pre-registered form (lowest prompt 0.981; under a 98 %-of-the-gain reading of clause 2, T 1.0 1k and 4k miss by 0.6 / 1.2 points); **Metal fails clauses 1 and 2** (`short_b` 0.939 / 0.944;
 T 0.7 1k and 4k at 98 % of fixed k3's gain: 1.059 vs 1.063, 1.342 vs 1.397). Seeded ids and greedy ids are identical on both backends. Section 7 has the table
 per clause. No default changed; sampled DSpark stays opt-in.
 
@@ -313,7 +313,7 @@ Raw: `raw/w1/` (copied from tatooine `logs/w1/`), `raw/w1/sim.txt`.
   `docs_env_vars` 2/2, core lib 280/280 (4 ignored). Found on the way: the merge of main left two `BackendTuning { .. }` literals in
   `crates/intarsia-models/tests/mtp.rs` without `sampled_adapt` (test target did not compile); fixed (`3d2175adb`).
 
-## 5. HIP window W2 (2026-11-26 21:33:3x-21:37:01, radiance down about 3 min 30 s, fleetq #12356; binaries as W1)
+## 5. HIP window W2 (2026-11-26 21:33:34-21:37:01, radiance down 3 min 27 s, fleetq #12356; binaries as W1)
 
 Arms: off = ad4 (`INTARSIA_SPEC_SAMPLED_DFLASH` unset), fix = main6 (main `aee06201c`, fixed k5) with `=1`, pol = ad4 with `=1` and
 `INTARSIA_SPEC_SAMPLED_ADAPT=d=0.234,r=0.273/0.498/0.69/0.985/1.211,g=0.95,margin=0.0,drop=0.05,probe=1,hold=16,hold_max=64`. `speed.json`, 128
@@ -414,11 +414,11 @@ pre-registered rule (results doc section 3):
 | clause | HIP (R9700) | Metal (endor) |
 |---|---|---|
 | 1. every prompt pol / off >= 0.98, `short_b` included, both T | **pass** by the point estimate: lowest 0.981 (`short_b`, T 1.0; CI 0.931-1.034, so not statistically separated from 0.98 or from 1.0), next 0.991; fixed k5 had 0.896 | **FAIL**: `short_b` 0.939 at T 1.0 (CI 0.891-0.989), 0.944 at T 0.7 (CI 0.923-0.967); fixed k3 had 0.855 / 0.923. `short_a` T 1.0 1.101, others >= 1.04 |
-| 2. each class keeps >= 98 % of fixed-k's gain | **pass**, all six cells (closest: T 1.0 1k, pol 1.042 vs 0.98 x fix 1.028; T 1.0 4k 1.466 vs 1.459) | **FAIL**: T 0.7 1k 1.059 vs 1.063 (0.4 points short); T 0.7 4k 1.342 vs 1.397 (5.5 points short, pol / fix 0.942) |
+| 2. each class keeps >= 98 % of fixed-k's gain | **pass** in the pre-registered ratio form, all six cells (closest: T 1.0 1k, pol 1.042 vs 0.98 x fix 1.028; T 1.0 4k 1.466 vs 1.459). Read instead as 98 % of the gain (pol - 1 >= 0.98 (fix - 1), the 21:00 resume brief's wording), T 1.0 1k (0.042 vs 0.048) and 4k (0.466 vs 0.478) miss by 0.6 / 1.2 points | **FAIL**: T 0.7 1k 1.059 vs 1.063 (0.4 points short); T 0.7 4k 1.342 vs 1.397 (5.5 points short, pol / fix 0.942) |
 | 3. seeded ids identical to `--spec off` | **pass**: 100 seeds x T 1.0 / 0.6 (24 tokens, k5), plus all W2 processes | **pass** with fewer seeds: 35 x T 1.0 / 0.6 (k3, time-boxed), plus all slot speed processes |
 | 4. greedy ids identical to main | **pass**: 7 prompts x 64 tokens, `--spec off` and default, main6 vs ad4 | **pass**: same, Metal |
 
-**Overall: FAIL (Metal clauses 1 and 2).** HIP meets all four on the point estimates; the HIP margin on `short_b` is 0.001 and its interval
+**Overall: FAIL (Metal clauses 1 and 2; and under the gain reading of clause 2, two HIP cells too).** HIP meets all four on the point estimates; the HIP margin on `short_b` is 0.001 and its interval
 reaches below 0.98, so "passes" means the fixed rule was met, not that every prompt is shown to be at least 0.98. Whether sampled drafting
 goes default-on is the user's call; this PR changes no default (the policy acts only with `INTARSIA_SPEC_SAMPLED_DFLASH=1`).
 

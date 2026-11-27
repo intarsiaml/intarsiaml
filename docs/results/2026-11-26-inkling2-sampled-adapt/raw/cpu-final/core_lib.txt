@@ -1,0 +1,48 @@
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:370:9
+    |
+370 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+370 -     Ink(usize),
+370 +     Ink(()),
+    |
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:373:9
+    |
+369 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+373 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+
+running 284 tests
+....................................................................................... 87/284
+....................................................................................... 174/284
+.........iii.....................i..................................................... 261/284
+.......................
+test result: ok. 280 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 15.77s
+
