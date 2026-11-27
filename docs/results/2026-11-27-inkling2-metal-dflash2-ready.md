@@ -65,9 +65,9 @@ Metal budget: <= 25 min of exclusive slots in all, each <= 15 min, none after 07
   45 s idle before each, the `warm` prompt excluded, `spec: verify passes` read from each log (both arms must take plain steps). FLAG when the
   geometric mean of the 3 prompts' dfl5 / default ratios is below 0.98 or any prompt's is below 0.95.
 - **2d, seed stream on one engine with prefix reuse.** The real-model harness `inkling2_sampled_real` (one engine, requests in a row on one
-  prompt, so each request reuses the previous request's KV prefix), `INTARSIA_SPEC_SAMPLED_DFLASH=0`, seeds 0..99 at T 1.0 and T 0.6, 16 tokens:
+  prompt, so each request reuses the previous request's KV prefix), `INTARSIA_SPEC_SAMPLED_DFLASH=0`, seeds 0..19 at T 1.0 and T 0.6 (40 requests per arm; the first launch of this slot showed the harness at ~1.1 s per request, so the 100 seeds planned would have cost 7 min, and it was stopped after 1.4 min to stay inside the Metal budget), 16 tokens:
   arm X = `--spec dflash` with the DFlash2 drafter at k5 (`INTARSIA_SS_DRAFT`, `INTARSIA_SS_K=5`), arm Y = the checkpoint's own DSpark draft at k3
-  (today's default draft). PASS iff the 200 lines of X and Y are identical (both take plain steps for sampled requests, so a difference would be a
+  (today's default draft). PASS iff the 40 lines of X and Y are identical (both take plain steps for sampled requests, so a difference would be a
   side effect of the DFlash2 draft's presence). The reference is the DSpark-loaded engine, not `--spec off`; 2b covers `--spec off`.
 
 ## Deviations from the pre-registered rules (all forced by `serve` start-up cost; none relaxes a pass condition)
@@ -85,7 +85,11 @@ Metal budget: <= 25 min of exclusive slots in all, each <= 15 min, none after 07
   - **4**: `generate --max-seq 4194304 --kv-fraction 0.25` (clamped by free memory; `serve`'s `--max-seq` would have been the same planner) and
     `/usr/bin/time -l` peak memory footprint; macmon's system `ram_usage` includes file cache (it read 89 GB with nothing running) and is not
     used. The serve startup line "context N tokens" is generate's "context N tokens" line.
-- The ABBA (2c) uses `generate` on `abba3.json` with one rep pair (2 + 2 processes), as the brief said.
+- The ABBA (2c) uses `generate` on `abba3.json` with one rep pair (2 + 2 processes), as the brief said; slot D's is greedy (see slot E for sampled).
+- **3b compared the 4 concurrent replies with the solo replies of the same batch server**, not with the single-sequence `dfl5` server's replies the
+  rule named (that server never came up, see above). Free cross-path check afterwards: the batch server's solo reply for `code` (128 ids) equals the first
+  128 ids of `generate --spec off`'s `code` line (`raw/D/b4-solo.json` vs `raw/A/g-off.err`: equal), and `off` = default = DFlash2 k5 on that line
+  (check 1). The other three prompts (`len1k`, `long_prose_300`, `chat_reasoning_rnone`) have no single-sequence reference at 128 tokens.
 
 ## Check 1: greedy ids at long context (slot A, #12557, `raw/A/`)
 
@@ -98,9 +102,10 @@ Metal budget: <= 25 min of exclusive slots in all, each <= 15 min, none after 07
 | len4k | `9e85ba1117e4a6a6cc12c5c917532e7f` | 256 / 256 / 256 | `9e85ba11...` (same) |
 | len16k | `89994b876223335763b2004d0d281157` | 256 / 256 / 256 | not in #546 (new) |
 
-**PASS**: the 16k prompt is the one #546 had not covered; ids are identical for all three arms. The brief's `d93147da...` is not reproduced: it is the
-flip lane's md5 over its own prompt / length (HIP-lane convention); my code-prompt md5s match #546's on the same prompt and convention, which is the
-cross-check the rule named. Spec statistics in the same processes: DFlash2 k5 3.76 tokens per verify pass (acceptance 55.6 %), default 2.63.
+**PASS**: the 16k prompt is the one #546 had not covered; ids are identical for all three arms. The brief's `d93147da26f2e6b532dde683564b544b` **is reproduced**: the flip lane's
+`metal_slot.sh` computes it as the md5 of the two `ids[code]` / `ids[len4k]` lines (256 tokens, `--ignore-eos`, `md5.json`) of a `generate --show-ids` run;
+the same command on my `off`, default and `dfl5` outputs gives `d93147da26f2e6b532dde683564b544b` for all three arms (so main's Metal default
+path and DFlash2 k5 agree with the flip lane's reference; my per-prompt md5s also equal #546's). Spec statistics in the same processes: DFlash2 k5 3.76 tokens per verify pass (acceptance 55.6 %), default 2.63.
 Decode tok/s, one process each, information only (order off, default, dfl5, so not paired): code 79.8 / 109.5 / 137.5, 4k 75.5 / 106.7 / 108.0,
 16k 69.9 / 78.5 / 74.6. Prefill of the same processes (ms): 4k 1282 / 1302 / **1506**, 16k 5422 / 5979 / **6681**: DFlash2 costs prefill time (the draft
 ingests the context), dfl5 / default 0.865 at 4k and 0.895 at 16k here, the same direction as #546's 0.894 [0.784-1.020] / 0.943 [0.827-1.075]
@@ -164,11 +169,12 @@ Geometric mean 1.253, lowest prompt 1.028; ids identical across all 4 processes.
 
 The pairs repeat to 4 significant digits, so the free-memory measurement did not drift between runs. The planner's capacity is almost the same
 (-212 tokens, -0.03 %, the difference in weight size), but the DFlash2 process peaks **4.73 GB higher** at that capacity, i.e. about
-**7.7 KB per token of context capacity** that the planner does not budget. The code is consistent with that: `new_dflash_state(cap)`
+**7 KB per token of context capacity** that the planner does not budget (4.73 GB less the 0.35 GB by which the DFlash2 weights file, 990 MB, is larger
+than the DSpark one, 636 MB, which the default loads instead = 4.37 GB / 615,458 tokens = 7.1 KB; if the draft weights are not in the footprint it is 7.7 KB). The code is consistent with that: `new_dflash_state(cap)`
 (`crates/intarsia-core/src/model/dflash.rs:483-486`) gives the draft its own `SequenceState` of the full capacity `cap`, 5 layers; I did not
 measure the draft cache separately. At realistic capacities it does not matter (20,480 tokens: DFlash2 is 0.5 GB below the default; serve's default
 is 4096): it matters only for a user who raises `--max-seq` into the hundreds of thousands on a machine with little free memory, where the extra
-~7.7 KB x capacity lands outside the planned KV budget. FLAG, not a gate. The load time of the draft is 0.1 s.
+~7 KB x capacity lands outside the planned KV budget. FLAG, not a gate. The load time of the draft is 0.1 s.
 
 ## What a Metal DFlash2 k5 default would change for users
 
@@ -184,7 +190,7 @@ is 4096): it matters only for a user who raises `--max-seq` into the hundreds of
   by default). The HIP flip lane's branch `ink/hip-specflip-b` (not merged; see `STATE.md` 03:43) is the nearest existing mechanism and was not read here.
 - **Prefill costs time**: the draft ingests the prompt, so TTFT of a 4k / 16k prompt grows by about 0.2 s / 0.7 s (one process each here and #546's
   ratios 0.894 / 0.943, CIs include 1.0). Every default user pays that; the speed rule did not count it.
-- **Memory**: +~7.7 KB per context token of capacity, unbudgeted by the planner (check 4); negligible at serve's default and at 20k.
+- **Memory**: +~7 KB per context token of capacity, unbudgeted by the planner (check 4); negligible at serve's default and at 20k.
 - **First start of a new binary**: unchanged by this (serve's cold admission: 133 s measured for the `--max-batch 4` plan, > 120 s for the single-sequence one) except that the DFlash2 verify plan adds cases (flip lane saw
   38 kernels / 215 cases vs 23 / 134 for the DSpark-only plan on HIP, `STATE.md` 02:57; not measured on Metal here).
 
