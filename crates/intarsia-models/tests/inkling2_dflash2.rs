@@ -161,6 +161,7 @@ fn draft_dir() -> PathBuf {
 fn backend(f32: bool) -> Arc<dyn intarsia_core::Backend> {
     match std::env::var("INTARSIA_INKLING2_BACKEND").as_deref() {
         Ok("hip") if !f32 => intarsia_backend_hip::create(0).unwrap(),
+        #[cfg(target_os = "macos")]
         Ok("metal") if !f32 => intarsia_backend_metal::MetalBackend::arc().unwrap(),
         Ok("cpu") | Ok("hip") | Ok("metal") | Err(_) => intarsia_backend_cpu::CpuBackend::arc(),
         Ok(other) => panic!("INTARSIA_INKLING2_BACKEND={other}: cpu, metal or hip"),
