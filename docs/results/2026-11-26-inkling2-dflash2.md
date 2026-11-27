@@ -1,7 +1,71 @@
 # Inkling-2-Mini + DFlash 2 drafter on one R9700 (lane ink-dflash2, 2026-11-26)
 
-Status: **OPT-IN** by the pre-registered rule (faster on short / 1k / prose / chat, slower at 4k and 16k). Branch `ink/dflash2` from
+Status: **k7: OPT-IN** by the pre-registered rule (faster on short / 1k / prose / chat, slower at 4k and 16k). **k4: GO** by the rule (update below, ABBA 4 + 4, 4k 0.991 [0.987-0.995]); k5: OPT-IN. Branch `ink/dflash2` from
 origin/main `178d87ece` (main `a4c8f3b19` merged in after the measurements). Opt-in only; no engine default changes.
+
+## Update 2026-11-26 21:00-21:55 EST: ABBA at k4 and k5 vs DSpark k5 (binary `dfl6` = the PR head)
+
+**Verdict: k4 meets GO by the pre-registered rule; k5 and k7 are OPT-IN. No default changed (the coordinator asks the user).**
+
+DFlash2 / DSpark k5 ratio per cell, geometric mean over (prompt, rep), 95 % CI = t over the rep pairs (`raw/speed.py`; k4 n = 4 pairs
+in 2 windows, k5 n = 2 pairs in 1 window, k7 n = 4 from the earlier `dfl5` run, same card and prompts). One process at a time, card 0.
+
+| DFlash2 / DSpark k5 | short | 1k | prose | chat | code (extra) | 4k | 16k | mean of the 6 cells (geo / arith) | prefill 4k / 16k |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| **k4** (n = 4) | **1.189** [1.184-1.194] | **1.142** [1.138-1.146] | **1.048** [1.046-1.050] | **1.216** [1.212-1.221] | 1.303 [1.299-1.306] | **0.991** [0.987-0.995] | **1.101** [1.098-1.104] | **1.112 / 1.115** | 0.996 [0.991-1.002] / 0.996 [0.990-1.001] |
+| k5 (n = 2) | 1.206 [1.191-1.221] | 1.121 [1.116-1.127] | 1.053 [1.047-1.058] | 1.211 [1.198-1.224] | 1.432 [1.414-1.451] | **0.970** [0.967-0.973] | 1.039 [1.031-1.046] | 1.066 / 1.067 | 0.996 [0.991-1.002] / 0.998 [0.989-1.006] |
+| k7 (n = 4, `dfl5`) | 1.190 [1.182-1.199] | 1.047 [1.041-1.052] | 1.045 [1.042-1.048] | 1.154 [1.146-1.161] | 1.584 [1.575-1.594] | **0.905** [0.901-0.909] | **0.950** [0.946-0.954] | 1.044 / 1.049 | 0.998 / 0.998 |
+
+tok/s (median over the processes of the cell's geometric mean):
+
+| | short | 1k | prose | chat | code | 4k | 16k |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| DSpark k5 (k4 windows, 4 processes) | 109.35 | 101.83 | 120.85 | 100.18 | 127.16 | 116.84 | 90.79 |
+| DFlash2 k4 | 130.19 | 116.39 | 126.68 | 121.96 | 165.80 | 115.93 | 100.04 |
+| DSpark k5 (k5 window, 2 processes) | 109.41 | 101.77 | 120.84 | 100.21 | 127.21 | 116.85 | 90.79 |
+| DFlash2 k5 | 131.94 | 114.12 | 127.20 | 121.37 | 182.21 | 113.33 | 94.30 |
+| DFlash2 k7 (`dfl5`) | 130.13 | 106.54 | 126.34 | 115.56 | 201.41 | 105.85 | 86.29 |
+
+Tokens per verify pass / ms per pass (decode ms / passes, pooled; `raw/abk4-analysis.txt`, `raw/abk5-analysis.txt`):
+
+| | short | 1k | prose | chat | code | 4k | 16k |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| tokens a pass: DSpark k5 / k4 / k5 / k7 | 2.66 / 3.32 / 3.57 / 3.92 | 2.68 / 3.19 / 3.37 / 3.58 | 3.06 / 3.33 / 3.61 / 4.04 | 2.40 / 3.16 / 3.36 / 3.61 | 3.19 / 4.36 / 5.19 / 6.46 | 3.22 / 3.23 / 3.43 / 3.64 | 2.47 / 3.00 / 3.07 / 3.23 |
+| ms a pass: DSpark k5 / k4 / k5 / k7 | 27.08 / 25.85 / 27.81 / 31.43 | 28.44 / 27.21 / 29.38 / 33.41 | 29.36 / 26.51 / 28.76 / 32.47 | 26.29 / 25.91 / 27.87 / 31.47 | 25.69 / 26.32 / 28.61 / 32.07 | 29.46 / 27.84 / 30.41 / 34.39 | 29.23 / 29.99 / 32.58 / 37.38 |
+
+**Rule at each k** (GO = mean over the six cells >= 1.03x, no cell more than 1 % slower where a 95 % CI upper bound < 0.99 counts as
+slower, every md5 equal to `--spec off`):
+- **k4: GO.** Mean 1.112 (geo) / 1.115 (arith). The weakest cell is 4k at 0.991 [0.987-0.995]: a 0.9 % loss by the point estimate, its CI upper
+  bound 0.995 is not below 0.99, so it passes by the rule's own definition, but narrowly. Faster on the other five cells (+4.8 % to +21.6 %), 16k
+  now +10.1 % (k7: -5.0 %). Ids equal across arms and reps (19 prompts x 8 processes) and md5 equal to `--spec off` (below).
+- **k5: OPT-IN.** Mean 1.066 but 4k 0.970 [0.967-0.973] (upper bound < 0.99: more than 1 % slower). n = 2.
+- **k7: OPT-IN** (earlier result; 4k 0.905 and 16k 0.950).
+- The cost of lower k is code: k4 gives up 18 % of k7's code speed (165.8 vs 201.4 tok/s) while still +30 % over DSpark. The drafter's
+  pass is cheaper at fewer rows, the context-dependent verify cost shrinks, and the 4k / 16k cells flip from loss to parity / gain.
+
+**Greedy ids vs `--spec off` on `dfl6` (fleetq #12366, `raw/w4/`, `raw/window9-12366.log`):** `md5.json` (golden `code` 101 ids + the 4108-id
+prompt), `--ignore-eos`: 256 tokens off = k4 = k5 = `380af8a5e897bdbed231818477038f37` (k4 66.7 % accepted, 3.64 tokens a pass; k5 61.0 %, 4.04);
+64 tokens off = k4 = k5 = `f2e334dd8f1657b3ece2c7f8aa125deb` (90.7 % / 90.3 % accepted). The md5s are the same as the k7 ones on `dfl2` / `dfl4`.
+
+**Default.** `--spec dflash` stays at k7 (block - 1) for this drafter. k4 is not an obviously better default on its own: it is better
+on every cell of the rule but loses 18 % on code against k7, and a cell-dependent k (an adaptive k) would beat both. Whether to make k4
+the opt-in default, or to propose DFlash2 k4 as the Inkling-2 HIP default over DSpark k5, is the user's call. `--spec-k 4` turns it on.
+
+**Radiance down (this update):** window 6 #12344 21:03:22-21:07:05 (3 min 43 s, k4 r1 r2, A B B A), window 7 #12352 21:16:34-21:20:17 (3 min 43 s, k4
+r3 r4, B A A B), window 8 #12358 21:39:34-21:43:17 (3 min 43 s, k5 r1 r2), window 9 #12366 21:52:04-21:53:19 (1 min 15 s, md5 gate k4 / k5). Total 12 min 24 s of
+the 14 min 47 s (2 min 47 s left + the new 12 min); the lane total is 29 min 37 s of 32. Radiance answered after every window
+(`/v1/models` checked, 15 s). The planned k5 pair r3 (`PAIR=1` in `raw/stage_w4.sh`) was not run: k5 had already failed 4k with a CI far from 0.99.
+
+**Not verified:** k5 has n = 2 pairs; k4's 4k verdict rests on 4 pairs (CI half-width 0.4 %: process-to-process variance is tiny, but all
+reps ran in one session on one card; a thermal / clock state shared by all would not show up); GO needs a decision on the 4k = 0.991
+point estimate (a tighter margin than the 3 % mean). No md5 at 16k or with sampling. The ABBA binary `dfl6` is the PR head (main
+`aee06201c` merged in); k7 numbers are from `dfl5` and were not re-run on `dfl6` (DSpark k5 numbers match across the two binaries within
+0.1 %). 1k / prose / 16k at k4 have the combined ms a pass only, no draft / verify split. The verify-cost cause of the long-context loss
+is still inferred, not profiled.
+
+Logs: `raw/abk4/`, `raw/abk5/`, `raw/abk4-analysis.txt`, `raw/abk5-analysis.txt`, `raw/prefill.py`, `raw/stage_ab_k.sh`, `raw/stage_w4.sh`,
+`raw/window6-12344.log` .. `raw/window9-12366.log`, `raw/w4/`; tatooine `~/intarsiaml-ink-dflash2/logs/{abk4,abk5,w4}`. fleetq: #12344, #12352,
+#12358, #12366 (windows), #12340 (push).
 
 ## Brief (coordinator, 2026-11-26 ~18:55 EST; user approved "Yes, start the probe", incl. the 990 MB download)
 
