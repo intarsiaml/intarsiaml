@@ -264,3 +264,15 @@ Metal exclusive time used: C 10 min 45 s (including the 50 s aborted #12537) + G
 ## 4. Merge
 
 origin/main `4b629184c` (#542) merged into the branch before the PR. The change set of #542 on shared code (`model/inkling2.rs`, `model.rs`, `scheduler.rs`, `engine/batch.rs`) is HIP / scheduler work; Metal numbers above were taken before the merge.
+
+**Step 0 (no GPU, 03:20 EST): the replay's cost model ALREADY charges the 3.1 % drafting-mode plain-step tax. Phase 2 stops here, as the rule says.**
+
+Evidence:
+- `raw/sim2.py` `replay()`: a policy plain step costs `1.0 + po` (line `t += 1.0 + (po if a and not a.gave_up else 0.0)`), an empty draft call `d + 1.0 + po`; the off arm costs 1.0 per token. Every number of section 2 (the grid, the pick, the 0.983 / 0.998 in-sample, the fidelity table) was run with `--po=0.031`
+  (`raw/cal/gridA.txt` header: `po 0.031`).
+- Effect of the charge on the picked string, in sample (`short_b`, T 1.0 / 0.7): `po = 0` gives 0.998 / 1.019, `po = 0.031` gives 0.983 / 0.998. So the tax is worth 1.5 / 2.1 points there (the share of steps that are plain), and it is inside the 0.983 / 0.998 that were then measured as 0.946 / 0.971.
+- The seed-13 fidelity table (section 2.1) was also computed with the tax charged: `short_b` pol / off 0.941 predicted against 0.922 measured, fixed k3 0.943 against 0.913 (fixed k3 has almost no plain steps, so its 3 points of optimism are not the tax at all).
+- The optimism (2.5-3.7 % on `short_b` at the gate seeds, 3 points on fixed k3 in the fidelity run) therefore has another cause, and it is present in the fixed arm, which takes no policy plain steps. Candidates I could not separate without more Metal time: the `adapt:` trace prints in the traced runs (fidelity run only), the Metal draft being non-deterministic given the context (replays differ by 3-5 passes), the verify-pass cost at the real context (the table is the short-context one; `len4k` fixed k3 measured 12 % slower than the table), and the cost table's own error on `r_m` for the story prompt's mix of pass sizes.
+- Consequence for the 0.990 estimate of the forced-exit rule (`giveup = 1`): it removes only the tax on the plain steps after the exit; replay optimism of about 3 points stays, so the estimate is about 0.96 measured, which fails clause 1 again. No exit rule can fix a gap whose largest part is not the drafting mode.
+
+Phase 2 steps 1-3 are not started: no code on `ink/metal-sampled3`, no Metal time used in phase 2. What would settle the open cause cheaply (not done, needs Metal): an untraced A/B of fixed k3 against off on `short_b` alone over 6+ seeds against the replay of the same seeds' `drafts` traces, which separates trace overhead and cost-table error from policy effects.
