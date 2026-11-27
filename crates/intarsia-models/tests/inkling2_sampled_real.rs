@@ -132,9 +132,10 @@ fn inkling2_sampled_dspark_real_model_runs() {
                 assert!(ids.len() == tokens || (ids.len() == tokens + 1 && ids[tokens] == ids[tokens - 1]), "{ids:?}");
                 ids.truncate(tokens);
                 eprintln!(
-                    "request {n} T {t} seed {seed}: wall {:.1} ms, ttft {:.1} ms",
+                    "request {n} T {t} seed {seed}: wall {:.1} ms, ttft {:.1} ms, free {} MiB",
                     tr.elapsed().as_secs_f64() * 1e3,
-                    ttft.map_or(f64::NAN, |d| d.as_secs_f64() * 1e3)
+                    ttft.map_or(f64::NAN, |d| d.as_secs_f64() * 1e3),
+                    be.info().free_mem >> 20
                 );
                 let line = format!("{t} {seed} {}", ids.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(" "));
                 match f.as_mut() {

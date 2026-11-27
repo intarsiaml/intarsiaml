@@ -530,7 +530,7 @@ GO ABBA half 1 (card 0, A B B A): dspark 109.26 / 108.87 tok/s overall, dual 125
 
 **Coordinator, 01:14 EST 11-27 (as written):**
 
-> #545 merged as 896198dcc (01:14 EST). Metal no-op #12515 checked: md5 main = PR A for off and default (d93147da, 169/429/311 acceptance both), sampled default line off on Metal, tiny suites pass.
+> #545 merged as 896198dcc (01:14 EST). *(Coordinator correction 01:21: merged at 01:11 EST, not 01:14.)* Metal no-op #12515 checked: md5 main = PR A for off and default (d93147da, 169/429/311 acceptance both), sampled default line off on Metal, tiny suites pass.
 >
 > For (a):
 > 1. Don't delete or reuse remote `ink/hip-specflip`. Further results-doc commits go on `ink/hip-specflip-b`, which must merge origin/main (896198dcc) before its PR.
@@ -566,4 +566,37 @@ that start with an intarsia binary.)
   passes, x12 49).
 
 Radiance: 28:37 (to GS2) + WA1 2:42 + WA1b 4:14 + WA2 3:52 = **39:25** of the 45 ceiling.
+
+**Lane to coordinator, 01:20 EST:** (a) stopped on the free-memory line; options: diagnostic / stop / raise the ceiling.
+
+**Coordinator, 01:21 EST 11-27 (as written):**
+
+> Option 3, in order: the diagnostic first, then WA3 only if it passes. Lane radiance ceiling raised to 47:00.
+>
+> 1. Diagnostic (card 1 alone, ~1:30): one process, 60 requests alternating greedy/sampled (59 switches), free memory after every request, plus a 60-request `--spec off` arm in its own process. Pre-register this in the results doc BEFORE queuing:
+>    - Warm-up is requests 1-10. Drift = free MiB at request 10 minus free MiB at request 60.
+>    - PASS if dual's drift ≤ off's drift + 8 MiB, and no request after 10 drops more than 16 MiB below the request-10 value.
+>    - FAIL: per-switch creep. (a) stops: record everything, push `ink/hip-specflip-b` with no PR. I report to the user in the morning.
+> 2. If PASS: WA3 as planned (sampled ABBA dual vs specA2, then the b16 serve). Same stop rule: a void or overrun past 47 means stop and report.
+> 3. The 64 MiB line stays failed on record. The diagnostic only decides whether the cause is a one-time first-capture cost or creep. Say that plainly in the doc.
+>
+> Greedy GO is met: 4k 0.993 [0.988-0.998], geomean 1.113. KV −7.77 % is inside what the user accepted (−9.9 %). In the doc, note the switch cost as a known limit: the first short greedy request after a switch is slower than no drafting (466 vs 349 ms at x1).
+>
+> Correction: #545 merged at 01:11 EST, not 01:14. Write this go-ahead (01:21 EST) into the results doc.
+
+**On record:** the pre-registered free-memory line (after >= before - 64 MiB over WA2's 12-switch run) **failed** (-87 / -88 MiB) and stays
+failed. The diagnostic below does not overturn it; it only decides whether the cause is a one-time first-capture cost or a per-switch creep.
+
+**Known limit (switch cost):** the first short greedy request after a sampled one is slower than not drafting: 466 ms vs 349 ms (24
+tokens, prompt x1: the incoming draft state starts empty, re-prefills, and the graphs re-capture); ttft is unchanged (53 ms).
+
+**Pre-registration: diagnostic WA4 (written 01:23 EST, before queuing; `raw/stage_a4.sh`, card 1 only, the other card idle):**
+- Arms, each one process, prompt x1, 24 tokens, 60 requests = seeds 0..30 x T (0.0, 1.0), seeds outer, so greedy and seeded sampled
+  alternate. `def` = the dual default (INTARSIA_SS_DEFAULT=1; every request is a draft switch: the load's state is DSpark's, request 1 is
+  greedy). `off` = no speculation (INTARSIA_SPEC_DEFAULT=0: no drafter loaded; the harness's equivalent of `--spec off`).
+- The harness logs `Backend::info().free_mem` (hipMemGetInfo) after every request. Requests are numbered 1-60 here (the log's
+  `request 0` is request 1). Warm-up = requests 1-10. Drift(arm) = free MiB after request 10 - free MiB after request 60.
+- **PASS** iff drift(def) <= drift(off) + 8 MiB **and** no request 11-60 of def is more than 16 MiB below def's request-10 value.
+  Otherwise **FAIL** (per-switch creep): (a) stops, everything recorded, `ink/hip-specflip-b` pushed with no PR.
+- Also required: ids def = off for all 60 (else void). The verdict is computed by the stage's own script (`[a4] VERDICT`).
 
