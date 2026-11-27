@@ -10,12 +10,14 @@ is plain sampling's exactly. Sampled decode, DSpark default draft, spec on / off
 |---|---|---|---|---|---|
 | hip (R9700) | 1.0 | 70.1 -> 82.1 tok/s, **1.172** (1.163-1.181) | 68.6 -> 73.5, **1.070** (1.049-1.092) | 67.4 -> 95.8, **1.422** (1.386-1.458) | 49 / 50 / 73 % |
 | hip (R9700) | 0.7 | 70.3 -> 83.2, **1.184** (1.179-1.189) | 68.5 -> 73.5, **1.074** (1.060-1.088) | 67.3 -> 94.0, **1.396** (1.378-1.414) | 51 / 52 / 77 % |
-| Metal (M5 Max) | 1.0 / 0.7 | **not measured**: the exclusive slot waited behind ~5-7 h of cpu jobs; cancelled, re-dispatch command in 3.2 | | | |
+| Metal (M5 Max) | 1.0 | 76.0 -> 85.6 tok/s, **1.126** (1.117-1.135) | 73.9 -> 80.9, **1.095** (1.077-1.113) | 71.7 -> 92.5, **1.291** (1.281-1.301) | 53 / 51 / 73 % |
+| Metal (M5 Max) | 0.7 | 76.0 -> 87.1, **1.147** (1.140-1.154) | 73.5 -> 80.0, **1.088** (1.078-1.098) | 71.6 -> 101.5, **1.418** (1.386-1.451) | 53 / 47 / 86 % |
 
 Gates: 1 law test pass on the fixture (cpu, n 1500 + 1500, 3 configurations) and on the real model on Metal and hip (T 1.0 / 0.6, about
 500 + 900 requests per temperature; no p below 0.06 in 20 tests per backend); 2 seed equality exact (tiny fixtures on cpu / Metal / hip;
-real model on hip: 250 shared seeds and 16 speed processes; **real model on Metal pending**); 3 greedy md5 main = branch on Metal and hip
-(short + 4k, 64 / 256 tokens, spec off and default), tiny suites as on main on all three backends; 4 hip measured, **Metal pending**.
+real model on hip: 250 shared seeds and 16 speed processes; real model on Metal: 200 shared seeds and 16 speed processes, slot B); 3 greedy
+md5 main = branch on Metal and hip (short + 4k, 64 / 256 tokens, spec off and default), tiny suites as on main on all three backends;
+4 measured on hip and Metal (sections 3.1, 3.2).
 Commits: every GPU gate ran on the pre-merge branch (`3226af2b9` + this lane: binaries `br1` / `br2`); the fixture law test on `br3`
 (same core code); the PR head's cpu tiny suites on `br4` (2.1).
 
@@ -179,8 +181,8 @@ over the five positions of one temperature (a summary: the positions are depende
 
 | backend | T | n off + n on | p at positions 2 / 3 / 4 / 5 / 6 | Fisher p | shared seeds with identical ids |
 |---|---|---|---|---|---|
-| Metal (device sampler by the code path: plain temperature, recipe `gumbel_sampling`; not trace-checked on the real model yet) | 1.0 | 506 + 917 | 0.382 / 0.098 / 0.785 / 0.753 / 0.746 | 0.608 | none (the run stopped before its shared seeds; pending, slot B) |
-| Metal | 0.6 | 506 + 917 | 0.607 / 0.778 / 0.906 / 0.916 / 0.896 | 0.996 | |
+| Metal (device sampler by the code path: plain temperature, recipe `gumbel_sampling`; not trace-checked on the real model yet) | 1.0 | 506 + 917 | 0.382 / 0.098 / 0.785 / 0.753 / 0.746 | 0.608 | 100 / 100 (slot B, 2.3) |
+| Metal | 0.6 | 506 + 917 | 0.607 / 0.778 / 0.906 / 0.916 / 0.896 | 0.996 | 100 / 100 (slot B, 2.3) |
 | hip (host sampler, lazy cap) | 1.0 | 489 + 719 | 0.535 / 0.061 / 0.668 / 0.486 / 0.675 | 0.452 | 150 / 150 |
 | hip | 0.6 | 489 + 528 | 0.407 / 0.598 / 0.879 / 0.883 / 0.968 | 0.971 | 100 / 100 |
 
@@ -198,8 +200,10 @@ The rule is seed-exact, so the check is ids equality, not only equality in law:
   and Metal (recipe); k 2 / 3 / 7 (cpu, hip) or 3 / 7 (Metal).
 - Real model, hip: the 250 shared (seed, temperature) pairs of 2.2, identical between arms and between cards; the speed A/B (3.1): for
   each temperature all 8 processes (4 off, 4 on, two cards) emit identical ids on all 6 prompts x 128 tokens.
-- Real model, Metal: **pending** (slot B, 3.2: seeds 0..100 in both arms with a trace of the device-drawn passes, then the speed A/B's
-  ids check). On Metal so far: the tiny fixtures (both samplers) and the law test.
+- Real model, Metal (slot B, fleetq #12181, binary `br1`, md5 `ddffcd0a…`): seeds 0..99 at T 1.0 and 0.6 in both arms, 200 lines per
+  arm, **identical** (`raw/metal-B/seeds-0.txt` = `seeds-1.txt`). In the on arm, with `INTARSIA_SPEC_TRACE=1`, all 225 verify passes ran
+  `keyed verify N rows (device draws)` and none ran the logits path. So on Metal, sampled verify rows use the recipe's device sampler.
+  The speed A/B (3.2): for each temperature, all 8 processes (4 off, 4 on) emit identical ids on every prompt.
 - Run-to-run within a backend: the 4 processes of an arm emit the same ids (speed A/B), on both backends.
 
 ### 2.4 Greedy is unchanged (gate 3)
@@ -248,9 +252,26 @@ acceptance is a possible follow-up. For reference, greedy on the md5 set (W3): 7
 
 ### 3.2 Metal (endor, M5 Max)
 
-**Not measured.** The exclusive slot waited behind ink-q8's cpu accuracy jobs #12149 (`--expect 300`) / #12150 (estimated start
-21:05-22:51; a reservation at 16:30 was refused because it collides with them), so it was cancelled at report time (#12157, #12167)
-rather than left to a session that ends. Re-dispatch (about 27 min; binary `br1` = this lane's core code, already built):
+Measured by the coordinator in slot B, fleetq #12181 (endor `--exclusive`, script 18:49:44-19:10:40), binary `br1` = this lane's core
+code. Same protocol as 3.1. Every process ran on the M5 Max's GPU, with a 45 s GPU-idle gap before each process. Raw data:
+`raw/metal-B/` (`speed.txt` is `speed.py --macmon` output, `run.log` is the slot log, `macmon.jsonl.gz` the power samples).
+
+| T | class | off tok/s | on tok/s | on / off | 95 % CI | acceptance | tokens / pass |
+|---|---|---:|---:|---:|---|---:|---:|
+| 1.0 | short | 76.02 | 85.59 | **1.126** | 1.117-1.135 | 52.7 % | 2.11 |
+| 1.0 | 1k | 73.93 | 80.91 | **1.095** | 1.077-1.113 | 50.9 % | 2.17 |
+| 1.0 | 4k | 71.69 | 92.52 | **1.291** | 1.281-1.301 | 72.6 % | 2.68 |
+| 0.7 | short | 75.97 | 87.13 | **1.147** | 1.140-1.154 | 52.6 % | 2.13 |
+| 0.7 | 1k | 73.50 | 79.98 | **1.088** | 1.078-1.098 | 46.8 % | 2.04 |
+| 0.7 | 4k | 71.55 | 101.48 | **1.418** | 1.386-1.451 | 86.0 % | 3.06 |
+
+- **Per short prompt** at T 1.0: 1.179 / **0.862** / 1.526 (acceptance 46 / 36 / 70 %). At 0.7: 1.051 / **0.971** / 1.576. The story
+  prompt (`short_b`) loses at both temperatures: 13.8 % at T 1.0 and 2.9 % at 0.7. On hip it lost 6.5 % at T 1.0 and gained 1.5 % at
+  0.7 (3.1).
+- **Power:** mean GPU power per process was 15-29 W, with 1.0-1.5 s above 65 W. All 16 processes are in one power group, so the
+  140 W-adapter burst effect (memory `endor-power-budget-ab`) does not split the arms.
+
+The commands the slot ran (kept for a rerun):
 
 ```
 fleetq run --host endor --exclusive --expect 28 --label "ink-sampled: Metal sampled speed A/B" -- \
@@ -284,7 +305,8 @@ each process's GPU seconds above 65 W and mean GPU power, to compare within one 
 | #12170 | endor `--load cpu` | the formatted test files compile | ok |
 | #12172 | tatooine `--load cpu` | PR-head tiny suites, cpu backend | 6 / 6 suites pass (2.1) |
 | #12157 / #12167 | endor `--exclusive` slot 2 | Metal speed A/B | never started: #12157 cancelled for a reservation fleetq refused, requeued as #12167, cancelled at report time (est. start 21:05) |
+| #12181 | endor `--exclusive` slot B (coordinator; script 18:49:44-19:10:40) | real-model seed equality on Metal + Metal speed A/B (`slotB.sh s1`) | seeds 200 / 200 identical, 225 device-draw passes and 0 logits passes; speed 3.2 |
 
 Radiance: 3 windows (W1a, W2, W3), **8:57 in total** (2:17 + 3:15 + 3:25), each under 5:00; radiance was back after every window
 (fleetq health checks).
-endor exclusive slots: 1 used (28:42); none queued.
+endor exclusive slots: 2 used (slot 1 28:42; slot B #12181, script 20:56); none queued.
