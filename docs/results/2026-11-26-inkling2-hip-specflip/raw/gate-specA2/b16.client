@@ -1,0 +1,2 @@
+wall 14.14 s, aggregate 144.8 tok/s, latency median 13.9 s max 14.14 s, prompt tokens 19503, cached 0, ttft median 2.5744 max 7.368797063827515, itl p50 0.0566 p99 0.5886
+conc: 16 replies, 2048 tokens -> /home/josef/intarsiaml-ink-hip-specflip/logs/gate2-specA2/b16.json

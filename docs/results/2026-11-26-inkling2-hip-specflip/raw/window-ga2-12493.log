@@ -1,0 +1,25 @@
+fleetq: #12493 waiting (#1 in line): radiance-rank0 is also taken down by #12492 "ink-hip-overlap2: window S6 (gate-4 regate BA: o6 overlap=1 vs main6, tatooine client; card 1 main6 priming + Inkling md5)" (claude-04c0e1cd)
+fleetq:   #12492 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12492 set, or it will wait for #12492 to be released.
+fleetq: #12493 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 99% busy with work fleetq does not track
+fleetq: #12493 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #12493 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 30% busy with work fleetq does not track
+fleetq: #12493 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'CAP=285 BR=specA2 bash ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/window.sh ~/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_gate2.sh'
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-specflip/docs/results/2026-11-26-inkling2-hip-specflip/raw/stage_gate2.sh; cap 285s; stopping radiance 2026-11-27 00:15:34
+[window] radiance stopped 2026-11-27 00:15:38 (inactive)
+[gate] start 00:15:38 specA2 8e927dd520f2765ad8da92db4f198c35 commit 136b4dc162f4f5edca6a5972f6d7cf29869f6f7c
+[gate c0] b16 up after 105s 00:17:23
+[gate c0] b16 conc rc 0 00:17:38 | conc: 16 replies, 2048 tokens -> /home/josef/intarsiaml-ink-hip-specflip/logs/gate2-specA2/b16.json
+[gate c0] b16 lines: admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 104.4s, context 3285 tokens 
+[gate c0] seeds off rc 0 00:18:24 lines 100 | dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 2.8 s speculative decoding: Dflash, up to 5 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_bf16_gemv_rows ink_attn_decode=ink_attn_decode_bf16 matmul=matmul_bf16_gemv_rows conv_mix=conv_mix_bf16 logits=logits_bf16_gemv_rows moe_route=moe_route moe_experts=moe_experts_s
+[gate c0] seeds def rc 0 00:19:14 lines 100 | dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 2.6 s speculative decoding: Dflash, up to 5 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_bf16_gemv_rows ink_attn_decode=ink_attn_decode_bf16 matmul=matmul_bf16_gemv_rows conv_mix=conv_mix_bf16 logits=logits_bf16_gemv_rows moe_route=moe_route moe_experts=moe_experts_s
+[gate c1] solo: no server after 175 s
+[gate c1] md5 off rc 0 00:18:49 380af8a5e897bdbed231818477038f37 | decode overall: 510 tokens after the first, 6226 ms (81.92 tok/s) spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) 
+[gate c1] md5 def rc 0 00:19:03 380af8a5e897bdbed231818477038f37 | --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row) decode overall: 510 tokens after the first, 4154 ms (122.78 tok
+[gate c1] sampled default rc 0 00:19:12 | --spec dflash --spec-draft <model dir> --spec-k 5: the DSpark default of recipe inkling2 on hip ([tuning.hip] mtp_default_k; greedy requests at one sequence; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off) --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row) sampled requests (temperature > 0): DFlash-family drafting on (recipe inkling2 [tuning.hip] sampled_dflash; INTARSIA_SPEC_SAMPLED_DFLASH=0 turns it off; single sequence, one rank, seed-exact keyed rule) loaded Inkling-2-Mini on AMD Radeon Graphics in 8.1s: 24 layers, hidden 2304, act bf16, kv bf16, weights 15.94 GB, context 4096 tokens (reci
+[gate] serve b16 (card 0) vs solo (card 1): FileNotFoundError: [Errno 2] No such file or directory: '/home/josef/intarsiaml-ink-hip-specflip/logs/gate2-specA2/solo.json'
+[gate] seeds T 1.0: off 100 default 100 shared 100 identical 100
+[gate] done 00:19:14
+[window] stage done 2026-11-27 00:19:15 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-27 00:19:15
+[window] radiance answers 2026-11-27 00:19:25 (after 15 s)
+fleetq: #12493 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

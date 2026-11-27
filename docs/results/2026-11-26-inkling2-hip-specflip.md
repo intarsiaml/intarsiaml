@@ -1,7 +1,9 @@
 # Inkling-2-Mini HIP spec default flips (lane ink-hip-specflip)
 
-Status: in progress (2026-11-26 22:55 EST). Flip B: confirmation ABBA **meets GO** again; KV check 2 **over 5 %** by the pre-registered
-reading (memory-limited solo capacity -9.9 %; the default contexts do not move): flip B stopped, (a) / (b) / (c) go to the user. Flip A: PR A.
+Status (2026-11-27 00:25 EST): **flip A = PR #545** (GA2 on the final head `136b4dc16`: md5 and seeds pass, the serve 16/16 check did not
+run, solo server cold; cpu suite #12480 running; Metal slot pending). **Flip B (b)** (DFlash2 alone, sampled requests drafting with it)
+**failed its pre-registered gate** (D2). **Coordinator 00:08: build (a)** (both drafters: greedy DFlash2 k4, sampled DSpark adaptive);
+its gate is pre-registered below ("Pre-registration: the (a) gate"), before any (a) window.
 
 ## Speed table: confirmation ABBA, DFlash2 k4 / DSpark k5 (windows C1 + C2, card 1, binary `main7`)
 
@@ -64,6 +66,15 @@ tests, harness and docs only (the `load.rs` addition is `#[cfg(test)]`). Main's 
 
 Radiance: G1 #12441 3:35, G2 #12454 2:27, G2b #12461 0:58, G2c #12462 0:59.
 
+**GA2 (#12493, 00:15:34-00:19:25, 3:51; binary `specA2` = PR A final head `136b4dc16`, main `1bf40e29f` with #544 merged in, md5
+`8e927dd520f2765ad8da92db4f198c35`; `raw/gate-specA2/`, `raw/window-ga2-12493.log`):**
+- greedy md5 (md5.json, 256 tokens): default (DSpark k5) = `--spec off` = `380af8a5e897bdbed231818477038f37` (default 122 vs off 81.9 tok/s).
+- 100 seeds at T 1.0: `INTARSIA_SPEC_SAMPLED_DFLASH=0` vs default **100 / 100 identical**; not vacuous (off 0 verify passes; default 265
+  passes, 408 proposed, 123 accepted).
+- contexts: solo default `context 4096 tokens`, weights 15.94 GB; `--max-batch 16`: `context 3285 tokens` (cold admission, 134 cases, 104 s).
+- **serve b16 vs solo: not run.** The solo server (card 1) was still in its cold first-start admission (new binary, no cached cases) when
+  the stage's 175 s wait ran out; `solo.json` missing. G2c's 16 / 16 was on `specA1g` (before #544). Needs a serve-only rerun (asked).
+
 ## Flip A as built (PR A)
 
 - **Rule.** A new recipe key `[tuning.<backend>] sampled_dflash` (bool; `recipes/inkling2.toml` sets `true` under `[tuning.hip]` only).
@@ -96,6 +107,71 @@ identical** at T 1.0, DFlash2 k4, off 0 passes vs on 326 passes (935 proposed, 1
   1.275 / 1k 1.075 / 4k 1.459, T 0.7 short 1.294 / 1k 1.188 / 4k 1.435 (all >= 0.98 x DSpark-adaptive), lowest prompt **0.966**
   (short_b, T 1.0) - the replay predicts bar 1 (every prompt >= 0.98) fails at short_b; D2 measures it.
 - **DFlash2 table for D2 / PR B:** `d=0.285,r=0.303/0.548/0.699/0.874,g=0.85,margin=0.02,drop=0.05,probe=3,hold=16,hold_max=64`.
+
+## D2: sampled DFlash2 k4 vs plain sampling (window D2 #12485, 2:38, binary specB1) - **gate FAILS**
+
+Every `pol` process: `--spec dflash --spec-draft /models/Inkling-2-Mini-DFlash2 --spec-k 4: the DFlash2 default of recipe inkling2 on
+hip` and `draft length per request on (d=0.285,r=0.303/0.548/0.699/0.874,g=0.85,...,margin=0.02,drop=0.05,probe=3,...)` (the D1
+table); `off` = `INTARSIA_SPEC_SAMPLED_DFLASH=0`, same binary. 4 reps per card (card 0 T 1.0, card 1 T 0.7), ids identical across all
+8 processes per temperature. `raw/d2/analysis.txt` (`speed3.py d2 --ref`).
+
+| T | class | plain tok/s | sampled DFlash2 tok/s | DFlash2 / plain [95 % CI] | bar: 0.98 x DSpark-adaptive (#543) | |
+|---|---|---:|---:|---:|---:|---|
+| 1.0 | short | 75.87 | 98.57 | 1.299 [1.265-1.334] | 1.149 | ok |
+| 1.0 | 1k | 73.43 | 83.78 | 1.141 [1.122-1.160] | 1.021 | ok |
+| 1.0 | 4k | 72.32 | 98.52 | 1.362 [1.350-1.374] | 1.437 | **FAIL** |
+| 0.7 | short | 76.05 | 91.16 | 1.199 [1.170-1.228] | 1.140 | ok |
+| 0.7 | 1k | 73.91 | 78.40 | 1.061 [1.053-1.069] | 1.047 | ok |
+| 0.7 | 4k | 72.62 | 97.97 | 1.349 [1.337-1.362] | 1.429 | **FAIL** |
+
+Per prompt (bar 1, >= 0.98 each): T 1.0 short_b **0.974** [0.949-1.000] (FAIL; acceptance 22.4 %), short_a 1.363, short_c 1.831,
+len1k 1.141, len4k 1.362; T 0.7 short_b 0.990, short_a 1.054, short_c 1.849, len1k 1.061, len4k 1.349. Seeds (bar 3, D1): 100 / 100.
+
+**Verdict: (b) fails bars 1 and 2** (short_b at T 1.0 as the D1 replay predicted, 0.966; and 4k at both temperatures, where
+sampled DFlash2 gains 1.35-1.36x against DSpark-adaptive's 1.46-1.47x). As pre-registered: no re-tune, no re-run; reported to the
+coordinator (00:10). Flip B is not shipped; the PR B candidate (resolver, keys, tests) is kept unpushed for (a).
+
+## PR B candidate `specB1` (built before D2, 23:55-00:00)
+
+PR A head `136b4dc16` (main `1bf40e29f` with #544 merged in) + `raw/prb_patch.py` + `raw/prb_patch2.py` with the D1 table, applied in
+tatooine's lane folder while the Mac worktree stayed on PR A for its cpu suite; hip CLI md5 `c021c060c03f30cee4a2a54fc1df1cd7`.
+- **Rule:** new recipe keys `[tuning.<backend>] dflash2_draft` (`"Inkling-2-Mini-DFlash2"` on hip), `dflash2_k` (4),
+  `dflash2_sampled_adapt` (the D1 table). Where the recipe's speculation default applies (no `--spec`, one sequence, one rank),
+  `load::dflash2_default_draft` resolves the drafter: an absolute path, or a name next to the checkpoint (`<checkpoint>/../<name>`;
+  on tatooine `/models/Inkling-2-Mini-DFlash2` beside `/models/Inkling-2-Mini`). Found = a DFlash2 `config.json` that `open_dflash`
+  takes: the default becomes `--spec dflash --spec-draft <it> --spec-k 4`, one drafter loaded, and the model's `sampled_dflash`
+  default covers it (with `dflash2_sampled_adapt`). Missing / not DFlash2: one stderr line, the DSpark default (flip A), never an error.
+  `INTARSIA_SPEC_DFLASH2_DEFAULT=0`: the DSpark default.
+- **Why a recipe field with a name next to the checkpoint:** no flag (the brief); the recipe already carries the per-backend default
+  (`mtp_default_k`, `sampled_dflash`), so the drafter's name and k sit beside them; the sibling rule finds the drafter wherever the model
+  directory is, as long as the drafter sits beside it (on tatooine both are in `/data/models/intarsia`), and an absolute path covers
+  other layouts (an HF cache, where snapshots are not siblings). An env path would be a flag in another form.
+- **cpu checks on tatooine (dev image, cpu backend):** `inkling2_dflash2` 10 / 10 (2 new: the resolver finds a sibling / an absolute
+  drafter, `=0` reverts, missing / target / DSpark dirs fall back, metal / cuda / cpu have no default; sampled requests draft with
+  DFlash2 under the recipe key at k2 / k4 with `--spec off` ids at T 1.0 / 0.7, not vacuous, the DFlash2 table is used, no key keeps
+  them plain), `recipe_ink_sampled_dflash` 3 / 3, `recipes_doc` 3 / 3, `inkling2_sampled_default` 2 / 2, cli `docs_env_vars` 2 / 2,
+  core lib 284 / 284. Not yet the endor suite (gate 1).
+
+## Pre-registration: the (a) gate (written 00:25 EST 11-27, before any (a) window; coordinator 00:08 as written above)
+
+(a) = both drafters loaded on HIP at one sequence: greedy requests draft with DFlash2 k4, sampled requests with DSpark (adaptive, flip A's
+table). Fallbacks: DFlash2 missing or `INTARSIA_SPEC_DFLASH2_DEFAULT=0` -> exactly PR A (DFlash2 not loaded: same head count, same KV
+line); DSpark draft missing -> greedy DFlash2, sampled plain. `--max-batch` > 1 loads no drafter (as main). Only the drafter of the
+request ingests each pass; the other goes unsynced and the existing resync rule (`DFLASH_RESYNC_REUSE_MAX`) applies when it is picked again.
+
+Gate (every item must pass; no re-tune, no re-run hoping for a pass):
+1. **Ids.** Greedy ids of the dual default = `--spec off` (md5.json, 256 tokens; and the 64-token golden prompt). 100 / 100 seeds equal
+   `--spec off` at **T 1.0 and T 0.6** (not vacuous: verify passes > 0 on the default side).
+2. **Speed (contention from holding both).** Control = `specA2` (PR A head, one drafter): greedy = `--spec dflash --spec-draft <DFlash2>
+   --spec-k 4` (DFlash2 alone), sampled = its default (DSpark adaptive). Dual binary at its default for both. Greedy cells = #541's six
+   (short, 1k, prose, chat, 4k, 16k), ABBA 4 + 4 fresh processes; sampled cells = #543's prompts (short_a, short_b, short_c, len1k, len4k)
+   at T 1.0 and T 0.7, n = 4. **Every cell's dual / control ratio has a 95 % CI upper bound >= 0.99.**
+3. **KV.** Measured solo capacity (`--max-seq 1000000`) with both loaded; **stop and report if it is worse than -10 %** of DSpark-alone
+   (177,504 on card 1); the default solo context 4096 must still load. Measured first, in the first (a) window; the stage skips its speed
+   part if this fails.
+4. **Tests.** Full cpu suite (endor) and the hip tiny tests pass on the PR head; engine tests: a missing drafter / the revert env gives a
+   load identical to PR A (head count, KV line); a greedy turn then a sampled turn (and back) in one conversation keeps ids = `--spec off`.
+5. Serve 16 / 16 at `--max-batch 16` = solo; Metal no-op check (Metal greedy md5 main vs branch, Metal tiny suite).
 
 ## Pre-registration: the sampled DFlash2 test (option (b); written ~23:20 EST, before windows D1 / D2)
 
@@ -297,3 +373,23 @@ your results doc. Nothing else changes. The 06:00 cutoff for windows is 06:00 ES
 >    - PR B, if (b) passes.
 >    If (b) fails, report to me in ≤ 6 lines before writing any (a) code.
 > 3. A second lane, overlap stalls, may queue radiance windows later tonight. You keep priority: queue your windows as soon as each is ready.
+
+**Lane to coordinator, 00:10 EST:** (b) fails its pre-registered gate (D2: short_b 0.974 at T 1.0; 4k 1.362 / 1.349 vs bars 1.437 /
+1.429); no (a) code; PR A #545 continues (cpu suite #12480 running, HIP recheck window on the final-main binary next, then Metal).
+
+**Coordinator, 00:08 EST 2026-11-27 (received ~00:13; as written):**
+
+> Build (a) now: two drafters. The user already approved it as the fallback if (b) failed, knowing the −9.9 % solo KV cost, and did not say "stop at (b)". No need to wait for the morning.
+>
+> Order:
+> 1. PR A first. The HIP recheck window (~4:30) on the final-main binary is approved, then the Metal slot. Report when #12480 and the recheck are done; I merge #545 on green CI.
+> 2. Write the (a) code while those jobs run. Start from the unpushed PR B candidate, rebased on PR A. Greedy requests use DFlash2 k4. Sampled requests use DSpark with adaptive draft length. If either drafter file is missing, fall back to what's present (DSpark-only = flip A behaviour, DFlash2-only = greedy DFlash2 and sampled with no drafting). `--max-batch` > 1 still loads no drafter.
+> 3. Pre-register the (a) gate in the results doc before measuring:
+>    - Greedy ids equal `--spec off` (golden 256/64-token md5) and 100/100 seeds equal off at T 1.0 and 0.6.
+>    - Speed: each path with both drafters loaded vs its single-drafter binary (greedy vs DFlash2-only k4, sampled vs PR A), every cell ≥ 0.99 by 95 % CI upper bound. This catches contention from holding both.
+>    - KV: record measured solo capacity with both loaded; stop and report if it's worse than −10 %. Default solo context 4096 must still load.
+>    - cpu suite and hip tiny tests pass on the PR head.
+> 4. Radiance: 21:51 used + 4:30 recheck leaves ~6.5 min of the 33 cap. If the (a) gate needs more, send me the window plan with minutes first; I'll grant up to a 45-min lane total. Windows ≤ 5 min each, none starting after 06:00, never cancel a running window.
+> 5. Write this go-ahead (00:08 EST, build (a), gate above, the 45-min ceiling) into the results doc now, so it survives compaction.
+>
+> When you report (a), give the speed table (greedy and sampled cells), md5/seed results, KV numbers, PR number and head.
