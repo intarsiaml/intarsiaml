@@ -1,0 +1,9 @@
+fleetq: #12163 waiting (#4 in line): in line behind #12159 "ink-sampled: fixture law tests on cpu (build br3 + 3 law tests, no GPU)" (claude-04c0e1cd) on tatooine-r9700
+fleetq:   #12159 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12159 set, or it will wait for #12159 to be released.
+fleetq: #12163 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-hip-bpf/.scratch/build.sh main'
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 3m 42s
+cli build exit 0
+2f41908f6b79136e7a59d0f5cbe1d92a  .scratch/bin/intarsia-main
+fleetq: #12163 done (exit 0)

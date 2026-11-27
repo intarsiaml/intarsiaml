@@ -1,0 +1,7 @@
+# name;bin;serve args (leading NAME=value = server env);actions (' && '-separated)
+# W5 (b10): gate 2 on card 0 (W4's packed visit ran no request: the driver's prompt path). The packed --max-batch 16 server: all 16
+# real prompts at 4 at once (4 waves), at 8 at once (2 waves), 16 at once, plain (compared with W4's solo replies), then prefix
+# reuse: 6 base prompts at once, then their extended versions at once (resumed chunks pack), compared with main3's reuse-solo (W4).
+# Then the opt-in 4096-row workspace (INTARSIA_INK_PACK_ROWS=4096): 16 at once (bitwise) and two pure-prefill rows (1 rep, info).
+pk16;b10;INTARSIA_INK_PACK=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc:4:0+conc:4:1+conc:4:2+conc:4:3+conc:8:0+conc:8:1+conc && bitwise:reuse-conc:6
+pk16r;b10;INTARSIA_INK_PACK=1 INTARSIA_INK_PACK_ROWS=4096 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc+pp:2:2048:w5r+pp:4:1024:w5r

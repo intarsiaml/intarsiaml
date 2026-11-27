@@ -124,6 +124,11 @@ pub trait BatchModel {
     fn pack_min_rows(&self) -> usize {
         usize::MAX
     }
+    /// Whether a final chunk's last token runs alone after its packed body (a recurrent state's solo schedule, `run_prefill`;
+    /// default true). False (Inkling-2, lane ink-hip-bpf): a final chunk is one pass, so its body is the whole chunk.
+    fn pack_last_alone(&self) -> bool {
+        true
+    }
     /// Pack only a prompt that prefills whole in one chunk from row 0 (lane srv16: CUDA, where packed later chunks of a multi-chunk
     /// prompt, or a prompt resumed from a reused prefix, were not the solo bits in the served identity check). Default false.
     fn pack_whole_prompts(&self) -> bool {
@@ -1957,21 +1962,24 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
     /// body is what a packed pass runs for it; the final token of a last chunk runs alone afterwards.
     fn pack_body_rows(&self, i: usize, n_decoding: usize) -> Option<usize> {
         let Phase::Prefilling { pos, chunk } = self.active[i].phase else { return None };
-        // note: a request that has not started takes `solo_chunk` here, not the opt-in long-prompt chunk `prefill_plan` may pick
-        // (`BatchModel::long_prefill_chunk`); unreachable today (`Model::pack_capable` excludes Inkling-2, the only model with
-        // the long chunk), revisit if both ever meet
-        let chunk = chunk.unwrap_or(if n_decoding > 0 { self.cfg.busy_chunk } else { self.cfg.solo_chunk });
         let plen = self.active[i].seq.prompt().len();
         if self.active[i].seq.chunk_len(pos, plen - pos).is_some() {
             // a request on its own (prefix store) schedule never packs
             return None;
         }
+        // a request that has not started takes the chunk `prefill_plan` will pick for it (the opt-in long-prompt chunk,
+        // `BatchModel::long_prefill_chunk`, when it is alone with no decode rows; Inkling-2 packs since lane ink-hip-bpf)
+        let chunk = chunk.unwrap_or(if n_decoding > 0 {
+            self.cfg.busy_chunk
+        } else {
+            self.model.long_prefill_chunk(plen).unwrap_or(self.cfg.solo_chunk)
+        });
         let len = next_prefill_chunk_tm(plen - pos, chunk, self.model.avoid_single_row_prefill(), self.model.tail_merge());
         if self.model.pack_whole_prompts() && (pos != 0 || len != plen) {
             // lane srv16: only a whole prompt from row 0 packs where that is all that was proven bitwise (CUDA)
             return None;
         }
-        Some(if len == plen - pos { len - 1 } else { len })
+        Some(if len == plen - pos && self.model.pack_last_alone() { len - 1 } else { len })
     }
 
     /// Prefill request `i`'s next chunk together with the next chunks of the requests prefilling behind it, in one packed pass,

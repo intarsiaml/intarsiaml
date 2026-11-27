@@ -1,0 +1,35 @@
+fleetq: #12242 running on tatooine-r9700, tatooine-r9700-2: env VISITS=/opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/visits-w6.txt OUT=/opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/w6 CAP=275 REAL_OFF=0 bash /opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/serve_window.sh
+[17:42:16] radiance down
+[17:42:16] A: start (main3; --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[17:42:34] A: up (IP 172.17.0.2 after 18s ; 257 s left)
+[17:42:41] A: real rep 1 N=4 exit 0 (251 s left): wall 5.11 s, aggregate 100.2 tok/s, latency median 5.08 s max 5.11 s, prompt tokens 5277, cached 0, ttft median 1.6024 max 2.1265950202941895, itl p50 0.0238 p99 0.5238
+[17:42:49] A: real rep 1 N=8 exit 0 (242 s left): wall 8.77 s, aggregate 116.8 tok/s, latency median 8.66 s max 8.76 s, prompt tokens 12091, cached 0, ttft median 2.0519 max 4.665759086608887, itl p50 0.0336 p99 0.6239
+[17:43:06] A: real rep 1 N=16 exit 0 (225 s left): wall 16.79 s, aggregate 122.0 tok/s, latency median 16.36 s max 16.74 s, prompt tokens 25896, cached 0, ttft median 3.2881 max 10.072468996047974, itl p50 0.0573 p99 0.6284
+[17:43:41] A fill r1: localeval exit 0 (190 s left): [localeval] 1 streams: aggregate 61.7 tok/s [localeval] 4 streams: aggregate 111.3 tok/s [localeval] 8 streams: aggregate 140.8 tok/s [localeval] 16 streams: aggregate 154.8 tok/s 
+[17:43:43] A: bitwise pp:16:49:w6 exit 0 (188 s left): pp 16 x 49: wall 1.964 s, prompt tokens 1123 (60..90), prompt 571.8 tok/s, cached 0
+[17:43:46] A: bitwise pp:8:512:w6 exit 0 (185 s left): pp 8 x 512: wall 2.477 s, prompt tokens 4750 (570..612), prompt 1917.9 tok/s, cached 0
+[17:43:48] A: bitwise pp:4:1024:w6 exit 0 (183 s left): pp 4 x 1024: wall 1.619 s, prompt tokens 4744 (1180..1196), prompt 2930.6 tok/s, cached 0
+[17:43:50] A: bitwise pp:2:2048:w6 exit 0 (181 s left): pp 2 x 2048: wall 1.682 s, prompt tokens 4712 (2348..2364), prompt 2802.2 tok/s, cached 0
+[17:44:01] A: bitwise reuse2-conc:6 exit 0 (170 s left): wall 5.61 s, aggregate 136.8 tok/s, latency median 5.57 s max 5.61 s, prompt tokens 4358, cached 0, ttft median 1.5007 max 2.0965609550476074, itl p50 0.028 p99 0.3709
+[17:44:03] A: stopped: VRAM peak A: card0 28529 MiB, card1 57 MiB
+[17:44:03] B: start (b10; INTARSIA_INK_PACK=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9)
+[17:44:21] B: up (IP 172.17.0.2 after 18s ; 150 s left)
+[17:44:27] B: real rep 1 N=4 exit 0 (144 s left): wall 5.18 s, aggregate 98.9 tok/s, latency median 5.14 s max 5.16 s, prompt tokens 5277, cached 0, ttft median 1.6578 max 2.182137966156006, itl p50 0.024 p99 0.1053
+[17:44:36] B: real rep 1 N=8 exit 0 (135 s left): wall 8.81 s, aggregate 116.3 tok/s, latency median 8.7 s max 8.8 s, prompt tokens 12091, cached 0, ttft median 2.0052 max 4.621793031692505, itl p50 0.0338 p99 0.5884
+[17:44:53] B: real rep 1 N=16 exit 0 (118 s left): wall 16.61 s, aggregate 123.3 tok/s, latency median 16.29 s max 16.6 s, prompt tokens 25896, cached 0, ttft median 3.0202 max 9.989553928375244, itl p50 0.0573 p99 0.6285
+[17:45:26] B fill r1: localeval exit 0 (85 s left): [localeval] 1 streams: aggregate 61.9 tok/s [localeval] 4 streams: aggregate 110.6 tok/s [localeval] 8 streams: aggregate 139.4 tok/s [localeval] 16 streams: aggregate 153.9 tok/s 
+[17:45:29] B: bitwise pp:16:49:w6 exit 0 (82 s left): pp 16 x 49: wall 1.764 s, prompt tokens 1123 (60..90), prompt 636.5 tok/s, cached 0
+[17:45:31] B: bitwise pp:8:512:w6 exit 0 (80 s left): pp 8 x 512: wall 1.925 s, prompt tokens 4750 (570..612), prompt 2467.2 tok/s, cached 0
+[17:45:33] B: bitwise pp:4:1024:w6 exit 0 (78 s left): pp 4 x 1024: wall 1.693 s, prompt tokens 4744 (1180..1196), prompt 2802.5 tok/s, cached 0
+[17:45:34] B: bitwise pp:2:2048:w6 exit 0 (77 s left): pp 2 x 2048: wall 1.694 s, prompt tokens 4712 (2348..2364), prompt 2781.0 tok/s, cached 0
+[17:45:46] B: bitwise reuse2-conc:6 exit 0 (65 s left): wall 5.60 s, aggregate 137.1 tok/s, latency median 5.59 s max 5.6 s, prompt tokens 4358, cached 0, ttft median 1.4335 max 2.038335084915161, itl p50 0.0276 p99 0.1013
+[17:45:48] B: stopped: VRAM peak B: card0 28532 MiB, card1 57 MiB
+[17:45:48] visits done (63 s left)
+[17:46:00] window ended
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-bpf/.scratch/hold.sh; cap 270s; stopping radiance 2026-11-26 17:42:12
+[window] radiance stopped 2026-11-26 17:42:16 (inactive)
+[window] stage done 2026-11-26 17:45:50 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 17:45:50
+[window] radiance answers 2026-11-26 17:46:00 (after 15 s)
+fleetq: #12242 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
+exit 0

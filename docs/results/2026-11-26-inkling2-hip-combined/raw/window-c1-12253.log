@@ -1,0 +1,19 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-hip-verify/.scratch/stage_c1.sh; cap 265s; stopping radiance 2026-11-26 18:14:31
+[window] radiance stopped 2026-11-26 18:14:34 (inactive)
+[stage] start 18:14:34 main2 2f41908f6b79136e7a59d0f5cbe1d92a comb 1212314c1f79be0b94b93d63a17ea899
+---- card 0
+[speed] old@c0a rc 0 t+52s | up to 3 drafts | decode overall: 3563 tokens after the first, 34216 ms (104.13 tok/s) | spec: verify passes=1286 proposed=3138 accepted=1951 (acceptance 62.2%, 2.52 tokens per pass)
+[speed] new@c0a rc 0 t+102s | up to 5 drafts | decode overall: 3563 tokens after the first, 32411 ms (109.93 tok/s) | spec: verify passes=1182 proposed=3840 accepted=2069 (acceptance 53.9%, 2.75 tokens per pass)
+[speed] new@c0b rc 0 t+153s | up to 5 drafts | decode overall: 3563 tokens after the first, 32436 ms (109.85 tok/s) | spec: verify passes=1182 proposed=3840 accepted=2069 (acceptance 53.9%, 2.75 tokens per pass)
+[speed] old@c0b rc 0 t+205s | up to 3 drafts | decode overall: 3563 tokens after the first, 34238 ms (104.06 tok/s) | spec: verify passes=1286 proposed=3138 accepted=1951 (acceptance 62.2%, 2.52 tokens per pass)
+[c0] done 18:17:59
+---- card 1
+[speed] new@c1a rc 0 t+51s | up to 5 drafts | decode overall: 3563 tokens after the first, 32151 ms (110.82 tok/s) | spec: verify passes=1182 proposed=3840 accepted=2069 (acceptance 53.9%, 2.75 tokens per pass)
+[speed] old@c1a rc 0 t+101s | up to 3 drafts | decode overall: 3563 tokens after the first, 34138 ms (104.37 tok/s) | spec: verify passes=1286 proposed=3138 accepted=1951 (acceptance 62.2%, 2.52 tokens per pass)
+[speed] old@c1b rc 0 t+153s | up to 3 drafts | decode overall: 3563 tokens after the first, 34134 ms (104.38 tok/s) | spec: verify passes=1286 proposed=3138 accepted=1951 (acceptance 62.2%, 2.52 tokens per pass)
+[speed] new@c1b rc 0 t+204s | up to 5 drafts | decode overall: 3563 tokens after the first, 32308 ms (110.28 tok/s) | spec: verify passes=1182 proposed=3840 accepted=2069 (acceptance 53.9%, 2.75 tokens per pass)
+[c1] done 18:17:58
+[stage] done 18:17:59
+[window] stage done 2026-11-26 18:18:00 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 18:18:00
+[window] radiance answers 2026-11-26 18:18:10 (after 15 s)

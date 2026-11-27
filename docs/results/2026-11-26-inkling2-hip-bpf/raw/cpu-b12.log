@@ -1,0 +1,48 @@
+fleetq: #12254 waiting (#1 in line): #12253 "ink-hip-combined: C1 spec-default decode 4+4 ABBA 256 tok, main 178d87ece vs 80719483a, both cards, radiance down <= 4:50" (claude-04c0e1cd) needs cpu quiet on tatooine-r9700, and this job loads it
+fleetq:   #12253 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12253 set, or it will wait for #12253 to be released.
+fleetq: #12254 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'S=~/intarsiaml-ink-hip-bpf/.scratch; bash $S/build.sh b12 m:inkling2_packed m:inkling2_batch m:inkling2 && bash $S/cpu_tests.sh core sched plan packed hiplib; rm -rf $S/main-tree && mkdir -p $S/main-tree && cp -r $S/main-src/kernels $S/main-tree/ && bash $S/isa.sh | tail -8; bash $S/build_main_tests.sh main4'
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 2m 07s
+cli build exit 0
+5ca5f2974eec2ab3145dff6bc89b9e79  .scratch/bin/intarsia-b12
+    Finished `release` profile [optimized] target(s) in 16.07s
+  Executable tests/inkling2_packed.rs (/target/release/deps/inkling2_packed-1ed2245ff98f9c1a)
+test inkling2_packed build exit 0
+    Finished `release` profile [optimized] target(s) in 0.92s
+  Executable tests/inkling2_batch.rs (/target/release/deps/inkling2_batch-4078c269fe83f39e)
+test inkling2_batch build exit 0
+    Finished `release` profile [optimized] target(s) in 1.40s
+  Executable tests/inkling2.rs (/target/release/deps/inkling2-4591618c7e4a1464)
+test inkling2 build exit 0
+== core exit 0
+test result: ok. 270 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 13.38s
+== sched exit 0
+test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+== plan exit 0
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+== packed exit 0
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.12s
+== hiplib exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 34 filtered out; finished in 0.00s
+-rw-r--r-- 1 ubuntu ubuntu 107410229 Nov 26 23:23 main-ink_moe.s
+== ink_mix: main 31 kernels, branch 31 (0 new: [])
+  31 / 31 of main's kernels identical in the branch (instructions and descriptor)
+== ink_mix_rows: main 55 kernels, branch 55 (0 new: [])
+  55 / 55 of main's kernels identical in the branch (instructions and descriptor)
+== ink_moe: main 427 kernels, branch 427 (0 new: [])
+  427 / 427 of main's kernels identical in the branch (instructions and descriptor)
+== ink_mix_segs (new TU): 56 kernels, 24 SEG instantiations
+main-src at 178d87ece
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 2m 09s
+main cli build exit 0
+1212314c1f79be0b94b93d63a17ea899  /home/josef/intarsiaml-ink-hip-bpf/.scratch/bin/intarsia-main4
+    Finished `release` profile [optimized] target(s) in 16.51s
+  Executable tests/inkling2.rs (/target/release/deps/inkling2-4591618c7e4a1464)
+main test inkling2 build exit 0
+    Finished `release` profile [optimized] target(s) in 0.92s
+  Executable tests/inkling2_batch.rs (/target/release/deps/inkling2_batch-4078c269fe83f39e)
+main test inkling2_batch build exit 0
+fleetq: #12254 done (exit 0)
+exit 0

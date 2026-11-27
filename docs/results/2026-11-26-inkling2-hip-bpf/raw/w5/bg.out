@@ -1,0 +1,20 @@
+[bg] card 1 VRAM before: 59912192 59912192 
+[bg] (1) real-shape inkling2_packed, cap 120 s 2026-11-26 17:37:50
+[bg] real exit 101 2026-11-26 17:37:55
+[bg real] test inkling2_packed_equals_solo_real ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+[bg real] inkling2_packed_equals_solo_real: moe_split_rows = Some(256), pack_rows_max = 4096, kv cap 1121
+[bg real] thread 'inkling2_packed_equals_solo_real' panicked at crates/intarsia-models/tests/inkling2_packed.rs:171:87:
+[bg real] test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 4.56s
+[bg] (2) G2 long b10 [2026-11-26 17:37:55] prefill floor [4bit]: top-1 (all rows) 98.98% (not gated for this class) ok | 21-way KL (scored rows, n=1569) 4.083e-3 (need <= 3.0e-2) ok [all rows, n=1569: 4.083e-3, reported only] | tail mass (all rows) ours 0.0405 vs ref 0.0407, excess -0.0003 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested 
+[bg] (3) ADMIT conv_mix [2026-11-26 17:38:08]
+[bg admit conv_mix] conv_mix       conv_mix_bf16                 532      0    4.525e-3    1.181e-3  ADMITTED
+[bg admit conv_mix] 1 kernels, 532 cases in 6.2s
+[bg] (3) ADMIT moe_experts [2026-11-26 17:38:14]
+[bg admit moe_experts] moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+[bg admit moe_experts] moe_experts    moe_experts_bf16_v2            12      0    4.149e-3    3.160e-4  ADMITTED
+[bg admit moe_experts] moe_experts    moe_experts_bf16_v3            12      0    4.149e-3    3.160e-4  ADMITTED
+[bg admit moe_experts] moe_experts    moe_experts_bf16_rows           4      0    4.149e-3    3.160e-4  ADMITTED
+[bg admit moe_experts] moe_experts    moe_experts_situ_bf16          10      0    3.472e-3    2.084e-4  ADMITTED
+[bg admit moe_experts] moe_experts    moe_experts_situ_bf16_rows      7      0    1.748e-3    1.266e-4  ADMITTED
+[bg admit moe_experts] 6 kernels, 57 cases in 62.9s
+[bg] done 2026-11-26 17:39:18

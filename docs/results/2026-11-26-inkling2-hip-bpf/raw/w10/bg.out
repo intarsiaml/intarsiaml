@@ -1,0 +1,18 @@
+[bg] (1) prime b13 (B1's config) 2026-11-26 19:02:34
+[bg] prime-b13 (b13) up after 101s (0 = not up) 2026-11-26 19:04:15: admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 inkling2 packed prefill: on, up to 2048 rows per pass, segments of 17+ rows loaded ink on hip (AMD Radeon Graphics) in 100.4s, context 4608 tokens 
+[bg] (2) tiny inkling2_packed on b13, no env (143 s left) 2026-11-26 19:04:16
+[bg] tiny packed exit 0 2026-11-26 19:04:19
+[bg tiny packed] test inkling2_packed_equals_solo_real ... ok
+[bg tiny packed] 2 x 17: 2 segments, 37 rows: packed == solo
+[bg tiny packed] 17 / 40 / 300, one resumed: 3 segments, 360 rows: packed == solo
+[bg tiny packed] 2048 / 1000 / 17: 3 segments, 3065 rows: packed == solo
+[bg tiny packed] 4096 rows, two resumed: 4 segments, 4096 rows: packed == solo
+[bg tiny packed] blend tails: 3 segments, 1037 rows: packed == solo
+[bg tiny packed] 16 mixed: 16 segments, 1976 rows: packed == solo
+[bg tiny packed] test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.15s
+[bg] (2) tiny inkling2_batch on b13, no env (140 s left) 2026-11-26 19:04:19
+[bg] tiny batch exit 0 2026-11-26 19:04:25
+[bg tiny batch] test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.79s
+[bg] (3) solo b13 (134 s left) 2026-11-26 19:04:25
+[bg] solo-b13 (b13) up after 0s (0 = not up) 2026-11-26 19:05:55: 
+[bg] done 2026-11-26 19:05:56

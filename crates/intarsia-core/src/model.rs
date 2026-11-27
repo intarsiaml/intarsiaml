@@ -850,6 +850,10 @@ pub struct Model {
     /// The rows of the macro pass being run, `(lo, len)` per chunk, `Some` only inside [`Model::run_macro_group`]
     /// (and, per prompt, inside [`Model::forward_packed`] on a [`Backend::pack_split_gemms`] backend).
     macro_ctx: Mutex<Option<Vec<(usize, usize)>>>,
+    /// The expert-call row ranges of the Inkling-2 packed prefill pass in flight (`Model::ink_prefill_packed`; lane ink-hip-bpf).
+    ink_pack_moe: Mutex<Option<Vec<(usize, usize)>>>,
+    /// Inkling-2 packed prefill passes run ([`Model::ink_packed_passes`]).
+    ink_pack_passes: std::sync::atomic::AtomicU64,
     /// The snapshot buffers of the macro pass being run, one entry per segment (`Some` only inside [`Model::forward_inner`]'s
     /// macro group, with `SequenceState::prefill_snapshots` set): the recurrent blocks copy their slot into a segment's buffer
     /// (at `SequenceState::recurrent_offset`) once that segment's recurrence has run, so it holds the state at the segment's end.
@@ -1260,6 +1264,12 @@ impl Model {
                     let all = &src.bytes(&nm)?[..dims.vocab * dims.hidden * i.dtype.size_bytes()];
                     let q = crate::quant::head::load_rows(kind, b, i.dtype, all, dims.vocab, 0, dims.vocab, dims.hidden)?;
                     weights_bytes.set(weights_bytes.get() + q.weight_bytes() as u64);
+                    if kind.is_row_emulated() {
+                        eprintln!(
+                            "inkling2: unembed row-quant nominal bytes per token: {:.4} GB (8-bit weights + one f32 scale per row; held as dequantised f32 here)",
+                            (dims.vocab * dims.hidden + 4 * dims.vocab) as f64 / 1e9
+                        );
+                    }
                     let note = format!(
                         "lm_head quantised to {} ({} of {} unembed rows x {}, {:.2} GB; {} = {}, {:.1} s)",
                         kind.name(),
@@ -1837,6 +1847,16 @@ impl Model {
         // the workspace (and so the memory plan below) holds the merged tail chunk: `chunk + tail_merge` rows, and a macro
         // pass of `macro_rows` (+ the merged tail)
         let mt = chunk.max(macro_rows) + tail_merge;
+        // Inkling-2 packed prefill (lane ink-hip-bpf, `INTARSIA_INK_PACK_ROWS`): a larger workspace for packed passes only; the
+        // prefill chunk stays the recipe's (`base_chunk` below). Only a model loaded to batch, on a backend with the segment-table
+        // ConvMix (HIP, cpu; `Model::ink_pack_capable`): a solo load, or Metal / CUDA, keeps its workspace whatever the knobs say
+        let ink_grow = if dims.ink.is_some() && opts.batched && matches!(b.name(), "hip" | "cpu") && inkling2::ink_pack_on() {
+            inkling2::ink_pack_rows_env().min(opts.max_seq)
+        } else {
+            0
+        };
+        let mt_plain = mt;
+        let mt = mt.max(ink_grow);
         let esz = act.size_bytes();
         let ink_model = match &dims.ink {
             Some(_) => {
@@ -2276,7 +2296,8 @@ impl Model {
             spec_sampled: std::sync::atomic::AtomicU8::new(0),
             feedback_hold,
             tail_merge,
-            base_chunk: long_chunk.map(|_| base_chunk),
+            // the recipe chunk also when an Inkling-2 packed-prefill workspace is larger than it (lane ink-hip-bpf)
+            base_chunk: (long_chunk.is_some() || mt > mt_plain).then_some(base_chunk),
             long_chunk,
             prefill_peel,
             prefill_peel_period,
@@ -2284,6 +2305,8 @@ impl Model {
             macro_cap: macro_rows,
             macro_split: macro_split_ops()?,
             macro_ctx: Mutex::new(None),
+            ink_pack_moe: Mutex::new(None),
+            ink_pack_passes: std::sync::atomic::AtomicU64::new(0),
             macro_snaps: Mutex::new(None),
             macro_passes: std::sync::atomic::AtomicU64::new(0),
             skip_dead: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_PREFILL_SKIP_DEAD").is_ok_and(|v| v == "1")),
@@ -2341,6 +2364,7 @@ impl Model {
         let verify = phase == crate::plan::Phase::Verify;
         let batch = phase == crate::plan::Phase::Batch;
         let verify_batch = phase == crate::plan::Phase::VerifyBatch;
+        let pack = phase == crate::plan::Phase::Pack;
         if verify || batch || verify_batch {
             self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         }
@@ -2355,6 +2379,10 @@ impl Model {
             if verify_batch {
                 // `t` rows of several sequences' verify runs, one ragged pass: the real batched verify pass, recorded
                 return self.verify_batch_probe(t, pos0);
+            }
+            if pack {
+                // `t` rows of fresh sequences' chunks, one Inkling-2 packed prefill pass, recorded
+                return self.ink_pack_probe(t);
             }
             let hn = self.run_chunk(&st, &ids, false)?;
             // the MTP drafter head runs after every pass (catch-up over up to t rows, chained drafts of one row)
@@ -3245,7 +3273,7 @@ impl Model {
         let nv = self.view(&self.ws.n, self.act, &[t, self.dims.hidden]);
         let mut dump = InkTensors::new();
         let pos0 = st.len;
-        self.ink_pass(st, None, &self.view(&self.ws.ids, DType::I32, &[t]), t, pos0, &nv, false, tf, Some(&mut dump), None)?;
+        self.ink_pass(st, None, None, &self.view(&self.ws.ids, DType::I32, &[t]), t, pos0, &nv, false, tf, Some(&mut dump), None)?;
         let mut logits = Vec::with_capacity(t * self.dims.vocab);
         for r0 in (0..t).step_by(LOGIT_ROWS) {
             logits.extend(self.head_logits(&nv, r0, LOGIT_ROWS.min(t - r0), false)?);
@@ -3563,7 +3591,14 @@ impl Model {
     pub fn pack_min_rows(&self) -> usize {
         static V: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
         let o = *V.get_or_init(|| std::env::var("INTARSIA_PACK_MIN_ROWS").ok().and_then(|v| v.trim().parse().ok()));
-        o.unwrap_or_else(|| self.backend.pack_min_rows()).max(1)
+        let n = o.unwrap_or_else(|| self.backend.pack_min_rows()).max(1);
+        // Inkling-2 (lane ink-hip-bpf): a solo chunk of 2..=16 rows takes the row-exact decode numerics (`ink_rows_exact`), a
+        // packed pass never does, so a segment has at least 17 rows (the override cannot lower it)
+        if self.ink.is_some() {
+            n.max(inkling2::INK_ROWS_EXACT_MAX + 1)
+        } else {
+            n
+        }
     }
 
     /// Whether every segment of a packed pass takes the same attention path in every attention block (fused gated prologue or
@@ -3695,6 +3730,288 @@ impl Model {
             self.mtp_after_rows(&mut sts, &hn, &segs, true, profile)?;
         }
         Ok(())
+    }
+
+    /// Whether this model runs Inkling-2 packed prefill passes ([`Model::ink_prefill_packed`]; lane ink-hip-bpf): an Inkling-2
+    /// model with batched decode enabled (the row table), one rank, no plan recording, unquantised attention projections (a
+    /// quantised GEMM may tile by row count), the backend's segment-table `ConvMix`, no row-invariant prefill, and the knob
+    /// (`INTARSIA_INK_PACK`, [`inkling2::ink_pack_on`]).
+    pub fn ink_pack_capable(&self) -> bool {
+        let Some(im) = self.ink.as_ref() else { return false };
+        inkling2::ink_pack_on()
+            && self.batch_rows >= 2
+            && self.row_tab.is_some()
+            && self.remote.is_none()
+            && self.peers.is_empty()
+            && self.tp.world == 1
+            && self.recorder.lock().unwrap().is_none()
+            && !self.row_invariant_prefill()
+            && im.layers.iter().all(|l| matches!(l.in_w, inkling2::InkInW::Stacked(_)) && l.wo.format == crate::quant::BF16)
+            && self.registry.by_op().get(&Op::ConvMix).is_some_and(|ks| ks.iter().any(|k| k.seg_table))
+    }
+
+    /// Most rows of an Inkling-2 packed prefill pass: the Inkling workspace's (the prefill chunk unless `INTARSIA_INK_PACK_ROWS`
+    /// grew it at load). (Each segment needs KV room for its own rows only: `ink_pack_item_ok`.)
+    pub fn ink_pack_rows_max(&self) -> usize {
+        self.ink.as_ref().map_or(0, |im| im.ws.max_tokens.min(self.ws.ids.bytes() / 4))
+    }
+
+    /// Whether `st` may take part in a packed prefill pass with chunk `ids` and head `mode`: its solo prefill of `ids` is one
+    /// pass (`forward_chunks`) of at least [`Model::pack_min_rows`] rows, nothing drafts on it, and the head is a last-row head.
+    pub fn ink_pack_item_ok(&self, st: &SequenceState, ids: &[u32], mode: HeadMode) -> bool {
+        ids.len() >= self.pack_min_rows()
+            && st.mtp.is_none()
+            && st.dflash.is_none()
+            && st.len + ids.len() <= st.cap
+            && matches!(mode, HeadMode::None | HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_))
+            && self.forward_chunks(st, ids).len() == 1
+    }
+
+    /// Rows the per-segment views of a packed pass must start at a multiple of: their `[T, w]` slices then start 16-byte aligned
+    /// (the GPU kernels load rows in 16-byte pieces). 1 on Inkling-2-Mini (every width a multiple of 8 elements) and on the cpu
+    /// reference; 4 on the tiny fixture's GPU runs (its `[q | r | gate | sink]` rows are 972 bytes).
+    pub fn ink_pack_align_rows(&self) -> usize {
+        let Some(im) = self.ink.as_ref() else { return 1 };
+        if self.backend.name() == "cpu" {
+            return 1;
+        }
+        let (d, esz) = (&self.dims, self.act.size_bytes());
+        let mut w = vec![d.hidden * esz, d.n_heads * d.head_dim * esz, d.n_kv_heads * d.head_dim * esz, im.dims.top_k * 4];
+        for l in &im.layers {
+            w.extend([l.nq * esz, l.nk * esz, d.n_heads * l.relproj.shape[1] * esz]);
+        }
+        let need = |b: usize| 16 / gcd(b, 16);
+        fn gcd(a: usize, b: usize) -> usize {
+            if b == 0 { a } else { gcd(b, a % b) }
+        }
+        w.into_iter().fold(1, |acc, b| { let n = need(b); acc * n / gcd(acc, n) })
+    }
+
+    /// The row layout of a packed pass over chunks of `lens` rows: the order of the segments (longest first, so the segments whose
+    /// solo expert call takes the backend's other form, [`Backend::moe_split_rows`], sit together; a segment whose length is not a
+    /// multiple of [`Model::ink_pack_align_rows`] last) and the expert calls' row ranges (each one form: the long segments
+    /// together, the short ones in calls of fewer rows than the split). `None`: no layout (two misaligned segments).
+    pub fn ink_pack_layout(&self, lens: &[usize]) -> Option<(Vec<usize>, Vec<(usize, usize)>)> {
+        let im = self.ink.as_ref()?;
+        let mut order: Vec<usize> = (0..lens.len()).collect();
+        order.sort_by_key(|&i| std::cmp::Reverse(lens[i]));
+        let al = self.ink_pack_align_rows();
+        if al > 1 {
+            let mis: Vec<usize> = order.iter().copied().filter(|&i| lens[i] % al != 0).collect();
+            if mis.len() > 1 {
+                return None;
+            }
+            if let Some(&m) = mis.first() {
+                order.retain(|&i| i != m);
+                order.push(m);
+            }
+        }
+        let split = self.backend.moe_split_rows(im.dims.experts, im.dims.top_k, self.dims.hidden, im.dims.inter);
+        let mut groups: Vec<(usize, usize, bool)> = Vec::new();
+        let mut lo = 0;
+        for &i in &order {
+            let n = lens[i];
+            let big = split.is_some_and(|w| n >= w);
+            match groups.last_mut() {
+                Some((_, gn, gb)) if *gb == big && (big || split.is_none_or(|w| *gn + n < w)) => *gn += n,
+                _ => groups.push((lo, n, big)),
+            }
+            lo += n;
+        }
+        Some((order, groups.into_iter().map(|(a, b, _)| (a, b)).collect()))
+    }
+
+    /// Inkling-2 packed prefill (lane ink-hip-bpf, docs/results/2026-11-26-inkling2-hip-bpf.md): one chunk each of several
+    /// sequences (`(state, chunk, head)`, distinct states, every one [`Model::ink_pack_item_ok`]) in ONE pass. Returns what
+    /// `forward_prefill(st, chunk, head)` returns for each, and leaves each state bitwise as that call does: the row-wise
+    /// kernels run once over all rows (their row bits do not depend on the other rows), the attention pair once per segment on
+    /// its own state and position, `ConvMix` in its segment-table form, the experts once per range of one form, the head on each
+    /// segment's last row alone. On an error every state of the pass is reset (its rings may be half-written).
+    pub fn ink_prefill_packed(&self, items: &mut [(&mut SequenceState, &[u32], HeadMode)]) -> Result<Vec<StepOut>> {
+        // a refused pack touches no state
+        let layout = self.ink_pack_check(items)?;
+        let r = self.ink_prefill_packed_inner(items, layout);
+        for (st, _, _) in items.iter_mut() {
+            // as `forward_prefill`: the engine's cut applies to this call only
+            st.prefill_chunk_rows = 0;
+            // a failed pass leaves Inkling-2 rings half-written: every sequence of the pass starts over (as `forward_batch`)
+            if r.is_err() {
+                let _ = st.reset(&*self.backend);
+            }
+        }
+        r
+    }
+
+    /// The checks of [`Model::ink_prefill_packed`] and the pass's layout ([`Model::ink_pack_layout`]).
+    fn ink_pack_check(&self, items: &[(&mut SequenceState, &[u32], HeadMode)]) -> Result<(Vec<usize>, Vec<(usize, usize)>)> {
+        if self.ink.is_none() {
+            return Err(Error::invalid("inkling2 packed prefill on another model"));
+        }
+        if !self.ink_pack_capable() {
+            return Err(Error::Unsupported("inkling2 packed prefill on this model (Model::ink_pack_capable)".into()));
+        }
+        let n = items.len();
+        let total: usize = items.iter().map(|(_, ids, _)| ids.len()).sum();
+        if n < 2 || n > self.batch_rows || total > self.ink_pack_rows_max() {
+            return Err(Error::invalid(format!(
+                "inkling2 packed prefill of {n} chunks, {total} rows (2..={} chunks, at most {} rows)",
+                self.batch_rows,
+                self.ink_pack_rows_max()
+            )));
+        }
+        for (st, ids, mode) in items.iter() {
+            Self::check_forward(st, ids, *mode, false)?;
+            if !self.ink_pack_item_ok(st, ids, *mode) {
+                return Err(Error::invalid(format!("inkling2 packed prefill: a chunk of {} rows at {} cannot pack", ids.len(), st.len)));
+            }
+        }
+        let lens: Vec<usize> = items.iter().map(|(_, ids, _)| ids.len()).collect();
+        self.ink_pack_layout(&lens).ok_or_else(|| Error::invalid("inkling2 packed prefill: no row layout"))
+    }
+
+    /// Plan recording of an Inkling-2 packed prefill pass ([`crate::plan::Phase::Pack`]): `total` rows over fresh phantom
+    /// sequences of at most a prefill chunk each (equal, aligned lengths), the real packed pass's layers with nothing launched
+    /// (the segment table and row table are not uploaded; each final chunk's one-row head is the solo prefill's, probed there).
+    pub(super) fn ink_pack_probe(&self, total: usize) -> Result<()> {
+        let chunk = self.prefill_chunk().max(1);
+        let al = self.ink_pack_align_rows().max(1);
+        let k = total.div_ceil(chunk).max(2);
+        let base = (total / k) / al * al;
+        let mut lens = vec![base; k - 1];
+        lens.push(total - base * (k - 1));
+        if lens.iter().any(|&n| n < self.pack_min_rows()) {
+            return Err(Error::invalid(format!("inkling2 pack probe of {total} rows: segments {lens:?}")));
+        }
+        let (order, moe) =
+            self.ink_pack_layout(&lens).ok_or_else(|| Error::invalid(format!("inkling2 pack probe of {total} rows: no row layout")))?;
+        let sts: Vec<SequenceState> = lens.iter().map(|_| crate::plan::phantom_state(&self.slot_specs, self.plan.kv_cap_tokens, 0)).collect();
+        let mut lo = 0;
+        let segs: Vec<Seg<'_>> = order
+            .iter()
+            .map(|&i| {
+                let g = Seg { st: &sts[i], lo, len: lens[i], pos: 0 };
+                lo += lens[i];
+                g
+            })
+            .collect();
+        *self.ink_pack_moe.lock().unwrap() = Some(moe);
+        let r = self.run_layers(Seqs::Packed(&segs), &vec![0u32; total], false, None, true, None);
+        *self.ink_pack_moe.lock().unwrap() = None;
+        r.map(|_| ())
+    }
+
+    fn ink_prefill_packed_inner(
+        &self,
+        items: &mut [(&mut SequenceState, &[u32], HeadMode)],
+        (order, moe): (Vec<usize>, Vec<(usize, usize)>),
+    ) -> Result<Vec<StepOut>> {
+        let im = self.ink.as_ref().ok_or_else(|| Error::invalid("inkling2 packed prefill on another model"))?;
+        let n = items.len();
+        for (st, _, _) in items.iter_mut() {
+            st.spec_rows.saved = 0;
+        }
+        self.tp_skew();
+        let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
+        let mut outs: Vec<StepOut> = (0..n).map(|_| StepOut::None).collect();
+        {
+            let mut lo = 0;
+            let segs: Vec<Seg<'_>> = order
+                .iter()
+                .map(|&i| {
+                    let (st, ids, _) = &items[i];
+                    let g = Seg { st: &**st, lo, len: ids.len(), pos: st.len };
+                    lo += ids.len();
+                    g
+                })
+                .collect();
+            let states: Vec<&SequenceState> = segs.iter().map(|g| g.st).collect();
+            // the segments' state addresses (the batched step's row table, segment-major) and the segment rows
+            self.upload_row_table(&states)?;
+            let tuples: Vec<(usize, usize, usize)> = segs.iter().map(|g| (g.lo, g.len, g.pos)).collect();
+            self.backend.upload(&im.ws.pmeta, 0, &crate::ops::SegTab::meta_bytes(&tuples), self.stream)?;
+            let all: Vec<u32> = order.iter().flat_map(|&i| items[i].1.iter().copied()).collect();
+            *self.ink_pack_moe.lock().unwrap() = Some(moe);
+            self.tail_dead.store(false, std::sync::atomic::Ordering::Relaxed);
+            let hn = self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None);
+            *self.ink_pack_moe.lock().unwrap() = None;
+            let hn = hn?;
+            self.ink_pack_passes.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            // each final chunk's head on its last row alone (the solo pass's one-row head), before anything reuses `hn`
+            for (g, &i) in segs.iter().zip(&order) {
+                let row = g.lo + g.len - 1;
+                outs[i] = match items[i].2 {
+                    HeadMode::LastLogits => StepOut::Logits(self.head_logits(&hn, row, 1, profile)?),
+                    HeadMode::LastArgmax => StepOut::Token(self.head_argmax(&hn, row, profile)?),
+                    HeadMode::LastGumbel(h) => StepOut::Token(self.head_gumbel(&hn, row, h, g.pos + g.len, profile)?),
+                    _ => StepOut::None,
+                };
+            }
+        }
+        for (st, ids, mode) in items.iter_mut() {
+            st.commit(ids);
+            self.telemetry.step();
+            // as `forward_prefill` after a pass with a last-row head
+            if self.ring_snapshots() > 0 && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax | HeadMode::LastGumbel(_)) {
+                st.ring_snapshot(&*self.backend)?;
+            }
+        }
+        Ok(outs)
+    }
+
+    /// Whether this is an Inkling-2 model (`inkling2_loop`).
+    pub fn is_inkling(&self) -> bool {
+        self.ink.is_some()
+    }
+
+    /// Inkling-2 only (tests, lane ink-hip-bpf): [`Model::ink_prefill_packed`]'s pass over `items` with the oracle-named
+    /// intermediates of [`Model::ink_dump`] collected over all rows of the pass (no head). Returns per item its rows `(lo, len)` in
+    /// the pass and the tensors; commits every state.
+    pub fn ink_dump_packed(&self, items: &mut [(&mut SequenceState, &[u32], HeadMode)]) -> Result<(Vec<(usize, usize)>, InkTensors)> {
+        let (order, moe) = self.ink_pack_check(items)?;
+        let mut ranges = vec![(0usize, 0usize); items.len()];
+        let mut dump = InkTensors::new();
+        {
+            let mut lo = 0;
+            let segs: Vec<Seg<'_>> = order
+                .iter()
+                .map(|&i| {
+                    let (st, ids, _) = &items[i];
+                    ranges[i] = (lo, ids.len());
+                    let g = Seg { st: &**st, lo, len: ids.len(), pos: st.len };
+                    lo += ids.len();
+                    g
+                })
+                .collect();
+            let states: Vec<&SequenceState> = segs.iter().map(|g| g.st).collect();
+            self.upload_row_table(&states)?;
+            let im = self.ink.as_ref().ok_or_else(|| Error::invalid("ink_dump_packed on another model"))?;
+            let tuples: Vec<(usize, usize, usize)> = segs.iter().map(|g| (g.lo, g.len, g.pos)).collect();
+            self.backend.upload(&im.ws.pmeta, 0, &crate::ops::SegTab::meta_bytes(&tuples), self.stream)?;
+            let all: Vec<u32> = order.iter().flat_map(|&i| items[i].1.iter().copied()).collect();
+            let t = all.len();
+            let ids_i32: Vec<u8> = all.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
+            self.backend.upload(&self.ws.ids, 0, &ids_i32, self.stream)?;
+            let nv = self.view(&self.ws.n, self.act, &[t, self.dims.hidden]);
+            let packed = inkling2::InkPacked { segs: &segs, meta: self.ink_pack_meta(t)?, moe };
+            let pos0 = segs.iter().map(|g| g.pos).max().unwrap_or(0);
+            let ids_t = self.view(&self.ws.ids, DType::I32, &[t]);
+            self.ink_pass(segs[0].st, None, Some(&packed), &ids_t, t, pos0, &nv, false, None, Some(&mut dump), None)?;
+        }
+        for (st, ids, _) in items.iter_mut() {
+            st.commit(ids);
+        }
+        Ok((ranges, dump))
+    }
+
+    /// Inkling-2 packed prefill passes this model has run ([`Model::ink_prefill_packed`]).
+    pub fn ink_packed_passes(&self) -> u64 {
+        self.ink_pack_passes.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// The segment rows of the packed pass in flight, `[4, t]` (uploaded by [`Model::ink_prefill_packed`]).
+    fn ink_pack_meta(&self, t: usize) -> Result<TensorRef> {
+        let im = self.ink.as_ref().ok_or_else(|| Error::invalid("inkling2 packed pass on another model"))?;
+        Ok(TensorRef::new(im.ws.pmeta.clone(), DType::I32, &[4, t]))
     }
 
     /// Rejections that must happen before any rank starts (a rank that stops early would leave the others waiting
@@ -3871,7 +4188,8 @@ impl Model {
             Some(_) if st.prefill_chunk_rows > base => st.prefill_chunk_rows.min(self.ws.max_tokens),
             Some(_) if st.prefill_chunk_rows > 0 => base,
             Some(_) => self.prefill_chunk_for(st.len + ids.len()),
-            None => self.ws.max_tokens,
+            // (the workspace rows unless an Inkling-2 packed-prefill workspace is larger: `prefill_chunk`)
+            None => base,
         };
         let mut out = Vec::with_capacity(ids.len().div_ceil(rows));
         let mut pos = 0;
@@ -4459,20 +4777,30 @@ impl Model {
             // Inkling-2 runs its own visit table (`model/inkling2.rs`) and leaves the final normed hidden state in `ws.n`
             // a batched decode step (lane ink-batch): one row per sequence, the stateful ops in their row-table form on the
             // table and positions `forward_batch` uploaded (`upload_row_table`), row 0's state as the carrier
-            let (st, batch) = match seqs {
-                Seqs::One(st) => (st, None),
+            // a packed prefill pass (lane ink-hip-bpf, `Model::ink_prefill_packed`): the segments' rows, `ink_pack` already set up
+            let (st, batch, packed) = match seqs {
+                Seqs::One(st) => (st, None, None),
                 Seqs::Batch(sts) if dpos.is_none() && !sts.is_empty() => {
                     let pos = self.batch_pos.as_ref().ok_or_else(|| Error::invalid("inkling2 batched step without row tables"))?;
                     let max_pos = sts.iter().map(|s| s.len).max().unwrap_or(0);
-                    (sts[0], Some(inkling2::InkBatch { rows: sts.len(), pos: self.view(pos, DType::I32, &[sts.len()]), max_pos }))
+                    (sts[0], Some(inkling2::InkBatch { rows: sts.len(), pos: self.view(pos, DType::I32, &[sts.len()]), max_pos }), None)
                 }
-                _ => return Err(Error::Unsupported("packed passes of Inkling-2".into())),
+                Seqs::Packed(segs) if dpos.is_none() && !segs.is_empty() => {
+                    let moe = self.ink_pack_moe.lock().unwrap().clone().ok_or_else(|| Error::invalid("inkling2 packed pass without its plan"))?;
+                    let meta = self.ink_pack_meta(t)?;
+                    (segs[0].st, None, Some(inkling2::InkPacked { segs, meta, moe }))
+                }
+                _ => return Err(Error::Unsupported("this pass of Inkling-2".into())),
             };
-            let pos0 = batch.as_ref().map_or(pos0, |b| b.max_pos);
+            let pos0 = match (&batch, &packed) {
+                (Some(b), _) => b.max_pos,
+                (_, Some(pk)) => pk.segs.iter().map(|g| g.pos).max().unwrap_or(0),
+                _ => pos0,
+            };
             let ids_t = ids_at.cloned().unwrap_or_else(|| self.view(&ws.ids, DType::I32, &[t]));
             let nv = self.view(&ws.n, act, &[t, h]);
             // a captured decode step (`dpos`): pos0 is 0 and the positioned ops read the device position
-            self.ink_pass(st, batch.as_ref(), &ids_t, t, pos0, &nv, profile, None, None, dpos)?;
+            self.ink_pass(st, batch.as_ref(), packed.as_ref(), &ids_t, t, pos0, &nv, profile, None, None, dpos)?;
             return Ok(nv);
         }
 

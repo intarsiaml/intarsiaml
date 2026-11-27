@@ -1,0 +1,2 @@
+wall 9.15 s, aggregate 111.9 tok/s, latency median 9.04 s max 9.14 s, prompt tokens 13805, cached 0, ttft median 2.4295 max 4.958295106887817, itl p50 0.0336 p99 0.5887
+conc:8:1:w7r1n8: 8 replies, 1024 tokens -> /opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/w7/R-realw7-r1-n8.json

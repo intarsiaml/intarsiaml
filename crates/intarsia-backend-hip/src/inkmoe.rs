@@ -186,6 +186,26 @@ pub fn set_wmma(v: i32) {
     let _ = v;
 }
 
+/// Packed prefill (lane ink-hip-bpf, `Backend::moe_split_rows`): the fewest rows of an ordinary Inkling-2 expert call of `experts`
+/// experts, top `top_k`, widths `hidden` / `inter` that takes the tensor-core prefill (fewer rows take the decode kernels); `None`
+/// when no row count does, or without the HIP kernel library.
+pub fn split_rows(experts: usize, top_k: usize, hidden: usize, inter: usize) -> Option<usize> {
+    #[cfg(ik_hip)]
+    {
+        extern "C" {
+            fn ik_ink_moe_split_rows(e: std::ffi::c_longlong, k: std::ffi::c_longlong, h: std::ffi::c_longlong, i: std::ffi::c_longlong) -> std::ffi::c_longlong;
+        }
+        // SAFETY: reads plain ints of the kernel library and the environment.
+        let t = unsafe { ik_ink_moe_split_rows(experts as i64, top_k as i64, hidden as i64, inter as i64) };
+        (t > 0).then_some(t as usize)
+    }
+    #[cfg(not(ik_hip))]
+    {
+        let _ = (experts, top_k, hidden, inter);
+        None
+    }
+}
+
 /// Tests: the pair tile (`0` = the decode kernels, `64` the rule's tile, or the forced `32`) the ordinary names take for a call of
 /// `pairs` (token, expert) pairs over `experts` experts, as `set_wmma` / `INTARSIA_HIP_INK_MOE_WMMA` / the default resolve it
 /// (the caller's own rule for a call that has no pair table, 512 pairs and fewer, is separate). Without the HIP kernel library: `0`.

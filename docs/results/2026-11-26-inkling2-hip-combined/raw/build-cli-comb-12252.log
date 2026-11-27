@@ -1,0 +1,141 @@
+   Compiling intarsia-core v0.0.1 (/work/crates/intarsia-core)
+   Compiling intarsia-backend-hip v0.0.1 (/work/crates/intarsia-backend-hip)
+   Compiling intarsia-bench v0.0.1 (/work/crates/intarsia-bench)
+   Compiling intarsia-ui v0.0.1 (/work/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/work/crates/intarsia-tui)
+warning: field `0` is never read
+   --> crates/intarsia-core/src/model.rs:370:9
+    |
+370 |     Ink(usize),
+    |     --- ^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `#[warn(dead_code)]` on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+370 -     Ink(usize),
+370 +     Ink(()),
+    |
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1384:4
+     |
+1384 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `n_stack` is never read
+   --> crates/intarsia-core/src/model/inkling2.rs:305:9
+    |
+301 | pub(super) struct InkModel {
+    |                   -------- field in this struct
+...
+305 |     pub n_stack: usize,
+    |         ^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling intarsia-backend-cpu v0.0.1 (/work/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/work/crates/intarsia-engram)
+   Compiling intarsia-server v0.0.1 (/work/crates/intarsia-server)
+warning: function `split_calls` is never used
+   --> crates/intarsia-server/src/structured.rs:244:8
+    |
+244 | pub fn split_calls(text: &str, format: ToolFormat, tools: &[Tool]) -> (Option<String>, Vec<(String, Value)>) {
+    |        ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: associated functions `new`, `parse_all`, and `parse_all_with` are never used
+    --> crates/intarsia-server/src/structured.rs:955:12
+     |
+ 953 | impl ToolParser {
+     | --------------- associated functions in this implementation
+ 954 |     /// A parser for one response; `tools` are the request's (only the XML format reads them).
+ 955 |     pub fn new(format: ToolFormat, tools: &[Tool]) -> ToolParser {
+     |            ^^^
+...
+1070 |     pub fn parse_all(text: &str, format: ToolFormat, tools: &[Tool]) -> Vec<Piece> {
+     |            ^^^^^^^^^
+...
+1074 |     pub fn parse_all_with(text: &str, format: ToolFormat, tools: &[Tool], mode: ToolMode) -> Vec<Piece> {
+     |            ^^^^^^^^^^^^^^
+
+warning: associated function `parse_all` is never used
+    --> crates/intarsia-server/src/structured.rs:1449:12
+     |
+1354 | impl ReasoningParser {
+     | -------------------- associated function in this implementation
+...
+1449 |     pub fn parse_all(text: &str) -> (Option<String>, Option<String>) {
+     |            ^^^^^^^^^
+
+   Compiling intarsia-models v0.0.1 (/work/crates/intarsia-models)
+warning: `intarsia-server` (lib) generated 3 warnings
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: function `ik_ar2_wht6` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:120:12
+    |
+120 |     pub fn ik_ar2_wht6(
+    |            ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: function `ik_ar2_wht6_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:137:12
+    |
+137 |     pub fn ik_ar2_wht6_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht6_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:138:12
+    |
+138 |     pub fn ik_ar2_wht6_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:141:12
+    |
+141 |     pub fn ik_ar2_wht8(
+    |            ^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_capacity` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:158:12
+    |
+158 |     pub fn ik_ar2_wht8_capacity(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `ik_ar2_wht8_loc_bytes` is never used
+   --> crates/intarsia-backend-hip/src/ffi.rs:159:12
+    |
+159 |     pub fn ik_ar2_wht8_loc_bytes(slot_bytes: i64) -> i64;
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+   Compiling intarsia-cli v0.0.1 (/work/crates/intarsia-cli)
+warning: `intarsia-backend-hip` (lib) generated 6 warnings
+warning: variable does not need to be mutable
+    --> crates/intarsia-cli/src/cmd/qualify.rs:1889:13
+     |
+1889 |         let mut v: Vec<String> = vec![
+     |             ----^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 2m 09s
