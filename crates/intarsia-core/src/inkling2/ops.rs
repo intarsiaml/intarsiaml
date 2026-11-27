@@ -38,7 +38,7 @@
 //! | `InkKvPrologue` (70) | pq `[T,Nq]`, pk `[T,Ckv(+Hk*K)]`, pv (as pk), k taps `[K,Ckv]`, v taps `[K,Ckv]`, q scale `[H,Dh]`, r scale `[H,dr]`, rel proj `[dr,E]` | q `[T,H,Dh]`, rel `[T,H,E]`, k `[T,Hk,Dh]`, v `[T,Hk,Dh]`, k ring `[Rr,Ckv]`, v ring `[Rr,Ckv]` (rings **in place**) | pos0, n_heads, n_kv_heads, head_dim, eps, ink.{qk_clip, rel_clip, tau_floor, tau_alpha, dyn_conv, d_rel} |
 //! | `RelSinkAttn` (71) | q `[T,H,Dh]`, k `[T,Hk,Dh]`, v `[T,Hk,Dh]`, k cache `[Hk,Cr,Dh]`, v cache `[Hk,Cr,Dh]`, rel `[T,H,E]`, pq `[T,Nq]` | o `[T,H*Dh]`, k cache, v cache (**in place**) | pos0, scale, n_heads, n_kv_heads, head_dim, window, ink.{kv_ring, d_rel} |
 //! | `MoeExpertsMxfp8` (72) | x `[T,H]`, ids `[T,K]` i32, weights `[T,K]` f32, w13 `[E,2I,H]` e4m3, w13 scales `[E,2I,H/32]` u8 (E8M0), w2 `[E,H,I]` e4m3, w2 scales `[E,H,I/32]` u8 | `[T,H]` | gelu, ink.{situ, gate_cap, up_cap, act_quant} |
-//! | `InkInProj` (73) | x `[S,T,D]` (S = 1 or 3), w `[Nq+Nk+Nv,D]`; with an e4m3 w also scales `[3]` f32; or P12 codes `[Nq+Nk+Nv,3D/2]` u8 + aux u32 | pq `[T,Nq]`, pk `[T,Nk]`, pv `[T,Nv]` | |
+//! | `InkInProj` (73) | x `[S,T,D]` (S = 1 or 3), w `[Nq+Nk+Nv,D]`; with an e4m3 w also scales `[3]` f32; with an i8 w also scales `[Nq+Nk+Nv,1]` f32 (one per row, lane ink-hip-i8); or P12 codes `[Nq+Nk+Nv,3D/2]` u8 + aux u32 | pq `[T,Nq]`, pk `[T,Nk]`, pv `[T,Nv]` | |
 //! | `InkAttnDecode` (75) | pq, pk, pv, k taps, v taps, q scale, r scale, rel proj (as `InkKvPrologue`), k cache `[Hk,Cr,Dh]`, v cache | o `[T,H*Dh]`, k cache, v cache, k ring, v ring (all **in place**) | the union of the two ops' attrs |
 //! | `ConvMix` (74) | x, taps, res, addend (as `SconvRes`), src `[N,T,D]`, queries `[Q,D]` f32 (Q may be 0), norm `[S,D]` or `[0]`, msg `[S,T,D]` f32 or `[0]`, down, gain, forget (as `LoopBlend`) or three `[0]` | y, ring, sum (as `SconvRes`), mix `[S,T,D]` or `[0]` | pos0, eps |
 //! | `InkRoute` (76) | x `[T,D]`, w `[E,D]`, bias `[E]` f32 | weights `[T,K]` f32, ids `[T,K]` i32, logits `[T,E]` f32 or `[0]` | as `MoeRoute`: top_k, scale, norm_topk, temperature, dsv.score_func |
@@ -129,6 +129,10 @@
 //! that pack), `pk` / `pv` with `scales[1]` / `scales[2]`. A float w takes exactly two inputs and an e4m3 w exactly three; a
 //! kernel registered for float weights never sees e4m3 (`ShapeInfo::weight`). Pack j as a `MatmulFp8` is the model's fallback
 //! where a backend has no e4m3 `InkInProj` kernel.
+//!
+//! **Int8 per-row weights** (lane ink-hip-i8, opt-in, lossy; W8A16): w is `i8` `[Nq+Nk+Nv, D]` and the third input `scales
+//! [Nq+Nk+Nv, 1]` f32, one per weight row (`quant::i8row`): `pq[t, n] = rA(scales[n] * sum_k x[0,t,k] * q[n,k])`, likewise `pk`
+//! / `pv` on their rows: exactly `MatmulI8` on the pack's rows. A float w takes two inputs, e4m3 / P12 / i8 exactly three.
 //!
 //! **P12 weights** (lane ink-pack12, `INTARSIA_INK_PACK12=1`; lossless): w is the u8 codes `[Nq+Nk+Nv, 3D/2]` and the third
 //! input the u32 aux of `quant::p12`; the op is exactly the float form over `W = p12::decode(codes, aux)` (bf16 values). The
@@ -581,7 +585,7 @@ pub fn check(call: &OpCall) -> Result<()> {
                     return bad(op, format!("{w} must be {a} [{t},N], got {} {:?}", x.dtype, x.shape));
                 }
             }
-            let wdt = if i[1].dtype == DType::Fp8E4m3 { Some(DType::Fp8E4m3) } else { None };
+            let wdt = if i[1].dtype == DType::Fp8E4m3 { Some(DType::Fp8E4m3) } else if i[1].dtype == DType::I8 { Some(DType::I8) } else { None };
             // P12 codes (lane ink-pack12) are [N, 3D/2] u8: checked by their own arm below
             if i[1].dtype != DType::U8 {
                 want(op, &i[1], wdt, &[ns.iter().sum(), d], "w")?;
@@ -589,10 +593,12 @@ pub fn check(call: &OpCall) -> Result<()> {
             match (i[1].dtype, i.len()) {
                 (DType::Fp8E4m3, 3) => want(op, &i[2], Some(DType::F32), &[3], "scales")?,
                 (DType::Fp8E4m3, _) => return bad(op, "e4m3 w needs a third input, scales [3] f32".into()),
+                (DType::I8, 3) => crate::quant::i8row::check_tensors(&i[1], &i[2], ns.iter().sum(), d, "w").or_else(|m| bad(op, m))?,
+                (DType::I8, _) => return bad(op, "i8 w needs a third input, scales [N,1] f32 (lane ink-hip-i8)".into()),
                 (DType::U8, 3) => crate::quant::p12::check_tensors(&i[1], &i[2], ns.iter().sum(), d, "w").or_else(|m| bad(op, m))?,
                 (DType::U8, _) => return bad(op, "p12 w (u8 codes) needs a third input, aux u32".into()),
                 (_, 2) if float(i[1].dtype) => {}
-                (dt, n) => return bad(op, format!("w must be float (2 inputs) or e4m3 with scales (3 inputs), got {dt} with {n} inputs")),
+                (dt, n) => return bad(op, format!("w must be float (2 inputs), e4m3 with scales, p12 or i8 row-scaled (3 inputs), got {dt} with {n} inputs")),
             }
         }
         Op::InkRoute => {

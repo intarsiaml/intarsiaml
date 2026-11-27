@@ -167,6 +167,8 @@ pub const UNIMPLEMENTED: &[Op] = &[
     Op::InkRoute,
     // lossless 12-bit weights (lane ink-pack12): cpu and Metal only
     Op::MatmulP12,
+    // int8 per-row weights (lane ink-hip-i8): ported by crate::inki8's table
+    Op::MatmulI8,
 ];
 
 /// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the
@@ -549,6 +551,7 @@ pub fn all() -> Vec<KernelImpl> {
     v.extend(crate::inkroute::all());
     v.extend(crate::inkspec::all());
     v.extend(crate::inkp12::all());
+    v.extend(crate::inki8::all());
     v
 }
 
@@ -563,6 +566,7 @@ pub fn full_table() -> Vec<(&'static str, Op)> {
         .chain(crate::inkroute::TABLE.iter())
         .chain(crate::inkspec::TABLE.iter())
         .chain(crate::inkp12::TABLE.iter())
+        .chain(crate::inki8::TABLE.iter())
         .copied()
         .collect()
 }
@@ -570,7 +574,7 @@ pub fn full_table() -> Vec<(&'static str, Op)> {
 /// The ops of the Inkling-2 lane modules (inkattn / inkmix / inkmoe): each is ported once a lane table lists it, and stays in
 /// `UNIMPLEMENTED` until the port's integration removes it (so the lanes never edit this file).
 pub fn ink_lane_ops() -> Vec<Op> {
-    [crate::inkattn::OPS, crate::inkmix::OPS, crate::inkmoe::OPS, crate::inkroute::OPS, crate::inkspec::OPS, crate::inkp12::OPS].concat()
+    [crate::inkattn::OPS, crate::inkmix::OPS, crate::inkmoe::OPS, crate::inkroute::OPS, crate::inkspec::OPS, crate::inkp12::OPS, crate::inki8::OPS].concat()
 }
 
 /// True when this backend has no kernel for `op`: listed in `UNIMPLEMENTED` and not ported by an Inkling-2 lane table.
@@ -628,6 +632,7 @@ mod tests {
             include_str!("../../../kernels/hip/ik_hip_abi_inkroute.h"),
             include_str!("../../../kernels/hip/ik_hip_abi_inkspec.h"),
             include_str!("../../../kernels/hip/ik_hip_abi_inkp12.h"),
+            include_str!("../../../kernels/hip/ik_hip_abi_inki8.h"),
         ]
         .concat();
         for (name, _) in full_table() {
