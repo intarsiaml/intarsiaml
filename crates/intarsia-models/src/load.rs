@@ -430,6 +430,7 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
         conv_group: dn("conv_group_size"),
         selector_rank: dn("selector_rank"),
         selector_top_k: dn("selector_top_k"),
+        selector_post_softcap: selector_softcap(d, &cfg_path)?,
         spine: None,
         dspark: None,
     };
@@ -474,6 +475,39 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
         }
     }
     Ok(intarsia_core::model::DflashLoad { src, config, dcoco })
+}
+
+/// `dflash_config.final_logit_softcapping` and `selector_softcap_mode` of a DFlash2 draft (lane ink-dflash2): the softcap the
+/// candidate selector applies after its correction (`"after_correction"`, `incoai/Inkling-2-Mini-DFlash2`), 0 without one. A greedy
+/// pick is the argmax of the capped scores, which `cap * tanh(x / cap)` (monotonic) leaves where the uncapped argmax is, but for
+/// scores the f32 tanh rounds to one value. `"before_correction"` (the reference's default) softcaps the unary logits before the
+/// correction is added, which changes the pick: refused with a selector, as is an unknown mode. Without a selector the drafts are
+/// the rows' argmax, which no softcap moves.
+fn selector_softcap(d: &Value, cfg_path: &Path) -> Result<f32> {
+    let cap = d.get("final_logit_softcapping").and_then(Value::as_f64).unwrap_or(0.0);
+    let mode = match d.get("selector_softcap_mode") {
+        None | Some(Value::Null) => "before_correction",
+        Some(v) => v.as_str().ok_or_else(|| Error::model(format!("{}: dflash_config.selector_softcap_mode is not a string", cfg_path.display())))?,
+    };
+    if !matches!(mode, "before_correction" | "after_correction") {
+        return Err(Error::model(format!(
+            "{}: dflash_config.selector_softcap_mode {mode:?} (before_correction or after_correction)",
+            cfg_path.display()
+        )));
+    }
+    if !(cap > 0.0) {
+        return Ok(0.0);
+    }
+    let selector = d.get("selector_rank").and_then(Value::as_u64).unwrap_or(0) > 0 && d.get("selector_top_k").and_then(Value::as_u64).unwrap_or(0) > 0;
+    match (mode, selector) {
+        ("after_correction", _) => Ok(cap as f32),
+        (_, false) => Ok(0.0),
+        _ => Err(Error::Unsupported(format!(
+            "{}: a DFlash2 candidate selector with final_logit_softcapping {cap} in selector_softcap_mode \"before_correction\" \
+             (only \"after_correction\" is implemented)",
+            cfg_path.display()
+        ))),
+    }
 }
 
 /// The Inkling-2 DSpark draft (`mtp.safetensors` beside the target, `mtp_config` in its `config.json`); semantics in
@@ -948,6 +982,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let spec_auto = opts.spec.mode == intarsia_core::spec::SpecMode::Auto;
     let dspine_opts: EngineOptions;
     let dspark_opts: EngineOptions;
+    let dflash2_ink_opts: EngineOptions;
     let dspark_dflt_opts: EngineOptions;
     let mut opts = opts;
     let mut dspark_dflt = false;
@@ -1019,6 +1054,17 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             o.spec.k = k;
             dspark_opts = o;
             opts = &dspark_opts;
+        }
+        // Inkling-2 with a DFlash2 draft (lane ink-dflash2): the block's drafts (block - 1, an 8-row verify for the 8-row block, the
+        // most rows HIP verifies bitwise since #536) when --spec-k was not given, not the DFlash default's 15 (a 16-row verify plan)
+        let ink_dflash2 = dl.config.v2 && dl.config.spine.is_none() && dl.config.dspark.is_none() && recipe.model.family == "inkling2";
+        if ink_dflash2 && !opts.spec_k_given && opts.spec.mode == intarsia_core::spec::SpecMode::Dflash && opts.spec.k + 1 > dl.config.block {
+            let k = dl.config.block - 1;
+            eprintln!("--spec dflash with a DFlash2 draft on Inkling-2: --spec-k defaults to {k} (the draft's block of {})", dl.config.block);
+            let mut o = opts.clone();
+            o.spec.k = k;
+            dflash2_ink_opts = o;
+            opts = &dflash2_ink_opts;
         }
         if dl.config.spine.is_some() && backend_name == "metal" && opts.spec.k + 1 > 8 {
             eprintln!("warning: --spec-k {} runs a {}-row verify with a DSpine draft; the Metal gates cover at most 8 rows and k = 3 measured fastest", opts.spec.k, opts.spec.k + 1);
