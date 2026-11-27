@@ -25,7 +25,9 @@ before the first Metal slot; results are filled in as they arrive).
 
 ## Later coordinator messages
 
-(none yet)
+> Coordinator 02:41 EST: #542 (overlap, opt-in, HIP + scheduler) merged into main as 4b629184c. Before your PR, merge origin/main into ink/metal-sampled2, as your brief says. Write this message into your results doc.
+
+Action: origin/main merged into the branch before the PR (see section 4). The measurements use `intarsia-b1` = main `aa7beaa73`; #542 touches HIP and the scheduler, not the Metal sampled path.
 
 ## 1. Pre-registered method (written 2026-11-27 ~02:30 EST, before any Metal slot of this lane)
 
