@@ -8,10 +8,14 @@ is plain sampling's exactly. Sampled decode, DSpark default draft, spec on / off
 
 | backend | T | short | 1k | 4k | acceptance short / 1k / 4k |
 |---|---|---|---|---|---|
-| hip (R9700) | 1.0 | 70.1 -> 82.1 tok/s, **1.172** (1.163-1.181) | 68.6 -> 73.5, **1.070** (1.049-1.092) | 67.4 -> 95.8, **1.422** (1.386-1.458) | 49 / 50 / 73 % |
-| hip (R9700) | 0.7 | 70.3 -> 83.2, **1.184** (1.179-1.189) | 68.5 -> 73.5, **1.074** (1.060-1.088) | 67.3 -> 94.0, **1.396** (1.378-1.414) | 51 / 52 / 77 % |
+| hip (R9700), k3, base `80719483a` | 1.0 | 70.1 -> 82.1 tok/s, **1.172** (1.163-1.181) | 68.6 -> 73.5, **1.070** (1.049-1.092) | 67.4 -> 95.8, **1.422** (1.386-1.458) | 49 / 50 / 73 % |
+| hip (R9700), k3, base `80719483a` | 0.7 | 70.3 -> 83.2, **1.184** (1.179-1.189) | 68.5 -> 73.5, **1.074** (1.060-1.088) | 67.3 -> 94.0, **1.396** (1.378-1.414) | 51 / 52 / 77 % |
 | Metal (M5 Max) | 1.0 | 76.0 -> 85.6 tok/s, **1.126** (1.117-1.135) | 73.9 -> 80.9, **1.095** (1.077-1.113) | 71.7 -> 92.5, **1.291** (1.281-1.301) | 53 / 51 / 73 % |
 | Metal (M5 Max) | 0.7 | 76.0 -> 87.1, **1.147** (1.140-1.154) | 73.5 -> 80.0, **1.088** (1.078-1.098) | 71.6 -> 101.5, **1.418** (1.386-1.451) | 53 / 47 / 86 % |
+
+k5 refresh (brief 2, 3.1): on the merged head `f44766b2d` (P12, cheaper verify rows, DSpark k5 on hip) the hip sampled gain is T 1.0
+short / 1k / 4k **1.105 / 1.066 / 1.470x** (T 0.7: 1.155 / 1.051 / 1.461x); the story prompt `short_b` loses 10.0 % at T 1.0 (k3: 6.5 %) and
+1.1 % at T 0.7; greedy md5 main = branch (spec off and default, short + 4k). The k3 numbers above are the pre-merge measurement.
 
 Gates: 1 law test pass on the fixture (cpu, n 1500 + 1500, 3 configurations) and on the real model on Metal and hip (T 1.0 / 0.6, about
 500 + 900 requests per temperature; no p below 0.06 in 20 tests per backend); 2 seed equality exact (tiny fixtures on cpu / Metal / hip;
@@ -58,6 +62,31 @@ Fleet: endor Metal GPU in `--exclusive` slots (at most 4, each <= 30 min); HIP p
 `--load cpu` slot. No tool call over 4 min.
 
 Deliverables: this doc; a PR (title `ink-sampled: ...`), opt-in, `docs/decisions/LOG.md` row marked proposed, not merged.
+
+### Brief 2 (coordinator, 2026-11-26 ~19:55 EST): k5 refresh on the merged head (lane ink-sampled-k5)
+
+Goal: refresh the HIP evidence for PR #535 on the merged branch head `f44766b2d` (main `85e14bbcb` merged in), with one GPU window on
+tatooine. Measurement only, no code changes. Why: the HIP numbers in 3.1 were measured on base `80719483a` at DSpark k3; main has merged
+since P12 (#533, lossless 12-bit weights, default-on), cheaper verify rows (#536) and k3 -> k5 (#534, `[tuning.hip] mtp_default_k = 5`).
+At about 50 % acceptance more drafts per pass mean more rejected verify rows, so the sampled gain at k5 may differ, and one story prompt
+(`short_b`) already lost at k3.
+
+Steps: (1) CPU-only build on tatooine of two binaries (`--load cpu`): the branch at `f44766b2d` and main at `85e14bbcb`
+(`.scratch/main-src`), record both md5s. (2) One GPU window, at most 5:00 of radiance down (one more of up to 3:00 allowed, total cap
+8:00), both cards if the scripts do (card 0 = main, card 1 = branch): (a) greedy md5, main vs branch, spec default and `--spec off`,
+short and 4k, 64 tokens, no env set, must be equal; (b) sampled speed A/B on the branch binary at main's defaults (k5),
+`INTARSIA_SPEC_SAMPLED_DFLASH` unset (off) vs `=1` (on), the same prompts / seeds / temperatures (1.0 and 0.7) / token counts as 3.1,
+short / 1k / 4k, ABBA with 2 + 2 processes per temperature, one card for the speed processes so on and off run on the same card; drop
+T 0.7 first if it does not fit. (3) `speed.py` analysis (ratio geomean, 95 % CI, acceptance, tokens per pass, per-prompt ratios, ids
+identical across processes). (4) Add a "k5 refresh (merged main `85e14bbcb`)" subsection under 3.1 next to the k3 numbers (which stay),
+the md5 result, the jobs in the fleet log, and update this lane's `docs/decisions/LOG.md` row (`| 2026-11-26 16:00 | Sampled requests may
+draft with DSpark`): replace the HIP numbers with the k5 ones, note "k5, merged main". (5) Commit and push through
+`fleetq run --host endor --load cpu` (`git push origin ink/sampled-dspark`); do not merge the PR.
+
+Rules: COMMON-1126 (windows via fleetq with `--takes-down radiance`, no `--mem` on tatooine, radiance restore and check); scripts in
+`raw/k5/` (copies, originals untouched); `env VAR=x cmd` in sh; trap and kill the own process tree; never run a window script outside a
+fleetq slot; tatooine folder `~/intarsiaml-ink-sampled` and its volume only, delete nothing. Report: k5 table, `short_b` ratio at k5 vs
+k3, md5 result, radiance down per window, fleetq ids, new head sha, tatooine leftovers.
 
 ## 1. The rule, and why it is exact
 
@@ -221,6 +250,13 @@ branch (`br`, before the merge of #529), `--spec off` and the recipe default (DS
 their decode rates are not a timing comparison (Metal main 77.4 / 94.8 vs branch 72.9 / 91.5 tok/s is the power-history effect of
 docs/results/2026-11-25-inkling2-mode.md; on hip, where main and branch ran at the same time on the two cards, they are within 0.6 %).
 
+**k5 refresh, hip, merged head** (fleetq #12283, `raw/k5/md5-table.txt`): `generate --show-ids`, 64 tokens over `md5.json` (the 6 short prompts
++ the 4108-id one), no `INTARSIA_SPEC_*` variable set, card 0 main `85e14bbcb` (`intarsia-main5`), card 1 the branch at `f44766b2d`
+(`intarsia-br5`), each `--spec off` and the recipe default (DSpark k5). All 7 prompts identical across the four runs (e.g. len4k
+`c71814c5`, count `e11f9180`). Spec counters main-def = br-def (140 passes, 269 of 432 proposed accepted; 3.09 proposals per pass, so k > 3
+is proven by the counters as well as by the startup line). #535 touches `engine.rs` and `spec.rs`, which the default greedy path uses too:
+unchanged.
+
 ## 3. Speed (gate 4)
 
 Sampled decode, `generate --prompt-ids speed.json --max-tokens 128 --ignore-eos --top-k 0 --top-p 1.0 --seed 7 --temperature T`, the
@@ -249,6 +285,49 @@ Per short prompt at T 1.0: 1.237 / **0.935** / 1.467 (acceptance 48 / 29 / 68 %)
 T 1.0 loses 6.5 %: at 29 % acceptance (1.53 tokens per pass) a verify pass costs more than the 1.5 plain steps it replaces. This lane
 adds no brake for sampled requests beyond the draft's own cut (the rule the greedy default uses); a per-request back-off on low
 acceptance is a possible follow-up. For reference, greedy on the md5 set (W3): 76.7 tok/s spec off, 109.4 tok/s DSpark default.
+
+#### k5 refresh (merged main `85e14bbcb`)
+
+Re-measured on the merged branch head `f44766b2d` (PR #535 head: this lane + main `85e14bbcb`), after main merged P12 (#533, default-on),
+cheaper verify rows (#536) and k3 -> k5 (#534). The k3 table above stays as measured. Binary `intarsia-br5` (md5 `6667e066...`, built
+from the branch at `f44766b2d`) and main's `intarsia-main5` (md5 `1212314c...`, `85e14bbcb`), builds in fleetq #12277. The startup line of
+every process says `Dflash, up to 5 drafts per verify pass` (`--spec-k 5`, the recipe's `[tuning.hip] mtp_default_k`), no `--spec` flag.
+Window: fleetq #12283, **radiance down 19:39:34-19:43:15 = 3:41**, one window (the second one was not needed). Script `raw/k5/w_k5.sh`, raw
+data `raw/k5/` (`speed/`, `speed-result.txt`, `md5-table.txt`, `window-1126-193934.log`).
+
+Protocol as above except: arm off = `INTARSIA_SPEC_SAMPLED_DFLASH` unset (not `=0`; the two are the same), and **deviation from the brief**:
+the speed processes ran on both cards at once as in the k3 run (card 0 reps 1-2, card 1 reps 3-4), 4 + 4 processes per temperature
+instead of 2 + 2 on one card. Every on / off pair is on one card, with the same arm on both cards at the same time, so the pairing is as in
+the k3 table and the CI has 4 pairs (t = 3.182) rather than 2 pairs (t = 12.7); the window time was the same. Order per card and temperature:
+off on | on off, T 1.0 first, then T 0.7. Ids identical across all 8 processes of each temperature (on and off, both cards): yes.
+
+| T | class | off tok/s | on tok/s | on / off | 95 % CI | acceptance | tokens / pass | k3 on / off (above) |
+|---|---|---:|---:|---:|---|---:|---:|---:|
+| 1.0 | short | 75.86 | 83.83 | **1.105** | 1.092-1.118 | 40.9 % | 2.16 | 1.172 |
+| 1.0 | 1k | 73.69 | 78.54 | **1.066** | 1.056-1.076 | 44.4 % | 2.20 | 1.070 |
+| 1.0 | 4k | 72.59 | 106.68 | **1.470** | 1.451-1.488 | 68.0 % | 3.36 | 1.422 |
+| 0.7 | short | 75.80 | 87.53 | **1.155** | 1.144-1.165 | 44.4 % | 2.27 | 1.184 |
+| 0.7 | 1k | 73.88 | 77.62 | **1.051** | 1.043-1.059 | 44.0 % | 2.17 | 1.074 |
+| 0.7 | 4k | 72.41 | 105.82 | **1.461** | 1.432-1.492 | 73.2 % | 3.41 | 1.396 |
+
+Per short prompt (on / off, acceptance, tokens per pass), k5 against the k3 ratio:
+
+| T | prompt | k5 on / off | k5 acceptance | k5 tokens / pass | k3 on / off |
+|---|---|---:|---:|---:|---:|
+| 1.0 | short_a | 1.172 | 41.6 % | 2.31 | 1.237 |
+| 1.0 | short_b (story) | **0.900** | 27.5 % | 1.53 | 0.935 |
+| 1.0 | short_c | 1.334 | 49.4 % | 2.80 | 1.467 |
+| 0.7 | short_a | 1.112 | 37.6 % | 2.22 | 1.132 |
+| 0.7 | short_b (story) | **0.989** | 38.8 % | 1.71 | 1.015 |
+| 0.7 | short_c | 1.453 | 55.6 % | 3.12 | 1.505 |
+
+Reading: the sampled gain at k5 is a little lower at short and 1k (T 1.0: 1.105 vs 1.172 and 1.066 vs 1.070; T 0.7: 1.155 vs 1.184 and 1.051
+vs 1.074) and higher at 4k (1.470 vs 1.422, 1.461 vs 1.396), because acceptance per proposed draft falls with more drafts (the k3 percentages
+count 3 proposals per pass; short 49 -> 41 %, 4k 73 -> 68 % at T 1.0) while the 4k prompt keeps long accepted runs (3.36 tokens per pass,
+was 2.88). The story prompt loses more at k5: 0.900 (was 0.935) at T 1.0 and 0.989 (was 1.015) at T 0.7, where it had gained 1.5 % at
+k3. The off baseline is faster than in the k3 run (75.9 / 73.7 / 72.6 against 70.1 / 68.6 / 67.4 tok/s) because main moved (P12, cheaper verify rows;
+not separated further); only the ratios compare. Nothing here changes the opt-in policy: sampled DSpark stays
+off by default, and a per-request back-off on low acceptance would be the first thing to try for `short_b`.
 
 ### 3.2 Metal (endor, M5 Max)
 
@@ -306,7 +385,9 @@ each process's GPU seconds above 65 W and mean GPU power, to compare within one 
 | #12172 | tatooine `--load cpu` | PR-head tiny suites, cpu backend | 6 / 6 suites pass (2.1) |
 | #12157 / #12167 | endor `--exclusive` slot 2 | Metal speed A/B | never started: #12157 cancelled for a reservation fleetq refused, requeued as #12167, cancelled at report time (est. start 21:05) |
 | #12181 | endor `--exclusive` slot B (coordinator; script 18:49:44-19:10:40) | real-model seed equality on Metal + Metal speed A/B (`slotB.sh s1`) | seeds 200 / 200 identical, 225 device-draw passes and 0 logits passes; speed 3.2 |
+| #12277 | tatooine `--load cpu` (k5 refresh) | CLI builds: branch `f44766b2d` (`intarsia-br5`) and main `85e14bbcb` (`intarsia-main5`), 2m39s + 2m23s | ok |
+| #12283 | tatooine, radiance down (k5 refresh W1) | greedy md5 main vs branch (card 0 / 1), sampled speed A/B at k5 (both cards, 4 + 4 per temperature) | radiance down 19:39:34-19:43:15: **3:41**; back (15 s); 3.1 k5 refresh, 2.4 |
 
 Radiance: 3 windows (W1a, W2, W3), **8:57 in total** (2:17 + 3:15 + 3:25), each under 5:00; radiance was back after every window
-(fleetq health checks).
+(fleetq health checks). The k5 refresh (brief 2) used one more window, #12283, 3:41.
 endor exclusive slots: 2 used (slot 1 28:42; slot B #12181, script 20:56); none queued.
