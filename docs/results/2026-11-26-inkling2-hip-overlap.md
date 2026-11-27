@@ -221,3 +221,27 @@ Cleanup asked by the coordinator (answer): the Mac worktree `.worktrees/ink-hip-
 branch `ink/hip-bpf` can go; this lane copied what it uses (window scripts, W4's solo replies as `raw/ref-solo-w4.json`). The
 tatooine folder `~/intarsiaml-ink-hip-bpf` and the volume `intarsia-cargo-target-ink-hip-bpf` are still in use: the overlap lane
 builds and serves there (binaries b13, o1 .. o3, `.scratch` scripts, logs); free them when this lane ends.
+
+### O3 (fleetq #12303; radiance down 20:03:24 - 20:07:41 = 4:17)
+
+o3 = merged main a4c8f3b19 + per-stream staging (every stream other than 0 has its own upload ring and download slot). Card 0:
+N3 = b13 (#538's head = main's serving default); Y0 = o3 overlap, default priority, pace 0; Y1 = o3 overlap, stream 1 at high
+priority, pace 0; Y2 = Y1 at pace 150 ms (all `--max-batch 16 --max-seq 4608 --kv-fraction 0.9`, CB trace on for Y*). Card 1: o3's
+admission (overlap + priority: 23 kernels, 134 cases, pass), hip tiny `inkling2_batch` 10 / 10, `inkling2_packed` 6 / 6 (150 / 60
+decode phases beside chunks in flight at pace 0 / 2 ms), `inkling2` 15 / 17 (the 2 screened-head tests: no HIP HeadScreen kernel,
+the same 2 that fail on main, docs/results/2026-11-26-inkling2-hip-bpf.md section 3).
+
+Bitwise vs W4's solo replies: N3, Y0, Y1, Y2 each 8/8 (conc:8:0) and 16/16 (16 at once).
+
+| arm (1 rep) | 8 real: agg / TTFT p50 / ITL p50 / ITL p99 | 16 real: agg / TTFT p50 / ITL p50 / ITL p99 | overlap steps: n / step p50 / p90 |
+|---|---|---|---|
+| N3 b13 (main default) | 118.8 / 1.94 / 0.033 / 0.584 | 125.1 / 2.57 / 0.058 / 0.633 | - |
+| Y0 overlap, default priority | 118.2 / 1.82 / 0.033 / 0.585 | 123.9 / 2.59 / 0.058 / 0.614 | 45 / 288 ms / 614 ms |
+| Y1 overlap, priority high, pace 0 | 113.7 / 1.58 / 0.034 / **0.155** | 122.3 / 2.72 / 0.087 / **0.235** | 190 / 90 ms / 141 ms |
+| Y2 overlap, priority high, pace 150 | 116.5 / **1.45** / 0.033 / **0.203** | 124.7 / **2.34** / 0.072 / **0.241** | 113 / 110 ms / 147 ms |
+
+Reading: the staging fix alone (Y0) does not help: at the default priority the twin's kernels queue behind the chunk's (a step
+beside a chunk takes 0.29 s at p50). With stream 1 at high priority (Y1, Y2) a step beside a chunk takes 90-110 ms and ITL p99 falls
+62-73 %. Pace 150 keeps that and gives the chunk more of the GPU: TTFT p50 is better than main at 8 and 16, aggregate -1.9 % at 8
+and -0.3 % at 16 (single runs; the 8-stream wall time ends on one long request, so it is noisy). Y2 is the candidate; it needs
+paired reps against main5 (a4c8f3b19, built: #12304, md5 42fdf7a7d871d6694625fba108e086c7) at 1 / 4 / 8 / 16, filler and real.

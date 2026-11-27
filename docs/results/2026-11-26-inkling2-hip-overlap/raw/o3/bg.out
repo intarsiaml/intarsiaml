@@ -1,0 +1,21 @@
+[bg] (1) prime o3, overlap on, priority high 2026-11-26 20:03:28
+[bg] prime-o3 (o3) up after 101s (0 = not up) 2026-11-26 20:05:09: admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 inkling2 packed prefill: on, up to 2048 rows per pass, segments of 17+ rows loaded ink on hip (AMD Radeon Graphics) in 100.6s, context 4608 tokens 
+[bg] (2) tiny inkling2_batch on o3 (148 s left) 2026-11-26 20:05:10
+[bg] tiny inkling2_batch exit 0 2026-11-26 20:05:18
+[bg tiny inkling2_batch] test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.72s
+[bg] (2) tiny inkling2_packed on o3 (140 s left) 2026-11-26 20:05:18
+[bg] tiny inkling2_packed exit 0 2026-11-26 20:05:23
+[bg tiny inkling2_packed] overlap, pace 0 ms: 150 decode phases beside chunks in flight, 2 packed passes
+[bg tiny inkling2_packed] overlap, pace 2 ms: 60 decode phases beside chunks in flight, 1 packed passes
+[bg tiny inkling2_packed] test inkling2_packed_equals_solo_real ... ok
+[bg tiny inkling2_packed] test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.66s
+[bg] (2) tiny inkling2 on o3 (135 s left) 2026-11-26 20:05:23
+[bg] tiny inkling2 exit 101 2026-11-26 20:05:25
+[bg tiny inkling2] test inkling2_tiny_chunk_scan ... ok
+[bg tiny inkling2] test inkling2_tiny_launch_diff ... ok
+[bg tiny inkling2] test inkling2_tiny_logits_dump ... ok
+[bg tiny inkling2] test inkling2_tiny_p12_forced_on ... ok
+[bg tiny inkling2] thread 'inkling2_tiny_screen_keeps_batching' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+[bg tiny inkling2] thread 'inkling2_tiny_screened_head_one_row_only' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+[bg tiny inkling2] test result: FAILED. 15 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.90s
+[bg] done 2026-11-26 20:05:25
