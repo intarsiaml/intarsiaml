@@ -1,7 +1,7 @@
 # Inkling-2-Mini on the R9700: opt-in int8 per-row weights (lane ink-hip-i8, 2026-11-26)
 
 Branch `ink/hip-i8`, stacked on `ink/q8-study` (PR #540: the cpu accuracy study that picked this format). Opt-in and lossy, never
-default-on. Status: @@STATUS@@
+default-on. Status: **opt-in, lossy, PR open, not merged.** Decode +15 to +16 % plain and +8 to +31 % with the speculative default against main (P12), prefill unchanged; accuracy gate passes at short, long and 4k; spec-default ids equal spec-off for the i8 arm. Known limits at the end of the Results section.
 
 ## Briefs received
 
@@ -80,7 +80,7 @@ Calls with more than 16 rows have no i8 kernel (the model must keep `bf16(q * sc
   7 MB int8 and may be launch-bound), continue with that tensor left on P12 and say so.** Per-shape numbers are reported either way.
 - Not part of the decision: prefill speed (no i8 kernel; step 3 checks it does not get slower), accuracy (step 3's gate).
 
-## Parked 2026-11-26 20:40
+## Earlier results and the 20:40 park (window 1 and 2, kept for the numbers)
 
 Head: see `git log -1` on `ink/hip-i8` (local commit, not pushed after `1dec009bc`; merged `origin/main` a4c8f3b19). Radiance: up (checked
 `fleetq status` 20:38; every window of this lane restored it, 15 s). No job of this lane is running; #12334 (a build) was released unstarted.
@@ -115,21 +115,121 @@ retuned (committed: M <= 4 R1U2, M 5..16 R2U1; in_proj U3 at one row, U1 above);
   bounds 1.05e-2 / 1.65e-2 / 1.4e-2): short and long PASS on every number (decode short 9.96e-3 against 1.05e-2 is the tightest). 4k not run.
   Self-goldens: `.scratch/acc-hip/{main,i8}-{short,long}.safetensors`, logs `.scratch/acc-hip/w2/`; script `raw/klpair.py`.
 
-**Not verified:** 4k accuracy (both arms); the R2U1 / retuned defaults on the GPU; paired decode speed with a CI (short / 1k / 4k / 16k, plain and
-spec default; ABBA 4 + 4); prefill 4k / 16k not slower (the prefill path takes the dequantised bf16 weight, unchanged kernels; unmeasured);
-spec-default md5 equal to spec-off for the i8 arm; `inkling2` tiny and `inkling2_batch` on hip with the i8 env; the i8 `InkInProj` at 9..16 rows
-is slower than P12 in the microbench (0.92x at 16): the model sends it there; unembed at 16 rows is equal to P12. No PR opened.
-
-**fleetq ids:** #12287 / #12295 / #12316 (tatooine cpu builds), #12302 (W1, `raw/window1-12302.log`), #12323 (W2), #12333 (pull), #12313 / #12315 /
-#12296 / #12308 (endor cpu tests: core lib 275 / 275, tiny suite 18 / 18 x3, docs tests, hip check-only). Tatooine tree: `~/intarsiaml-ink-hip-i8`
-(binary `.scratch/bin/intarsia-a` built before the R2U1 default; goldens in `golden/inkling2-mini-vllm-*` excluded from sync; logs in `logs/{w2,acc}`).
-
-**Exact next step:** (1) `fleetq run --host tatooine-r9700 --load cpu --expect 20 --label ... -- bash .scratch/tat-build.sh` (sync + build, ~2 min);
-(2) W3: `CAP=285 PROMPTS=short bash ~/intarsiaml-ink-hip-i8/.scratch/window.sh ~/intarsiaml-ink-hip-i8/docs/results/2026-11-26-inkling2-hip-i8/raw/stage_w3.sh`
-under `fleetq run --host tatooine-r9700 --takes-down radiance --quiet gpu,cpu --expect 6` (4k accuracy both arms + plain decode short ABBA 4 + 4);
-(3) the same with `stage_speed.sh` for 4k, 16k (`PROMPTS=16k REPS="1 2"` if the radiance budget, 20 min total, ~3 used, is short) and `SPEC=default`;
-(4) fill `@@RESULTS@@` / `@@STATUS@@` here, speed table first; LOG.md row; unanimis capture; push `ink/hip-i8` and open the PR.
+(The parked-state list of what was unverified and the next steps are done: see Results. fleetq ids of that stretch: #12287 / #12295 / #12316 (tatooine cpu builds), #12302 (W1), #12323 (W2), #12313 / #12315 / #12296 / #12308 (endor cpu tests).)
 
 ## Results
 
-@@RESULTS@@
+## 1. Speed: main (P12 default) against `INTARSIA_INK_ATTN_QUANT=int8_row INTARSIA_LMHEAD_QUANT=int8_row`
+
+Card 0 (R9700), `generate`, greedy, 256 tokens, graphs, one binary (the branch with the env unset is main's code path), runs interleaved ABBA
+(`raw/stage_speed.sh`, `raw/stage_w45.sh`, ratio per rep, 95 % CI = t interval over the reps, `raw/speed.py`). The runs are deterministic to
+about 0.1 %, so the intervals are narrow; n is the number of pairs and the interval at n = 2 uses t = 4.3, at n = 1 there is none.
+
+| decode tok/s | main (P12) | int8 | change | 95 % CI of the ratio | n |
+|---|---|---|---|---|---|
+| plain (`--spec off`), short | 83.25 | 96.81 | **+16.3 %** | [1.162, 1.164] | 4 |
+| plain, 4k | 80.03 | 92.48 | **+15.6 %** | [1.155, 1.156] | 4 |
+| plain, 16k | 75.11 | 86.14 | **+14.7 %** | [1.144, 1.149] | 2 |
+| spec default (DSpark k5), short | 94.49 | 101.86 | **+7.8 %** | [1.068, 1.088] | 2 |
+| spec default, 4k | 108.00 | 141.72 | +31.2 % (see below) | [1.308, 1.317] | 2 |
+| spec default, 16k | 119.99 | 131.46 | **+9.6 %** | none | 1 |
+
+| prefill tok/s (the `generate` prefill line) | main | int8 | change | 95 % CI | n |
+|---|---|---|---|---|---|
+| 4k, plain | 3061.4 | 3065.3 | +0.1 % | [0.998, 1.004] | 4 |
+| 4k, spec default | 3054.9 | 3057.5 | +0.1 % | [0.992, 1.009] | 2 |
+| 16k, plain | 3182.1 | 3188.4 | +0.2 % | [0.990, 1.014] | 2 |
+| 16k, spec default | 3183.0 | 3181.9 | 0.0 % | none | 1 |
+
+Prefill is not slower: a chunk of more than 16 rows reads `bf16(q * scale)` and the unchanged bf16 kernels.
+
+- **The spec-default 4k and short rows are not a pure speed ratio.** The int8 model is a different model: its greedy text differs from main's
+  at short and 4k (md5 below), so the two arms speculate on different text. At 4k the int8 text is accepted much better (256 tokens in 77
+  verify passes against 106 for main), which is most of the +31 %. At 16k both arms emit the same ids, so +9.6 % there is the kernel gain on its own.
+  The plain rows (same number of steps) are the clean speed comparison.
+- **Load costs +11 s** (host quantisation with the clip search: 16.3 s against 5.2 s) and the resident weights are 14.76 GB against 14.97 GB
+  (`0.647 GB` of i8 in_proj + wo, `0.46 GB` of i8 unembed, in place of main's P12 copies; the bf16 `q * scale` weights stay for prefill).
+- Microbench per call (windows 1 and 2, table in the earlier-results section): in_proj / wo / unembed 1.5-1.7x P12 at 1 and 4 rows,
+  per token (48 in_proj + 48 wo + unembed) 4848 -> 3116 us at one row.
+
+## 2. Accuracy (pre-registered gate)
+
+KL21 = the 21-way KL (ref top-20 plus the rest) of the HIP self-golden of the int8 model against HIP main's, prefill mode (all prompt rows) and
+decode mode (teacher-forced decode positions), `raw/klpair.py`; confident misses = rows where the golden's top-1 beats its top-2 by 0.5 and the
+argmax differs. Gate: KL against main at or under the cpu C-vs-bf16 number plus 20 % (4.1e-3 / 4.6e-3 / 5.3e-3 for short / long / 4k, so 4.9e-3 /
+5.5e-3 / 6.4e-3) and the G3 absolute bounds on the KL against the vLLM goldens (1.05e-2 / 1.65e-2 / 1.4e-2).
+
+| set | int8 vs main, prefill | int8 vs main, decode | confident misses vs main (prefill / decode) | int8 vs vLLM prefill / decode (main) | G3 bound | verdict |
+|---|---|---|---|---|---|---|
+| short | 3.81e-3 | 2.77e-3 | 0 / 368, 0 / 287 | 8.49e-3 / 9.96e-3 (8.57e-3 / 7.49e-3) | 1.05e-2 | PASS |
+| long | 3.46e-3 | 2.89e-3 | 0 everywhere | 1.252e-2 / 1.101e-2 (1.197e-2 / 9.29e-3) | 1.65e-2 | PASS |
+| 4k | 4.67e-3 | 3.79e-3 | 0 / 8268, 0 / 63 | 1.010e-2 / 1.032e-2 (9.96e-3 / 1.069e-2) | 1.4e-2 | PASS |
+
+Against the vLLM goldens the confident-row top-1 misses are the same as main's: short 0 and 0; 4k 3 of 8229 in prefill for both arms, 0 of 64
+in decode. The short and 4k numbers were taken again after the dispatch fix of section 4 (window 7) and are unchanged to the printed digits;
+long was measured before it (window 2) and not repeated (budget). Self-goldens and logs: `raw/acc-*`, `raw/w*-` logs.
+
+## 3. Greedy ids (md5 of the 256-token output, `generate`)
+
+| prompt | main spec off | main spec default | int8 spec off | int8 spec default |
+|---|---|---|---|---|
+| short | 9a27c21b | 9a27c21b | 51b358e2 | **51b358e2** (equal) |
+| 4k | 9675bbb9 | 9675bbb9 | c96e82b7 | **c96e82b7** (equal) |
+| 16k | 93e0a151 | 93e0a151 | 93e0a151 | **93e0a151** (equal) |
+
+The int8 arm differs from main at short and 4k (lossy by design; the short text first differs at one near-tie, "grateful" against "appreciate")
+and equals main's ids at 16k. At 64 tokens, short, plain: main = int8 = 04cdb28a (window 2). **The spec-default check found a bug in the first
+run** (window 5, binary `0ffcc066`): the short md5 was 754611c1, not the spec-off 51b358e2. Cause in section 4; fixed; window 5b (binary
+`185d01e0`) gives the table above.
+
+## 4. The verify-rows bug and its fix (the one dispatch change)
+
+In the model the i8 copies sit in the `in_p12` / `wo_p12` slots, and those are admitted on the P12 row limit (`DENSE_ROWS_MAX` = 4 on HIP) rather than
+`quant::i8row::DENSE_ROWS_MAX` = 16, which was defined and never applied. The default speculative verify pass has up to 6 rows (k5), so its
+in-projection and `wo` read the dequantised bf16 weight while a one-row decode step read the int8 codes: not rows-exact, and a near-tie flipped.
+`crates/intarsia-core/src/model/inkling2.rs` now takes the i8 copy of in_proj and `wo` on 1..=16 rows (P12 keeps its limit), and
+`inkling2_tiny_int8_row_real_weights_match_the_emulation` (`crates/intarsia-models/tests/inkling2.rs`) asserts a 6-row pass launches the i8
+in-projection and `MatmulI8` (it fails without the change: "a 6-row pass took no i8 in-projection", fleetq #12373, and passes with it).
+The kernels are unchanged, so windows 1 and 2's microbench and `ink_i8` correctness hold.
+
+Step 5 (rows slower than P12): in_proj at 9..16 rows is 0.92x of P12 in the microbench (146.8 against 134.4 us at 16 rows). Main takes P12 only at 1..4 rows
+(the verify pass of k5 has 6), and the alternative at 5..16 rows is the bf16 GEMV rows kernel, which was not measured against it. Sending
+those rows to bf16 would break rows-exactness (spec on = spec off), the thing the md5 table needs, so **no row count is routed back**; the i8
+in_proj at 9..16 rows (a verify pass of k >= 8, none by default) is recorded as a known limit.
+
+## 5. Checks
+
+| check | where | result |
+|---|---|---|
+| `intarsia-core --lib` | endor cpu, #12372 | 276 / 276 |
+| `inkling2` tiny suite (cpu), incl. the real-i8 test with the 6-row assertion | endor cpu, #12372 | 18 / 18 |
+| `intarsia-cli --test docs_env_vars`, `intarsia-models --test recipes_doc` | endor cpu, #12372 | 2 / 2, 3 / 3 |
+| hip `cargo check --tests` | endor cpu, #12372 | ok |
+| `ink_i8` device test (3 tests: every shape, every launch shape, rows-exact) | tatooine, window 2 (#12323) | 3 / 3 (kernels unchanged since) |
+| hip tiny `inkling2`, main env (window 6, `raw/w6-inkling2-main.log`) | tatooine #12357 | 16 / 18: the screened-head pair (`head_screen` has no HIP kernel), same as main before this branch |
+| hip tiny `inkling2_batch`, main env | #12357 | 9 / 9 |
+| hip tiny `inkling2`, int8 env, after the fix (window 7, #12379) | tatooine | 15 / 18: the screened-head pair and `g1a_f32_vs_f64` (the cpu f32 path against the f64 oracle: the env quantises the weights, 7 of 40 top-1 agree) |
+| hip tiny `inkling2_batch`, int8 env, after the fix | #12379 | 7 / 9: `batched_engine_equals_solo_engine`, `loaded_to_batch_packs_no_p12` (known limit below) |
+
+Before the dispatch fix the int8 env also failed `inkling2_tiny_chunked_and_decode_match_prefill_bitwise` (window 6, 14 / 18); it passes now.
+
+## 6. Known limits (all opt-in)
+
+- **Batching (`serve --max-batch` > 1):** `Model::drop_p12_for_batch` drops the P12 slots, which now hold the i8 copies, so a batched engine reads
+  `bf16(q * scale)`: the same quantised weights, no int8 speed-up, and its tokens are not bitwise a solo (max-batch 1) engine's. The two failing
+  batch tests above are exactly this. `loaded_to_batch_packs_no_p12` fails because the copies are dropped at `enable_batch`, not at the load.
+- Calls of more than 16 rows (prefill chunks) have no int8 kernel and read the bf16 dequantised weight.
+- The in_proj at 9..16 rows is slower than P12 (microbench) and has no bf16 comparison; the unembed at 16 rows equals P12.
+- Load +11 s (host quantisation). The vocabulary-sharded head (`INTARSIA_TP_VOCAB`) refuses `int8_row`.
+- Not verified: long accuracy after the dispatch fix (identical code path expected); decode with k other than the default; Metal and CUDA (out of
+  scope, not exercised); the spec-default speedup at n >= 4 and at 16k with a CI.
+
+## 7. Radiance and fleetq
+
+Radiance down this lane (each window restarted it, `/v1/models` answered after 10-15 s): W1 20:03:04-20:03:24 (0:20), W2 20:30:34-20:33:04 (2:30),
+W3 21:08:04-21:12:02 (3:58), W4 21:25:07-21:28:44 (3:37), W6 21:38:08-21:38:41 (0:33), W5 21:48:07-21:51:18 (3:11, the run that found the bug),
+W5b 21:57:36-22:00:48 (3:12), W7 22:01:37-22:03:30 (1:53): about 19.2 min of the 20 (W3-W7: 14.4 min). Logs: `raw/window*.log`.
+fleetq: build #12339 (merged main) and #12375 (after the fix, binary `intarsia-a` md5 185d01e0, plus the models test binaries), windows #12347
+(W3), #12354 (W4), #12363 (W5), #12357 (W6), #12378 (W5b), #12379 (W7); endor cpu #12364, #12372, #12373 (the test fails without the fix).
+Scripts: `raw/stage_w3.sh`, `stage_w45.sh`, `stage_w6.sh`, `stage_w7.sh`, `stage_speed.sh`, `window.sh`, `run.sh`, `speed.py`, `klpair.py`.
+
