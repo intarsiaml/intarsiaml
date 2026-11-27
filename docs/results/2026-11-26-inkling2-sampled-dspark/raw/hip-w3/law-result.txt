@@ -1,0 +1,14 @@
+seed equality T 0.6: 100 / 100 shared seeds give identical ids
+seed equality T 1: 150 / 150 shared seeds give identical ids
+law T 0.6 position 2: chi2 8.27 df 8 p 0.4074 (n 489 off + 528 on; distinct 21 / 18)
+law T 0.6 position 3: chi2 12.11 df 14 p 0.5977 (n 489 off + 528 on; distinct 41 / 36)
+law T 0.6 position 4: chi2 4.46 df 9 p 0.8787 (n 489 off + 528 on; distinct 33 / 30)
+law T 0.6 position 5: chi2 8.12 df 14 p 0.8830 (n 489 off + 528 on; distinct 53 / 44)
+law T 0.6 position 6: chi2 10.01 df 20 p 0.9679 (n 489 off + 528 on; distinct 66 / 66)
+law T 0.6 Fisher over 5 positions: X2 3.40 df 10 p 0.9705
+law T 1 position 2: chi2 23.72 df 25 p 0.5354 (n 489 off + 719 on; distinct 106 / 127)
+law T 1 position 3: chi2 42.79 df 30 p 0.0611 (n 489 off + 719 on; distinct 126 / 170)
+law T 1 position 4: chi2 20.50 df 24 p 0.6680 (n 489 off + 719 on; distinct 155 / 187)
+law T 1 position 5: chi2 23.58 df 24 p 0.4858 (n 489 off + 719 on; distinct 198 / 250)
+law T 1 position 6: chi2 18.51 df 22 p 0.6751 (n 489 off + 719 on; distinct 214 / 288)
+law T 1 Fisher over 5 positions: X2 9.88 df 10 p 0.4515

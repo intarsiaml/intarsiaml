@@ -505,6 +505,11 @@ enum VerifyRead<'a> {
     Logits(&'a mut Vec<Vec<f32>>),
     /// Every row's device-side top-`k` ([`Model::forward_verify_topk`]).
     TopK(usize, &'a mut Vec<StepOut>),
+    /// Every row's logits before the final softcap ([`Model::forward_verify_logits_uncapped`], lane ink-sampled).
+    LogitsUncapped(&'a mut Vec<Vec<f32>>),
+    /// Every row's device-sampler draw ([`Model::forward_verify_gumbel`], lane ink-sampled): row `r` with the key of position
+    /// `st.len + r + 1`, the token a plain step fed the same token at the same position draws.
+    Gumbel(GumbelHead, &'a mut Vec<u32>),
 }
 
 #[derive(Debug)]
@@ -820,6 +825,9 @@ pub struct Model {
     /// Speculation for sampled requests ([`crate::spec::SampledSpec`]): 0 = `INTARSIA_SPEC_SAMPLED`, else 1 + the variant's
     /// index ([`Model::set_spec_sampled`]).
     spec_sampled: std::sync::atomic::AtomicU8,
+    /// Sampled requests draft with a DFlash-family draft (lane ink-sampled, [`crate::spec::sampled_dflash_from_env`]): 0 =
+    /// `INTARSIA_SPEC_SAMPLED_DFLASH`, 1 = off, 2 = on ([`Model::set_spec_sampled_dflash`]).
+    spec_sampled_dflash: std::sync::atomic::AtomicU8,
     /// Dispatches of a speculative feedback step submitted before the previous token is read (`model/feedback.rs`).
     feedback_hold: usize,
     /// Opt-in prefill tail merge in rows (`INTARSIA_PREFILL_TAIL_MERGE`, already clamped; 0 = off). The workspace holds
@@ -2294,6 +2302,7 @@ impl Model {
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             spec_pipe: std::sync::atomic::AtomicU8::new(0),
             spec_sampled: std::sync::atomic::AtomicU8::new(0),
+            spec_sampled_dflash: std::sync::atomic::AtomicU8::new(0),
             feedback_hold,
             tail_merge,
             // the recipe chunk also when an Inkling-2 packed-prefill workspace is larger than it (lane ink-hip-bpf)
@@ -2646,6 +2655,54 @@ impl Model {
         Ok((r, rows))
     }
 
+    /// Lane ink-sampled: [`Model::forward_verify_logits`] without the final softcap on the host (`Model::softcap_logits`, Gemma-2 and
+    /// Inkling-2; for every other model the same rows). The caller caps the rows it reads with [`Model::softcap_row`], which is the
+    /// cap a decode step's readback gets, so a capped row is bitwise [`Model::forward_verify_logits`]'s; a sampled verify pass that
+    /// stops at its first rejected row then skips the cap (0.7 ms of host time per row at Inkling-2's 200058 logits) of the rows behind it.
+    pub fn forward_verify_logits_uncapped(&self, st: &mut SequenceState, ids: &[u32]) -> Result<(Vec<u32>, Vec<Vec<f32>>)> {
+        let pos = st.len;
+        self.det_tap_begin();
+        let mut rows = Vec::new();
+        let r = self.forward_verify_run(st, ids, VerifyRead::LogitsUncapped(&mut rows))?;
+        self.det_tap_flush(pos, ids.len())?;
+        if rows.len() != ids.len() {
+            return Err(Error::invalid("forward_verify_logits_uncapped: no logits rows (tensor-parallel verify is not supported)"));
+        }
+        Ok((r, rows))
+    }
+
+    /// The final softcap a decode step's logits readback gets ([`Model::softcap_logits`]; a no-op for a model without one), for a row
+    /// of [`Model::forward_verify_logits_uncapped`].
+    pub fn softcap_row(&self, row: &mut [f32]) {
+        self.softcap_logits(row);
+    }
+
+    /// Lane ink-sampled: whether [`Model::forward_verify_gumbel`] runs on this model: the device sampler ([`Model::gumbel_ok`]) on one
+    /// rank, a verify pass of at most [`Model::BATCH_MAX_ROWS`] rows (its key and token buffers).
+    pub fn verify_gumbel_ok(&self) -> bool {
+        self.gumbel_ok() && self.peers.is_empty() && self.remote.is_none() && self.verify_rows <= Self::BATCH_MAX_ROWS
+    }
+
+    /// Lane ink-sampled: [`Model::forward_verify`] with every row's token drawn by the device sampler ([`HeadMode::LastGumbel`],
+    /// `Op::GumbelArgmax` over the verify head's `[q, V]` logits, the decode head's softcap applied in the op) with key `h` at the
+    /// position of the token the row draws (`st.len + r + 1` for row `r`), instead of its argmax. A verify row's logits are bitwise
+    /// the decode step's at that position, so each row's draw is the token a plain device-sampled step there draws; `q` tokens come
+    /// back, no logits row. Returns the greedy tokens and the draws.
+    pub fn forward_verify_gumbel(&self, st: &mut SequenceState, ids: &[u32], h: GumbelHead) -> Result<(Vec<u32>, Vec<u32>)> {
+        if !self.verify_gumbel_ok() {
+            return Err(Error::invalid("forward_verify_gumbel without the device sampler on one rank"));
+        }
+        let pos = st.len;
+        self.det_tap_begin();
+        let mut draws = Vec::new();
+        let r = self.forward_verify_run(st, ids, VerifyRead::Gumbel(h, &mut draws))?;
+        self.det_tap_flush(pos, ids.len())?;
+        if draws.len() != ids.len() {
+            return Err(Error::invalid("forward_verify_gumbel: no draws"));
+        }
+        Ok((r, draws))
+    }
+
     /// Whether a solo verify pass can read its rows back as the device-side top-`k` ([`Model::forward_verify_topk`]).
     fn verify_topk_ok(&self, k: usize) -> bool {
         self.device_sampling() && self.peers.is_empty() && self.remote.is_none() && (1..=Self::TOPK_MAX).contains(&k) && k < self.dims.vocab
@@ -2678,6 +2735,16 @@ impl Model {
         };
         if !(2..=self.verify_rows).contains(&q) {
             return Err(Error::invalid(format!("forward_verify of {q} rows (enabled for 2..={})", self.verify_rows)));
+        }
+        if let VerifyRead::Gumbel(h, _) = &rows {
+            // lane ink-sampled: the rows' keys go up before the pass is encoded (the batched step's buffer; a solo verify pass never
+            // runs beside a batched step), row r draws the token at position st.len + r + 1 as a plain step there does
+            let g = self.gumbel_bufs().ok_or_else(|| Error::invalid("a device-sampled verify pass without the device sampler"))?;
+            if q > Self::BATCH_MAX_ROWS {
+                return Err(Error::invalid(format!("a device-sampled verify pass of {q} rows (at most {})", Self::BATCH_MAX_ROWS)));
+            }
+            let keys: Vec<u8> = (0..q).flat_map(|r| h.key(st.len + r + 1)).flat_map(i32::to_le_bytes).collect();
+            self.backend.upload(&g.batch_keys, 0, &keys, self.stream)?;
         }
         let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
         // recurrent slots (GatedDeltaNet): the delta rule runs row by row and the state after every row but the last is
@@ -2716,11 +2783,32 @@ impl Model {
                 return Err(e);
             }
         };
+        if matches!(rows, VerifyRead::Gumbel(..)) {
+            // lane ink-sampled: the device sampler over the q rows, before the token download so one wait covers both and before
+            // the drafter's hooks reuse `ws.logits`; the op caps the pre-softcap logits as a decode step's `GumbelArgmax` does
+            let g = self.gumbel_bufs().ok_or_else(|| Error::invalid("a device-sampled verify pass without the device sampler"))?;
+            let logits = self.view(&self.ws.logits, DType::F32, &[q, self.dims.vocab]);
+            let keys = self.view(&g.batch_keys, DType::I32, &[q, 4]);
+            let out = self.view(&g.batch_tok, DType::I32, &[q]);
+            self.exec(Op::GumbelArgmax, vec![logits, keys], vec![out], OpAttrs { scale: self.softcap_cap(), ..OpAttrs::default() }, profile)?;
+        }
         let mut b = vec![0u8; q * 4];
         self.backend.download(tok, 0, &mut b, self.stream)?;
         let v = self.dims.vocab;
         match rows {
             VerifyRead::None => {}
+            VerifyRead::Gumbel(_, draws) => {
+                let g = self.gumbel_bufs().ok_or_else(|| Error::invalid("a device-sampled verify pass without the device sampler"))?;
+                let mut d = vec![0u8; q * 4];
+                self.backend.download(&g.batch_tok, 0, &mut d, self.stream)?;
+                *draws = d.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect();
+            }
+            VerifyRead::LogitsUncapped(rows) => {
+                *rows = with_logits_bytes(q * v * 4, |l| -> Result<Vec<Vec<f32>>> {
+                    self.backend.download(&self.ws.logits, 0, l, self.stream)?;
+                    Ok(l.chunks_exact(v * 4).map(logits_row).collect())
+                })?;
+            }
             VerifyRead::Logits(rows) => {
                 // pooled buffers, as a decode step's logits row: fresh megabyte allocations page-fault on GB10 (`LOGITS_POOL`)
                 *rows = with_logits_bytes(q * v * 4, |l| -> Result<Vec<Vec<f32>>> {

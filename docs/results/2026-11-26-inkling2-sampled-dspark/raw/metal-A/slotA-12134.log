@@ -1,0 +1,41 @@
+fleetq: #12134 waiting (#2 in line): in line behind #12127 "ink-q8: short noise-floor controls" (claude-04c0e1cd) on endor
+fleetq:   #12127 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12127 set, or it will wait for #12127 to be released.
+fleetq: #12134 waiting (#1 in line): needs endor to itself; running there: #12115 "ink-q8: long arms bf16/A/B/C cpu accuracy" (claude-04c0e1cd), #12122 "ink-sampled: cpu tiny gates + law test" (claude-04c0e1cd), #12127 "ink-q8: short noise-floor controls" (claude-04c0e1cd); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #12115 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12115 set, or it will wait for #12115 to be released.
+fleetq: #12134 waiting (#1 in line): needs endor to itself; running there: #12115 "ink-q8: long arms bf16/A/B/C cpu accuracy" (claude-04c0e1cd), #12122 "ink-sampled: cpu tiny gates + law test" (claude-04c0e1cd), #12127 "ink-q8: short noise-floor controls" (claude-04c0e1cd), #12141 "ink-sampled: metal test binaries rebuild (no run)" (claude-04c0e1cd); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #12115 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12115 set, or it will wait for #12115 to be released.
+fleetq: #12134 waiting (#1 in line): needs endor to itself; running there: #12115 "ink-q8: long arms bf16/A/B/C cpu accuracy" (claude-04c0e1cd), #12122 "ink-sampled: cpu tiny gates + law test" (claude-04c0e1cd), #12127 "ink-q8: short noise-floor controls" (claude-04c0e1cd); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #12115 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12115 set, or it will wait for #12115 to be released.
+fleetq: #12134 waiting (#1 in line): needs endor to itself; running there: #12115 "ink-q8: long arms bf16/A/B/C cpu accuracy" (claude-04c0e1cd), #12122 "ink-sampled: cpu tiny gates + law test" (claude-04c0e1cd); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #12115 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12115 set, or it will wait for #12115 to be released.
+fleetq: #12134 waiting (#1 in line): needs endor to itself; running there: #12122 "ink-sampled: cpu tiny gates + law test" (claude-04c0e1cd); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #12122 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12122 set, or it will wait for #12122 to be released.
+fleetq: #12134 running on endor: bash .scratch/metal/slotA.sh s1
+start 14:55:11 out /opt/code/intarsiaml/.worktrees/ink-sampled/.scratch/metal/A-s1 branch md5 ddffcd0a1c2177cf0ab38e0af00fb725 main md5 6d1bc26f1661346c7fa2f8be6c1e05a4 git 00872315b
+== tiny suites on metal 14:55:11
+     Running tests/inkling2.rs (target/release/deps/inkling2-5d42fbab12d913d8)
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.78s
+     Running tests/inkling2_dspark.rs (target/release/deps/inkling2_dspark-cfe0bff7e3649813)
+test dspark_unsynced_draft_keeps_the_prefix_and_skips_drafting ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 173.91s
+     Running tests/inkling2_dspark_cut.rs (target/release/deps/inkling2_dspark_cut-9039d7115e9aeec8)
+test dspark_cumulative_cut_keeps_ids_and_shortens_drafts ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.22s
+     Running tests/inkling2_dspark_sampled.rs (target/release/deps/inkling2_dspark_sampled-5245d77a3eaf4a92)
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 83.68s
+     Running tests/inkling2_dspark_sampled_gumbel.rs (target/release/deps/inkling2_dspark_sampled_gumbel-7ccd6ca5107d4110)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 83.44s
+     Running tests/inkling2_verify_softcap.rs (target/release/deps/inkling2_verify_softcap-f0d363c52a7f027b)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+== greedy md5 15:01:11
+  main off rc 0 15:01:42 | decode overall: 1505 tokens after the first, 19438 ms (77.42 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+  main def rc 0 15:02:09 | decode overall: 1505 tokens after the first, 15869 ms (94.84 tok/s) | spec: verify passes=582 proposed=1379 accepted=814 (acceptance 59.0%, 2.40 tokens per pass)
+  br off rc 0 15:02:38 | decode overall: 1505 tokens after the first, 20635 ms (72.93 tok/s) | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+  br def rc 0 15:03:06 | decode overall: 1505 tokens after the first, 16441 ms (91.54 tok/s) | spec: verify passes=582 proposed=1379 accepted=814 (acceptance 59.0%, 2.40 tokens per pass)
+== real law harness /opt/code/intarsiaml/.worktrees/ink-sampled/target/release/deps/inkling2_sampled_real-85a8ce2019f4ec10 N 1000 shared 200 15:03:06
+Terminated: 15
+  arm 0 rc 143 15:10:34 lines     1012 | inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.1 s dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 4.0 s sampled requests (temperature > 0): DFlash-family drafting off (INTARSIA_SPEC_SAMPLED_DFLASH; single sequence, one rank, seed-exact keyed rule) loaded in 8.4 s, INTARSIA_SPEC_SAMPLED_DFLASH=Some("0") 
+Terminated: 15
+  arm 1 rc 143 15:23:53 lines     1834 | inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.2 s dflash: draft of 3 layers (taps [5, 23, 41, 48], block 7) loaded in 4.0 s sampled requests (temperature > 0): DFlash-family drafting on (INTARSIA_SPEC_SAMPLED_DFLASH; single sequence, one rank, seed-exact keyed rule) loaded in 8.3 s, INTARSIA_SPEC_SAMPLED_DFLASH=Some("1") 
+end 15:23:53
+fleetq: #12134 done (exit 0)

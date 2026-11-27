@@ -1,0 +1,117 @@
+
+running 17 tests
+test inkling2_tiny_chunk_scan ... ok
+test inkling2_tiny_launch_diff ... ok
+test inkling2_tiny_logits_dump ... ok
+test inkling2_tiny_p12_forced_on ... ok
+test inkling2_tiny_g1a_f32_vs_f64 ... ok
+test inkling2_tiny_no_kernel_refusal_names_the_op ... ok
+test inkling2_tiny_chunked_and_decode_match_prefill_bitwise ... FAILED
+test inkling2_tiny_interleaved_sequences_equal_solo ... FAILED
+test inkling2_tiny_failed_pass_resets_the_sequence ... FAILED
+test inkling2_tiny_verify_graph_replays_equal_decode_bitwise ... FAILED
+test inkling2_tiny_screened_head_one_row_only ... FAILED
+test inkling2_tiny_g1b_teacher_forced_bf16 ... FAILED
+test inkling2_tiny_loads ... FAILED
+test inkling2_tiny_graph_decode_is_bitwise_the_eager_decode ... FAILED
+test inkling2_tiny_rollback_by_length ... FAILED
+test inkling2_tiny_verify_rows_equal_decode_bitwise ... FAILED
+test inkling2_tiny_screen_keeps_batching ... FAILED
+
+failures:
+
+---- inkling2_tiny_chunked_and_decode_match_prefill_bitwise stdout ----
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_tiny_chunked_and_decode_match_prefill_bitwise' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+called `Result::unwrap()` on an `Err` value: NoKernel("3 op(s) of this model have no kernel on hip/gfx1201:\n  - head_screen: 1 shape(s) without a kernel, e.g. no kernel for head_screen on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - logits_gather: 1 shape(s) without a kernel, e.g. no kernel for logits_gather on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=Some(Bf16)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n    weight tensor(s) of a dtype no logits_gather kernel takes on hip/gfx1201: 'model.llm.unembed.weight' (bf16)\n  - screen_argmax: 1 shape(s) without a kernel, e.g. no kernel for screen_argmax on hip/gfx1201 (m=1 n=300 k=64 act=Some(F32) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...")
+
+---- inkling2_tiny_interleaved_sequences_equal_solo stdout ----
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_tiny_interleaved_sequences_equal_solo' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+called `Result::unwrap()` on an `Err` value: NoKernel("3 op(s) of this model have no kernel on hip/gfx1201:\n  - head_screen: 1 shape(s) without a kernel, e.g. no kernel for head_screen on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - logits_gather: 1 shape(s) without a kernel, e.g. no kernel for logits_gather on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=Some(Bf16)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n    weight tensor(s) of a dtype no logits_gather kernel takes on hip/gfx1201: 'model.llm.unembed.weight' (bf16)\n  - screen_argmax: 1 shape(s) without a kernel, e.g. no kernel for screen_argmax on hip/gfx1201 (m=1 n=300 k=64 act=Some(F32) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- inkling2_tiny_failed_pass_resets_the_sequence stdout ----
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_tiny_failed_pass_resets_the_sequence' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+called `Result::unwrap()` on an `Err` value: NoKernel("3 op(s) of this model have no kernel on hip/gfx1201:\n  - head_screen: 1 shape(s) without a kernel, e.g. no kernel for head_screen on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - logits_gather: 1 shape(s) without a kernel, e.g. no kernel for logits_gather on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=Some(Bf16)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n    weight tensor(s) of a dtype no logits_gather kernel takes on hip/gfx1201: 'model.llm.unembed.weight' (bf16)\n  - screen_argmax: 1 shape(s) without a kernel, e.g. no kernel for screen_argmax on hip/gfx1201 (m=1 n=300 k=64 act=Some(F32) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...")
+
+---- inkling2_tiny_verify_graph_replays_equal_decode_bitwise stdout ----
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_tiny_verify_graph_replays_equal_decode_bitwise' panicked at crates/intarsia-models/tests/inkling2.rs:473:86:
+called `Result::unwrap()` on an `Err` value: NoKernel("3 op(s) of this model have no kernel on hip/gfx1201:\n  - head_screen: 1 shape(s) without a kernel, e.g. no kernel for head_screen on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - logits_gather: 1 shape(s) without a kernel, e.g. no kernel for logits_gather on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=Some(Bf16)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n    weight tensor(s) of a dtype no logits_gather kernel takes on hip/gfx1201: 'model.llm.unembed.weight' (bf16)\n  - screen_argmax: 1 shape(s) without a kernel, e.g. no kernel for screen_argmax on hip/gfx1201 (m=1 n=300 k=64 act=Some(F32) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...")
+
+---- inkling2_tiny_screened_head_one_row_only stdout ----
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_tiny_screened_head_one_row_only' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+called `Result::unwrap()` on an `Err` value: NoKernel("3 op(s) of this model have no kernel on hip/gfx1201:\n  - head_screen: 1 shape(s) without a kernel, e.g. no kernel for head_screen on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - logits_gather: 1 shape(s) without a kernel, e.g. no kernel for logits_gather on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=Some(Bf16)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n    weight tensor(s) of a dtype no logits_gather kernel takes on hip/gfx1201: 'model.llm.unembed.weight' (bf16)\n  - screen_argmax: 1 shape(s) without a kernel, e.g. no kernel for screen_argmax on hip/gfx1201 (m=1 n=300 k=64 act=Some(F32) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...")
+
+---- inkling2_tiny_g1b_teacher_forced_bf16 stdout ----
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_tiny_g1b_teacher_forced_bf16' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+called `Result::unwrap()` on an `Err` value: NoKernel("3 op(s) of this model have no kernel on hip/gfx1201:\n  - head_screen: 1 shape(s) without a kernel, e.g. no kernel for head_screen on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - logits_gather: 1 shape(s) without a kernel, e.g. no kernel for logits_gather on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=Some(Bf16)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n    weight tensor(s) of a dtype no logits_gather kernel takes on hip/gfx1201: 'model.llm.unembed.weight' (bf16)\n  - screen_argmax: 1 shape(s) without a kernel, e.g. no kernel for screen_argmax on hip/gfx1201 (m=1 n=300 k=64 act=Some(F32) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...")
+
+---- inkling2_tiny_loads stdout ----
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_tiny_loads' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+called `Result::unwrap()` on an `Err` value: NoKernel("3 op(s) of this model have no kernel on hip/gfx1201:\n  - head_screen: 1 shape(s) without a kernel, e.g. no kernel for head_screen on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - logits_gather: 1 shape(s) without a kernel, e.g. no kernel for logits_gather on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=Some(Bf16)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n    weight tensor(s) of a dtype no logits_gather kernel takes on hip/gfx1201: 'model.llm.unembed.weight' (bf16)\n  - screen_argmax: 1 shape(s) without a kernel, e.g. no kernel for screen_argmax on hip/gfx1201 (m=1 n=300 k=64 act=Some(F32) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...")
+
+---- inkling2_tiny_graph_decode_is_bitwise_the_eager_decode stdout ----
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_tiny_graph_decode_is_bitwise_the_eager_decode' panicked at crates/intarsia-models/tests/inkling2.rs:344:86:
+called `Result::unwrap()` on an `Err` value: NoKernel("3 op(s) of this model have no kernel on hip/gfx1201:\n  - head_screen: 1 shape(s) without a kernel, e.g. no kernel for head_screen on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - logits_gather: 1 shape(s) without a kernel, e.g. no kernel for logits_gather on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=Some(Bf16)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n    weight tensor(s) of a dtype no logits_gather kernel takes on hip/gfx1201: 'model.llm.unembed.weight' (bf16)\n  - screen_argmax: 1 shape(s) without a kernel, e.g. no kernel for screen_argmax on hip/gfx1201 (m=1 n=300 k=64 act=Some(F32) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...")
+
+---- inkling2_tiny_rollback_by_length stdout ----
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_tiny_rollback_by_length' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+called `Result::unwrap()` on an `Err` value: NoKernel("3 op(s) of this model have no kernel on hip/gfx1201:\n  - head_screen: 1 shape(s) without a kernel, e.g. no kernel for head_screen on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - logits_gather: 1 shape(s) without a kernel, e.g. no kernel for logits_gather on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=Some(Bf16)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n    weight tensor(s) of a dtype no logits_gather kernel takes on hip/gfx1201: 'model.llm.unembed.weight' (bf16)\n  - screen_argmax: 1 shape(s) without a kernel, e.g. no kernel for screen_argmax on hip/gfx1201 (m=1 n=300 k=64 act=Some(F32) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...")
+
+---- inkling2_tiny_verify_rows_equal_decode_bitwise stdout ----
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_tiny_verify_rows_equal_decode_bitwise' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+called `Result::unwrap()` on an `Err` value: NoKernel("3 op(s) of this model have no kernel on hip/gfx1201:\n  - head_screen: 1 shape(s) without a kernel, e.g. no kernel for head_screen on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - logits_gather: 1 shape(s) without a kernel, e.g. no kernel for logits_gather on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=Some(Bf16)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n    weight tensor(s) of a dtype no logits_gather kernel takes on hip/gfx1201: 'model.llm.unembed.weight' (bf16)\n  - screen_argmax: 1 shape(s) without a kernel, e.g. no kernel for screen_argmax on hip/gfx1201 (m=1 n=300 k=64 act=Some(F32) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...")
+
+---- inkling2_tiny_screen_keeps_batching stdout ----
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+
+thread 'inkling2_tiny_screen_keeps_batching' panicked at crates/intarsia-models/tests/inkling2.rs:98:38:
+called `Result::unwrap()` on an `Err` value: NoKernel("3 op(s) of this model have no kernel on hip/gfx1201:\n  - head_screen: 1 shape(s) without a kernel, e.g. no kernel for head_screen on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n  - logits_gather: 1 shape(s) without a kernel, e.g. no kernel for logits_gather on hip/gfx1201 (m=1 n=300 k=64 act=Some(Bf16) w=Some(Bf16)) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...\n    weight tensor(s) of a dtype no logits_gather kernel takes on hip/gfx1201: 'model.llm.unembed.weight' (bf16)\n  - screen_argmax: 1 shape(s) without a kernel, e.g. no kernel for screen_argmax on hip/gfx1201 (m=1 n=300 k=64 act=Some(F32) w=None) (heads 0/0 head_dim 0 kv_len 0); needed by Decode t=1, Prefill t=10, Prefill t=11, Prefill t=12, ...")
+
+
+failures:
+    inkling2_tiny_chunked_and_decode_match_prefill_bitwise
+    inkling2_tiny_failed_pass_resets_the_sequence
+    inkling2_tiny_g1b_teacher_forced_bf16
+    inkling2_tiny_graph_decode_is_bitwise_the_eager_decode
+    inkling2_tiny_interleaved_sequences_equal_solo
+    inkling2_tiny_loads
+    inkling2_tiny_rollback_by_length
+    inkling2_tiny_screen_keeps_batching
+    inkling2_tiny_screened_head_one_row_only
+    inkling2_tiny_verify_graph_replays_equal_decode_bitwise
+    inkling2_tiny_verify_rows_equal_decode_bitwise
+
+test result: FAILED. 6 passed; 11 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
