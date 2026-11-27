@@ -228,6 +228,27 @@ pub(super) enum InkInW {
 /// `[tuning.<backend>] ink_attn_quant`; unset on both: the bf16 projections as stored.
 pub const ATTN_QUANT_ENV: &str = "INTARSIA_INK_ATTN_QUANT";
 
+/// `INTARSIA_INK_ATTN_QUANT_KEEP` (lane ink-q8, with a per-row `INTARSIA_INK_ATTN_QUANT` only): comma-separated in-projection segments
+/// kept at their checkpoint precision (bf16) instead of the 8-bit format: `wr` (wr_du), `sink` (attn_sink_proj), `sconv` (the K and V
+/// sconv weight projections of the full layers), `gate` (gate_attn), `wq` (wq_du).
+pub const ATTN_QUANT_KEEP_ENV: &str = "INTARSIA_INK_ATTN_QUANT_KEEP";
+
+fn attn_quant_keep() -> Result<Vec<&'static str>> {
+    let v = std::env::var(ATTN_QUANT_KEEP_ENV).unwrap_or_default();
+    let mut keep = Vec::new();
+    for t in v.split(',').map(|t| t.trim()).filter(|t| !t.is_empty()) {
+        keep.push(match t {
+            "wr" => "attn.wr_du.",
+            "sink" => "attn.attn_sink_proj.",
+            "sconv" => "sconv.weight_proj",
+            "gate" => "attn.gate_attn.",
+            "wq" => "attn.wq_du.",
+            other => return Err(Error::model(format!("{ATTN_QUANT_KEEP_ENV}: '{other}' (wr | sink | sconv | gate | wq)"))),
+        });
+    }
+    Ok(keep)
+}
+
 /// `INTARSIA_INK_ACT_QUANT` (`w4a4` / `w4a16`), else the recipe's `[tuning.<backend>] act_quant`; unset on both: `w4a16`
 /// (16-bit expert activations). `w4a4` quantises the expert inputs as the checkpoint's `required_activation_quantization`
 /// (contract: `crate::inkling2::ops`, `ink.act_quant = 1`).
@@ -559,6 +580,17 @@ pub(super) fn load(
         eprintln!("inkling2: NVFP4 experts repacked for the decode kernels ({MOE_REPACK_ENV}=0 turns it off)");
     }
     let mut p12_stats = P12Stats::default();
+    // lane ink-q8: the per-row 8-bit study formats are host emulation (dequantised f32 weights), cpu only; the nominal 8-bit bytes
+    // of one layer's in-projection and wo, summed over the visits at the end
+    let row_emul = attn_quant.is_some_and(|k| k.is_row_emulated());
+    if let Some(k) = attn_quant {
+        crate::quant::head::emulation_guard(k, b)?;
+    }
+    let keep = attn_quant_keep()?;
+    if !keep.is_empty() && !row_emul {
+        return Err(Error::model(format!("{ATTN_QUANT_KEEP_ENV} needs {ATTN_QUANT_ENV} = fp8_row or int8_row")));
+    }
+    let mut nominal: Vec<(u64, u64)> = vec![(0, 0); dims.n_layers];
     let mut put = |data: &[u8], dt: DType, shape: &[usize]| -> Result<TensorRef> {
         let buf = crate::backend::upload_new(b, data)?;
         *bytes += data.len() as u64;
@@ -625,6 +657,48 @@ pub(super) fn load(
         let in_p12 = if pack12 && crate::quant::p12::pack_in_proj(b.name()) { Some(p12_stats.pack(b, &stacked, nq + 2 * nk, d)?) } else { None };
         let in_w = match attn_quant {
             None => InkInW::Stacked(put(&stacked, wdt, &[nq + 2 * nk, d])?),
+            // per-row 8-bit study formats: each segment quantised row by row, dequantised to f32 (the kept segments exactly)
+            Some(kind) if kind.is_row_emulated() => {
+                let es = wdt.size_bytes();
+                let mut deq: Vec<u8> = Vec::with_capacity((nq + 2 * nk) * d * 4);
+                let mut r0 = 0;
+                let mut nom = 0u64;
+                let stats = std::env::var("INTARSIA_INK_ATTN_QUANT_STATS").is_ok_and(|v| v.trim() == "1");
+                for (name, rows) in &parts {
+                    let seg = &stacked[r0 * d * es..(r0 + rows) * d * es];
+                    if keep.iter().any(|t| name.contains(t)) {
+                        deq.extend(crate::weights::to_f32_vec(wdt, seg)?.iter().flat_map(|x| x.to_le_bytes()));
+                        nom += (rows * d * es) as u64;
+                    } else {
+                        let q = crate::quant::head::quantize_host(kind, wdt, seg, *rows, d, 0, *rows)?;
+                        if stats {
+                            // relative rms error of the segment and the share of weights moved by more than 5 % of the row's amax
+                            let (w0, w1) = (crate::weights::to_f32_vec(wdt, seg)?, q.parts[0].to_f32());
+                            let (mut num, mut den, mut big) = (0f64, 0f64, 0usize);
+                            for (r, (a, b)) in w0.chunks(d).zip(w1.chunks(d)).enumerate() {
+                                let amax = a.iter().fold(0f32, |m, v| m.max(v.abs()));
+                                for (x, y) in a.iter().zip(b) {
+                                    num += ((x - y) as f64).powi(2);
+                                    den += (*x as f64).powi(2);
+                                    big += ((x - y).abs() > 0.05 * amax) as usize;
+                                }
+                                let _ = r;
+                            }
+                            eprintln!(
+                                "{ATTN_QUANT_ENV} layer {li} {}: rel rms err {:.3e}, {:.2e} of weights moved > 5% of row amax",
+                                name.rsplit("attn.").next().unwrap_or(name).trim_end_matches(".weight"),
+                                (num / den).sqrt(),
+                                big as f64 / w0.len() as f64
+                            );
+                        }
+                        deq.extend_from_slice(&q.parts[0].data);
+                        nom += (rows * d + 4 * rows) as u64;
+                    }
+                    r0 += rows;
+                }
+                nominal[li].0 = nom;
+                InkInW::Stacked(put(&deq, DType::F32, &[nq + 2 * nk, d])?)
+            }
             Some(kind) => {
                 // each pack its own scale (fp8: one per tensor), from the checkpoint's bf16 rows; the bf16 stack is not uploaded
                 let es = wdt.size_bytes();
@@ -850,6 +924,9 @@ pub(super) fn load(
                         }
                         let hq = crate::quant::head::quantize_host(kind, info.dtype, src.bytes(&name)?, d, h * dh, 0, d)?;
                         qbytes.set(qbytes.get() + hq.parts.iter().map(|p| p.data.len() as u64).sum::<u64>());
+                        if kind.is_row_emulated() {
+                            nominal[li].1 = (d * h * dh + 4 * d) as u64;
+                        }
                         hq.upload(b)?
                     }
                 }
@@ -877,6 +954,22 @@ pub(super) fn load(
     let ws = InkWs::alloc(b, mt, act, dims, &ink, n_stack)?;
     let msg_q_all = if ink.looped() { Some(queries(&mut put, all_q4, 4 * n_core)?) } else { None };
     *bytes += qbytes.get();
+    if row_emul {
+        // nominal 8-bit bytes read per token: every visit reads its layer's in-projection and wo
+        let (inp, wo) = visits.iter().fold((0u64, 0u64), |(a, w), v| (a + nominal[v.layer].0, w + nominal[v.layer].1));
+        let bf16_attn: u64 = visits.iter().map(|v| {
+            let l = &layers[v.layer];
+            ((l.nq + 2 * l.nk) * d * 2 + d * h * dh * 2) as u64
+        }).sum();
+        eprintln!(
+            "inkling2: row-quant nominal bytes per token ({} visits): in_proj {:.4} GB, wo {:.4} GB (attention {:.4} GB, bf16 {:.4} GB); weights are held as dequantised f32 here (cpu reference)",
+            visits.len(),
+            inp as f64 / 1e9,
+            wo as f64 / 1e9,
+            (inp + wo) as f64 / 1e9,
+            bf16_attn as f64 / 1e9
+        );
+    }
     if pack12 {
         *bytes += p12_stats.bytes as u64;
         eprintln!("{}", p12_stats.note("in_proj + wo"));
