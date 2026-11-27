@@ -1,0 +1,10 @@
+
+running 5 tests
+test law_t06_recipe_top_p ... ignored
+test law_t07_top_k20_top_p09 ... ignored
+test law_t10_recipe_top_p ... ignored
+test sampled_dspark_is_opt_in_and_leaves_greedy_alone ... ok
+test sampled_dspark_seeded_ids_equal_spec_off ... ok
+
+test result: ok. 2 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 90.62s
+

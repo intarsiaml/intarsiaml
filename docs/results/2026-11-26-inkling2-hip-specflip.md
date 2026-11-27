@@ -521,3 +521,27 @@ first from the load's DSpark state); the harness prints per request its wall tim
 (`Backend::info().free_mem`) before the first request and after the last. Pass: ids = no speculation; free memory after >= before minus
 64 MiB (allocator rounding); the switch cost is reported, not gated.
 
+**WA1b (#12522, 01:08:34-01:12:48, 4:14; dualA5 = CLI md5 `579b3042` (= dualA3), harness `f04734975`; `raw/a1-dualA5/`):** KV:
+capacity DSpark alone 177,504, both drafters **163,712 (-7.77 %)**, default context 4096 (gate 3: pass). Greedy md5.json 256: off = dual
+= DFlash2 k4 alone (`380af8a5`); acceptance dual = DFlash2 k4 alone (140 / 555 / 370, every per-prompt line equal). Seeds T 1.0: 100 / 100
+equal off; acceptance dual = DSpark alone (`INTARSIA_SPEC_DFLASH2_DEFAULT=0`) = 265 / 408 / 123 (also GA2's specA2 number), ids identical.
+GO ABBA half 1 (card 0, A B B A): dspark 109.26 / 108.87 tok/s overall, dual 125.43 / 125.28; dual's verify counts per process (1265 /
+5038 / 2935) = conf-k4's DFlash2 k4 alone.
+
+**Coordinator, 01:14 EST 11-27 (as written):**
+
+> #545 merged as 896198dcc (01:14 EST). Metal no-op #12515 checked: md5 main = PR A for off and default (d93147da, 169/429/311 acceptance both), sampled default line off on Metal, tiny suites pass.
+>
+> For (a):
+> 1. Don't delete or reuse remote `ink/hip-specflip`. Further results-doc commits go on `ink/hip-specflip-b`, which must merge origin/main (896198dcc) before its PR.
+> 2. #546 (Metal DFlash2, opt-in) merges next. It lifts Metal's refusal of DFlash2 in model.rs, so after it lands only the recipe key keeps Metal off the DFlash2 default. Add a test that `dflash2_default_draft(recipe, "metal", …)` and "cuda" return NotSet. #546 also edits `crates/intarsia-models/tests/inkling2_dflash2.rs`, which (a) changes too, so expect a conflict there when you merge main after it lands.
+> 3. The (a) Metal no-op slot runs with the DFlash2 drafter present next to the checkpoint on endor (#12464 copied it there). The default must still load only DSpark k3 and greedy md5 must equal main's.
+>
+> No reply needed. Carry on with WA1b.
+
+**PR A Metal no-op slot (#12515, endor exclusive, 01:00:17-01:09:58, 9:41; `raw/metal-specA2/`):** greedy md5 (2 prompts) main
+`1bf40e29f` = PR A `8c4400fec` for `--spec off` and the default (`d93147da`, DSpark k3 169 / 429 / 311 both); the sampled default line
+says off on Metal; Metal tiny suites inkling2_sampled_default 2 / 2, inkling2_dspark_sampled 2 / 2 (3 ignored), inkling2_dspark_sampled_adapt
+2 / 2, inkling2_dspark 4 / 4. (#12509 before it exited at once: its process guard matched a shell line; the guard now matches only commands
+that start with an intarsia binary.)
+

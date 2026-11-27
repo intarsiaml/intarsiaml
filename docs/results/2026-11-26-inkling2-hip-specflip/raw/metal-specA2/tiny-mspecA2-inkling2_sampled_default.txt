@@ -1,0 +1,7 @@
+
+running 2 tests
+test recipe_default_drafts_sampled_requests_with_spec_off_ids ... ok
+test without_the_key_sampled_requests_stay_plain ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.62s
+

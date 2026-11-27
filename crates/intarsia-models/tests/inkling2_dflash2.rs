@@ -672,6 +672,15 @@ fn recipe_dflash2_default_finds_the_drafter_or_falls_back() {
     for b in ["metal", "cuda", "cpu"] {
         assert_eq!(dflash2_default_draft(&ink, b, &model_dir, None), Dflash2Default::NotSet, "{b}: no DFlash2 default");
     }
+    // the key is per backend: with the drafter findable next to the checkpoint (as on endor, where it sits beside the snapshot), a recipe
+    // whose hip table names it still gives metal and cuda no DFlash2 default (once Metal takes DFlash2 drafts, lane ink-metal-dflash2,
+    // only the recipe key keeps its default DSpark)
+    let found = recipe_with("hip", &|t| t.dflash2_draft = Some(dd.file_name().unwrap().to_str().unwrap().to_string()));
+    let beside = dd.parent().unwrap().join("checkpoint");
+    assert!(matches!(dflash2_default_draft(&found, "hip", &beside, None), Dflash2Default::Found(..)), "hip finds the drafter beside the checkpoint");
+    for b in ["metal", "cuda", "cpu"] {
+        assert_eq!(dflash2_default_draft(&found, b, &beside, None), Dflash2Default::NotSet, "{b}: the drafter is there, but no {b} key");
+    }
     let name = dd.file_name().unwrap().to_str().unwrap().to_string();
     let sib = recipe_with("cpu", &|t| {
         t.dflash2_draft = Some(name.clone());

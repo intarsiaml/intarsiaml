@@ -16,7 +16,8 @@ W=/opt/code/intarsiaml/.worktrees/ink-hip-specflip; S=$W/.scratch; RAW=$W/docs/r
 MAIN=${MAIN:?}; BR=${BR:?}
 O=$RAW/metal-${TAG:-$(echo $BR | tr ' ' '-')}; mkdir -p "$O"
 M=$HOME/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots/b85c3cfa615fc413cc9af3379f491b963f3b586a
-others=$(pgrep -fl 'intarsia[^ ]* (serve|generate)' | head -3)
+# (only processes whose command starts with an intarsia binary: a shell whose command line mentions one is not a run)
+others=$(pgrep -fl '^[^ ]*/intarsia[^ /]* (serve|generate)' | head -3)
 [ -n "$others" ] && { echo "GUARD: another intarsia run on the box: $others"; exit 1; }
 echo "[metal] start $(date +%T)"
 for b in $MAIN $BR; do echo "[metal] bin $b $(md5 -q "$S/bin/intarsia-$b") $(cat "$S/bin/intarsia-$b.commit" 2>/dev/null)"; done
