@@ -109,6 +109,33 @@ Work folders: Mac `.worktrees/ink-dflash2`; tatooine `~/intarsiaml-ink-dflash2`,
 - Script bug: `stage_w1.sh` named a function `tr`, which the admission / tiny lines' `tr '\n' ' '` called: two extra DSpark trace
   runs (about 45 s of the window). Renamed in later scripts.
 
+## Window 2 (fleetq #12284, 19:44:04-19:47:08 EST, radiance down 3 min 4 s), binary `dfl4` (embed_norm on by default)
+
+`raw/stage_w2.sh`, `raw/window2-12284.log`, `raw/w2/`.
+- **Greedy ids gate, now with drafts accepted:** `raw/md5.json` (golden `code` 101 ids + the 4108-id prompt), `--ignore-eos`:
+  64 tokens off `f2e334dd8f1657b3ece2c7f8aa125deb` = DFlash2 k7 `f2e334dd...` (88.4 % accepted, 6.63 tokens a pass); 256 tokens off
+  `380af8a5e897bdbed231818477038f37` = DFlash2 k7 `380af8a5...` (52.4 %, 4.64 tokens a pass). Equal; the off md5s also equal
+  window 1's (binary `dfl2`). 8-row verify passes are exercised (accepted 7 of 7 in many passes).
+- **k7 trace** (`INTARSIA_SPEC_TRACE=1`, `raw/trace.json`): 294 passes, 47.0 %, 4.27 tokens a pass. Per prompt tokens a pass:
+  warm 3.08, golden code 6.07, chat_system 3.56, 4k 3.75, prose_300 3.34, code_tests 7.08 (DSpark k5 trace, window 1: 2.11 / 3.22 /
+  2.24 / 3.22 / 2.62 / 3.16). Draft 4.9-5.4 ms a pass vs DSpark 2.9-3.7. Verify + rollback by rows 2..8: 15.33 / 17.75 / 19.35 /
+  22.41 / 24.85 / 28.67 / 28.41 ms.
+- **k choice by the pre-registered predictor** (`raw/kchoice.py`, pooled over the 294 passes): k1..k7 = 87.4 / 105.3 / 119.0 /
+  120.4 / 122.4 / 118.1 / **127.8** tok/s (geomean over prompts 88.4 / 107.2 / 121.4 / 122.4 / 123.8 / 118.6 / 127.3). **k7.** (The
+  predictor reproduces the traced k7 rates: code 182.3 predicted vs 184.1 traced.) Per prompt the best k differs: k3 for warm /
+  chat / 4k / prose (by 1-10 %), k7 for code.
+- **Draft head:** `INTARSIA_DFLASH2_HEAD=mxfp4` 142.24 tok/s, 4.55 tokens a pass vs `bf16` 138.91, 4.57 on `raw/var.json` (one
+  process each). Chosen: mxfp4, now the default on HIP for this draft (`bf16` = the target's head, as the reference).
+- HIP tiny suite (built test executable, `INTARSIA_INKLING2_BACKEND=hip`): `greedy_ids_equal_spec_off` ok (k 1 / 3 / 7, 4 prompts,
+  1-40 tokens, ids = spec off on HIP); `runs_with_admitted_kernels_only` did not finish inside the 85 s timeout (it admits every
+  kernel with `no_cache`; it passes on cpu). Not rerun (radiance budget).
+
+## Pre-registered amendment (written after window 2, before any ABBA process)
+
+- ABBA DFlash2 arm: binary `dfl5` (branch head: embed_norm on, mxfp4 draft head on HIP), `--spec dflash --spec-draft
+  /models/Inkling-2-Mini-DFlash2 --spec-k 7`, no env. DSpark arm: the same binary, no `--spec` flags. Window 3 = A B B A (reps
+  r1 r2), window 4 = B A A B (reps r3 r4). The rule and the cells are unchanged. No k sweep (radiance budget: 6 min 37 s used of 20).
+
 ## Later messages from the coordinator
 
 - **~19:10 EST, file ownership:** lane ink-hip-bpf (prefill overlap) now owns `kernels/hip/ink_mix.hip`, `kernels/hip/ink_attn.hip` and

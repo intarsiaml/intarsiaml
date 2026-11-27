@@ -1,0 +1,1 @@
+fleetq: #12292 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/build.sh dfl5'

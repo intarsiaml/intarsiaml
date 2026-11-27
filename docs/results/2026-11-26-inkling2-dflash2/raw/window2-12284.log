@@ -1,0 +1,15 @@
+[window] job none; stage: /home/josef/intarsiaml-ink-dflash2/docs/results/2026-11-26-inkling2-dflash2/raw/stage_w2.sh; cap 200s; stopping radiance 2026-11-26 19:44:04
+[window] radiance stopped 2026-11-26 19:44:08 (inactive)
+[stage] start 19:44:08 dfl4 03417654d01c250f69242f7f895a031b test bin /target/release/deps/inkling2_dflash2-084f19932525da27
+[md5] off 64 rc 0 t+8s ids-md5 f2e334dd8f1657b3ece2c7f8aa125deb | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[md5] dfl 64 rc 0 t+16s ids-md5 f2e334dd8f1657b3ece2c7f8aa125deb | spec: verify passes=19 proposed=121 accepted=107 (acceptance 88.4%, 6.63 tokens per pass)
+[md5] off 256 rc 0 t+29s ids-md5 380af8a5e897bdbed231818477038f37 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+[md5] dfl 256 rc 0 t+40s ids-md5 380af8a5e897bdbed231818477038f37 | spec: verify passes=110 proposed=763 accepted=400 (acceptance 52.4%, 4.64 tokens per pass)
+[trace] dfl rc 0 t+58s | spec: verify passes=294 proposed=2046 accepted=962 (acceptance 47.0%, 4.27 tokens per pass)
+[var] var-mxfp4 rc 0 t+71s | decode overall: 887 tokens after the first, 6236 ms (142.24 tok/s) | spec: verify passes=195 proposed=1354 accepted=692 (acceptance 51.1%, 4.55 tokens per pass)
+[var] var-bf16 rc 0 t+84s | decode overall: 887 tokens after the first, 6386 ms (138.91 tok/s) | spec: verify passes=194 proposed=1347 accepted=693 (acceptance 51.4%, 4.57 tokens per pass)
+[tiny] rc 124 t+169s | test greedy_ids_equal_spec_off ... ok test runs_with_admitted_kernels_only ... 
+[stage] done 19:46:57 t+169s
+[window] stage done 2026-11-26 19:46:58 (exit 0; 124 = cap hit)
+[window] starting radiance 2026-11-26 19:46:58
+[window] radiance answers 2026-11-26 19:47:08 (after 15 s)
