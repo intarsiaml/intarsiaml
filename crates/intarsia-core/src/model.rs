@@ -4038,7 +4038,8 @@ impl Model {
     }
 
     /// Lane ink-hip-overlap: whether a batching engine runs prefill/decode overlap (R3d) when `INTARSIA_OVERLAP` is unset: Inkling-2
-    /// on HIP ([`inkling2::INK_OVERLAP_DEFAULT`]); every other model and backend keeps it opt-in.
+    /// on HIP when [`inkling2::INK_OVERLAP_DEFAULT`] is on (off since gate 4, so opt-in there too); every other model and backend
+    /// keeps it opt-in.
     pub fn overlap_default(&self) -> bool {
         self.ink.is_some() && self.backend.name() == "hip" && inkling2::INK_OVERLAP_DEFAULT
     }

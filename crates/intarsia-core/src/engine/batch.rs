@@ -82,8 +82,8 @@ pub struct BatchedOptions {
     pub row_fault: Option<(usize, usize, u32)>,
     /// Prefill/decode overlap (R3d, `INTARSIA_OVERLAP=1` on, `=0` off): batched decode runs on a decode twin of the model (own
     /// stream, own workspace) so a prefill chunk can be in flight beside the decode steps. Output is unchanged, bit for bit. `None`
-    /// (unset): the model's default (`Model::overlap_default`: on for Inkling-2 on HIP without a prefix store, lane
-    /// ink-hip-overlap; off elsewhere).
+    /// (unset): the model's default (`Model::overlap_default`: off everywhere; Inkling-2 on HIP without a prefix store follows
+    /// `INK_OVERLAP_DEFAULT`, off since lane ink-hip-overlap's gate 4).
     pub overlap: Option<bool>,
     /// Lane ink-hip-overlap (`INTARSIA_OVERLAP_PACE_MS`): with overlap, the least time between the starts of two decode steps while
     /// a prefill chunk is in flight (0: back to back); see [`SchedulerConfig::overlap_pace`]. `None` (unset): the model's default

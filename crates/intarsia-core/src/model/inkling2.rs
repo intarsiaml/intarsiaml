@@ -120,9 +120,11 @@ fn ink_route_fused_env() -> Option<bool> {
 pub(crate) const INK_ROWS_EXACT_MAX: usize = 16;
 
 /// The prefill/decode overlap default for Inkling-2 when `INTARSIA_OVERLAP` is unset (lane ink-hip-overlap,
-/// docs/results/2026-11-26-inkling2-hip-overlap.md): on for a batching engine (`serve --max-batch` > 1) on HIP without a prefix
-/// store. Every stream's output is bitwise its solo run's either way.
-pub(crate) const INK_OVERLAP_DEFAULT: bool = true;
+/// docs/results/2026-11-26-inkling2-hip-overlap.md): `true` turns it on for a batching engine (`serve --max-batch` > 1) on HIP
+/// without a prefix store. Off (opt-in with `INTARSIA_OVERLAP=1`): gate 4's paired windows S1-S3 (n = 3) cut real-prompt ITL p99
+/// at 16 streams to 0.383 [0.326, 0.440] of main's, but at 8 streams the interval's upper bound is 0.863 (rule: <= 0.70). Every
+/// stream's output is bitwise its solo run's either way.
+pub(crate) const INK_OVERLAP_DEFAULT: bool = false;
 /// The Inkling-2 default of `INTARSIA_OVERLAP_PACE_MS` (lane ink-hip-overlap, window O3): with the twin's stream at high priority,
 /// at most one decode step per 150 ms while a chunk is in flight (about 2-4 per 2048-row chunk).
 pub(crate) const INK_OVERLAP_PACE_MS_DEFAULT: u64 = 150;
