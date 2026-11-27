@@ -73,7 +73,7 @@ sampled_adapt = "d=0.237,r=0.236/0.418/0.583,g=0.85,margin=0.0,drop=0.0,probe=3,
 # Flip M (lane ink-metal-flip; user decision 2026-11-27 "Yes, flip Metal"): the DFlash2 drafter (Inkling-2-Mini-DFlash2) loads beside the
 # DSpark default above when it is found next to the checkpoint (<checkpoint>/../Inkling-2-Mini-DFlash2, or an absolute path here; in a
 # Hugging Face cache, a link snapshots/Inkling-2-Mini-DFlash2 -> the incoai/Inkling-2-Mini-DFlash2 snapshot). Greedy requests draft with
-# it at k5: decode 1.072x DSpark k3 over the six cells (short 1.171, chat 1.159, 1k 1.031, 4k 1.017, 16k 1.014;
+# it at k5: decode 1.072x DSpark k3 over the six cells (short 1.171, 1k 1.031, prose 1.051, chat 1.159, 4k 1.017, 16k 1.014;
 # docs/results/2026-11-26-inkling2-metal-dflash2.md), greedy ids = --spec off (docs/results/2026-11-27-inkling2-metal-dflash2-ready.md,
 # -metal-dflash2-flip.md); sampled requests take plain steps as before (sampled drafting stays opt-in here). Peak memory up ~4.7 GB only at
 # the largest --max-seq. Not found: the DSpark default alone, never an error. Revert: INTARSIA_SPEC_DFLASH2_DEFAULT=0, or delete these lines.
