@@ -263,8 +263,28 @@ the branch are doc / script only.
 - Card 1, Inkling on o6: **G2 short 4.491e-3 / long 4.083e-3** (= main5 / o4, section "Bitwise"); hip tiny **`inkling2_batch`
   10/10, `inkling2_packed` 6/6** (its overlap cases: pace 0 ms 47, pace 2 ms 32 decode phases beside chunks).
 
-Radiance total for this lane: W0 3:53 + S6 3:29 + S7 3:20 + S8 3:10 = **13:52** of the 16:00 cap; radiance answered after each
-window (`curl http://tatooine:8080/v1/models`: Qwen3.8).
+### W9: checks only, the bitwise items left on o6 (fleetq #12505; radiance down 00:37:06 - 00:38:00 = 0:54)
+
+`window.sh` with `raw/stage_w9.sh` under CAP 80 s, both cards at once; raw `raw/w9/` (tatooine `logs/w9/` already held files of an
+older run; only this window's files were copied back).
+- Card 0, o6 `INTARSIA_OVERLAP=1 INTARSIA_OVERLAP_PACE_MS=0` (191 overlap steps): **16/16 at once and 8/8 equal to W4's solo replies.**
+- Card 1, o6 `=1 INTARSIA_OVERLAP_PACE_MS=300` (39 overlap steps): **16/16 equal.**
+- Card 1, hip tiny `inkling2` on the o6 tree: **16 passed, 2 failed**: `inkling2_tiny_screened_head_one_row_only` and
+  `inkling2_tiny_screen_keeps_batching` stop at load with `NoKernel` (head_screen / logits_gather / screen_argmax have no kernel on
+  hip/gfx1201). HIP has none of these kernels on main either (`git grep` of `crates/intarsia-backend-hip` and `kernels/hip` at
+  1bf40e29f: 0 files), and the branch changes neither the test file nor any screen code, so these two fail on main's tree the same
+  way (not run on main6 to show it). The first lane ran only `inkling2_batch` / `inkling2_packed` on HIP.
+- All four client runs: 0 gaps under 5 ms, 0 late pairs.
+
+Radiance total for this lane: W0 3:53 + S6 3:29 + S7 3:20 + S8 3:10 + W9 0:54 = **14:46** of the 16:00 cap; radiance answered after
+each window (`curl http://tatooine:8080/v1/models`: Qwen3.8).
+
+### Same-ISA check of the merged head (fleetq #12504, build only, `raw/isa-check-o6.log`)
+
+`raw/isa_check.sh` on tatooine, o6's tree vs `.scratch/main-src` = origin/main 1bf40e29f, the seven HIP translation units this lane
+changes: **168 kernels identical, 25 differ: exactly the set #12325 found against main a4c8f3b19** (the ticketed gate norm, InkAttnDecode
+and fused route kernels; `diff` of the two DIFF / ONLY lists, cuid symbols aside, is empty). #544's i8 kernels are in other files,
+the same on both sides after the merge.
 
 ### Gate 4 regate verdict (S6-S8, n = 3, tatooine-side client): PASS, 16 of 16 checks
 

@@ -1,0 +1,2 @@
+wall 16.58 s, aggregate 123.5 tok/s, latency median 14.77 s max 16.57 s, prompt tokens 25752, cached 0, ttft median 2.9826 max 12.236602544784546, itl p50 0.0678 p99 0.2207
+conc: 16 replies, 2048 tokens -> /home/josef/intarsiaml-ink-hip-bpf/logs/w9/pace-p0-o6-bitwise-conc.json

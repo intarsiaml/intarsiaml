@@ -12,6 +12,8 @@ trap 'for c in $(pgrep -P $$ 2>/dev/null); do pkill -P $c 2>/dev/null; kill $c 2
 W=/opt/code/intarsiaml/.worktrees/ink-hip-overlap; S=$W/.scratch
 for v in $(env | grep -oE '^INTARSIA_[A-Z0-9_]+'); do unset $v; done
 T0=$(date +%s); CAP=${CAP:-840}; left() { echo $(( CAP - ($(date +%s) - T0) )); }
+# macOS has no timeout(1) (slot #12501 ran nothing: rc 127): SIGALRM after $1 s, then exec the command (rc 142 on expiry)
+tmo() { perl -e 'alarm shift; exec @ARGV' "$@"; }
 SF=/opt/code/intarsiaml/.worktrees/ink-hip-specflip/.scratch/bin/intarsia-mmain2
 if [ ! -x $S/intarsia-metal-main6 ]; then
   if [ -x $SF ] && [ "$(head -1 $SF.commit | cut -c1-9)" = 1bf40e29f ] && [ "$(wc -l < $SF.commit)" -le 1 ]; then
@@ -28,7 +30,7 @@ for sp in off def; do for b in main6 o6; do
   (( $(left) < 120 )) && { echo "[metal] md5 $b $sp SKIP ($(left) s left)"; continue; }
   x=""; [ $sp = off ] && x="--spec off"
   f=$S/metal-md5-$b-$sp
-  timeout $(( $(left) - 60 )) $S/intarsia-metal-$b generate -m $M --backend metal --max-seq 8192 --profile-every 0 --show-ids --ignore-eos --max-tokens 256 --prompt-ids $S/metal-md5-prompts.json $x > $f.out 2> $f.err
+  tmo $(( $(left) - 60 )) $S/intarsia-metal-$b generate -m $M --backend metal --max-seq 8192 --profile-every 0 --show-ids --ignore-eos --max-tokens 256 --prompt-ids $S/metal-md5-prompts.json $x > $f.out 2> $f.err
   rc=$?
   m256=$(grep -a '^ids\[' $f.err | md5 -q)
   m64=$(grep -a '^ids\[' $f.err | python3 -c 'import sys,re
@@ -40,7 +42,7 @@ done; done
 for t in inkling2_batch inkling2_packed inkling2; do
   x=$S/mt-o6-$t
   (( $(left) < 60 )) && { echo "[metal] tiny $t SKIP ($(left) s left)"; continue; }
-  ( cd $W/crates/intarsia-models && env INTARSIA_INKLING2_BACKEND=metal timeout $(( $(left) - 20 )) "$x" --test-threads=1 ) > $S/metal-tiny-$t.txt 2>&1
+  ( cd $W/crates/intarsia-models && INTARSIA_INKLING2_BACKEND=metal; export INTARSIA_INKLING2_BACKEND; tmo $(( $(left) - 20 )) "$x" --test-threads=1 ) > $S/metal-tiny-$t.txt 2>&1
   echo "[metal] tiny $t rc $? $(date +%T) | $(grep -aE '^test result' $S/metal-tiny-$t.txt | tr '\n' ' ')"
   grep -aE "FAILED|panicked|skip" $S/metal-tiny-$t.txt | head -5
 done
