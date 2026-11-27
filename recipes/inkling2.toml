@@ -65,6 +65,11 @@ gumbel_sampling = true
 # (docs/results/2026-11-21-inkling2-mtp.md; user decision 5, 2026-11-22). The same key as CUDA's above: without [mtp], an Inkling-2
 # recipe's mtp_default_k is its DSpark draft's default. --spec off, INTARSIA_SPEC_DEFAULT=0, or delete this line turns it off.
 mtp_default_k = 3
+# Draft length of sampled requests that draft (INTARSIA_SPEC_SAMPLED_DFLASH=1, opt-in): lane ink-sampled-adapt, 2026-11-26: the measured Metal
+# table and the grid's best on one traced seed-11 run. It did NOT pass the gate on endor (story prompt 0.94 of plain sampling, T 0.7 1k / 4k below 98 % of
+# fixed k3's gain; docs/results/2026-11-26-inkling2-sampled-adapt.md), so sampled drafting stays opt-in and not recommended on Metal.
+# Revert: INTARSIA_SPEC_SAMPLED_ADAPT=0 (fixed k3), or delete this line (the built-in table).
+sampled_adapt = "d=0.237,r=0.236/0.418/0.583,g=0.85,margin=0.0,drop=0.0,probe=3,hold=8,hold_max=32"
 
 # 2048 on HIP (R9700, tatooine; user decision 2026-11-26 "Yes, flip it", with the tensor-core expert prefill and the flash prefill
 # attention, which are code defaults now: INTARSIA_HIP_INK_MOE_WMMA / INTARSIA_HIP_INK_ATTN_FLASH, unset = on): prefill on one R9700 at
@@ -89,6 +94,12 @@ prefill_chunk = 2048
 # / 1.080 / 1.050 (CI lower bounds 1.006 / 1.008 / 1.079 / 1.049, geomean 1.036); k4 1.018 / 1.001 / 1.059 / 1.035 (geomean 1.028);
 # ids identical to k3 and --spec off (docs/results/2026-11-26-inkling2-hip-verify.md). Revert to k3: set 3 here (or --spec-k 3).
 mtp_default_k = 5
+# Draft length of sampled requests that draft (INTARSIA_SPEC_SAMPLED_DFLASH=1, opt-in; nothing changes without it): lane ink-sampled-adapt,
+# 2026-11-26. The measured cost table (the 15 % rule, 4 of 6 rows measured) and the parameters the offline replay picked on W1's seed-11
+# traces. On the R9700, sampled speed on / off, T 1.0 and 0.7 (3 reps): short 1.172 / 1.163 (fixed k5 1.101 / 1.143), 1k 1.042 / 1.068, 4k 1.466 / 1.458,
+# the story prompt 0.981 / 0.991 (fixed k5 0.896 / 0.982); docs/results/2026-11-26-inkling2-sampled-adapt.md.
+# Revert: INTARSIA_SPEC_SAMPLED_ADAPT=0 (fixed k5), or delete this line (the built-in table).
+sampled_adapt = "d=0.234,r=0.273/0.498/0.69/0.985/1.211,g=0.95,margin=0.0,drop=0.05,probe=1,hold=16,hold_max=64"
 
 [accuracy]
 chat_turns = "inkling2"       # one open token per role, <|end_message|> closes (crates/intarsia-cli/src/cmd/accuracy/turns.rs)

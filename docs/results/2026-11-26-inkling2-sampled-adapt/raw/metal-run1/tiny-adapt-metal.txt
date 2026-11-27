@@ -1,0 +1,68 @@
+fleetq: #12367 running on endor: env INTARSIA_INKLING2_BACKEND=metal target/release/deps/inkling2_dspark_sampled_adapt-f37e41cee6047019 --test-threads=1 --nocapture
+
+running 2 tests
+test adapt_seeded_ids_equal_spec_off ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dspark: Markov fold [300 x 16] in 0.0 s
+dspark: draft head mxfp4 [300 x 64] in 0.0 s
+dflash: draft of 3 layers (taps [2, 6, 10, 16], block 7) loaded in 0.0 s
+spec gate: INTARSIA_SPEC_GATE="0,0,0,2" -> GateParams { fails: 0, skip0: 0, skip_max: 0, min_n: 2, busy_warmup: 1, busy_min_accept: 2 }
+device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel gumbel_argmax_f32
+sampled DFlash-family drafting: draft length per request on (d=0.24,r=0.32/0.51/0.7,g=0.9,n0=1,a0=0.6,margin=0.02,drop=0,probe=2,hold=8,hold_max=64,explore=8; INTARSIA_SPEC_SAMPLED_ADAPT=0 turns it off)
+device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel gumbel_argmax_f32
+table: random draft: passes 108 proposed 324 accepted 1
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dspark: Markov fold [300 x 16] in 0.0 s
+dspark: draft head mxfp4 [300 x 64] in 0.0 s
+dflash: draft of 3 layers (taps [2, 6, 10, 16], block 7) loaded in 0.0 s
+device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel gumbel_argmax_f32
+aggressive: random draft: passes 252 proposed 756 accepted 1
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dspark: Markov fold [300 x 16] in 0.0 s
+dspark: draft head mxfp4 [300 x 64] in 0.0 s
+dflash: draft of 3 layers (taps [2, 6, 10, 16], block 7) loaded in 0.0 s
+device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel gumbel_argmax_f32
+drafts: random draft: passes 0 proposed 0 accepted 0
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dspark: Markov fold [300 x 16] in 0.0 s
+dspark: draft head mxfp4 [300 x 64] in 0.0 s
+dflash: draft of 3 layers (taps [2, 6, 10, 16], block 7) loaded in 0.0 s
+device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel gumbel_argmax_f32
+fixed: scripted: passes 419 proposed 1219 accepted 253 plain-step tokens 12
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dspark: Markov fold [300 x 16] in 0.0 s
+dspark: draft head mxfp4 [300 x 64] in 0.0 s
+dflash: draft of 3 layers (taps [2, 6, 10, 16], block 7) loaded in 0.0 s
+device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel gumbel_argmax_f32
+aggressive: scripted: passes 253 proposed 722 accepted 236 plain-step tokens 195
+ok
+test plain_steps_keep_the_draft_in_sync ... P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (300 rows) packed lossless to 12 bits (1 tensors, 0.000 GB, was 0.000 GB bf16; escapes 0.00e0; 0.0 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.00 GB + bounds, cap 64, 0.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (16 tensors, 0.001 GB, was 0.001 GB bf16; escapes 7.96e-5; 0.0 s)
+inkling2: 8 layers, 16 visits, 48 state slots, loaded in 0.0 s
+dspark: Markov fold [300 x 16] in 0.0 s
+dspark: draft head mxfp4 [300 x 64] in 0.0 s
+dflash: draft of 3 layers (taps [2, 6, 10, 16], block 7) loaded in 0.0 s
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 193.91s
+
+fleetq: #12367 done (exit 0)

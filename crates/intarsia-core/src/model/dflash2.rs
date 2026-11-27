@@ -19,8 +19,15 @@
 //!             `window - 1 - r + block`
 //! ```
 //!
-//! The candidate selector (`candidate_selector.*`) only chooses which tokens are proposed; it is not loaded yet (drafts are the
-//! rows' argmax). Drafts never change the output: every emitted token is a verify row's argmax.
+//! The candidate selector (`candidate_selector.*`, [`Selector`]) chooses which of each row's top candidates are proposed (without
+//! one the drafts are the rows' argmax). Drafts never change the output: every emitted token is a verify row's argmax.
+//!
+//! On an Inkling-2 target (lane ink-dflash2, `incoai/Inkling-2-Mini-DFlash2`): the taps are target *visits* (`target_layer_ids`
+//! 5, 23, 41 = the partial entering those visits, 48 = the final-norm output, as for the model's own DSpark draft; the reference
+//! aliases its DFlash capture to the DSpark capture), the block rows are the target's embedding output `rms(embed[id],
+//! embed_norm)` (the reference embeds with the target's embedding module; raw rows accept nothing), the drafts' logits
+//! are the target unembed's first `unpadded_vocab_size` rows (the reference's valid vocabulary; the codebooks keep the padded
+//! rows), and the selector's scores are softcapped after its correction (`selector_softcap_mode = "after_correction"`).
 
 use super::*;
 
@@ -77,6 +84,8 @@ pub(super) struct Selector {
     top_k: usize,
     pred: Vec<u16>,
     succ: Vec<u16>,
+    /// `DflashConfig::selector_post_softcap`: scores are `cap * tanh(score / cap)` (0: as they are).
+    post_cap: f32,
 }
 
 pub(super) fn bf(b: u16) -> f32 {
@@ -141,8 +150,9 @@ impl Selector {
                 for j in 0..r {
                     e += bf(pc[j]) * h[j] * bf(sc[j]);
                 }
-                if u + e > best.0 {
-                    best = (u + e, c);
+                let score = if self.post_cap > 0.0 { self.post_cap * ((u + e) / self.post_cap).tanh() } else { u + e };
+                if score > best.0 {
+                    best = (score, c);
                 }
             }
             prev = best.1;
@@ -187,6 +197,11 @@ pub(super) struct Draft2 {
     /// A DSpine draft (`model/dspine.rs`): the code bridge, its tables and the tail. Then `layers` have no conv, `selector` is `None`
     /// and `cand` is the tail's `head_topk`.
     pub(super) spine: Option<Box<super::dspine::Spine>>,
+    /// Inkling-2 targets (lane ink-dflash2): the block rows are `rms(embed[id], embed_norm)`, the target's own embedding output
+    /// (its first step, as its DSpark draft embeds the anchor), not the raw `embed[id]` rows of the generic DFlash path. On by
+    /// default: window 1 measured 0 of 616 drafts accepted with the raw rows, 51 % (4.57 tokens a pass) with the norm.
+    /// `INTARSIA_DFLASH2_EMBED_NORM=0` feeds the raw rows (diagnosis only). Draft numerics only.
+    pub(super) embed_norm: bool,
 }
 
 /// The `[2*K*G, H]` kernel projection split into its two branches (rows `0..K*G` and `K*G..2*K*G`), each its own buffer.
@@ -288,7 +303,10 @@ pub(super) fn load2(
             c.n_kv_heads, c.intermediate
         )));
     }
-    if c.hidden != dims.hidden || c.vocab != dims.vocab {
+    // Inkling-2 (lane ink-dflash2): the draft's vocab is the padded unembed's (`vocab_size`), the target's the real one
+    // (`unpadded_vocab_size`); the drafts' logits take the real rows only (the reference's valid vocabulary), the codebooks keep all
+    let vocab_ok = c.vocab == dims.vocab || dims.ink.as_ref().is_some_and(|ik| c.vocab == ik.vocab_padded && c.vocab >= dims.vocab);
+    if c.hidden != dims.hidden || !vocab_ok {
         return Err(Error::model(format!(
             "the {} draft's hidden {} / vocab {} differ from the target's {} / {}",
             c.kind_name(),
@@ -385,6 +403,7 @@ pub(super) fn load2(
             top_k: c.selector_top_k.min(c.vocab),
             pred: codebook("candidate_selector.predecessor_codebook")?,
             succ: codebook("candidate_selector.successor_codebook")?,
+            post_cap: c.selector_post_softcap,
         })
     } else {
         None
@@ -411,11 +430,13 @@ pub(super) fn load2(
         None
     };
     let win_split = std::env::var("INTARSIA_DFLASH_WIN_SPLIT").map_or(true, |v| v.trim() != "0");
+    let embed_norm = dims.ink.is_some() && spine_cfg.is_none() && std::env::var("INTARSIA_DFLASH2_EMBED_NORM").map_or(true, |v| v.trim() != "0");
     let spine = match spine_cfg {
         Some(sc) => Some(Box::new(super::dspine::load_spine(dl, sc, b, dims, add_bytes, rows, act)?)),
         None => None,
     };
     Ok(Draft2 {
+        embed_norm,
         spine,
         cand,
         topk,
@@ -530,6 +551,11 @@ impl Model {
         let ao = self.view(&bf.ao, act, &[t, nh, hd]);
         let (g, u, a) = (rows(&bf.g, inter), rows(&bf.u, inter), rows(&bf.a, inter));
         self.exec(Op::Embedding, vec![self.view(&ws.ids, DType::I32, &[t]), self.embed.clone()], vec![x.clone()], OpAttrs::default(), profile)?;
+        if let Some(im) = self.ink.as_ref().filter(|_| d2.embed_norm) {
+            let eps = OpAttrs { eps: self.dims.rms_eps, ..Default::default() };
+            self.exec(Op::RmsNorm, vec![x.clone(), im.embed_norm.clone()], vec![xn.clone()], eps, profile)?;
+            std::mem::swap(&mut x, &mut xn);
+        }
         let p0 = kv.len;
         let add = |a: &TensorRef, b: &TensorRef, out: &TensorRef| self.exec(Op::Add, vec![a.clone(), b.clone()], vec![out.clone()], OpAttrs::default(), profile);
         for (li, l) in d2.layers.iter().enumerate() {
@@ -588,5 +614,43 @@ impl Model {
             std::mem::swap(&mut x, &mut xn);
         }
         Ok(x)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sel(post_cap: f32, seed: u64) -> (Selector, usize) {
+        let (v, r) = (40usize, 8usize);
+        let mut rng = crate::rng::SplitMix64::new(seed);
+        let mut cb = |n: usize| -> Vec<u16> { (0..n).map(|_| (f32::to_bits(rng.normal()) >> 16) as u16).collect() };
+        let (pred, succ) = (cb(v * r), cb(v * r));
+        let dummy = QTensor { format: crate::quant::BF16, n: r, k: 1, parts: Vec::new(), act_fp8: false, act_quant: false };
+        (Selector { proj: dummy, rank: r, top_k: 6, pred, succ, post_cap }, v)
+    }
+
+    /// Lane ink-dflash2: the "after_correction" softcap (`cap * tanh(score / cap)`, monotonic) leaves every greedy pick where the
+    /// uncapped scores put it, at logit scales where the cap compresses hard (scores near and past the cap); and a tie the f32
+    /// tanh makes (two scores far past the cap) goes to the first candidate, the higher logit, as torch's argmax does.
+    #[test]
+    fn selector_post_softcap_keeps_greedy_picks() {
+        for seed in 0..20u64 {
+            let (plain, v) = sel(0.0, seed);
+            let (capped, _) = sel(30.0, seed);
+            let mut rng = crate::rng::SplitMix64::new(1000 + seed);
+            let rows = 7;
+            let scale = [1.0f32, 10.0, 25.0, 40.0][seed as usize % 4];
+            let logits: Vec<f32> = (0..rows * v).map(|_| scale * rng.normal()).collect();
+            let hp: Vec<f32> = (0..rows * plain.rank).map(|_| rng.normal()).collect();
+            let anchor = (seed as u32) % v as u32;
+            assert_eq!(plain.select(&logits, v, &hp, anchor), capped.select(&logits, v, &hp, anchor), "seed {seed} scale {scale}");
+        }
+        // far past the cap: 30 tanh(x / 30) rounds 400 and 500 to the same f32; the first (larger-logit) candidate wins the tie
+        let (mut s, _) = sel(30.0, 1);
+        s.succ.iter_mut().for_each(|x| *x = 0);
+        let tops = vec![vec![(500.0f32, 3usize), (400.0, 5)]];
+        assert_eq!(30.0f32 * (500.0f32 / 30.0).tanh(), 30.0f32 * (400.0f32 / 30.0).tanh(), "the tie this case needs");
+        assert_eq!(s.pick(&tops, &vec![0.0; s.rank], 0), vec![3]);
     }
 }

@@ -1425,6 +1425,9 @@ pub(crate) struct Seq {
     /// Lane samp64: the draft length a keyed request is allowed by its context ([`crate::spec::ctx_k_cap`]); empty: no schedule. Set from
     /// `BatchedOptions::sampled_ctx_k` where the batching engine enables keyed drafting.
     pub(crate) keyed_ctx_k: Vec<(usize, usize)>,
+    /// Lane ink-sampled-adapt: the draft length policy of a keyed request with a DFlash-family draft ([`crate::spec::AdaptRun`]; `None`:
+    /// fixed k, `INTARSIA_SPEC_SAMPLED_ADAPT=0`, and every other request). Set by [`Seq::new`] only.
+    adapt: Option<crate::spec::AdaptRun>,
     /// `--spec auto` (lane asp): picks the drafter of every pass; `None` for every other mode.
     auto: Option<crate::spec::AutoPolicy>,
     /// The drafter of the pass [`Seq::plan_step`] planned last (`--spec auto`; the fixed one otherwise).
@@ -1546,6 +1549,11 @@ impl Seq {
             seq.spec_keyed = true;
             seq.keyed_gumbel = seq.gumbel.is_some() && model.verify_gumbel_ok();
             seq.ctx = seq.req.prompt.clone();
+            // lane ink-sampled-adapt: the request picks its draft length from its own acceptance, plain steps included (k = 0)
+            let mode = model.spec_sampled_adapt();
+            static SAID: std::sync::Once = std::sync::Once::new();
+            SAID.call_once(|| eprintln!("sampled DFlash-family drafting: draft length per request {}", mode.describe()));
+            seq.adapt = crate::spec::AdaptRun::new(mode, seq.spec_k);
         }
         if seq.spec_mtp {
             // the single-sequence loop times its own steps; the batched scheduler shares one step among sequences
@@ -1600,6 +1608,7 @@ impl Seq {
                 seq.spec_on = false;
                 seq.spec_keyed = false;
                 seq.keyed_gumbel = false;
+                seq.adapt = None;
                 seq.auto = None;
             } else {
                 p = 0;
@@ -1745,6 +1754,7 @@ impl Seq {
             spec_keyed: false,
             keyed_gumbel: false,
             keyed_ctx_k: Vec::new(),
+            adapt: None,
             auto: None,
             drafter: if spec_dflash { crate::spec::Drafter::Dflash } else { crate::spec::Drafter::Mtp },
             spec_paused: false,
@@ -2211,6 +2221,10 @@ impl Seq {
         if let Some(t) = self.pending.pop_front() {
             return Next::Emit(t);
         }
+        if let Some(a) = self.adapt.as_mut() {
+            // lane ink-sampled-adapt: `INTARSIA_SPEC_TRACE=1` times every step (the `adapt: step` lines)
+            a.tick(self.generated);
+        }
         let may = self.spec_on && !self.spec_paused && !std::mem::take(&mut self.plain_next) && self.gate.allow(self.spec_busy);
         self.drain_cost_events();
         if may {
@@ -2231,6 +2245,11 @@ impl Seq {
                 // lane samp64 (`INTARSIA_SPEC_SAMPLED_CTX_K`, opt-in): a sampled request drafts fewer tokens, or none, at long context
                 if let Some(cap) = self.spec_keyed.then(|| crate::spec::ctx_k_cap(&self.keyed_ctx_k, st.len)).flatten() {
                     k = k.min(cap);
+                }
+                // lane ink-sampled-adapt: a sampled DFlash-family request drafts with the cap its own acceptance pays for, or not at all
+                // (0: a plain step without a draft call; the draft's context stays in sync through the stash of plain steps)
+                if let Some(a) = self.adapt.as_mut().filter(|_| self.spec_keyed && self.spec_dflash) {
+                    k = a.next(k, self.generated);
                 }
                 if k > 0 && (self.generated >= self.req.min_tokens || self.stop_ids.is_empty()) {
                     // lane mcopy: the last `n` tokens occurred earlier: verify the text that followed as one chain (a pass of up to
