@@ -1,0 +1,5 @@
+[speed] old@c0a rc 0 t+52s | up to 3 drafts | decode overall: 3563 tokens after the first, 34216 ms (104.13 tok/s) | spec: verify passes=1286 proposed=3138 accepted=1951 (acceptance 62.2%, 2.52 tokens per pass)
+[speed] new@c0a rc 0 t+102s | up to 5 drafts | decode overall: 3563 tokens after the first, 32411 ms (109.93 tok/s) | spec: verify passes=1182 proposed=3840 accepted=2069 (acceptance 53.9%, 2.75 tokens per pass)
+[speed] new@c0b rc 0 t+153s | up to 5 drafts | decode overall: 3563 tokens after the first, 32436 ms (109.85 tok/s) | spec: verify passes=1182 proposed=3840 accepted=2069 (acceptance 53.9%, 2.75 tokens per pass)
+[speed] old@c0b rc 0 t+205s | up to 3 drafts | decode overall: 3563 tokens after the first, 34238 ms (104.06 tok/s) | spec: verify passes=1286 proposed=3138 accepted=1951 (acceptance 62.2%, 2.52 tokens per pass)
+[c0] done 18:17:59
