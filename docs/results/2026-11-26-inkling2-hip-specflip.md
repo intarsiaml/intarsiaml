@@ -1,7 +1,7 @@
 # Inkling-2-Mini HIP spec default flips (lane ink-hip-specflip)
 
-Status (2026-11-27 00:25 EST): **flip A = PR #545** (GA2 on the final head `136b4dc16`: md5 and seeds pass, the serve 16/16 check did not
-run, solo server cold; cpu suite #12480 running; Metal slot pending). **Flip B (b)** (DFlash2 alone, sampled requests drafting with it)
+Status (2026-11-27 00:33 EST): **flip A = PR #545**: on the final head `136b4dc16` the cpu suite (#12480) and the HIP gates (GA2 md5 /
+seeds / contexts, GS2 serve 16 / 16) pass; the Metal slot is pending (endor queue). **Flip B (b)** (DFlash2 alone, sampled requests drafting with it)
 **failed its pre-registered gate** (D2). **Coordinator 00:08: build (a)** (both drafters: greedy DFlash2 k4, sampled DSpark adaptive);
 its gate is pre-registered below ("Pre-registration: the (a) gate"), before any (a) window.
 
@@ -74,6 +74,13 @@ Radiance: G1 #12441 3:35, G2 #12454 2:27, G2b #12461 0:58, G2c #12462 0:59.
 - contexts: solo default `context 4096 tokens`, weights 15.94 GB; `--max-batch 16`: `context 3285 tokens` (cold admission, 134 cases, 104 s).
 - **serve b16 vs solo: not run.** The solo server (card 1) was still in its cold first-start admission (new binary, no cached cases) when
   the stage's 175 s wait ran out; `solo.json` missing. G2c's 16 / 16 was on `specA1g` (before #544). Needs a serve-only rerun (asked).
+
+**GS2 (#12499, 00:28:34-00:31:29, 2:55; serve-only rerun, coordinator 00:27, one try; `specA2`; `raw/serve2-specA2/`,
+`raw/window-gs2-12499.log`):** solo (card 1) first and alone: up after 120 s (cold admission), 16 replies one at a time; then b16 (card 0,
+admission cached: `0 case(s) run, 134 cached`, up after 1 s) 16 replies at once, `context 3285 tokens`. **b16 vs solo: 16 / 16 replies
+equal** (128 tokens each, prompts 2807-2864 tokens for the 4k cuts). Gate 2 on the final head: **pass**.
+
+Radiance so far: C1 + C2 + G1 + G2 + G2b + G2c + D1 + D2 = 21:51 (coordinator's tally), GA2 3:51, GS2 2:55: **28:37** of 33.
 
 ## Flip A as built (PR A)
 
