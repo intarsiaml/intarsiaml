@@ -1,0 +1,4 @@
+fleetq: #12494 waiting (#2 in line): in line behind #12493 "ink-hip-specflip: window GA2 = PR A gate recheck on the final-main binary specA2 (136b4dc16): serve b16 vs solo, greedy md5, 100 seeds T 1.0, context lines" (claude-04c0e1cd) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #12493 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12493 set, or it will wait for #12493 to be released.
+fleetq: #12494 waiting (#1 in line): radiance-rank0 is also taken down by #12493 "ink-hip-specflip: window GA2 = PR A gate recheck on the final-main binary specA2 (136b4dc16): serve b16 vs solo, greedy md5, 100 seeds T 1.0, context lines" (claude-04c0e1cd)
+fleetq:   #12493 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12493 set, or it will wait for #12493 to be released.

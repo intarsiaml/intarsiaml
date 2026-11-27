@@ -178,6 +178,22 @@ the branch are doc / script only.
 - Client path: all 14 tatooine-client runs above have **0 gaps under 5 ms and 0 late pairs**. Not gated, single runs: o6 `=1` real 8
   ITL p99 0.192 / 0.190 s (waves 0 / 1), 16 at once 0.215 s; o6 unset 0.584 / 0.625 s.
 
+### S6: regate rep 1, order BA (fleetq #12492; radiance down 00:11:20 - 00:14:49 = 3:29)
+
+`raw/window_r.sh 6` (BGCAP 195), raw `raw/s6/`, card 1 `raw/s6/card1/`; summary `raw/regate_sum.sh`.
+- B (o6 `=1`): up after 18 s (cached), decode lane at -1, 206 overlap steps, no "unavailable"; after its filler it waited 20 s
+  (server idle) for card 1's marker. A (main6): started at 00:13:11 after the marker, **up after 18 s from the cached admission**
+  (card 1's prime: 134 cases run, up after 105 s, KV 73728); both arms KV 73728, context 4608.
+- Complete: real 4 / 8 / 16 (nonce s6) and filler 1 / 4 / 8 / 16 for both, every cell exit 0. **B = A replies 4/4, 8/8, 16/16.**
+- Client path (kill rule): **0 gaps under 5 ms, 0 late pairs** in all six real levels (A and B). Hypothesis survives.
+- Server histogram (p99 bucket, A -> B): real 4 (0.5, 1] s -> (150, 250] ms; real 8 (0.5, 1] s -> (150, 250] ms; real 16 (0.5, 1] s
+  -> (150, 250] ms. Client ITL p99 A -> B: 0.097 -> 0.156 (4), 0.584 -> 0.195 (8), 0.625 -> 0.269 (16).
+- Card 1: main6 primed; **o6 greedy md5 8 / 8 = main's** (`--spec off` and DSpark: short 64 04cdb28a, short 256 9a27c21b, 4k 64
+  2252566a, 4k 256 9675bbb9, the values main3 / main5 printed in W3 / O4 / S1); decode tok/s spec off 83.1 / 83.6 / 79.6 / 80.3,
+  DSpark 97.1 / 94.6 / 86.8 / 108.7 (o5's). main6's md5 cells skipped (12 s left).
+- One cell to watch: filler 1-stream TTFT p50 (n = 1 request per visit) B 0.455 s vs A 0.391 s (S1-S3: 0.389-0.418 both arms);
+  B ran first in this window.
+
 ## Result (2026-11-26 ~21:45): overlap works and is bitwise, but gate 4 fails at 8 streams, so it ships opt-in
 
 Speed, gate 4's paired windows S1 (AB), S2 (BA), S3 (AB): A = main5 (main a4c8f3b19, #538 packing on), B = o4 (overlap on, pace

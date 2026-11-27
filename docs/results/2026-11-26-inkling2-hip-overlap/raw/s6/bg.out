@@ -1,0 +1,16 @@
+[prime-main6] (main6, card 1) up after 105s (0 = not up) 2026-11-27 00:13:09: admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048 loaded ink on hip (AMD Radeon Graphics) in 104.0s, context 4608 tokens 
+[prime-main6] intarsia_kv_tokens_capacity 73728 VRAM card1 28610 MiB
+admission on plan shapes: 23 kernel(s) checked, 134 case(s) run, 0 cached
+MD5 card1 o6 short 64 --spec off 04cdb28a6849728e8aa5be39bf65c07e rc 0 | prefill 98 ms (315.4 tok/s) | decode 758 ms (83.13 tok/s) [2026-11-27 00:13:16]
+MD5 card1 o6 short 256 --spec off 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | prefill 100 ms (310.2 tok/s) | decode 3052 ms (83.56 tok/s) [2026-11-27 00:13:24]
+MD5 card1 o6 4k 64 --spec off 2252566a5c54cf52cb564bd214c9af2b rc 0 | prefill 1357 ms (3115.3 tok/s) | decode 791 ms (79.60 tok/s) [2026-11-27 00:13:32]
+MD5 card1 o6 4k 256 --spec off 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | prefill 1360 ms (3107.7 tok/s) | decode 3174 ms (80.34 tok/s) [2026-11-27 00:13:42]
+MD5 card1 o6 short 64 dspark 04cdb28a6849728e8aa5be39bf65c07e rc 0 | prefill 101 ms (308.0 tok/s) | decode 649 ms (97.13 tok/s) [2026-11-27 00:13:52]
+MD5 card1 o6 short 256 dspark 9a27c21b6fdc4ea7700439c818e698d8 rc 0 | prefill 99 ms (312.5 tok/s) | decode 2694 ms (94.64 tok/s) [2026-11-27 00:14:03]
+MD5 card1 o6 4k 64 dspark 2252566a5c54cf52cb564bd214c9af2b rc 0 | prefill 1361 ms (3107.7 tok/s) | decode 726 ms (86.77 tok/s) [2026-11-27 00:14:14]
+MD5 card1 o6 4k 256 dspark 9675bbb95adabf53ce09c1f77a1d34b4 rc 0 | prefill 1365 ms (3097.5 tok/s) | decode 2347 ms (108.65 tok/s) [2026-11-27 00:14:27]
+MD5 card1 main6 short 64 SKIP (12 s left)
+MD5 card1 main6 short 256 SKIP (12 s left)
+MD5 card1 main6 4k 64 SKIP (12 s left)
+MD5 card1 main6 4k 256 SKIP (12 s left)
+[bg] done 2026-11-27 00:14:27
