@@ -1,0 +1,2 @@
+wall 34.82 s, aggregate 58.8 tok/s, latency median 2.02 s max 3.05 s, prompt tokens 25752, cached 0, ttft median 0.5235 max 1.4819810390472412, itl p50 0.0118 p99 0.084
+solo: 16 replies, 2048 tokens -> /opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/w4/solo-bitwise-solo.json

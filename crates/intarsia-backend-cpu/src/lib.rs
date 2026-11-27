@@ -223,9 +223,19 @@ impl Backend for CpuBackend {
                 r = r.when(rows);
                 f = f.when(rows);
             }
+            // the packed-prefill segment-table forms (lane ink-hip-bpf, `rowtab::run_segs`): twins `<kernel>_segs`, selected only with a
+            // segment table
+            let seg_twins = intarsia_core::inkling2::ops::SEG_TABLE_OPS.contains(&op).then(|| {
+                let mut rs = r.clone();
+                rs.name = format!("{}_segs", r.name);
+                let mut fs = f.clone();
+                fs.name = format!("{}_segs", f.name);
+                [rs.seg_table(), fs.seg_table()]
+            });
             v.push(r);
             v.push(f);
             v.extend(twins.into_iter().flatten());
+            v.extend(seg_twins.into_iter().flatten());
         }
         v
     }
@@ -248,8 +258,20 @@ impl Backend for CpuBackend {
             Some(n) if intarsia_core::inkling2::ops::ROW_TABLE_OPS.contains(&call.op) => (n, true),
             _ => (name, false),
         };
-        if name != call.op.as_str() || table != call.rows.is_some() {
-            return Err(Error::invalid(format!("kernel '{kernel}' cannot run op '{}'{}", call.op, if call.rows.is_some() { " with a row table" } else { "" })));
+        let (name, segs) = match name.strip_suffix("_segs") {
+            Some(n) if intarsia_core::inkling2::ops::SEG_TABLE_OPS.contains(&call.op) => (n, true),
+            _ => (name, false),
+        };
+        if name != call.op.as_str() || table != call.rows.is_some() || segs != call.segs.is_some() {
+            return Err(Error::invalid(format!(
+                "kernel '{kernel}' cannot run op '{}'{}",
+                call.op,
+                if call.rows.is_some() { " with a row table" } else if call.segs.is_some() { " with a segment table" } else { "" }
+            )));
+        }
+        if segs {
+            rowtab::run_segs(call, &|c| if reference { reference::run(c) } else { fast::run(c) })?;
+            return fault::apply(self, call);
         }
         if table {
             call.check()?;

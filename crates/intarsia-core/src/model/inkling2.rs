@@ -115,13 +115,46 @@ fn ink_route_fused_env() -> Option<bool> {
     })
 }
 
+/// The largest pass [`ink_rows_exact`] runs on the row-exact kernels (2..=16 rows): a packed-prefill segment has more
+/// (`Model::pack_min_rows`; lane ink-hip-bpf).
+pub(crate) const INK_ROWS_EXACT_MAX: usize = 16;
+
+/// The packed prefill default when `INTARSIA_INK_PACK` is unset (lane ink-hip-bpf, docs/results/2026-11-26-inkling2-hip-bpf.md):
+/// on since window 9 (coordinator's rule: the pooled 4-stream filler TTFT p50 interval reaches 1 %; every stream bitwise its solo
+/// run). It applies only where packing can run: a batching engine (`serve --max-batch` > 1) on HIP or cpu (`Model::ink_pack_capable`).
+pub(crate) const INK_PACK_DEFAULT: bool = true;
+
+/// `INTARSIA_INK_PACK` (lane ink-hip-bpf): `1` packs several Inkling-2 prompts' prefill chunks into one pass in a batching engine
+/// (`serve --max-batch` > 1) on a backend with the segment-table `ConvMix`; `0` prefills them one by one. Unset:
+/// [`INK_PACK_DEFAULT`]. Every stream's output is bitwise its solo run's either way. Read once.
+pub(crate) fn ink_pack_on() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| match std::env::var("INTARSIA_INK_PACK").ok().as_deref().map(str::trim) {
+        Some("1") => true,
+        Some("0") => false,
+        _ => INK_PACK_DEFAULT,
+    })
+}
+
+/// The packed-prefill workspace rows when `INTARSIA_INK_PACK_ROWS` is unset (lane ink-hip-bpf); 0: the prefill chunk's. Not 4096
+/// by default: its +606 MiB comes out of the KV budget, and at the default `--kv-fraction` a B16 server's context is already
+/// clamped (2791 tokens with it, `--max-batch 16`, window 9). With `--kv-fraction 0.9` it costs no KV and gives the measured gains.
+pub(crate) const INK_PACK_ROWS_DEFAULT: usize = 0;
+
+/// `INTARSIA_INK_PACK_ROWS` (lane ink-hip-bpf): rows of the Inkling-2 workspace of a model loaded to batch with packed prefill on,
+/// when above the prefill chunk (more VRAM: ~0.28 MB per row on Inkling-2-Mini); `0`: the chunk's; unset:
+/// [`INK_PACK_ROWS_DEFAULT`]. Read at load.
+pub(crate) fn ink_pack_rows_env() -> usize {
+    std::env::var("INTARSIA_INK_PACK_ROWS").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(INK_PACK_ROWS_DEFAULT)
+}
+
 /// Whether an Inkling-2 pass of `t` rows runs under `exact_rows` (the row-exact kernels): on Metal, CUDA and HIP for 2..=16 rows (the
 /// 1-row kernels are the reference the rows kernels are bitwise to; HIP since lane ink-hip-spec), unless `INTARSIA_INK_ROWS_EXACT=0`.
 /// Larger passes (prefill chunks) take the fast kernels and are not bitwise a decode step's rows on Metal.
 pub(crate) fn ink_rows_exact(backend: &str, t: usize) -> bool {
     static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     let off = *OFF.get_or_init(|| std::env::var("INTARSIA_INK_ROWS_EXACT").is_ok_and(|v| v.trim() == "0"));
-    !off && matches!(backend, "metal" | "cuda" | "hip") && (2..=16).contains(&t)
+    !off && matches!(backend, "metal" | "cuda" | "hip") && (2..=INK_ROWS_EXACT_MAX).contains(&t)
 }
 
 /// `INTARSIA_INK_VERIFY_P12` (lane ink-cuda-attn, brief 26): the CUDA verify pass takes the P12 copy of wo at all its rows
@@ -308,6 +341,8 @@ pub(super) struct InkWs {
     pub rl: Buffer,
     pub rw: Buffer,
     pub ri: Buffer,
+    /// i32 `[4, max_tokens]`: the segment rows of a packed prefill pass (`SegTab::meta`; lane ink-hip-bpf).
+    pub pmeta: Buffer,
 }
 
 /// A batched decode pass (`Model::forward_batch`, lane ink-batch): `rows` sequences, one row each, at the positions in `pos`
@@ -317,6 +352,18 @@ pub(super) struct InkBatch {
     pub rows: usize,
     pub pos: TensorRef,
     pub max_pos: usize,
+}
+
+/// A packed prefill pass (lane ink-hip-bpf, docs/results/2026-11-26-inkling2-hip-bpf.md): several sequences' chunks as row
+/// segments of one pass. The row-wise ops run once over all rows; `InkKvPrologue` / `RelSinkAttn` once per segment on its rows
+/// and its own state at its own position; `ConvMix` in its segment-table form (`OpCall::segs`); the experts once per `moe` range.
+pub(crate) struct InkPacked<'a> {
+    /// The segments in row order (`Seg::pos` = the sequence's length before the pass).
+    pub segs: &'a [super::Seg<'a>],
+    /// i32 `[4, T]`, the segment rows of the pass (`SegTab::meta`), already uploaded.
+    pub meta: TensorRef,
+    /// Row ranges `(lo, n)` of the expert calls: each takes the one form its segments' solo calls take.
+    pub moe: Vec<(usize, usize)>,
 }
 
 pub(super) struct InkModel {
@@ -966,11 +1013,12 @@ impl InkWs {
             rl: a(mt * ink.experts * 4)?,
             rw: a(mt * ink.top_k * 4)?,
             ri: a(mt * ink.top_k * 4)?,
+            pmeta: a(4 * mt * 4)?,
         })
     }
 
     pub(super) fn bytes(&self) -> usize {
-        [&self.s, &self.p, &self.bank, &self.x, &self.msg, &self.dst, &self.emb, &self.pq, &self.pk, &self.pv, &self.q, &self.rel, &self.k, &self.v, &self.o, &self.aproj, &self.aout, &self.mlpin, &self.moe, &self.rl, &self.rw, &self.ri]
+        [&self.s, &self.p, &self.bank, &self.x, &self.msg, &self.dst, &self.emb, &self.pq, &self.pk, &self.pv, &self.q, &self.rel, &self.k, &self.v, &self.o, &self.aproj, &self.aout, &self.mlpin, &self.moe, &self.rl, &self.rw, &self.ri, &self.pmeta]
             .iter()
             .map(|b| b.bytes())
             .sum()
@@ -1030,12 +1078,14 @@ impl Model {
     /// the row-table calls; `pos0` the largest position).
     /// `tf`: teacher forcing (every visit's blocks / partial / bank and the head's from these tensors, every attention mix
     /// standalone); `dump`: collect the oracle-named intermediates (tests). `dpos`: the device position (`i32 [1]`) of a
-    /// captured decode step: the positioned ops (`inkling2::ops::POSITIONED`) read it instead of `pos0`.
+    /// captured decode step: the positioned ops (`inkling2::ops::POSITIONED`) read it instead of `pos0`. `packed`: a packed
+    /// prefill pass ([`InkPacked`]; `st` is its first segment's state, the carrier of the segment-table calls).
     #[allow(clippy::too_many_arguments)]
     pub(super) fn ink_pass(
         &self,
         st: &SequenceState,
         batch: Option<&InkBatch>,
+        packed: Option<&InkPacked<'_>>,
         ids: &TensorRef,
         t: usize,
         pos0: usize,
@@ -1051,7 +1101,7 @@ impl Model {
         if mark {
             self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         }
-        let r = self.ink_pass_rows(st, batch, ids, t, pos0, out, profile, tf, dump, dpos);
+        let r = self.ink_pass_rows(st, batch, packed, ids, t, pos0, out, profile, tf, dump, dpos);
         if mark {
             self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         }
@@ -1063,6 +1113,7 @@ impl Model {
         &self,
         st: &SequenceState,
         batch: Option<&InkBatch>,
+        packed: Option<&InkPacked<'_>>,
         ids: &TensorRef,
         t: usize,
         pos0: usize,
@@ -1095,6 +1146,21 @@ impl Model {
             Ok(())
         };
         let sx = |op: Op, i: Vec<TensorRef>, o: Vec<TensorRef>, a: OpAttrs, slot: usize| -> Result<()> {
+            if let Some(pk) = packed.filter(|_| op == Op::ConvMix) {
+                // a packed pass: the segment-table form (only ConvMix has one; the attention pair runs per segment, as solo calls)
+                let mut c = OpCall::new(op, i, o, a);
+                let rt = self
+                    .row_tab_for(pk.segs.len(), slot, 0, 0)
+                    .ok_or_else(|| Error::invalid("inkling2 packed prefill without the batched step's row table"))?;
+                c.segs = Some(crate::ops::SegTab {
+                    segs: pk.segs.iter().map(|g| (g.lo, g.len, g.pos)).collect(),
+                    ptrs: rt.ptrs,
+                    stride: rt.stride,
+                    index: rt.index,
+                    meta: pk.meta.clone(),
+                });
+                return self.exec_call(c, profile);
+            }
             if batch.is_none() && dpos.is_none() {
                 return ex(op, i, o, a);
             }
@@ -1120,8 +1186,9 @@ impl Model {
                 if k.ends_with(".sink") {
                     // the sink logits are the last H columns of pq
                     let w = x.shape[1];
-                    let sink: Vec<f32> = (0..t).flat_map(|r| v[r * w + w - h..(r + 1) * w].to_vec()).collect();
-                    dm.insert(k, (vec![t, h], sink));
+                    let rows = x.shape[0];
+                    let sink: Vec<f32> = (0..rows).flat_map(|r| v[r * w + w - h..(r + 1) * w].to_vec()).collect();
+                    dm.insert(k, (vec![rows, h], sink));
                 } else {
                     dm.insert(k, (x.shape.clone(), v));
                 }
@@ -1252,108 +1319,127 @@ impl Model {
                     }
                 }
             }
-            let kvc = match &st.slots[v.kvconv_slot] {
-                StateSlot::Ring(r) => r,
-                _ => return Err(Error::invalid("inkling2: K/V conv slot is not a ring")),
-            };
             let e = l.relproj.shape[1];
-            let q = TensorRef::new(ws.q.clone(), act, &[t, h, dh]);
-            let rel = TensorRef::new(ws.rel.clone(), act, &[t, h, e]);
-            let k = TensorRef::new(ws.k.clone(), act, &[t, hk, dh]);
-            let vv = TensorRef::new(ws.v.clone(), act, &[t, hk, dh]);
-            let mut pa = OpAttrs { pos0, n_heads: h, n_kv_heads: hk, head_dim: dh, ..a0.clone() };
-            pa.ink = InkAttrs {
-                qk_clip: ink.qk_clip,
-                rel_clip: ink.rel_clip,
-                tau_floor: if l.local { 0 } else { ink.n_floor },
-                tau_alpha: ink.alpha,
-                dyn_conv: !l.local,
-                d_rel: dr,
-                ..InkAttrs::default()
-            };
-            let (kc, vc) = match &st.slots[v.kv_slot] {
-                StateSlot::Ring(r) => (r.plane(0).reshaped(&[hk, r.rows, dh]), r.plane(1).reshaped(&[hk, r.rows, dh])),
-                StateSlot::AttnKv(s) => (self.view(&s.k, s.dtype, &[hk, s.cap, dh]), self.view(&s.v, s.dtype, &[hk, s.cap, dh])),
-                _ => return Err(Error::invalid("inkling2: KV slot kind")),
-            };
             let o = TensorRef::new(ws.o.clone(), act, &[t, h * dh]);
-            let mut aa = OpAttrs {
-                pos0,
-                scale: (dh as f32).powf(-0.5),
-                n_heads: h,
-                n_kv_heads: hk,
-                head_dim: dh,
-                window: if l.local { ink.window } else { 0 },
-                ..a0.clone()
-            };
-            aa.ink = InkAttrs { kv_ring: l.local, d_rel: dr, ..InkAttrs::default() };
-            // decode rows: the fused InkAttnDecode (75) where the selection rule (or INTARSIA_INK_ATTN_FUSED) asks for it and the
-            // backend admits the call, else the pair; a dump needs the pair's q / k / v / rel
-            // a batched step runs the pair only where the backend has its row-table kernels (the bits are the same either way)
-            let pair_rows = batch.is_none() || {
-                let by_op = self.registry.by_op();
-                [Op::InkKvPrologue, Op::RelSinkAttn].iter().all(|op| by_op.get(op).is_some_and(|ks| ks.iter().any(|k| k.row_table)))
-            };
-            let rule = match ink_attn_fused_env() {
-                Some(f) => f,
-                // a batched step's rows are 1-row calls each: the 1-row rule over the largest context
-                // CUDA / HIP: fused for every visit of 1..16 rows (HIP's launcher picks its fused or split path itself, both
-                // bitwise the pair: kernels/hip/ink_attn.hip, INTARSIA_INK_DEC_FUSED_KEYS)
-                None => {
-                    matches!(self.backend.name(), "cuda" | "hip")
-                        || (self.backend.name() == "metal"
-                            && match batch {
-                                Some(bt) => ink_attn_fused_rule(1, l.local, bt.max_pos + 1, ink.window, true),
-                                None => ink_attn_fused_rule(t, l.local, pos0 + t, ink.window, false),
-                            })
+            // the attention of each segment of a packed pass on its rows, state and position; of the pass itself otherwise
+            let one = [super::Seg { st, lo: 0, len: t, pos: pos0 }];
+            let asegs: &[super::Seg<'_>] = packed.map_or(&one[..], |pk| pk.segs);
+            for sg in asegs {
+                let (st, lo, t, pos0) = (sg.st, sg.lo, sg.len, sg.pos);
+                let pq = pq.rows(lo, t);
+                let (pk, pv) = (pk.rows(lo, t), pv.rows(lo, t));
+                let o = o.rows(lo, t);
+                let kvc = match &st.slots[v.kvconv_slot] {
+                    StateSlot::Ring(r) => r,
+                    _ => return Err(Error::invalid("inkling2: K/V conv slot is not a ring")),
+                };
+                let q = TensorRef::new(ws.q.clone(), act, &[lo + t, h, dh]).rows(lo, t);
+                let rel = TensorRef::new(ws.rel.clone(), act, &[lo + t, h, e]).rows(lo, t);
+                let k = TensorRef::new(ws.k.clone(), act, &[lo + t, hk, dh]).rows(lo, t);
+                let vv = TensorRef::new(ws.v.clone(), act, &[lo + t, hk, dh]).rows(lo, t);
+                let mut pa = OpAttrs { pos0, n_heads: h, n_kv_heads: hk, head_dim: dh, ..a0.clone() };
+                pa.ink = InkAttrs {
+                    qk_clip: ink.qk_clip,
+                    rel_clip: ink.rel_clip,
+                    tau_floor: if l.local { 0 } else { ink.n_floor },
+                    tau_alpha: ink.alpha,
+                    dyn_conv: !l.local,
+                    d_rel: dr,
+                    ..InkAttrs::default()
+                };
+                let (kc, vc) = match &st.slots[v.kv_slot] {
+                    StateSlot::Ring(r) => (r.plane(0).reshaped(&[hk, r.rows, dh]), r.plane(1).reshaped(&[hk, r.rows, dh])),
+                    StateSlot::AttnKv(s) => (self.view(&s.k, s.dtype, &[hk, s.cap, dh]), self.view(&s.v, s.dtype, &[hk, s.cap, dh])),
+                    _ => return Err(Error::invalid("inkling2: KV slot kind")),
+                };
+                let mut aa = OpAttrs {
+                    pos0,
+                    scale: (dh as f32).powf(-0.5),
+                    n_heads: h,
+                    n_kv_heads: hk,
+                    head_dim: dh,
+                    window: if l.local { ink.window } else { 0 },
+                    ..a0.clone()
+                };
+                aa.ink = InkAttrs { kv_ring: l.local, d_rel: dr, ..InkAttrs::default() };
+                // decode rows: the fused InkAttnDecode (75) where the selection rule (or INTARSIA_INK_ATTN_FUSED) asks for it and the
+                // backend admits the call, else the pair; a dump needs the pair's q / k / v / rel
+                // a batched step runs the pair only where the backend has its row-table kernels (the bits are the same either way)
+                let pair_rows = batch.is_none() || {
+                    let by_op = self.registry.by_op();
+                    [Op::InkKvPrologue, Op::RelSinkAttn].iter().all(|op| by_op.get(op).is_some_and(|ks| ks.iter().any(|k| k.row_table)))
+                };
+                let rule = match ink_attn_fused_env() {
+                    Some(f) => f,
+                    // a batched step's rows are 1-row calls each: the 1-row rule over the largest context
+                    // CUDA / HIP: fused for every visit of 1..16 rows (HIP's launcher picks its fused or split path itself, both
+                    // bitwise the pair: kernels/hip/ink_attn.hip, INTARSIA_INK_DEC_FUSED_KEYS)
+                    None => {
+                        matches!(self.backend.name(), "cuda" | "hip")
+                            || (self.backend.name() == "metal"
+                                && match batch {
+                                    Some(bt) => ink_attn_fused_rule(1, l.local, bt.max_pos + 1, ink.window, true),
+                                    None => ink_attn_fused_rule(t, l.local, pos0 + t, ink.window, false),
+                                })
+                    }
+                };
+                // prefill chunks (briefs 30a / 30b; INTARSIA_INK_PREFILL_FUSED=0 turns it off): op 75 where the backend admits it (CUDA), else the pair
+                let want_fused = !dumping && if t <= 16 { rule || !pair_rows } else { batch.is_none() && ink_prefill_fused_env() };
+                let fused = want_fused.then(|| {
+                    let mut fa = aa.clone();
+                    fa.ink = InkAttrs { kv_ring: l.local, ..pa.ink };
+                    OpCall::new(
+                        Op::InkAttnDecode,
+                        vec![
+                            pq.clone(),
+                            pk.clone(),
+                            pv.clone(),
+                            l.ktaps.clone(),
+                            l.vtaps.clone(),
+                            l.qscale.clone(),
+                            l.rscale.clone(),
+                            l.relproj.clone(),
+                            kc.clone(),
+                            vc.clone(),
+                        ],
+                        vec![o.clone(), kc.clone(), vc.clone(), kvc.plane(0), kvc.plane(1)],
+                        fa,
+                    )
+                });
+                let fused = fused
+                    .map(|mut c| -> Result<OpCall> {
+                        c.exact_rows = self.verifying();
+                        rowtab(&mut c, v.kv_slot)?;
+                        Ok(c)
+                    })
+                    .transpose()?;
+                if let Some(call) = fused.filter(|c| self.registry.select(c).is_ok()) {
+                    self.exec_call(call, profile)?;
+                } else {
+                    sx(
+                        Op::InkKvPrologue,
+                        vec![pq.clone(), pk, pv, l.ktaps.clone(), l.vtaps.clone(), l.qscale.clone(), l.rscale.clone(), l.relproj.clone()],
+                        vec![q.clone(), rel.clone(), k.clone(), vv.clone(), kvc.plane(0), kvc.plane(1)],
+                        pa,
+                        v.kvconv_slot,
+                    )?;
+                    // a packed pass dumps the whole pass's tensors after the segment loop (one key per tensor)
+                    if packed.is_none() {
+                        put(format!("{tag}.q"), &q)?;
+                        put(format!("{tag}.k"), &k)?;
+                        put(format!("{tag}.v"), &vv)?;
+                        put(format!("{tag}.rel"), &rel)?;
+                        put(format!("{tag}.sink"), &pq)?;
+                    }
+                    sx(Op::RelSinkAttn, vec![q, k, vv, kc.clone(), vc.clone(), rel, pq], vec![o.clone(), kc, vc], aa, v.kv_slot)?;
                 }
-            };
-            // prefill chunks (briefs 30a / 30b; INTARSIA_INK_PREFILL_FUSED=0 turns it off): op 75 where the backend admits it (CUDA), else the pair
-            let want_fused = !dumping && if t <= 16 { rule || !pair_rows } else { batch.is_none() && ink_prefill_fused_env() };
-            let fused = want_fused.then(|| {
-                let mut fa = aa.clone();
-                fa.ink = InkAttrs { kv_ring: l.local, ..pa.ink };
-                OpCall::new(
-                    Op::InkAttnDecode,
-                    vec![
-                        pq.clone(),
-                        pk.clone(),
-                        pv.clone(),
-                        l.ktaps.clone(),
-                        l.vtaps.clone(),
-                        l.qscale.clone(),
-                        l.rscale.clone(),
-                        l.relproj.clone(),
-                        kc.clone(),
-                        vc.clone(),
-                    ],
-                    vec![o.clone(), kc.clone(), vc.clone(), kvc.plane(0), kvc.plane(1)],
-                    fa,
-                )
-            });
-            let fused = fused
-                .map(|mut c| -> Result<OpCall> {
-                    c.exact_rows = self.verifying();
-                    rowtab(&mut c, v.kv_slot)?;
-                    Ok(c)
-                })
-                .transpose()?;
-            if let Some(call) = fused.filter(|c| self.registry.select(c).is_ok()) {
-                self.exec_call(call, profile)?;
-            } else {
-                sx(
-                    Op::InkKvPrologue,
-                    vec![pq.clone(), pk, pv, l.ktaps.clone(), l.vtaps.clone(), l.qscale.clone(), l.rscale.clone(), l.relproj.clone()],
-                    vec![q.clone(), rel.clone(), k.clone(), vv.clone(), kvc.plane(0), kvc.plane(1)],
-                    pa,
-                    v.kvconv_slot,
-                )?;
-                put(format!("{tag}.q"), &q)?;
-                put(format!("{tag}.k"), &k)?;
-                put(format!("{tag}.v"), &vv)?;
-                put(format!("{tag}.rel"), &rel)?;
+            }
+            if dumping && packed.is_some() {
+                put(format!("{tag}.q"), &TensorRef::new(ws.q.clone(), act, &[t, h, dh]))?;
+                put(format!("{tag}.k"), &TensorRef::new(ws.k.clone(), act, &[t, hk, dh]))?;
+                put(format!("{tag}.v"), &TensorRef::new(ws.v.clone(), act, &[t, hk, dh]))?;
+                put(format!("{tag}.rel"), &TensorRef::new(ws.rel.clone(), act, &[t, h, e]))?;
                 put(format!("{tag}.sink"), &pq)?;
-                sx(Op::RelSinkAttn, vec![q, k, vv, kc.clone(), vc.clone(), rel, pq], vec![o.clone(), kc, vc], aa, v.kv_slot)?;
             }
             // INTARSIA_INK_DEBUG_DISPATCHES (debug only): this visit's share of k tiny dependent dispatches, a chain that reads
             // the attention output and ping-pongs through the heads of aproj / aout (both fully overwritten below)
@@ -1446,15 +1532,20 @@ impl Model {
             let moe = plane(&ws.moe, act, 0, t, d);
             let mut xa = OpAttrs { top_k: ink.top_k, ..OpAttrs::default() };
             xa.ink = InkAttrs { situ: true, gate_cap: ink.gate_cap, up_cap: ink.up_cap, act_quant: im.act_quant, ..InkAttrs::default() };
-            match &l.experts {
-                InkExperts::Nvfp4 { gate_up_w, gate_up_s, down_w, down_s, gscales } => ex(
-                    Op::MoeExperts,
-                    vec![mlpin, ri, rw, gate_up_w.clone(), gate_up_s.clone(), down_w.clone(), down_s.clone(), gscales.clone()],
-                    vec![moe.clone()],
-                    OpAttrs { ink: InkAttrs { moe_layout: im.moe_layout, ..xa.ink }, ..xa },
-                )?,
-                InkExperts::Mxfp8 { w13, s13, w2, s2 } => {
-                    ex(Op::MoeExpertsMxfp8, vec![mlpin, ri, rw, w13.clone(), s13.clone(), w2.clone(), s2.clone()], vec![moe.clone()], xa)?
+            // a packed pass: one expert call per range of segments that take the same form solo (`InkPacked::moe`)
+            let whole = [(0usize, t)];
+            for &(lo, n) in packed.map_or(&whole[..], |pk| &pk.moe[..]) {
+                let (mlpin, ri, rw, moe) = (mlpin.rows(lo, n), ri.rows(lo, n), rw.rows(lo, n), moe.rows(lo, n));
+                match &l.experts {
+                    InkExperts::Nvfp4 { gate_up_w, gate_up_s, down_w, down_s, gscales } => ex(
+                        Op::MoeExperts,
+                        vec![mlpin, ri, rw, gate_up_w.clone(), gate_up_s.clone(), down_w.clone(), down_s.clone(), gscales.clone()],
+                        vec![moe],
+                        OpAttrs { ink: InkAttrs { moe_layout: im.moe_layout, ..xa.ink }, ..xa.clone() },
+                    )?,
+                    InkExperts::Mxfp8 { w13, s13, w2, s2 } => {
+                        ex(Op::MoeExpertsMxfp8, vec![mlpin, ri, rw, w13.clone(), s13.clone(), w2.clone(), s2.clone()], vec![moe], xa.clone())?
+                    }
                 }
             }
             put(format!("{tag}.moe_out"), &moe)?;

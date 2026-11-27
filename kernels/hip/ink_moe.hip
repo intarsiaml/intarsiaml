@@ -1252,6 +1252,24 @@ void ik_ink_moe_set_wmma(int v) { g_wmma = v; }
 int ik_ink_moe_wmma_pairs(long long P, int E) { return moe_wmma_pairs((int64_t)P, E); }
 void ik_ink_moe_set_dec(int v) { g_dec = v; }
 
+// Packed prefill (lane ink-hip-bpf, `Backend::moe_split_rows`): the fewest rows T of an ordinary call (situ or mxfp8, E experts, top
+// K, widths H / I) that takes the tensor-core prefill instead of the decode kernels (run(): the pair-table path, the WMMA rule, lean,
+// H and I in 64-k blocks); 0 when no row count does (every call then takes the decode kernels, rows-exact). Every call of fewer rows
+// takes the decode kernels, every call of at least as many the tensor cores (the rule grows with P).
+long long ik_ink_moe_split_rows(long long E, long long K, long long H, long long I) {
+    if (E < 1 || K < 1 || K > 64 || !moe_lean() || H % kMwKB != 0 || I % kMwKB != 0) return 0;
+    const long long tmax = 65535;  // common_checks
+    auto takes = [&](long long t) { return t * K > kDecPairs && moe_wmma_pairs((int64_t)(t * K), (int)E) != 0; };
+    if (!takes(tmax)) return 0;
+    long long lo = 1, hi = tmax;  // the first t that takes it lies in (lo - 1, hi]
+    while (lo < hi) {
+        const long long mid = lo + (hi - lo) / 2;
+        if (takes(mid)) hi = mid;
+        else lo = mid + 1;
+    }
+    return lo;
+}
+
 // The `_rows` twins are the decode kernels at every size (rows-exact, bitwise the first form); so are the ordinary names up to 512
 // pairs and below 16 pairs per expert; above that, by default (INTARSIA_HIP_INK_MOE_WMMA unset or 1) they take the tensor-core
 // prefill on the pair-table path; INTARSIA_HIP_INK_MOE_WMMA=0 keeps them on the decode kernels.

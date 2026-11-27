@@ -1,0 +1,17 @@
+{
+ "mode": "reuse2-conc",
+ "n": 6,
+ "t0": 1795733140.5777102,
+ "t1": 1795733146.18126,
+ "wall_s": 5.604,
+ "completion_tokens": 768,
+ "prompt_tokens": 4358,
+ "aggregate_tok_s": 137.1,
+ "latency_s_median": 5.59,
+ "latency_s_max": 5.6,
+ "cached_tokens": 0,
+ "ttft_s_median": 1.4335,
+ "ttft_s_max": 2.038335084915161,
+ "itl_s_p50": 0.0276,
+ "itl_s_p99": 0.1013
+}

@@ -1,0 +1,8 @@
+# name;bin;serve args (leading NAME=value = server env);actions (' && '-separated)
+# W4 (b10): gate 2 serve level on card 0. The packed --max-batch 16 server first (its admission covers the solo config's cases): all
+# 16 real prompts at 4 at once (4 waves), at 8 at once (2 waves), 16 at once, plain, then prefix reuse: 6 base prompts at once, then
+# their extended versions at once (resumed chunks pack). Then the branch's solo server (no --max-batch, --spec off, the batch lane's
+# reference config): the 16 one at a time. Card 1 (stage_w4bg.sh): main's solo server, the 16 one at a time and reuse-solo:6.
+# /metrics before / after each visit: the packed passes (intarsia_batch_pack_passes_total).
+pk16;b10;INTARSIA_INK_PACK=1 --max-batch 16 --max-seq 4608 --kv-fraction 0.9;bitwise:conc:4:0+conc:4:1+conc:4:2+conc:4:3+conc:8:0+conc:8:1+conc && bitwise:reuse-conc:6
+solo;b10;--max-seq 4608 --spec off;bitwise:solo

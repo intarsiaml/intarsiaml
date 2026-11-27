@@ -35,6 +35,15 @@ int ik_conv_mix_bf16_rows(const ik_tensor* x, const ik_tensor* taps, const ik_te
                           const ik_tensor* queries, const ik_tensor* norm, const ik_tensor* msg, const ik_tensor* down, const ik_tensor* gain,
                           const ik_tensor* forget, const ik_tensor* pos, float eps, ik_tensor* y, ik_tensor* ring, ik_tensor* sum, ik_tensor* mix,
                           const ik_scratch* scratch, const ik_tensor* tab, int64_t tstride, int64_t tindex, int64_t roff, void* stream);
+/* ConvMix segment-table form (packed prefill, lane ink-hip-bpf; `OpCall::segs`; kernels/hip/ink_mix_segs.hip): the T rows are consecutive
+ * segments of several sequences; meta i32 [4, T] = per row its position, its segment's first and end positions, its segment's index s; row t's
+ * ring is the buffer at entry tindex of row s of tab (u8 [n, tstride, 8]) plus roff; ring is the first segment's carrier (shape). Segment s is
+ * bitwise its solo ik_conv_mix_bf16 call over its rows (of every [T, D] tensor and of every plane of src / msg / mix) at pos0 = its first
+ * position, on its own ring. Every other operand as ik_conv_mix_bf16. */
+int ik_conv_mix_bf16_segs(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* res, const ik_tensor* addend, const ik_tensor* src,
+                          const ik_tensor* queries, const ik_tensor* norm, const ik_tensor* msg, const ik_tensor* down, const ik_tensor* gain,
+                          const ik_tensor* forget, const ik_tensor* meta, float eps, ik_tensor* y, ik_tensor* ring, ik_tensor* sum, ik_tensor* mix,
+                          const ik_scratch* scratch, const ik_tensor* tab, int64_t tstride, int64_t tindex, int64_t roff, void* stream);
 int ik_loop_blend_bf16(const ik_tensor* dest, const ik_tensor* msg, const ik_tensor* down, const ik_tensor* gain, const ik_tensor* forget,
                        const ik_tensor* norm, float eps, ik_tensor* out, const ik_scratch* scratch, void* stream);
 /* kernels/hip/ink_route_fused.hip: InkRoute (76). x bf16 [T,D], w bf16 [E,D], bias f32 [E] -> weights f32 [T,K], ids i32 [T,K], logits f32 [T,E] or an

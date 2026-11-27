@@ -1,0 +1,2 @@
+wall 8.78 s, aggregate 116.7 tok/s, latency median 8.64 s max 8.77 s, prompt tokens 12091, cached 0, ttft median 1.9922 max 4.601726055145264, itl p50 0.0335 p99 0.5848
+conc:8:0:w8r1n8: 8 replies, 1024 tokens -> /opt/code/intarsiaml/.worktrees/ink-hip-bpf/docs/results/2026-11-26-inkling2-hip-bpf/raw/w8/A-realw8-r1-n8.json

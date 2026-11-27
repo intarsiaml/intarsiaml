@@ -1,0 +1,15 @@
+{
+ "mode": "pp:2:2048:w6",
+ "n": 2,
+ "t0": 1795733028.422388,
+ "t1": 1795733030.1039329,
+ "wall_s": 1.682,
+ "prompt_tokens": 4712,
+ "prompt_tok_s": 2802.2,
+ "cached_tokens": 0,
+ "prompt_tokens_each": [
+  2348,
+  2364
+ ],
+ "ttft_s_median": 1.679926872253418
+}

@@ -1,0 +1,27 @@
+fleetq: #12221 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'S=~/intarsiaml-ink-hip-bpf/.scratch; bash $S/build.sh b6 m:inkling2_packed m:inkling2_batch m:inkling2 && bash $S/cpu_tests.sh packed; bash $S/build_main_tests.sh'
+warning: `intarsia-core` (lib) generated 5 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 20.59s
+cli build exit 0
+02a27defc7de451a2a1b45c2c90debfd  .scratch/bin/intarsia-b6
+    Finished `release` profile [optimized] target(s) in 15.94s
+  Executable tests/inkling2_packed.rs (/target/release/deps/inkling2_packed-1ed2245ff98f9c1a)
+test inkling2_packed build exit 0
+    Finished `release` profile [optimized] target(s) in 0.93s
+  Executable tests/inkling2_batch.rs (/target/release/deps/inkling2_batch-4078c269fe83f39e)
+test inkling2_batch build exit 0
+    Finished `release` profile [optimized] target(s) in 1.42s
+  Executable tests/inkling2.rs (/target/release/deps/inkling2-4591618c7e4a1464)
+test inkling2 build exit 0
+== packed exit 101
+thread 'inkling2_packed_intermediates_equal_solo' panicked at crates/intarsia-core/src/model/inkling2.rs:1087:63:
+test inkling2_packed_intermediates_equal_solo ... FAILED
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.10s
+error: test failed, to rerun pass `-p intarsia-models --test inkling2_packed`
+    Finished `release` profile [optimized] target(s) in 2m 09s
+  Executable tests/inkling2.rs (/target/release/deps/inkling2-4591618c7e4a1464)
+main test inkling2 build exit 0
+    Finished `release` profile [optimized] target(s) in 0.91s
+  Executable tests/inkling2_batch.rs (/target/release/deps/inkling2_batch-4078c269fe83f39e)
+main test inkling2_batch build exit 0
+fleetq: #12221 done (exit 0)
