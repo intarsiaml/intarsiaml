@@ -192,6 +192,11 @@ pub struct HipBackend {
     capturing: AtomicBool,
     /// round 9: page-locked host staging for small copies (created on first use; `None` after a failed allocation)
     staging: Mutex<Option<Option<Staging>>>,
+    /// Lane ink-hip-overlap: the staging of every other stream (index = StreamId - 1), its own ring and download slot, so a copy on
+    /// one stream never waits for another stream's queued work: a slot's event, or the download slot's lock held across that
+    /// download's stream sync (a prefill chunk's head read on stream 0 blocked the decode twin's copies on stream 1 until the
+    /// chunk ended). Stream 0 keeps `staging`, as before.
+    side_staging: Mutex<Vec<std::sync::Arc<Mutex<Option<Option<Staging>>>>>>,
     /// lane wg: dense fp8 weights rearranged into `Layout::Fp8Frag` by `relayout_fp8_frag` (count, bytes)
     relayout: (AtomicU64, AtomicU64),
     /// lane arx: the all-reduce push armed by the communicator for the next `matmul_mxfp4_a8_mma` launch on this device whose output is
@@ -561,6 +566,7 @@ impl HipBackend {
             route: crate::route_stats::RouteStats::from_env(),
             capturing: AtomicBool::new(false),
             staging: Mutex::new(None),
+            side_staging: Mutex::new(Vec::new()),
             relayout: (AtomicU64::new(0), AtomicU64::new(0)),
             push_arm: Mutex::new(None),
             spans: Mutex::new(SpanCache::new()),
@@ -773,6 +779,18 @@ impl HipBackend {
         check("hipSetDevice", unsafe { ffi::ik_rt_set_device(self.ordinal) })
     }
 
+    /// The staging of stream `id` other than 0 (`side_staging`, created on first use); `None` for stream 0 (`staging`).
+    fn side_staging(&self, id: StreamId) -> Option<std::sync::Arc<Mutex<Option<Option<Staging>>>>> {
+        if id == 0 {
+            return None;
+        }
+        let mut v = self.side_staging.lock().unwrap();
+        while v.len() < id as usize {
+            v.push(std::sync::Arc::new(Mutex::new(None)));
+        }
+        Some(v[id as usize - 1].clone())
+    }
+
     pub(crate) fn stream(&self, id: StreamId) -> Result<*mut c_void> {
         let mut s = self.streams.lock().unwrap();
         while s.len() <= id as usize {
@@ -915,7 +933,8 @@ impl Backend for HipBackend {
         let d = Self::ptr(dst, dst_offset, src.len())?;
         let s = self.stream(stream)?;
         if src.len() <= STAGE_SLOT && self.trace.is_none() && !self.capturing.load(Ordering::Relaxed) && stage_mode().0 {
-            let mut g = self.staging.lock().unwrap();
+            let side = self.side_staging(stream);
+            let mut g = side.as_deref().unwrap_or(&self.staging).lock().unwrap();
             if let Some(st) = g.get_or_insert_with(Staging::new) {
                 let i = st.next;
                 if st.used[i] {
@@ -956,7 +975,8 @@ impl Backend for HipBackend {
         let p = Self::ptr(src, src_offset, dst.len())?;
         let s = self.stream(stream)?;
         if dst.len() <= STAGE_SLOT && self.trace.is_none() && !self.capturing.load(Ordering::Relaxed) && stage_mode().1 {
-            let mut g = self.staging.lock().unwrap();
+            let side = self.side_staging(stream);
+            let mut g = side.as_deref().unwrap_or(&self.staging).lock().unwrap();
             if let Some(st) = g.get_or_insert_with(Staging::new) {
                 let slot = st.slot(STAGE_SLOTS); // the download slot, after the upload ring
                 // SAFETY: the download slot is page-locked and only used here, under the lock; the wrapper waits for the

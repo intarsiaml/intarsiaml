@@ -48,6 +48,12 @@ Branch `ink/hip-overlap` from the `ink/hip-bpf` head 2561d5957 (PR #538: packed 
     interval between decode steps during a chunk is accepted: a knob, aiming at about 2 steps per chunk, with the TTFT p50 vs ITL
     p99 trade-off recorded at 2 or 3 settings. Radiance for brief 3: 30 min, windows <= 5 min, after the #538 window.
 
+- 2026-11-26 ~20:10 EST (coordinator; in substance): (1) #538 is merged as `b507ab7ad`; main is now `a4c8f3b19` (also #540, a
+  cpu-only 8-bit study, opt-in). Merge `origin/main` into `ink/hip-overlap` at the next convenient point, a merge, not a rebase.
+  Overlap's gate-4 baseline is now main itself. (2) Cleanup: say in the next report which of these can go now or are still used:
+  the Mac worktree `.worktrees/ink-hip-bpf`, the remote branch `ink/hip-bpf`, the tatooine folder `~/intarsiaml-ink-hip-bpf`, its
+  docker volume. Nothing is touched until answered.
+
 ## 1. Design (step 0)
 
 ### 1.1 Mechanism: (a) concurrent HIP streams, through the existing R3d decode twin
@@ -187,3 +193,31 @@ pace 150 the cost is gone and so is most of the gain (ITL p99 -9 %). The poll lo
 show why the knob does little: a decode step beside a chunk takes ~0.3 s (vs 33-58 ms alone), longer than the pace, so pace 150
 leaves ~2 steps per chunk and each waits behind the chunk's kernels. HIP streams here are created at the default priority
 (`hipStreamCreateWithFlags(.., NonBlocking)`), not high as on CUDA, so the twin's kernels queue with the chunk's.
+
+### O2 (fleetq #12292; radiance down 19:51:21 - 19:54:53 = 3:32)
+
+o2 = o1 + `INTARSIA_HIP_STREAM1_PRIORITY=high` (opt-in: stream 1 created by `hipStreamCreateWithPriority` at the greatest priority,
+-1 on the R9700) + a CB-trace line per decode step beside a chunk (`OverlapStep { step_us }`). Card 0: N2 = b13; P0 = o2 overlap,
+priority high, pace 0; P3 = the same at pace 300 ms (both with `INTARSIA_CB_TRACE=1`). Card 1: o2's admission (23 kernels, 134
+cases, pass), then gate 1's poisoned run: o2 overlap + priority + `INTARSIA_HIP_POISON=ff`.
+
+Bitwise vs W4's solo replies: P0 8/8 and 16/16, P3 8/8 and 16/16, N2 16/16; **poisoned overlap: 16/16 at once and 4 x 4/4 at 4**.
+
+| arm | real 8 agg / TTFT p50 / ITL p99 | real 16 agg / TTFT p50 / ITL p99 | filler 1k x 16 agg |
+|---|---|---|---|
+| N2 b13 | 118.8 / 1.94 / 0.585 | 125.7 / 2.81 / 0.629 | 155.1 |
+| P0 priority, pace 0 | 119.9 / 1.91 / 0.857 | 125.1 / 2.88 / 0.741 | - |
+| P3 priority, pace 300 | 118.9 / 1.93 / 0.872 | 125.7 / 2.80 / 0.728 | - |
+
+The trace shows what holds the twin back: per chunk the first step beside it takes 85-165 ms, the next one 0.3-1.1 s, i.e. until
+the chunk ends. Not the GPU: the HIP backend's host staging (`device.rs` `Staging`, round 9) is one ring of 8 page-locked upload
+slots plus ONE download slot for all streams, under one mutex, and a staged download holds that mutex across its stream's sync. The
+prefill thread's head read at the end of a pass (stream 0) therefore blocks the twin's next upload or token download (stream 1)
+until the whole chunk is done; an upload slot last used by stream 0 mid-pass also waits for stream 0 to reach it. With priority the
+first step gets through quickly and the second waits, so ITL p99 got worse, not better. Fix (o3): every stream other than 0 gets
+its own staging (ring + download slot, `side_staging`); stream 0 keeps the old one, so a single-stream run is unchanged.
+
+Cleanup asked by the coordinator (answer): the Mac worktree `.worktrees/ink-hip-bpf` (clean at 4cb9ba97b, merged) and the remote
+branch `ink/hip-bpf` can go; this lane copied what it uses (window scripts, W4's solo replies as `raw/ref-solo-w4.json`). The
+tatooine folder `~/intarsiaml-ink-hip-bpf` and the volume `intarsia-cargo-target-ink-hip-bpf` are still in use: the overlap lane
+builds and serves there (binaries b13, o1 .. o3, `.scratch` scripts, logs); free them when this lane ends.
