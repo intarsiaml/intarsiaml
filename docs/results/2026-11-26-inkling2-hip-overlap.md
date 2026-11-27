@@ -194,7 +194,7 @@ show why the knob does little: a decode step beside a chunk takes ~0.3 s (vs 33-
 leaves ~2 steps per chunk and each waits behind the chunk's kernels. HIP streams here are created at the default priority
 (`hipStreamCreateWithFlags(.., NonBlocking)`), not high as on CUDA, so the twin's kernels queue with the chunk's.
 
-### O2 (fleetq #12292; radiance down 19:51:21 - 19:54:53 = 3:32)
+### O2 (fleetq #12293; radiance down 19:51:21 - 19:54:53 = 3:32)
 
 o2 = o1 + `INTARSIA_HIP_STREAM1_PRIORITY=high` (opt-in: stream 1 created by `hipStreamCreateWithPriority` at the greatest priority,
 -1 on the R9700) + a CB-trace line per decode step beside a chunk (`OverlapStep { step_us }`). Card 0: N2 = b13; P0 = o2 overlap,
