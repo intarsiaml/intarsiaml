@@ -7,7 +7,8 @@ cd "$LANE"; mkdir -p logs .scratch/bin
 export INTARSIA_REPO=$LANE INTARSIA_TARGET_VOL=intarsia-cargo-target-ink-plain-tax INTARSIA_CONTAINER_NAME=ink-plain-tax-build
 trap 'docker rm -f ink-plain-tax-build >/dev/null 2>&1' EXIT
 DEV="$LANE/deploy/tatooine/dev.sh"
-find "$LANE/crates" "$LANE/kernels" "$LANE/recipes" -type f -exec touch {} +
+# git archive gives files their commit time, older than the last build: touch the crates (kernels are the same in both commits)
+find "$LANE/crates" "$LANE/recipes" -type f -exec touch {} +
 echo "[build] $NAME commit $(cat .scratch/commit) $(date +%T)"
 $DEV cargo test --release -j8 -p intarsia-models --test inkling2_dflash2 --no-run < /dev/null > logs/build-$NAME.log 2>&1
 rc=$?; tail -2 logs/build-$NAME.log; echo "[build] test build exit $rc $(date +%T)"; [ $rc -ne 0 ] && exit $rc
