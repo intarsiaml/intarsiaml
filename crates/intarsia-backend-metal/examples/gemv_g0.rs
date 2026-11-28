@@ -2,7 +2,9 @@
 //! shapes, against the serving 1-row kernels, the tiled GEMM that serves M = 2..15 today and the NAX GEMM (M >= 16).
 //!
 //!   cargo run --release -p intarsia-backend-metal --example gemv_g0 -- [case ...]
-//!   cases: qo (4096x4096), down (K=12288, N=4096), kv (1024+1024, K=4096), gu (12288+12288, K=4096), lm (151936x4096, f32 out)
+//!   cases: qo (4096x4096), down (K=12288, N=4096), kv (1024+1024, K=4096), gu (12288+12288, K=4096), lm (151936x4096, f32 out);
+//!          the Inkling-2-Mini DFlash2 draft (lane ink-metal-dgemv): ink_gu (6912x2304), ink_gup (6912+6912, K=2304), ink_down
+//!          (2304x6912), ink_q (4096x2304), ink_kv (1024x2304)
 //!   env:   G0_ROUNDS (default 30), G0_POOL_MIB (3072), G0_A8=1 (weights at byte offset 8: the 8-byte-load serving kernels;
 //!          no lm), G0_OUT=<csv path> (raw per-chain samples), G0_ROWS=2,4,8 (restrict multi-row counts)
 //!
@@ -51,12 +53,20 @@ mod imp {
         n1: usize,
     }
 
-    const CASES: [Case; 5] = [
+    const CASES: [Case; 10] = [
         Case { label: "qo", kind: Kind::Matmul, k: 4096, n0: 4096, n1: 0 },
         Case { label: "down", kind: Kind::Matmul, k: 12288, n0: 4096, n1: 0 },
         Case { label: "kv", kind: Kind::Pair, k: 4096, n0: 1024, n1: 1024 },
         Case { label: "gu", kind: Kind::Pair, k: 4096, n0: 12288, n1: 12288 },
         Case { label: "lm", kind: Kind::Logits, k: 4096, n0: 151936, n1: 0 },
+        // lane ink-metal-dgemv: the Inkling-2-Mini DFlash2 draft's block-pass shapes (hidden 2304, MLP 6912, q 4096, kv 1024), run at
+        // 8 rows; `ink_gu` is the MLP gate / up (slot P of lane ink-metal-dtopk: 132 GB/s on the row-exact kernel), as two matmuls and
+        // as one pair
+        Case { label: "ink_gu", kind: Kind::Matmul, k: 2304, n0: 6912, n1: 0 },
+        Case { label: "ink_gup", kind: Kind::Pair, k: 2304, n0: 6912, n1: 6912 },
+        Case { label: "ink_down", kind: Kind::Matmul, k: 6912, n0: 2304, n1: 0 },
+        Case { label: "ink_q", kind: Kind::Matmul, k: 2304, n0: 4096, n1: 0 },
+        Case { label: "ink_kv", kind: Kind::Matmul, k: 2304, n0: 1024, n1: 0 },
     ];
 
     #[derive(Clone, Copy, PartialEq, Debug)]
