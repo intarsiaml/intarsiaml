@@ -1,6 +1,6 @@
 #![cfg(target_os = "macos")]
 //! Lane ink-prefill: InkKvPrologue of prefill chunks as `ink_kv_prologue_norel_bf16` + `ink_rel_proj_bf16`
-//! (`INTARSIA_INK_PROLOGUE_SPLIT=1`, inkprefill.rs) equals `ink_kv_prologue_bf16` bit for bit: q, rel, k, v and both conv
+//! (on unless `INTARSIA_INK_PROLOGUE_SPLIT=0`, inkprefill.rs) equals `ink_kv_prologue_bf16` bit for bit: q, rel, k, v and both conv
 //! rings, at the real shapes (24 / 8 heads, head_dim 128, d_rel 16, extent 1024, K 4), static and dynamic taps with tau,
 //! the in-kernel ring write (ring 1040 rows) and the separate ring pass (ring 19 rows), 17 .. 4100 rows, a partial
 //! 8-row block, positions 0 and past the tau floor / ring wrap.
