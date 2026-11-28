@@ -77,8 +77,13 @@ sampled_adapt = "d=0.237,r=0.236/0.418/0.583,g=0.85,margin=0.0,drop=0.0,probe=3,
 # docs/results/2026-11-26-inkling2-metal-dflash2.md), greedy ids = --spec off (docs/results/2026-11-27-inkling2-metal-dflash2-ready.md,
 # -metal-dflash2-flip.md); sampled requests take plain steps as before (sampled drafting stays opt-in here). Peak memory up ~4.7 GB only at
 # the largest --max-seq. Not found: the DSpark default alone, never an error. Revert: INTARSIA_SPEC_DFLASH2_DEFAULT=0, or delete these lines.
+# k7 with the confidence cut (lane ink-metal-flip2, user decision 2026-11-27 "Flip both"; was k5): drafting stops once the product of the
+# drafts' candidate probabilities falls below 0.3 (the code's Metal default, INTARSIA_DFLASH_CUT), so a pass verifies 1-8 rows by
+# confidence: decode 1.126x k5 over the six cells (short 1.081, 1k 1.162, prose 1.154, chat 1.080, 4k 1.136, 16k 1.148), greedy ids
+# identical, sampled / memory / serve gates pass (docs/results/2026-11-27-inkling2-dflash-cut.md). Revert to k5: dflash2_k = 5 here (or
+# --spec-k 5) with INTARSIA_DFLASH_CUT=0.
 dflash2_draft = "Inkling-2-Mini-DFlash2"
-dflash2_k = 5
+dflash2_k = 7
 
 # 2048 on HIP (R9700, tatooine; user decision 2026-11-26 "Yes, flip it", with the tensor-core expert prefill and the flash prefill
 # attention, which are code defaults now: INTARSIA_HIP_INK_MOE_WMMA / INTARSIA_HIP_INK_ATTN_FLASH, unset = on): prefill on one R9700 at

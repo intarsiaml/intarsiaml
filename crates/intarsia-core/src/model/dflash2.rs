@@ -130,9 +130,24 @@ pub(super) fn cand_prob(top: &[(f32, usize)], i: usize) -> f32 {
     (top[i].0 - m).exp() / z
 }
 
-/// `INTARSIA_DFLASH_CUT`: unset, `0` or unparsable = off; a value in (0, 1] = the cut (lane ink-dflash-cut).
+/// `INTARSIA_DFLASH_CUT` when set: `0` or unparsable = off; a value in (0, 1] = the cut (lane ink-dflash-cut).
 pub(super) fn cut_env(v: Option<&str>) -> Option<f32> {
     v.and_then(|s| s.trim().parse::<f32>().ok()).filter(|&c| c > 0.0 && c <= 1.0)
+}
+
+/// The cut of a DFlash2 draft with a selector on Metal when `INTARSIA_DFLASH_CUT` is unset (lane ink-metal-flip2, user decision
+/// 2026-11-27 "Flip both"; with the recipe's `[tuning.metal] dflash2_k = 7`): 1.126x DFlash2 k5 over the six cells, ids identical
+/// (docs/results/2026-11-27-inkling2-dflash-cut.md). Every other backend: off unless set (HIP's device top-k path is unmeasured).
+pub(super) const CUT_DEFAULT_METAL: f32 = 0.3;
+
+/// The cut on `backend` and where it came from: `INTARSIA_DFLASH_CUT` (`env`) when set and not blank ([`cut_env`]; `0` turns
+/// Metal's default off), else [`CUT_DEFAULT_METAL`] on Metal, else off.
+pub(super) fn cut_resolve(backend: &str, env: Option<&str>) -> (Option<f32>, &'static str) {
+    match env.filter(|v| !v.trim().is_empty()) {
+        Some(v) => (cut_env(Some(v)), "INTARSIA_DFLASH_CUT"),
+        None if backend == "metal" => (Some(CUT_DEFAULT_METAL), "the Metal default; INTARSIA_DFLASH_CUT=0 turns it off"),
+        None => (None, ""),
+    }
 }
 
 /// Lane ink-dflash-cut: `INTARSIA_DFLASH_CONF_TRACE=1` prints [`Selector::conf_line`] for every draft on the host-candidate path
@@ -330,7 +345,7 @@ pub(super) struct Draft2 {
     /// `INTARSIA_DFLASH_DEVICE_TOPK=check`: the device top-k as unset, and the host's from the downloaded logits as well, every
     /// difference printed (`dflash2 topk check`): the GPU gate that the device candidates are the host's.
     pub(super) topk_check: bool,
-    /// Lane ink-dflash-cut (`INTARSIA_DFLASH_CUT`, off unless set): with a selector, stop drafting once the running product of the
+    /// Lane ink-dflash-cut (`INTARSIA_DFLASH_CUT`; Metal default 0.3 since lane ink-metal-flip2, else off unless set): with a selector, stop drafting once the running product of the
     /// drafts' candidate probabilities ([`cand_prob`]) falls below this; the cap stays `--spec-k`. Drafts only, output unchanged.
     pub(super) cut: Option<f32>,
     /// Lane dw (`INTARSIA_DFLASH_WIN_SPLIT`, on unless `=0`, the default since 2026-11-06): the block's attention calls set `OpAttrs::win_split`, so a backend with a split-KV
@@ -573,9 +588,10 @@ pub(super) fn load2(
         None
     };
     let win_split = std::env::var("INTARSIA_DFLASH_WIN_SPLIT").map_or(true, |v| v.trim() != "0");
-    let cut = cut_env(std::env::var("INTARSIA_DFLASH_CUT").ok().as_deref()).filter(|_| has_selector && spine_cfg.is_none());
+    let (cut, cut_src) = cut_resolve(b.name(), std::env::var("INTARSIA_DFLASH_CUT").ok().as_deref());
+    let cut = cut.filter(|_| has_selector && spine_cfg.is_none());
     if let Some(cut) = cut {
-        eprintln!("dflash: cut {cut} (INTARSIA_DFLASH_CUT): drafting stops once the product of the drafts' candidate probabilities falls below it (cap --spec-k)");
+        eprintln!("dflash: cut {cut} ({cut_src}): drafting stops once the product of the drafts' candidate probabilities falls below it (cap --spec-k)");
     }
     let embed_norm = dims.ink.is_some() && spine_cfg.is_none() && std::env::var("INTARSIA_DFLASH2_EMBED_NORM").map_or(true, |v| v.trim() != "0");
     let spine = match spine_cfg {
@@ -883,5 +899,14 @@ mod tests {
         assert_eq!(cut_env(Some("x")), None);
         assert_eq!(cut_env(Some("1.5")), None);
         assert_eq!(cut_env(Some(" 0.3 ")), Some(0.3));
+        // lane ink-metal-flip2: Metal defaults to 0.3 when unset or blank; the variable wins (`0` off); other backends off unless set
+        assert_eq!(cut_resolve("metal", None).0, Some(CUT_DEFAULT_METAL));
+        assert_eq!(cut_resolve("metal", Some(" ")).0, Some(CUT_DEFAULT_METAL));
+        assert_eq!(cut_resolve("metal", Some("0")).0, None);
+        assert_eq!(cut_resolve("metal", Some("0.5")).0, Some(0.5));
+        for b in ["hip", "cuda", "cpu"] {
+            assert_eq!(cut_resolve(b, None).0, None, "{b}: off unless set");
+            assert_eq!(cut_resolve(b, Some("0.3")).0, Some(0.3), "{b}: set");
+        }
     }
 }
