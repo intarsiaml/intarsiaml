@@ -20,7 +20,7 @@ cannot change. The candidates must still be bit-identical to the host's, or the 
 `crates/intarsia-core/src/model/dflash2.rs` `device_topk_resolve`: a backend with `supports_topk()` (HIP) keeps "on unless `0`";
 Metal takes the device top-k only with `INTARSIA_DFLASH_DEVICE_TOPK=1` or `=check` (opt-in; the trait is unchanged, so device
 sampling and DCoCo are untouched); every other backend stays on the host. A Metal load prints
-"dflash: candidates by the Metal device top-k (...)". Unit test in `dflash2.rs` `cut_env_parses`.
+"dflash: candidates by the Metal device top-k (...)". Unit test: `dflash2.rs` `cut_drafts_are_a_prefix_of_the_picks` (beside the cut resolve asserts).
 
 ## Gates (pre-registered before slot D)
 
