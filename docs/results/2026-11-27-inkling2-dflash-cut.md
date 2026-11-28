@@ -1,7 +1,8 @@
 # Inkling-2-Mini on Metal: a confidence cut for DFlash2 drafts (lane ink-dflash-cut, 2026-11-27)
 
 Status: **GO by the pre-registered rule: k7 + `INTARSIA_DFLASH_CUT=0.3` is 1.126x the Metal default (DFlash2 k5), every cell 1.08-1.16,
-ids identical in every process.** Merged opt-in; no default changed (making it the Metal default is the user's call).
+ids identical in every process.** Opt-in, PR #556; no default changed (making it the Metal default is the user's call, after the ready
+gates of slot R).
 
 Turn it on: `INTARSIA_DFLASH_CUT=0.3 intarsia generate|serve ... --backend metal --spec dflash --spec-draft <Inkling-2-Mini-DFlash2> --spec-k 7`.
 Off: unset the variable (or `0`).
@@ -38,7 +39,9 @@ k7 trace and its rerun (`dfl7b`) give the identical pass stream.
 
 cap 7, `p16`, tau 0.3 by class: short 1.106, 1k 1.116, 4k 1.148, 16k 1.149, prose 1.204, code 1.137 (mean verify rows 4.55 vs 6). cap 5,
 tau 0.2-0.3: 1.063. `p16` is free (16 candidates already on the host); `p_full` needs a full-row exp pass, which in the trace build raised
-host select from 0.52 to 2.7 ms a pass. So the rule uses `p16`. Full grid: `raw/sim-out-b.txt`.
+host select from 0.52 to 2.7 ms a pass. So the rule uses `p16`. Full grid: `raw/sim-out-b.txt`, reproduced from the repo by
+`python3 raw/sim.py raw/T/dfl7b.err docs/results/2026-11-26-inkling2-metal-dflash2/raw/s2-sweep` (identical output; add `raw/T/dfl5.err` for
+the k5 check).
 
 ## The change
 
