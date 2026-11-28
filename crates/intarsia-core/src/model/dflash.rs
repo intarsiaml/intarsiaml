@@ -1018,14 +1018,36 @@ impl Model {
                     Some(sl) if d2.topk.is_some() => {
                         let tops = self.dflash2_candidates(d2, t - 1, v, 0)?;
                         t_dl = std::time::Instant::now();
-                        sl.pick(&tops, &hp(sl)?, next)
+                        match d2.cut {
+                            Some(cut) => sl.pick_cut(&tops, &hp(sl)?, next, k, cut),
+                            None => sl.pick(&tops, &hp(sl)?, next),
+                        }
+                    }
+                    // lane ink-dflash-cut: the host path with the cut fetches a row's logits only when the walk reaches it
+                    Some(sl) if d2.cut.is_some() && !super::dflash2::conf_trace() => {
+                        let hpv = hp(sl)?;
+                        let mut lb = vec![0u8; v * 4];
+                        let mut fetch = |p: usize, row: &mut Vec<f32>| -> Result<()> {
+                            self.backend.download(&ws.logits, p * v * 4, &mut lb, self.stream)?;
+                            row.clear();
+                            row.extend(lb.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])));
+                            Ok(())
+                        };
+                        let d = sl.select_cut(t - 1, &mut fetch, &hpv, next, k, d2.cut.unwrap_or(0.0))?;
+                        t_dl = std::time::Instant::now();
+                        d
                     }
                     Some(sl) => {
                         let mut lb = vec![0u8; (t - 1) * v * 4];
                         self.backend.download(&ws.logits, 0, &mut lb, self.stream)?;
                         let logits: Vec<f32> = lb.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
                         t_dl = std::time::Instant::now();
-                        sl.select(&logits, v, &hp(sl)?, next)
+                        let hpv = hp(sl)?;
+                        let drafts = sl.select(&logits, v, &hpv, next);
+                        if super::dflash2::conf_trace() {
+                            eprintln!("{}", sl.conf_line(&logits, v, &hpv, next));
+                        }
+                        drafts
                     }
                 }
             };

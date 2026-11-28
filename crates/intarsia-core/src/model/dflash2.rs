@@ -121,6 +121,27 @@ pub(super) fn merge_topk(parts: &[&[(f32, usize)]], k: usize) -> Vec<(f32, usize
     all
 }
 
+/// Lane ink-dflash-cut: softmax over a row's candidates' raw logits (`top`, largest first) at candidate `i`, the cut's estimate of
+/// the probability that the draft `top[i]` is accepted (`p16` of `INTARSIA_DFLASH_CONF_TRACE`; on Inkling-2-Mini within 0.001 of the
+/// whole-row softmax in the simulation, docs/results/2026-11-27-inkling2-dflash-cut.md).
+pub(super) fn cand_prob(top: &[(f32, usize)], i: usize) -> f32 {
+    let m = top.iter().map(|t| t.0).fold(f32::NEG_INFINITY, f32::max);
+    let z: f32 = top.iter().map(|t| (t.0 - m).exp()).sum();
+    (top[i].0 - m).exp() / z
+}
+
+/// `INTARSIA_DFLASH_CUT`: unset, `0` or unparsable = off; a value in (0, 1] = the cut (lane ink-dflash-cut).
+pub(super) fn cut_env(v: Option<&str>) -> Option<f32> {
+    v.and_then(|s| s.trim().parse::<f32>().ok()).filter(|&c| c > 0.0 && c <= 1.0)
+}
+
+/// Lane ink-dflash-cut: `INTARSIA_DFLASH_CONF_TRACE=1` prints [`Selector::conf_line`] for every draft on the host-candidate path
+/// (Metal; diagnostic, output unchanged).
+pub(super) fn conf_trace() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("INTARSIA_DFLASH_CONF_TRACE").is_some_and(|v| v != "0"))
+}
+
 impl Selector {
     /// Drafts for `rows = logits.len() / v` block rows: `logits` `[rows, v]`, `hp` `[rows, rank]`, `anchor` the token before row 0.
     pub(super) fn select(&self, logits: &[f32], v: usize, hp: &[f32], anchor: u32) -> Vec<u32> {
@@ -141,22 +162,141 @@ impl Selector {
         let mut prev = anchor as usize;
         let mut out = Vec::with_capacity(tops.len());
         for (p, top) in tops.iter().enumerate() {
+            prev = top[self.pick_one(top, &hp[p * self.rank..(p + 1) * self.rank], prev)].1;
+            out.push(prev as u32);
+        }
+        out
+    }
+
+    /// One row of [`Selector::pick`]'s walk: the index in `top` of the candidate it takes after `prev` (`h` the row's projected
+    /// hidden). The first of equal scores wins.
+    fn pick_one(&self, top: &[(f32, usize)], h: &[f32], prev: usize) -> usize {
+        let r = self.rank;
+        let pc = &self.pred[prev * r..(prev + 1) * r];
+        let mut best = (f32::NEG_INFINITY, 0usize);
+        for (i, &(u, c)) in top.iter().enumerate() {
+            let sc = &self.succ[c * r..(c + 1) * r];
+            let mut e = 0f32;
+            for j in 0..r {
+                e += bf(pc[j]) * h[j] * bf(sc[j]);
+            }
+            let score = if self.post_cap > 0.0 { self.post_cap * ((u + e) / self.post_cap).tanh() } else { u + e };
+            if score > best.0 {
+                best = (score, i);
+            }
+        }
+        best.1
+    }
+
+    /// Lane ink-dflash-cut (`INTARSIA_DFLASH_CUT`): [`Selector::pick`]'s walk over at most `k` rows, stopping at the first row whose
+    /// draft takes the running product of [`cand_prob`] below `cut` (that draft is dropped). Always a prefix of `pick`'s drafts, so
+    /// the emitted tokens are unchanged (every one is a verify row's argmax); only the verify pass gets fewer rows.
+    pub(super) fn pick_cut(&self, tops: &[Vec<(f32, usize)>], hp: &[f32], anchor: u32, k: usize, cut: f32) -> Vec<u32> {
+        let mut prev = anchor as usize;
+        let mut out = Vec::with_capacity(k.min(tops.len()));
+        let mut prod = 1f32;
+        for (p, top) in tops.iter().enumerate().take(k) {
+            let i = self.pick_one(top, &hp[p * self.rank..(p + 1) * self.rank], prev);
+            prod *= cand_prob(top, i);
+            if prod < cut {
+                break;
+            }
+            prev = top[i].1;
+            out.push(prev as u32);
+        }
+        out
+    }
+
+    /// [`Selector::select`] with the cut of [`Selector::pick_cut`] over `rows` block rows: row `p`'s logits are fetched (`fetch(p,
+    /// buf)`, the row's `v` floats) and its candidates taken only when the walk reaches it.
+    pub(super) fn select_cut(
+        &self,
+        rows: usize,
+        fetch: &mut dyn FnMut(usize, &mut Vec<f32>) -> crate::Result<()>,
+        hp: &[f32],
+        anchor: u32,
+        k: usize,
+        cut: f32,
+    ) -> crate::Result<Vec<u32>> {
+        let mut prev = anchor as usize;
+        let mut out = Vec::with_capacity(k.min(rows));
+        let mut prod = 1f32;
+        let (mut row, mut top) = (Vec::new(), Vec::with_capacity(self.top_k + 1));
+        for p in 0..rows.min(k) {
+            fetch(p, &mut row)?;
+            top.clear();
+            row_topk(&row, self.top_k, 0, &mut top);
+            let i = self.pick_one(&top, &hp[p * self.rank..(p + 1) * self.rank], prev);
+            prod *= cand_prob(&top, i);
+            if prod < cut {
+                break;
+            }
+            prev = top[i].1;
+            out.push(prev as u32);
+        }
+        Ok(out)
+    }
+
+    /// Lane ink-dflash-cut diagnostic (`INTARSIA_DFLASH_CONF_TRACE=1`, stderr): one line per draft, per block row `draft:p_full:p_raw1:
+    /// p_sel:margin` (`p_full` = softmax over the whole row at the draft's raw logit, `p_raw1` = the row's top-1 softmax probability,
+    /// `p_sel` / `margin` from [`Selector::pick_conf`]). The engine's `spec: token ... accepted` line follows (`INTARSIA_SPEC_TRACE=1`).
+    pub(super) fn conf_line(&self, logits: &[f32], v: usize, hp: &[f32], anchor: u32) -> String {
+        let rows = logits.len() / v;
+        let tops: Vec<Vec<(f32, usize)>> = (0..rows)
+            .map(|p| {
+                let mut top = Vec::with_capacity(self.top_k + 1);
+                row_topk(&logits[p * v..(p + 1) * v], self.top_k, 0, &mut top);
+                top
+            })
+            .collect();
+        let conf = self.pick_conf(&tops, hp, anchor);
+        let mut s = String::from("spec: dflash2 conf");
+        for (p, &(tok, u, psel, margin)) in conf.iter().enumerate() {
+            let row = &logits[p * v..(p + 1) * v];
+            let m = tops[p][0].0;
+            let lse = m + row.iter().map(|&x| (x - m).exp()).sum::<f32>().ln();
+            let lse16 = m + tops[p].iter().map(|&(x, _)| (x - m).exp()).sum::<f32>().ln();
+            s.push_str(&format!(
+                " {tok}:{:.5}:{:.5}:{:.5}:{:.3}:{:.5}",
+                (u - lse).exp(),
+                (m - lse).exp(),
+                psel,
+                margin,
+                (u - lse16).exp()
+            ));
+        }
+        s
+    }
+
+    /// Lane ink-dflash-cut diagnostic (`INTARSIA_DFLASH_CONF_TRACE=1`): [`Selector::pick`]'s walk, and per row `(draft, raw logit of the
+    /// draft, softmax of the corrected scores over the row's candidates at the draft, best minus second corrected score)`. Trace only:
+    /// the drafts still come from `pick`.
+    pub(super) fn pick_conf(&self, tops: &[Vec<(f32, usize)>], hp: &[f32], anchor: u32) -> Vec<(u32, f32, f32, f32)> {
+        let mut prev = anchor as usize;
+        let mut out = Vec::with_capacity(tops.len());
+        for (p, top) in tops.iter().enumerate() {
             let (r, h) = (self.rank, &hp[p * self.rank..(p + 1) * self.rank]);
             let pc = &self.pred[prev * r..(prev + 1) * r];
-            let mut best = (f32::NEG_INFINITY, top[0].1);
+            let mut scores = Vec::with_capacity(top.len());
             for &(u, c) in top {
                 let sc = &self.succ[c * r..(c + 1) * r];
                 let mut e = 0f32;
                 for j in 0..r {
                     e += bf(pc[j]) * h[j] * bf(sc[j]);
                 }
-                let score = if self.post_cap > 0.0 { self.post_cap * ((u + e) / self.post_cap).tanh() } else { u + e };
-                if score > best.0 {
-                    best = (score, c);
+                scores.push(if self.post_cap > 0.0 { self.post_cap * ((u + e) / self.post_cap).tanh() } else { u + e });
+            }
+            let mut bi = 0;
+            for (i, &s) in scores.iter().enumerate() {
+                if s > scores[bi] {
+                    bi = i;
                 }
             }
-            prev = best.1;
-            out.push(prev as u32);
+            let mx = scores[bi];
+            let z: f32 = scores.iter().map(|&s| (s - mx).exp()).sum();
+            let second = scores.iter().enumerate().filter(|&(i, _)| i != bi).map(|(_, &s)| s).fold(f32::NEG_INFINITY, f32::max);
+            prev = top[bi].1;
+            out.push((prev as u32, top[bi].0, 1.0 / z, mx - second));
         }
         out
     }
@@ -190,6 +330,9 @@ pub(super) struct Draft2 {
     /// `INTARSIA_DFLASH_DEVICE_TOPK=check`: the device top-k as unset, and the host's from the downloaded logits as well, every
     /// difference printed (`dflash2 topk check`): the GPU gate that the device candidates are the host's.
     pub(super) topk_check: bool,
+    /// Lane ink-dflash-cut (`INTARSIA_DFLASH_CUT`, off unless set): with a selector, stop drafting once the running product of the
+    /// drafts' candidate probabilities ([`cand_prob`]) falls below this; the cap stays `--spec-k`. Drafts only, output unchanged.
+    pub(super) cut: Option<f32>,
     /// Lane dw (`INTARSIA_DFLASH_WIN_SPLIT`, on unless `=0`, the default since 2026-11-06): the block's attention calls set `OpAttrs::win_split`, so a backend with a split-KV
     /// kernel for the sliding window (HIP `attn_decode_bf16_window_splitkv`) takes them; the other backends ignore it. Only this draft's
     /// attention can differ in bits; the target's attention never sets it.
@@ -430,6 +573,10 @@ pub(super) fn load2(
         None
     };
     let win_split = std::env::var("INTARSIA_DFLASH_WIN_SPLIT").map_or(true, |v| v.trim() != "0");
+    let cut = cut_env(std::env::var("INTARSIA_DFLASH_CUT").ok().as_deref()).filter(|_| has_selector && spine_cfg.is_none());
+    if let Some(cut) = cut {
+        eprintln!("dflash: cut {cut} (INTARSIA_DFLASH_CUT): drafting stops once the product of the drafts' candidate probabilities falls below it (cap --spec-k)");
+    }
     let embed_norm = dims.ink.is_some() && spine_cfg.is_none() && std::env::var("INTARSIA_DFLASH2_EMBED_NORM").map_or(true, |v| v.trim() != "0");
     let spine = match spine_cfg {
         Some(sc) => Some(Box::new(super::dspine::load_spine(dl, sc, b, dims, add_bytes, rows, act)?)),
@@ -441,6 +588,7 @@ pub(super) fn load2(
         cand,
         topk,
         topk_check,
+        cut,
         win_split,
         selector,
         sel_out,
@@ -652,5 +800,88 @@ mod tests {
         let tops = vec![vec![(500.0f32, 3usize), (400.0, 5)]];
         assert_eq!(30.0f32 * (500.0f32 / 30.0).tanh(), 30.0f32 * (400.0f32 / 30.0).tanh(), "the tie this case needs");
         assert_eq!(s.pick(&tops, &vec![0.0; s.rank], 0), vec![3]);
+    }
+
+    /// Lane ink-dflash-cut: the confidence trace walks the drafts `pick` walks (capped and not, the tie case included), and its
+    /// probabilities are probabilities.
+    #[test]
+    fn pick_conf_walks_as_pick() {
+        for seed in 0..20u64 {
+            for cap in [0.0f32, 30.0] {
+                let (s, v) = sel(cap, seed);
+                let mut rng = crate::rng::SplitMix64::new(2000 + seed);
+                let rows = 7;
+                let scale = [1.0f32, 10.0, 25.0, 40.0][seed as usize % 4];
+                let logits: Vec<f32> = (0..rows * v).map(|_| scale * rng.normal()).collect();
+                let hp: Vec<f32> = (0..rows * s.rank).map(|_| rng.normal()).collect();
+                let tops: Vec<Vec<(f32, usize)>> = (0..rows)
+                    .map(|p| {
+                        let mut t = Vec::new();
+                        row_topk(&logits[p * v..(p + 1) * v], s.top_k, 0, &mut t);
+                        t
+                    })
+                    .collect();
+                let anchor = (seed as u32) % v as u32;
+                let conf = s.pick_conf(&tops, &hp, anchor);
+                let toks: Vec<u32> = conf.iter().map(|c| c.0).collect();
+                assert_eq!(toks, s.pick(&tops, &hp, anchor), "seed {seed} cap {cap}");
+                assert!(conf.iter().all(|c| c.2 > 0.0 && c.2 <= 1.0 && c.3 >= 0.0), "seed {seed} cap {cap}");
+                assert!(s.conf_line(&logits, v, &hp, anchor).starts_with("spec: dflash2 conf "));
+            }
+        }
+        let (mut s, _) = sel(30.0, 1);
+        s.succ.iter_mut().for_each(|x| *x = 0);
+        let tops = vec![vec![(500.0f32, 3usize), (400.0, 5)]];
+        assert_eq!(s.pick_conf(&tops, &vec![0.0; s.rank], 0)[0].0, 3);
+    }
+
+    /// Lane ink-dflash-cut: the cut's drafts are always a prefix of `pick`'s (capped at k), equal to them with a vanishing cut, and
+    /// the host-fetch form (`select_cut`) gives the device-candidate form's (`pick_cut`) drafts; candidate probabilities sum to 1.
+    #[test]
+    fn cut_drafts_are_a_prefix_of_the_picks() {
+        let mut shorter = 0;
+        for seed in 0..40u64 {
+            for cap in [0.0f32, 30.0] {
+                let (s, v) = sel(cap, seed);
+                let mut rng = crate::rng::SplitMix64::new(3000 + seed);
+                let rows = 7;
+                let scale = [1.0f32, 3.0, 10.0, 40.0][seed as usize % 4];
+                let logits: Vec<f32> = (0..rows * v).map(|_| scale * rng.normal()).collect();
+                let hp: Vec<f32> = (0..rows * s.rank).map(|_| rng.normal()).collect();
+                let tops: Vec<Vec<(f32, usize)>> = (0..rows)
+                    .map(|p| {
+                        let mut t = Vec::new();
+                        row_topk(&logits[p * v..(p + 1) * v], s.top_k, 0, &mut t);
+                        t
+                    })
+                    .collect();
+                let anchor = (seed as u32) % v as u32;
+                let full = s.pick(&tops, &hp, anchor);
+                for t in &tops {
+                    let sum: f32 = (0..t.len()).map(|i| cand_prob(t, i)).sum();
+                    assert!((sum - 1.0).abs() < 1e-5, "seed {seed}: probabilities sum to {sum}");
+                }
+                for k in [1usize, 3, 5, 7] {
+                    assert_eq!(s.pick_cut(&tops, &hp, anchor, k, 1e-30), full[..k].to_vec(), "seed {seed} cap {cap} k {k}");
+                    for cut in [0.05f32, 0.3, 0.7, 1.0] {
+                        let d = s.pick_cut(&tops, &hp, anchor, k, cut);
+                        assert!(d.len() <= k && d[..] == full[..d.len()], "seed {seed} cap {cap} k {k} cut {cut}: {d:?} vs {full:?}");
+                        shorter += (d.len() < k) as usize;
+                        let mut fetch = |p: usize, row: &mut Vec<f32>| -> crate::Result<()> {
+                            row.clear();
+                            row.extend_from_slice(&logits[p * v..(p + 1) * v]);
+                            Ok(())
+                        };
+                        assert_eq!(s.select_cut(rows, &mut fetch, &hp, anchor, k, cut).unwrap(), d, "seed {seed} k {k} cut {cut}");
+                    }
+                }
+            }
+        }
+        assert!(shorter > 0, "some case must actually cut");
+        assert_eq!(cut_env(None), None);
+        assert_eq!(cut_env(Some("0")), None);
+        assert_eq!(cut_env(Some("x")), None);
+        assert_eq!(cut_env(Some("1.5")), None);
+        assert_eq!(cut_env(Some(" 0.3 ")), Some(0.3));
     }
 }

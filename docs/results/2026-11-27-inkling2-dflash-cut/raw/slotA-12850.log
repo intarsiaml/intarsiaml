@@ -1,0 +1,24 @@
+fleetq: #12850 waiting (#2 in line): in line behind #12849 "p6-microbench2" (josef@endor) on endor
+fleetq: #12850 waiting (#1 in line): needs endor to itself; running there: #12849 "p6-microbench2" (josef@endor)
+fleetq: #12850 running on endor: bash docs/results/2026-11-27-inkling2-dflash-cut/raw/slotA.sh
+slot A start 21:23:20 binary md5 77051af71927dadbdd9c50dcc3cc265f git b93823f54
+dfl5@r1 rc 0 21:25:05 t+105s |  | decode overall: 4261 tokens after the first, 41247 ms (103.30 tok/s) | spec: verify passes=1215 proposed=6042 accepted=3042 (acceptance 50.3%, 3.50 tokens per pass)
+cut7@r1 rc 0 21:26:54 t+214s | dflash: cut 0.3 | decode overall: 4261 tokens after the first, 44650 ms (95.43 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+cut7@r2 rc 0 21:28:36 t+316s | dflash: cut 0.3 | decode overall: 4261 tokens after the first, 40320 ms (105.68 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+dfl5@r2 rc 0 21:30:27 t+427s |  | decode overall: 4261 tokens after the first, 48648 ms (87.59 tok/s) | spec: verify passes=1215 proposed=6042 accepted=3042 (acceptance 50.3%, 3.50 tokens per pass)
+dfl5@r3 rc 0 21:32:17 t+537s |  | decode overall: 4261 tokens after the first, 47951 ms (88.86 tok/s) | spec: verify passes=1215 proposed=6042 accepted=3042 (acceptance 50.3%, 3.50 tokens per pass)
+cut7@r3 rc 0 21:34:01 t+641s | dflash: cut 0.3 | decode overall: 4261 tokens after the first, 41074 ms (103.74 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+cut7@r4 rc 0 21:35:43 t+743s | dflash: cut 0.3 | decode overall: 4261 tokens after the first, 40565 ms (105.04 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+dfl5@r4 rc 0 21:37:32 t+852s |  | decode overall: 4261 tokens after the first, 46610 ms (91.42 tok/s) | spec: verify passes=1215 proposed=6042 accepted=3042 (acceptance 50.3%, 3.50 tokens per pass)
+== ids gate (g3.json, --ignore-eos)
+g-off rc 0 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+g-dfl5 rc 0 | spec: verify passes=203 proposed=1008 accepted=560 (acceptance 55.6%, 3.76 tokens per pass)
+g-cut7 rc 0 | spec: verify passes=193 proposed=758 accepted=565 (acceptance 74.5%, 3.93 tokens per pass)
+g-cut5 rc 0 | spec: verify passes=210 proposed=728 accepted=548 (acceptance 75.3%, 3.61 tokens per pass)
+| prompt | g-off.err | g-dfl5.err | g-cut7.err | g-cut5.err | n ids | equal |
+|---|---|---|---|---|---|---|
+| code | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | [256, 256, 256, 256] | yes |
+| len4k | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | [256, 256, 256, 256] | yes |
+| len16k | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | [256, 256, 256, 256] | yes |
+slot A end 21:39:03 t+943s
+fleetq: #12850 done (exit 0)

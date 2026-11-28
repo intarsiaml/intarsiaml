@@ -1,0 +1,30 @@
+fleetq: #12862 waiting (#3 in line): in line behind #12860 "p6-loop-attn-verify2" (josef@endor) on endor
+fleetq: #12862 waiting (#2 in line): endor is held exclusively by #12860 "p6-loop-attn-verify2" (josef@endor); then in line behind #12861 "p6-t1-fast-top64" (josef@endor) on endor
+fleetq: #12862 waiting (#1 in line): needs endor to itself; running there: #12861 "p6-t1-fast-top64" (josef@endor)
+fleetq: #12862 running on endor: bash docs/results/2026-11-27-inkling2-dflash-cut/raw/slotR.sh
+slot R start 21:50:07 binary md5 77051af71927dadbdd9c50dcc3cc265f git e8f2cbe1f
+== R1: sampled, seed 7, 32 tokens, --ignore-eos (off vs cut7; cut7 traced)
+off T1.0 k0 n100 rc 0 t+60s | ids lines 100 | drafted-pass lines 0 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) 
+off T0.6 k0 n60 rc 0 t+96s | ids lines 60 | drafted-pass lines 0 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) 
+cut7 T1.0 k0 n100 rc 0 t+152s | ids lines 100 | drafted-pass lines 0 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) 
+cut7 T0.6 k0 n60 rc 0 t+187s | ids lines 60 | drafted-pass lines 0 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) 
+T0.6-k0      cut7   vs off: ref 60 / arm 60 prompts, compared 60, differ 0 []
+T1.0-k0      cut7   vs off: ref 100 / arm 100 prompts, compared 100, differ 0 []
+TOTAL cut7 vs off: compared 160, differ 0
+== R2: memory / KV capacity
+mem1 dfl5 rc 0 max-seq 4194304 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 4.2s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.27 GB, context 615458 tokens (recipe builtin:inkling2, chat template chat_template.jinja) |  |          48971634384  peak memory footprint 
+mem2 cut7 rc 0 max-seq 4194304 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 4.2s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.27 GB, context 615458 tokens (recipe builtin:inkling2, chat template chat_template.jinja) | dflash: cut 0.3 (INTARSIA_DFLASH_CUT): drafting stops once the product of the drafts' candidate probabilities falls below it (cap --spec-k) |          48821524152  peak memory footprint 
+mem3 dfl5 rc 0 max-seq 4194304 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 4.2s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.27 GB, context 615458 tokens (recipe builtin:inkling2, chat template chat_template.jinja) |  |          48823375568  peak memory footprint 
+mem4 cut7 rc 0 max-seq 4194304 | loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 4.1s: 24 layers, hidden 2304, act bf16, kv bf16, weights 16.27 GB, context 615458 tokens (recipe builtin:inkling2, chat template chat_template.jinja) | dflash: cut 0.3 (INTARSIA_DFLASH_CUT): drafting stops once the product of the drafts' candidate probabilities falls below it (cap --spec-k) |          48821770008  peak memory footprint 
+== R3: serve --max-batch 1, cut7 vs --spec off, multi-turn
+cut7-start1 up after 192 s | loaded thinkingmachines/Inkling-2-Mini on metal (Apple M5 Max) in 191.5s, context 4096 tokens | dflash: cut 0.3 (INTARSIA_DFLASH_CUT): drafting stops once the product of the drafts' candidate probabilities falls below it (cap --spec-k)|--spec dflash on metal: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)|
+chat: {'chat0-t1': (128, 31, 0), 'chat0-t2': (128, 47, 30), 'chat0-t3': (128, 66, 47), 'chat1-t1': (128, 29, 0), 'chat1-t2': (128, 44, 27), 'chat1-t3': (128, 60, 43), 'ids0-t1': (128, 93, 0), 'ids0-t2': (128, 256, 93), 'ids0-t3': (128, 424, 256), 'ids1-t1': (128, 300, 0), 'ids1-t2': (128, 468, 300), 'ids1-t3': (128, 631, 468)}
+cut7-start1 stopped t+432s | 
+off-start1 up after 5 s | loaded thinkingmachines/Inkling-2-Mini on metal (Apple M5 Max) in 4.4s, context 4096 tokens | 
+chat: {'chat0-t1': (128, 31, 0), 'chat0-t2': (128, 47, 30), 'chat0-t3': (128, 66, 47), 'chat1-t1': (128, 29, 0), 'chat1-t2': (128, 44, 27), 'chat1-t3': (128, 60, 43), 'ids0-t1': (128, 93, 0), 'ids0-t2': (128, 256, 93), 'ids0-t3': (128, 424, 256), 'ids1-t1': (128, 300, 0), 'ids1-t2': (128, 468, 300), 'ids1-t3': (128, 631, 468)}
+off-start1 stopped t+462s | 
+cmpchat /opt/code/intarsiaml/.worktrees/ink-dflash-cut/docs/results/2026-11-27-inkling2-dflash-cut/raw/R/chat-cut7-start1.json vs /opt/code/intarsiaml/.worktrees/ink-dflash-cut/docs/results/2026-11-27-inkling2-dflash-cut/raw/R/chat-off-start1.json: turns 12 / 12, differ 0 []
+cached_tokens a: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+cached_tokens b: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+slot R end 21:57:52 t+465s
+fleetq: #12862 done (exit 0)
