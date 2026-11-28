@@ -1,0 +1,21 @@
+fleetq: #12923 running on endor: bash docs/results/2026-11-27-inkling2-metal-flip2/raw/build.sh
+[build] tests 23:12:57 git 30420f61c dirty 0
+test model::dflash2::tests::selector_post_softcap_keeps_greedy_picks ... ok
+test model::dflash2::tests::pick_conf_walks_as_pick ... ok
+test model::dflash2::tests::cut_drafts_are_a_prefix_of_the_picks ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 286 filtered out; finished in 0.00s
+[build] core dflash2 tests rc 0 23:13:05
+test recipe_dflash2_default_finds_the_drafter_or_falls_back ... FAILED
+thread 'recipe_dflash2_default_finds_the_drafter_or_falls_back' (134124270) panicked at crates/intarsia-models/tests/inkling2_dflash2.rs:780:5:
+test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 69.38s
+error: test failed, to rerun pass `-p intarsia-models --test inkling2_dflash2`
+[build] models tests rc 101 23:14:31
+[build] metal cli 23:14:31
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 16.76s
+MD5 (/opt/code/intarsiaml/.worktrees/ink-metal-flip2/.scratch/bin/intarsia-f2) = b3fe395f5f39e90fb417c98f837e8203
+[build] test exe 23:14:48
+MD5 (/opt/code/intarsiaml/.worktrees/ink-metal-flip2/.scratch/bin/t-ps) = 19afa5113e4fd8e801ee5f6534d3b784
+[build] done 23:15:01
+fleetq: #12923 done (exit 0)
