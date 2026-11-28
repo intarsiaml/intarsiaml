@@ -61,5 +61,15 @@ Slot P: fleetq #12805, endor `--exclusive`, 20:35:41 to 20:47:47 (726 s). Binary
   4k 1.031. The verdict does not depend on block 1.
 - **The 11-22 4k fail (0.956) does not reproduce.** With idle gaps, the split is +3 % at every length, which matches the trace's
   -3.5 % GPU time per chunk. The 11-22 result was most likely the box's power state.
+- **Coverage of other callers (code read, not run):**
+  - **Batched decode** never reaches the split. Metal registers `ink_kv_prologue_bf16` without a row-table form (`kernels.rs`,
+    the `Op::InkKvPrologue` entry), and a call with a row table selects only row-table kernels. Batched decode on Metal runs the
+    fused `InkAttnDecode`. Decode calls also have 16 rows or fewer, which `prologue_split` excludes.
+  - **Packed / batched prefill** reaches it in the same call shape. `InkKvPrologue` runs once per segment on its own rows and
+    position, with no row table (`model/inkling2.rs`, `InkPacked`), which is the call P1 tests bitwise (17-2048 rows, positions 0
+    and past the tau floor / ring wrap).
+  - `launch_ink_prologue` sets no row-table field of `InkP` (`..Default::default()`), and `ink_kv_prologue_bf16` reads none.
+- **Not covered:** 4096-row chunks (`INTARSIA_INK_LONG_CHUNK=1`, opt-in): P1 goes up to 2048 rows. Also serve-path TTFT and
+  batched prefill timing.
 - **Decision rule (above):** P1-P3 pass, so a PR with the split opt-in. Turning it on by default is the user's call: bitwise, own
   commit, `INTARSIA_INK_PROLOGUE_SPLIT=0` as the revert.
