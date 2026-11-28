@@ -1,0 +1,54 @@
+fleetq: #12927 running on endor: bash docs/results/2026-11-28-inkling2-metal-dtopk/raw/slotD.sh
+slot D start 00:00:00 binary md5 978535cb0e6db1bcae90b7d00114e921 commit 648dc9722 git 648dc9722
+== D0: draft phase trace, speed.json, 256 tokens, EOS honoured, INTARSIA_SPEC_TRACE=1 (no conf trace): dflt vs dtopk
+t-dflt rc 0 t+54s | dflash: cut 0.3 (the Metal default; INTARSIA_DFLASH_CUT=0 turns it off): drafting stops once the product of the drafts' |
+t-dtopk rc 0 t+111s | dflash: candidates by the Metal device top-k (INTARSIA_DFLASH_DEVICE_TOPK=1, opt-in)|dflash: cut 0.3 (the Metal default; INTARSIA_DFLASH_CUT=0 turns it off): drafting stops once the product of the drafts' |
+| file | passes | flush | block | head | selproj | dl | select | total | dl+select |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| t-dflt.err | 1231 | 0.716 | 2.514 | 1.916 | 0.209 | 0.421 | 0.000 | 5.858 | 0.421 |
+| t-dtopk.err | 1231 | 0.761 | 2.921 | 2.105 | 0.230 | 0.306 | 0.021 | 6.509 | 0.328 |
+== D1: candidates check, g3.json + speed.json, INTARSIA_DFLASH_DEVICE_TOPK=check
+c-g3 rc 0 t+132s | checks 198 | rows differing 0 | spec: verify passes=193 proposed=758 accepted=565 (acceptance 74.5%, 3.93 tokens per pass)
+c-speed rc 0 t+190s | checks 1231 | rows differing 0 | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+== D2: greedy ids, g3.json (code, len4k, len16k), 256 tokens, --ignore-eos
+g-off rc 0 t+214s | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) |          20287120320  peak memory footprint
+g-dflt rc 0 t+235s | spec: verify passes=193 proposed=758 accepted=565 (acceptance 74.5%, 3.93 tokens per pass) |          20318217416  peak memory footprint
+g-dtopk rc 0 t+255s | spec: verify passes=193 proposed=758 accepted=565 (acceptance 74.5%, 3.93 tokens per pass) |          20317971800  peak memory footprint
+| prompt | g-off.err | g-dflt.err | g-dtopk.err | n ids | equal |
+|---|---|---|---|---|---|
+| code | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | [256, 256, 256] | yes |
+| len4k | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | [256, 256, 256] | yes |
+| len16k | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | [256, 256, 256] | yes |
+== D3: decode ABBA x 4, speed.json (19 prompts, 256 tokens, EOS honoured), 45 s idle before each
+dflt@r1 rc 0 00:05:54 t+354s | decode overall: 4261 tokens after the first, 38597 ms (110.40 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+dtopk@r1 rc 0 00:07:30 t+450s | decode overall: 4261 tokens after the first, 36566 ms (116.53 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+dtopk@r2 rc 0 00:09:06 t+546s | decode overall: 4261 tokens after the first, 36635 ms (116.31 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+dflt@r2 rc 0 00:10:43 t+643s | decode overall: 4261 tokens after the first, 36818 ms (115.73 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+dflt@r3 rc 0 00:12:18 t+738s | decode overall: 4261 tokens after the first, 36277 ms (117.46 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+dtopk@r3 rc 0 00:13:51 t+831s | decode overall: 4261 tokens after the first, 34244 ms (124.43 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+dtopk@r4 rc 0 00:15:24 t+924s | decode overall: 4261 tokens after the first, 34370 ms (123.97 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+dflt@r4 rc 0 00:16:58 t+1018s | decode overall: 4261 tokens after the first, 34646 ms (122.99 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+dtopk vs dflt: reps ['r1', 'r2', 'r3', 'r4'], 19 prompts each, all complete: True, ids identical across every process (both arms): True
+| cell | ratio | 95 % CI | per rep |
+|---|---:|---|---|
+| short | **1.043** | [0.979-1.111] | 1.086 1.011 1.072 1.005 |
+| 1k | **1.023** | [0.964-1.085] | 1.009 1.008 1.080 0.995 |
+| prose | **1.011** | [0.997-1.025] | 1.012 0.998 1.014 1.018 |
+| chat | **1.038** | [0.980-1.099] | 1.069 1.010 1.072 1.002 |
+| 4k | **1.028** | [0.973-1.086] | 1.022 0.993 1.079 1.021 |
+| 16k | **1.007** | [1.004-1.011] | 1.009 1.005 1.010 1.006 |
+mean of the six cells: geo 1.025, arith 1.025; per-rep geo means 1.034 1.004 1.054 1.008 -> 1.025 [0.988-1.063]
+cells with CI upper bound < 0.99: none; cells faster by the point estimate: ['short', '1k', 'prose', 'chat', '4k', '16k']
+VERDICT by the pre-registered rule: GO
+== D4: serve --max-batch 1, dtopk vs --spec off, multi-turn
+mb1-dtopk up after 196 s | dflash: candidates by the Metal device top-k (INTARSIA_DFLASH_DEVICE_TOPK=1, opt-in)|dflash: cut 0.3 (the Metal default; INTARSIA_DFLASH_CUT=0 turns it off): drafting stops once the product of the drafts' candidate probabilities falls below it (|admission on plan shapes: 42 kernel(s) checked, 170 case(s) run, 0 cached|
+chat: {'chat0-t1': (128, 31, 0), 'chat0-t2': (128, 47, 30), 'chat0-t3': (128, 66, 47), 'chat1-t1': (128, 29, 0), 'chat1-t2': (128, 44, 27), 'chat1-t3': (128, 60, 43), 'ids0-t1': (128, 93, 0), 'ids0-t2': (128, 256, 93), 'ids0-t3': (128, 424, 256), 'ids1-t1': (128, 300, 0), 'ids1-t2': (128, 468, 300), 'ids1-t3': (128, 631, 468)}
+mb1-dtopk stopped t+1229s
+mb1-off up after 5 s | admission on plan shapes: 32 kernel(s) checked, 0 case(s) run, 95 cached|
+chat: {'chat0-t1': (128, 31, 0), 'chat0-t2': (128, 47, 30), 'chat0-t3': (128, 66, 47), 'chat1-t1': (128, 29, 0), 'chat1-t2': (128, 44, 27), 'chat1-t3': (128, 60, 43), 'ids0-t1': (128, 93, 0), 'ids0-t2': (128, 256, 93), 'ids0-t3': (128, 424, 256), 'ids1-t1': (128, 300, 0), 'ids1-t2': (128, 468, 300), 'ids1-t3': (128, 631, 468)}
+mb1-off stopped t+1258s
+cmpchat /opt/code/intarsiaml/.worktrees/ink-metal-dtopk/docs/results/2026-11-28-inkling2-metal-dtopk/raw/D/chat-mb1-dtopk.json vs /opt/code/intarsiaml/.worktrees/ink-metal-dtopk/docs/results/2026-11-28-inkling2-metal-dtopk/raw/D/chat-mb1-off.json: turns 12 / 12, differ 0 []
+cached_tokens a: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+cached_tokens b: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+slot D end 00:21:01 t+1261s
+fleetq: #12927 done (exit 0)
