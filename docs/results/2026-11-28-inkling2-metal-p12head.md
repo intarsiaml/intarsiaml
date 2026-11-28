@@ -99,3 +99,21 @@ unchanged: the P12 copy is already resident for the target's head.
 
 **Revert / flip:** `INTARSIA_DFLASH2_HEAD=bf16` (or unset) is the current behaviour. Making `p12` the Metal default would be a one-line
 change in `dflash2_head_p12` (unset on Metal = `p12`). That waits for the user's sign-off.
+
+## Slot C: both bitwise Metal opt-ins together (fleetq #12955, binary md5 `11c7c52f...`, main `2de468108` + this branch)
+
+Slot C answers the morning flip question: what the two bitwise opt-ins give together. It compares `both` = `INTARSIA_DFLASH2_HEAD=p12`
++ `INTARSIA_DFLASH_DEVICE_TOPK=1` (#558) against the default. It runs the same checks as H2 / H4 (`raw/slotC.sh`).
+
+- **C1 (device top-k against host with the P12 head):** `INTARSIA_DFLASH_DEVICE_TOPK=check` with `p12` on speed.json: 1231 checked
+  passes, **0 differing rows**. Counts 1195 / 4244 / 3030, equal to H.
+- **C2 (ids):** g3.json md5 `off` = `dflt` = `both` = the goldens. Counts 193 / 758 / 565 on both spec arms.
+- **C3 (decode ABBA x 4): GO** by the rule, geo 1.045 [0.973-1.122]. The CI is wide because `dflt@r1` ran cold (1410 MHz, 31.9 W,
+  111.52 tok/s). Every other run ran at 1617 MHz:
+  - `dflt`: 122.43 / 122.69 / 122.93, mean 122.68.
+  - `both`: 126.13 / 125.69 / 125.89 / 125.80, mean 125.88.
+  - **Matched power: 1.026x.** Reps r2-r4 by the rule: 1.024 / 1.021 / 1.020. All six cells are faster at r2-r4.
+
+**Reading:** about +2.6 % Metal decode in matched power, bitwise. It is roughly the sum of the two measured alone: P12 head 1.016x
+(slot H), device top-k 1.005-1.010x (slot D of lane ink-metal-dtopk). Flipping both on Metal is the user's call. The reverts are
+`INTARSIA_DFLASH2_HEAD=bf16` and `INTARSIA_DFLASH_DEVICE_TOPK=0`.
