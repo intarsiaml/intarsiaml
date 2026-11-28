@@ -93,5 +93,9 @@ All 80 bitwise checks (every multi-row form, 1 / 7 / 8 / 6 / 16 rows, against th
 4. The NAX GEMM (`nax16`) is 1.5-4x slower than the row-exact GEMV at these shapes, which is G0's finding in slot G seen from the
    kernel side.
 
-**What follows:** no draft-GEMV lane. The next decode lever by the slot P profile is the target's MoE experts in verify
-(`moe_experts_situ_bf16_rows` + `#1`, 28 % of decode GPU time).
+**What follows:** no draft-GEMV lane. The per-dispatch profile (`prof4.json`) charges some kernels about 4x their isolated cost,
+so its shares cannot rank levers: cross-check them against the unprofiled phase totals (`INTARSIA_SPEC_TRACE=1`) and isolated kernel
+benches before opening a lane. (The target's MoE experts, the profile's top row, already stream at 480-550 GB/s in isolation:
+`2026-11-21-inkling2-metal-moe.md`.) A lever that cuts bytes on a kernel already at bandwidth is the kind left: the draft head reads
+the bf16 unembed (1.71 ms a pass at 539 GB/s) while the target's verify head reads its lossless P12 copy, 25 % fewer bytes and
+bitwise the same logits (lane ink-metal-p12head).
