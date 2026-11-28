@@ -12,7 +12,7 @@ others=$(pgrep -fl '^[^ ]*/intarsia[^ /]* (serve|generate)' | head -3)
 # arms (one binary, main + the opt-in P12 draft head): dflt = the Metal default (DFlash2 k7 + cut 0.3; the draft head on the bf16 unembed);
 # p12 = INTARSIA_DFLASH2_HEAD=p12 (the draft head on the target's lossless P12 unembed); off = --spec off
 flags() { case $1 in off) echo "--spec off" ;; *) echo "" ;; esac; }
-envs() { case $1 in p12) echo "INTARSIA_DFLASH2_HEAD=p12" ;; *) echo "" ;; esac; }
+envs() { case $1 in p12) echo "INTARSIA_DFLASH2_HEAD=p12" ;; both) echo "INTARSIA_DFLASH2_HEAD=p12 INTARSIA_DFLASH_DEVICE_TOPK=1" ;; chk) echo "INTARSIA_DFLASH2_HEAD=p12 INTARSIA_DFLASH_DEVICE_TOPK=check" ;; *) echo "" ;; esac; }
 serve_start() {
   local name=$1 arm=$2 port=$3 extra=$4
   env $(envs $arm) /usr/bin/time -l $B serve -m $M --backend metal --no-supervisor --no-ui --port $port $(flags $arm) $extra > $O/s-$name.out 2> $O/s-$name.err &
