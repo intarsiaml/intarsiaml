@@ -1,0 +1,9 @@
+fleetq: #12965 running on endor: bash docs/results/2026-11-28-inkling2-metal-dhead4/raw/build-cli.sh
+[build] tests 01:34:21 git a8503351b dirty 0
+[build] metal cli 01:34:21
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 18.96s
+MD5 (/opt/code/intarsiaml/.worktrees/ink-metal-dhead4/.scratch/bin/intarsia-d4) = db84fd66f076c3d092717799214c3073
+[build] done 01:34:40
+fleetq: #12965 done (exit 0)

@@ -1,0 +1,47 @@
+fleetq: #12967 waiting (#1 in line): needs endor to itself; running there: #12966 "p6-loop-attn-bisect2" (josef@endor)
+fleetq: #12967 running on endor: bash docs/results/2026-11-28-inkling2-metal-dhead4/raw/slotQ.sh
+slot Q start 01:34:43 binary md5 db84fd66f076c3d092717799214c3073 commit a8503351b
+t-both rc 0 t+58s | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass) | decode overall: 4261 tokens after the first, 35491 ms (120.06 tok/s)
+dflash: DFlash2 draft head: the target's P12 unembed (matmul_p12_logits_gemv_rows, INTARSIA_DFLASH2_HEAD=p12)
+t-mx rc 0 t+113s | spec: verify passes=1204 proposed=4259 accepted=3014 (acceptance 70.8%, 3.50 tokens per pass) | decode overall: 4261 tokens after the first, 39141 ms (108.86 tok/s)
+dflash: DFlash2 draft head mxfp4 [200058 x 2304] in 0.1 s (INTARSIA_DFLASH2_HEAD; drafts only)
+dflash: DFlash2 draft head copy mxfp4 rows 7: kernel matmul_mxfp4_gemv_rows (exact_rows true)
+t-f8 rc 0 t+168s | spec: verify passes=1196 proposed=4232 accepted=3025 (acceptance 71.5%, 3.53 tokens per pass) | decode overall: 4261 tokens after the first, 38272 ms (111.34 tok/s)
+dflash: DFlash2 draft head fp8 [200058 x 2304] in 0.6 s (INTARSIA_DFLASH2_HEAD; drafts only)
+dflash: DFlash2 draft head copy fp8_e4m3 rows 7: kernel matmul_fp8_gemv_rows (exact_rows true)
+| file | passes | flush | block | head | selproj | dl | select | total | dl+select |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| t-both.err | 1231 | 0.771 | 2.534 | 1.471 | 0.217 | 0.273 | 0.017 | 5.303 | 0.292 |
+| t-mx.err | 1247 | 0.849 | 2.822 | 1.524 | 0.232 | 0.294 | 0.018 | 5.791 | 0.313 |
+| t-f8.err | 1236 | 0.812 | 2.796 | 1.684 | 0.231 | 0.295 | 0.018 | 5.905 | 0.314 |
+| prompt | t-both.err | t-mx.err | t-f8.err | n ids | equal |
+|---|---|---|---|---|---|
+| warm | 0fb1b1c74d5e9ddffd7ae2be473a2d79 | 0fb1b1c74d5e9ddffd7ae2be473a2d79 | 0fb1b1c74d5e9ddffd7ae2be473a2d79 | [118, 118, 118] | yes |
+| count | 9f731a14cab02bab2f7960bc2d174e36 | 9f731a14cab02bab2f7960bc2d174e36 | 9f731a14cab02bab2f7960bc2d174e36 | [256, 256, 256] | yes |
+| story | aafa223d6c2e79d18ef6a2ccc004942c | aafa223d6c2e79d18ef6a2ccc004942c | aafa223d6c2e79d18ef6a2ccc004942c | [256, 256, 256] | yes |
+| code | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | [256, 256, 256] | yes |
+| science | c69886a30db8cb48a594794709fced3f | c69886a30db8cb48a594794709fced3f | c69886a30db8cb48a594794709fced3f | [256, 256, 256] | yes |
+| chat_short_rnone | 0fb1b1c74d5e9ddffd7ae2be473a2d79 | 0fb1b1c74d5e9ddffd7ae2be473a2d79 | 0fb1b1c74d5e9ddffd7ae2be473a2d79 | [118, 118, 118] | yes |
+| chat_short_r0.9 | bafa02fc914c26a98f25341a199f67e6 | bafa02fc914c26a98f25341a199f67e6 | bafa02fc914c26a98f25341a199f67e6 | [166, 166, 166] | yes |
+| chat_system_rnone | 2e047c9d23a7c3cb7a14ed3515a8fd8c | 2e047c9d23a7c3cb7a14ed3515a8fd8c | 2e047c9d23a7c3cb7a14ed3515a8fd8c | [112, 112, 112] | yes |
+| chat_system_r0.9 | 950581666ec1f8b26af9b9a7f3bf9d21 | 950581666ec1f8b26af9b9a7f3bf9d21 | 950581666ec1f8b26af9b9a7f3bf9d21 | [177, 177, 177] | yes |
+| chat_multiturn_rnone | da08dae58a2c4ecd130ecbf696d8ec39 | da08dae58a2c4ecd130ecbf696d8ec39 | da08dae58a2c4ecd130ecbf696d8ec39 | [256, 256, 256] | yes |
+| chat_multiturn_r0.9 | d0f2386770d25811fe579892f43d3a55 | d0f2386770d25811fe579892f43d3a55 | d0f2386770d25811fe579892f43d3a55 | [256, 256, 256] | yes |
+| chat_reasoning_rnone | 885043ee62196b74f27ba725e9fe5296 | 885043ee62196b74f27ba725e9fe5296 | 885043ee62196b74f27ba725e9fe5296 | [256, 256, 256] | yes |
+| chat_reasoning_r0.9 | a7a78af1faf1d7101a1c433970bd1f28 | a7a78af1faf1d7101a1c433970bd1f28 | a7a78af1faf1d7101a1c433970bd1f28 | [256, 256, 256] | yes |
+| len1k | 63defc0c58e9e77dbedff4698364d473 | 63defc0c58e9e77dbedff4698364d473 | 63defc0c58e9e77dbedff4698364d473 | [256, 256, 256] | yes |
+| len4k | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | [256, 256, 256] | yes |
+| len16k | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | [256, 256, 256] | yes |
+| long_prose_300 | 48e9581f3a061afd95c9758bc52a4a21 | 48e9581f3a061afd95c9758bc52a4a21 | 48e9581f3a061afd95c9758bc52a4a21 | [256, 256, 256] | yes |
+| long_prose_700 | ac7a983cf9dbe5af656a2f00990a5c3d | ac7a983cf9dbe5af656a2f00990a5c3d | ac7a983cf9dbe5af656a2f00990a5c3d | [256, 256, 256] | yes |
+| code_tests | b276399d26be4c919ddb50e8139d3301 | b276399d26be4c919ddb50e8139d3301 | b276399d26be4c919ddb50e8139d3301 | [256, 256, 256] | yes |
+g-mx rc 0 | spec: verify passes=195 proposed=769 accepted=560 (acceptance 72.8%, 3.87 tokens per pass)
+g-f8 rc 0 | spec: verify passes=193 proposed=758 accepted=564 (acceptance 74.4%, 3.92 tokens per pass)
+| prompt | g-mx.err | g-f8.err | n ids | equal |
+|---|---|---|---|---|
+| code | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | [256, 256] | yes |
+| len4k | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | [256, 256] | yes |
+| len16k | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | [256, 256] | yes |
+goldens: code c69d1438ab3e715feb93a0614ebddcfe len4k 9e85ba1117e4a6a6cc12c5c917532e7f len16k 89994b876223335763b2004d0d281157
+slot Q end 01:38:10 t+208s
+fleetq: #12967 done (exit 0)
