@@ -1,0 +1,32 @@
+prefill chunk 2048 (recipe inkling2, metal)
+prefill chunk: long-prompt chunk off (INTARSIA_INK_LONG_CHUNK=1 turns it on: 4096 rows from 4097 tokens)
+intarsia-backend-metal: keep-warm: registered the file at 0x7bb3c00000, 19.53 GB
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.4 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.46 GB + bounds, cap 64, 1.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.4 s)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.1 s
+admission on plan shapes: 32 kernel(s) checked, 0 case(s) run, 95 cached
+loaded thinkingmachines/Inkling-2-Mini on metal (Apple M5 Max) in 4.5s, context 4096 tokens
+sampling defaults: temperature=1 top_p=1 top_k=0 (from /Users/josef/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots/b85c3cfa615fc413cc9af3379f491b963f3b586a/generation_config.json; a request's own values win)
+intarsia server listening on http://127.0.0.1:8463
+device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel gumbel_argmax_f32
+INTARSIA_INK_HEAD_SCREEN: gathers through the serving head kernel 'matmul_p12_logits_gemv'
+INTARSIA_INK_HEAD_SCREEN: first screened head step served (1 row)
+       26.46 real        14.33 user         2.40 sys
+         32174178304  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             2025407  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  15  messages sent
+                  29  messages received
+                   1  signals received
+                   0  voluntary context switches
+               29131  involuntary context switches
+        143127230715  instructions retired
+         64333989910  cycles elapsed
+         20004921680  peak memory footprint
