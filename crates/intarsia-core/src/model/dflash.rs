@@ -351,9 +351,19 @@ pub(super) fn dflash2_head_kind(b: &dyn Backend) -> Result<Option<crate::quant::
     Ok(match v {
         "mxfp4" => Some(crate::quant::head::HeadQuant::Mxfp4),
         "fp8" => Some(crate::quant::head::HeadQuant::Fp8),
-        "bf16" | "0" | "off" | "" => None,
-        other => return Err(Error::invalid(format!("INTARSIA_DFLASH2_HEAD={other}: mxfp4, fp8 or bf16"))),
+        // p12: no copy; the draft reads the target's own lossless P12 unembed where the model has one ([`dflash2_head_p12`])
+        "bf16" | "0" | "off" | "" | "p12" => None,
+        other => return Err(Error::invalid(format!("INTARSIA_DFLASH2_HEAD={other}: mxfp4, fp8, p12 or bf16"))),
     })
+}
+
+/// `INTARSIA_DFLASH2_HEAD=p12` (lane ink-metal-p12head, opt-in): the draft's logits come from the target's lossless P12 copy of the
+/// unembed (`Model::head_p12`, lane ink-pack12), whose kernels are bitwise the bf16 head's at 1..=`p12::ROWS_MAX` rows, rows-exact
+/// included: the same candidates and acceptance, 25 % fewer head bytes. Falls back to the bf16 head where the model has no P12
+/// copy, the rows exceed `p12::ROWS_MAX` or the backend has no kernel for the call. Read once.
+pub(super) fn dflash2_head_p12() -> bool {
+    static P: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *P.get_or_init(|| std::env::var("INTARSIA_DFLASH2_HEAD").is_ok_and(|v| v.trim() == "p12"))
 }
 
 fn ds_norm_ref(ds: &super::dspark::Dspark) -> TensorRef {
@@ -947,11 +957,39 @@ impl Model {
                 self.exec(Op::RmsNorm, vec![x, head.norm.clone()], vec![n.clone()], eps, profile)?;
                 let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("--spec dflash needs verify passes enabled (Model::enable_verify)"))?;
                 let logits = self.view(&ws.logits, DType::F32, &[t - 1, vh]);
-                let dhead = match &head.full_head {
-                    Some(h) if !shard => h,
-                    _ => self.head()?,
-                };
-                self.proj(&n.rows(1, t - 1), dhead, &logits, profile)?;
+                let xr = n.rows(1, t - 1);
+                // the target's P12 unembed (`INTARSIA_DFLASH2_HEAD=p12`, [`dflash2_head_p12`]): the bf16 head's bits, rows-exact
+                // like the pass (`exact_rows` is set while `rows_k`)
+                let p12 = (head.full_head.is_none() && !shard && dflash2_head_p12())
+                    .then_some(())
+                    .and(self.head_p12.as_ref())
+                    .filter(|p| p.format == crate::quant::p12::P12 && t - 1 <= crate::quant::p12::ROWS_MAX)
+                    .map(|p| {
+                        let mut c = p.call(xr.clone(), logits.clone());
+                        c.exact_rows = self.verifying();
+                        c
+                    })
+                    .filter(|c| self.registry.select(c).is_ok());
+                if dflash2_head_p12() {
+                    // one note a process: which head the first draft pass took (the P12 copy, or the fallback)
+                    static NOTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                    if !NOTED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                        match &p12 {
+                            Some(c) => eprintln!("dflash: DFlash2 draft head: the target's P12 unembed ({}, INTARSIA_DFLASH2_HEAD=p12)", self.registry.select(c).map(|k| k.name.clone()).unwrap_or_default()),
+                            None => eprintln!("dflash: DFlash2 draft head: INTARSIA_DFLASH2_HEAD=p12 but no P12 call here (no P12 unembed, a head copy, a shard, or no kernel): the bf16 head"),
+                        }
+                    }
+                }
+                match p12 {
+                    Some(c) => self.exec_call(c, profile)?,
+                    None => {
+                        let dhead = match &head.full_head {
+                            Some(h) if !shard => h,
+                            _ => self.head()?,
+                        };
+                        self.proj(&xr, dhead, &logits, profile)?;
+                    }
+                }
                 if shard {
                     return Ok(()); // the candidates are taken from the downloaded shard
                 }
