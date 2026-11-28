@@ -69,7 +69,10 @@ Slot P: fleetq #12805, endor `--exclusive`, 20:35:41 to 20:47:47 (726 s). Binary
     position, with no row table (`model/inkling2.rs`, `InkPacked`), which is the call P1 tests bitwise (17-2048 rows, positions 0
     and past the tau floor / ring wrap).
   - `launch_ink_prologue` sets no row-table field of `InkP` (`..Default::default()`), and `ink_kv_prologue_bf16` reads none.
-- **Not covered:** 4096-row chunks (`INTARSIA_INK_LONG_CHUNK=1`, opt-in): P1 goes up to 2048 rows. Also serve-path TTFT and
-  batched prefill timing.
+- **P1b PASS (endor exclusive slot #12817, 20:54:28-20:54:30, test exe md5 `5f9d30a277714a0d250a6928f183afb7`, git
+  `b02f135b3`):** the bitwise test again with 4096-row chunks (`INTARSIA_INK_LONG_CHUNK=1`'s pass size) and a 4100-row partial
+  block added. 11 of 11 cases bitwise: T = 17, 100, 333, 1037, 2048 (x3), 1890, 4096 at positions 0 and 8192, 4100 at 4099.
+  Raw: `raw/P/p1b.txt`, slot log `raw/slotP1b-12817.log`.
+- **Not covered:** serve-path TTFT and batched prefill timing.
 - **Decision rule (above):** P1-P3 pass, so a PR with the split opt-in. Turning it on by default is the user's call: bitwise, own
   commit, `INTARSIA_INK_PROLOGUE_SPLIT=0` as the revert.
