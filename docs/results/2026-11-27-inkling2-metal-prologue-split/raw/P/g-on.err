@@ -1,0 +1,29 @@
+prefill chunk 2048 (recipe inkling2, metal)
+prefill chunk: long-prompt chunk off (INTARSIA_INK_LONG_CHUNK=1 turns it on: 4096 rows from 4097 tokens)
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.46 GB + bounds, cap 64, 1.0 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.4 s)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.2 s
+loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 4.3s: 24 layers, hidden 2304, act bf16, kv bf16, weights 15.44 GB, context 20480 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel gumbel_argmax_f32
+ink-prefill trace: prologue split
+ink-prefill trace: ink_moe_nax_gu_nv_m64
+ink-prefill trace: blend h nax
+ink-prefill trace: blend gate nax
+ink-prefill trace: ink_moe_nax_gu_mx_m64
+INTARSIA_INK_HEAD_SCREEN: gathers through the serving head kernel 'matmul_p12_logits_gemv'
+INTARSIA_INK_HEAD_SCREEN: first screened head step served (1 row)
+ids[p1k]: [167182, 149887, 151098, 149878, 150046, 151170, 13, 200010, 200001, 200008, 371, 150409, 171960, 149887, 150396, 167182, 149887, 151098, 149878, 150046, 151170, 13, 150939, 149884, 149878, 151983, 149879, 152334, 220, 34795, 14, 102013, 12, 1225, 150311, 149881, 149876, 162956, 11, 150022, 149876, 151082, 155498, 150409, 151501, 149884, 151537, 149880, 195307, 13, 170289, 150893, 149911, 4123, 13, 170289, 149935, 151282, 149876, 193809, 151470, 302, 150311, 13]
+decode[p1k]: 64 tokens, 878 ms (71.72 tok/s)
+prefill[p1k]: 1000 tokens, 650 ms
+ids[len4k]: [18, 25, 68063, 153961, 185473, 279, 149922, 220, 68366, 150983, 14, 71, 13, 149897, 150514, 151226, 160172, 149876, 150244, 152275, 149922, 220, 19, 25, 68018, 153961, 149894, 149876, 150244, 154182, 149881, 149876, 150244, 151390, 149922, 220, 69580, 150983, 14, 71, 13, 150847, 150161, 150038, 150441, 149876, 150514, 151226, 152925, 150069, 149899, 149876, 150135, 30, 155242, 150039, 169014, 151093, 149910, 151093, 11, 149880, 150372, 149876]
+decode[len4k]: 64 tokens, 892 ms (70.65 tok/s)
+prefill[len4k]: 4108 tokens, 1307 ms
+ink-prefill trace: ink_moe_nax_gu_nv_m8
+ink-prefill trace: ink_moe_nax_gu_mx_m8
+ids[len16k]: [150102, 30, 155958, 152198, 150202, 149890, 151573, 149884, 152978, 189459, 11, 149880, 151150, 149921, 152203, 149876, 167921, 150019, 1153, 70559, 13, 200010, 200001, 200008, 371, 150409, 150008, 159978, 149878, 153133, 149879, 151030, 25, 151451, 149879, 153630, 11, 151247, 11, 158808, 152778, 11, 151170, 167182, 11, 151226, 152925, 12, 761, 13, 150860, 154562, 177776, 149881, 149878, 149919, 120065, 153399, 13, 149904, 150201, 150893, 149876, 155498]
+decode[len16k]: 64 tokens, 985 ms (63.99 tok/s)
+prefill[len16k]: 16455 tokens, 7021 ms
+decode overall: 189 tokens after the first, 2755 ms (68.61 tok/s)
+prefill overall: 21563 tokens, 8978 ms (2401.7 tok/s)
+spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)

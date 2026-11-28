@@ -39,4 +39,27 @@ Not measured: decode (the split acts only on prefill chunks of more than 16 rows
 
 ## Results
 
-(pending)
+Slot P: fleetq #12805, endor `--exclusive`, 20:35:41 to 20:47:47 (726 s). Binary `intarsia-ps` md5 `a3f254a1…`, test exe `t-ps` md5
+`a504461b…` (both `ec5550a9d`). Log: `raw/slotP-12805.log`; per-run files: `raw/P/`.
+
+| # | Result | Evidence |
+|---|---|---|
+| P1 | **PASS** | `ink_prologue_split` 1/1 on the M5 Max GPU, 1.17 s (bitwise, split path ran) |
+| P2 | **PASS** | 64 ids md5 `on` = `off`: p1k `1d658008…`, len4k `c71814c5…`, len16k `c3911277…`; `on`'s trace shows `prologue split`, `off`'s does not |
+| P3 | **PASS** | Median on / off: **p1k 1.031, len4k 1.032, len16k 1.033** (bars 0.98 / 1.00 / 1.00) |
+
+**Prefill tok/s (median of 6 runs each, 45 s idle before every run):**
+
+| Prompt | off (default) | on (split) | on / off | Per ABBA block |
+|---|---:|---:|---:|---|
+| p1k (1000) | 1509 | **1556** | **1.031** | 1.021 / 1.029 / 1.033 |
+| len4k (4108) | 3112 | **3212** | **1.032** | 1.150 / 1.032 / 1.029 |
+| len16k (16455) | 2918 | **3014** | **1.033** | 1.126 / 1.008 / 1.036 |
+
+- **The first two runs were slow** in both arms (r1 off len4k 1924 ms, r2 on 1462 ms; the later runs took 1266-1323 ms). That
+  inflates block 1's ratios. Without block 1, the per-block ratios are 1.008-1.036, and the medians without r1 and r2 still give
+  4k 1.031. The verdict does not depend on block 1.
+- **The 11-22 4k fail (0.956) does not reproduce.** With idle gaps, the split is +3 % at every length, which matches the trace's
+  -3.5 % GPU time per chunk. The 11-22 result was most likely the box's power state.
+- **Decision rule (above):** P1-P3 pass, so a PR with the split opt-in. Turning it on by default is the user's call: bitwise, own
+  commit, `INTARSIA_INK_PROLOGUE_SPLIT=0` as the revert.
