@@ -1,0 +1,9 @@
+fleetq: #12954 running on endor: bash docs/results/2026-11-28-inkling2-metal-p12head/raw/build-c.sh
+[build] tests 01:13:57 git 9cad7ea36 dirty 0
+[build] metal cli 01:13:57
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 17.08s
+MD5 (/opt/code/intarsiaml/.worktrees/ink-metal-p12head/.scratch/bin/intarsia-pc) = 11c7c52fb81e6d6b3ab58b79e9a60f08
+[build] done 01:14:14
+fleetq: #12954 done (exit 0)
