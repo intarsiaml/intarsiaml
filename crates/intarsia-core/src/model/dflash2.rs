@@ -121,6 +121,13 @@ pub(super) fn merge_topk(parts: &[&[(f32, usize)]], k: usize) -> Vec<(f32, usize
     all
 }
 
+/// Lane ink-dflash-cut: `INTARSIA_DFLASH_CONF_TRACE=1` prints [`Selector::conf_line`] for every draft on the host-candidate path
+/// (Metal; diagnostic, output unchanged).
+pub(super) fn conf_trace() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("INTARSIA_DFLASH_CONF_TRACE").is_some_and(|v| v != "0"))
+}
+
 impl Selector {
     /// Drafts for `rows = logits.len() / v` block rows: `logits` `[rows, v]`, `hp` `[rows, rank]`, `anchor` the token before row 0.
     pub(super) fn select(&self, logits: &[f32], v: usize, hp: &[f32], anchor: u32) -> Vec<u32> {
@@ -157,6 +164,62 @@ impl Selector {
             }
             prev = best.1;
             out.push(prev as u32);
+        }
+        out
+    }
+
+    /// Lane ink-dflash-cut diagnostic (`INTARSIA_DFLASH_CONF_TRACE=1`, stderr): one line per draft, per block row `draft:p_full:p_raw1:
+    /// p_sel:margin` (`p_full` = softmax over the whole row at the draft's raw logit, `p_raw1` = the row's top-1 softmax probability,
+    /// `p_sel` / `margin` from [`Selector::pick_conf`]). The engine's `spec: token ... accepted` line follows (`INTARSIA_SPEC_TRACE=1`).
+    pub(super) fn conf_line(&self, logits: &[f32], v: usize, hp: &[f32], anchor: u32) -> String {
+        let rows = logits.len() / v;
+        let tops: Vec<Vec<(f32, usize)>> = (0..rows)
+            .map(|p| {
+                let mut top = Vec::with_capacity(self.top_k + 1);
+                row_topk(&logits[p * v..(p + 1) * v], self.top_k, 0, &mut top);
+                top
+            })
+            .collect();
+        let conf = self.pick_conf(&tops, hp, anchor);
+        let mut s = String::from("spec: dflash2 conf");
+        for (p, &(tok, u, psel, margin)) in conf.iter().enumerate() {
+            let row = &logits[p * v..(p + 1) * v];
+            let m = tops[p][0].0;
+            let lse = m + row.iter().map(|&x| (x - m).exp()).sum::<f32>().ln();
+            s.push_str(&format!(" {tok}:{:.5}:{:.5}:{:.5}:{:.3}", (u - lse).exp(), (m - lse).exp(), psel, margin));
+        }
+        s
+    }
+
+    /// Lane ink-dflash-cut diagnostic (`INTARSIA_DFLASH_CONF_TRACE=1`): [`Selector::pick`]'s walk, and per row `(draft, raw logit of the
+    /// draft, softmax of the corrected scores over the row's candidates at the draft, best minus second corrected score)`. Trace only:
+    /// the drafts still come from `pick`.
+    pub(super) fn pick_conf(&self, tops: &[Vec<(f32, usize)>], hp: &[f32], anchor: u32) -> Vec<(u32, f32, f32, f32)> {
+        let mut prev = anchor as usize;
+        let mut out = Vec::with_capacity(tops.len());
+        for (p, top) in tops.iter().enumerate() {
+            let (r, h) = (self.rank, &hp[p * self.rank..(p + 1) * self.rank]);
+            let pc = &self.pred[prev * r..(prev + 1) * r];
+            let mut scores = Vec::with_capacity(top.len());
+            for &(u, c) in top {
+                let sc = &self.succ[c * r..(c + 1) * r];
+                let mut e = 0f32;
+                for j in 0..r {
+                    e += bf(pc[j]) * h[j] * bf(sc[j]);
+                }
+                scores.push(if self.post_cap > 0.0 { self.post_cap * ((u + e) / self.post_cap).tanh() } else { u + e });
+            }
+            let mut bi = 0;
+            for (i, &s) in scores.iter().enumerate() {
+                if s > scores[bi] {
+                    bi = i;
+                }
+            }
+            let mx = scores[bi];
+            let z: f32 = scores.iter().map(|&s| (s - mx).exp()).sum();
+            let second = scores.iter().enumerate().filter(|&(i, _)| i != bi).map(|(_, &s)| s).fold(f32::NEG_INFINITY, f32::max);
+            prev = top[bi].1;
+            out.push((prev as u32, top[bi].0, 1.0 / z, mx - second));
         }
         out
     }
@@ -652,5 +715,38 @@ mod tests {
         let tops = vec![vec![(500.0f32, 3usize), (400.0, 5)]];
         assert_eq!(30.0f32 * (500.0f32 / 30.0).tanh(), 30.0f32 * (400.0f32 / 30.0).tanh(), "the tie this case needs");
         assert_eq!(s.pick(&tops, &vec![0.0; s.rank], 0), vec![3]);
+    }
+
+    /// Lane ink-dflash-cut: the confidence trace walks the drafts `pick` walks (capped and not, the tie case included), and its
+    /// probabilities are probabilities.
+    #[test]
+    fn pick_conf_walks_as_pick() {
+        for seed in 0..20u64 {
+            for cap in [0.0f32, 30.0] {
+                let (s, v) = sel(cap, seed);
+                let mut rng = crate::rng::SplitMix64::new(2000 + seed);
+                let rows = 7;
+                let scale = [1.0f32, 10.0, 25.0, 40.0][seed as usize % 4];
+                let logits: Vec<f32> = (0..rows * v).map(|_| scale * rng.normal()).collect();
+                let hp: Vec<f32> = (0..rows * s.rank).map(|_| rng.normal()).collect();
+                let tops: Vec<Vec<(f32, usize)>> = (0..rows)
+                    .map(|p| {
+                        let mut t = Vec::new();
+                        row_topk(&logits[p * v..(p + 1) * v], s.top_k, 0, &mut t);
+                        t
+                    })
+                    .collect();
+                let anchor = (seed as u32) % v as u32;
+                let conf = s.pick_conf(&tops, &hp, anchor);
+                let toks: Vec<u32> = conf.iter().map(|c| c.0).collect();
+                assert_eq!(toks, s.pick(&tops, &hp, anchor), "seed {seed} cap {cap}");
+                assert!(conf.iter().all(|c| c.2 > 0.0 && c.2 <= 1.0 && c.3 >= 0.0), "seed {seed} cap {cap}");
+                assert!(s.conf_line(&logits, v, &hp, anchor).starts_with("spec: dflash2 conf "));
+            }
+        }
+        let (mut s, _) = sel(30.0, 1);
+        s.succ.iter_mut().for_each(|x| *x = 0);
+        let tops = vec![vec![(500.0f32, 3usize), (400.0, 5)]];
+        assert_eq!(s.pick_conf(&tops, &vec![0.0; s.rank], 0)[0].0, 3);
     }
 }

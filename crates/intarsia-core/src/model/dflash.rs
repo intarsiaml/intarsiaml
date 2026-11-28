@@ -1025,7 +1025,12 @@ impl Model {
                         self.backend.download(&ws.logits, 0, &mut lb, self.stream)?;
                         let logits: Vec<f32> = lb.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
                         t_dl = std::time::Instant::now();
-                        sl.select(&logits, v, &hp(sl)?, next)
+                        let hpv = hp(sl)?;
+                        let drafts = sl.select(&logits, v, &hpv, next);
+                        if super::dflash2::conf_trace() {
+                            eprintln!("{}", sl.conf_line(&logits, v, &hpv, next));
+                        }
+                        drafts
                     }
                 }
             };
