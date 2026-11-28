@@ -45,4 +45,19 @@ check that it does the same work).
 
 ## Results
 
-(pending)
+Slot S: fleetq #12804, endor `--exclusive`, 20:25:54 to 20:35:41 (587 s). Binary `intarsia-solo` md5 `46b2660b…` (`bb4873cec`).
+Log: `raw/slotS-12804.log`; per-run files: `raw/S/`.
+
+| # | Result | Evidence |
+|---|---|---|
+| S1 | **PASS** | `solo`: "sampled drafting is off on this backend, so the DSpark draft is not loaded", one `dflash: draft of 5 layers ... DFlash2` line, no second draft. `both`: "loaded beside the DSpark default", a 3-layer DSpark draft plus "second draft (greedy requests, k 5)" |
+| S2 | **PASS** | 256 ids, md5 equal across `solo` / `both` / `off` / `dfl5` and equal to #549's: code `c69d1438…`, len4k `9e85ba11…`, len16k `89994b87…`. `solo` = `dfl5` = `both` counters: 203 passes, 1008 proposed, 560 accepted |
+| S3 | **PASS** | `solo` = `off` on 160 of 160 (T 1.0 x 100, T 0.6 x 60, seed 7, 32 tokens); `solo` 0 verify passes |
+| S4 | **PASS** | Weights 16.27 GB `solo` vs 17.24 GB `both`: **0.97 GB less**. Context at the clamped capacity 615458 vs 607199 tokens (**+1.36 %**), both runs of each arm. Peak footprint (S1 runs, `--max-seq 20480`) 20.27 vs 21.16 GB |
+| S5 | **PASS** | `serve --max-batch 1`: 12 of 12 turns identical to `--spec off` (2 chats x 3 on the chat endpoint, 2 x 3 token-id extensions), `cached_tokens` equal per turn. The `solo` log shows DFlash2 alone |
+
+- **Slow first server start (195 s):** the `solo` server was this binary's first `serve`. Its plan-shape admission ran uncached
+  ("42 kernel(s) checked, 169 case(s) run, 0 cached"). Flip M had the same pattern: first start 141 s, second 8 s
+  (`docs/results/2026-11-27-inkling2-metal-dflash2-flip/raw/slotH-H.log`). This is not caused by this change.
+- **Decode speed** was not a gate. The S1 runs ran back to back with no idle gaps (endor's GPU burst), so their tok/s are not a
+  measurement.
