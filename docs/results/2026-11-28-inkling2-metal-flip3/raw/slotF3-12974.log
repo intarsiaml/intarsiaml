@@ -1,0 +1,64 @@
+fleetq: #12974 running on endor: bash docs/results/2026-11-28-inkling2-metal-flip3/raw/slotF3.sh
+slot F3 start 01:42:41 binary md5 6a4ba6be3b2c5bbbb9bc0780b7978183 commit 167d227de
+== F1: draft phase trace + the default notes, speed.json, 256 tokens, INTARSIA_SPEC_TRACE=1: rev vs new
+t-rev rc 0 t+55s | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+t-new rc 0 t+107s | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+dflash: candidates by the Metal device top-k (default; INTARSIA_DFLASH_DEVICE_TOPK=0 takes the host's)
+dflash: DFlash2 draft head: the target's P12 unembed (matmul_p12_logits_gemv_rows; INTARSIA_DFLASH2_HEAD=bf16 takes the bf16 head)
+| file | passes | flush | block | head | selproj | dl | select | total | dl+select |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| t-rev.err | 1231 | 0.747 | 2.490 | 1.908 | 0.217 | 0.410 | 0.000 | 5.869 | 0.410 |
+| t-new.err | 1231 | 0.772 | 2.608 | 1.478 | 0.221 | 0.279 | 0.017 | 5.405 | 0.298 |
+| prompt | t-rev.err | t-new.err | n ids | equal |
+|---|---|---|---|---|
+| warm | 0fb1b1c74d5e9ddffd7ae2be473a2d79 | 0fb1b1c74d5e9ddffd7ae2be473a2d79 | [118, 118] | yes |
+| count | 9f731a14cab02bab2f7960bc2d174e36 | 9f731a14cab02bab2f7960bc2d174e36 | [256, 256] | yes |
+| story | aafa223d6c2e79d18ef6a2ccc004942c | aafa223d6c2e79d18ef6a2ccc004942c | [256, 256] | yes |
+| code | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | [256, 256] | yes |
+| science | c69886a30db8cb48a594794709fced3f | c69886a30db8cb48a594794709fced3f | [256, 256] | yes |
+| chat_short_rnone | 0fb1b1c74d5e9ddffd7ae2be473a2d79 | 0fb1b1c74d5e9ddffd7ae2be473a2d79 | [118, 118] | yes |
+| chat_short_r0.9 | bafa02fc914c26a98f25341a199f67e6 | bafa02fc914c26a98f25341a199f67e6 | [166, 166] | yes |
+| chat_system_rnone | 2e047c9d23a7c3cb7a14ed3515a8fd8c | 2e047c9d23a7c3cb7a14ed3515a8fd8c | [112, 112] | yes |
+| chat_system_r0.9 | 950581666ec1f8b26af9b9a7f3bf9d21 | 950581666ec1f8b26af9b9a7f3bf9d21 | [177, 177] | yes |
+| chat_multiturn_rnone | da08dae58a2c4ecd130ecbf696d8ec39 | da08dae58a2c4ecd130ecbf696d8ec39 | [256, 256] | yes |
+| chat_multiturn_r0.9 | d0f2386770d25811fe579892f43d3a55 | d0f2386770d25811fe579892f43d3a55 | [256, 256] | yes |
+| chat_reasoning_rnone | 885043ee62196b74f27ba725e9fe5296 | 885043ee62196b74f27ba725e9fe5296 | [256, 256] | yes |
+| chat_reasoning_r0.9 | a7a78af1faf1d7101a1c433970bd1f28 | a7a78af1faf1d7101a1c433970bd1f28 | [256, 256] | yes |
+| len1k | 63defc0c58e9e77dbedff4698364d473 | 63defc0c58e9e77dbedff4698364d473 | [256, 256] | yes |
+| len4k | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | [256, 256] | yes |
+| len16k | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | [256, 256] | yes |
+| long_prose_300 | 48e9581f3a061afd95c9758bc52a4a21 | 48e9581f3a061afd95c9758bc52a4a21 | [256, 256] | yes |
+| long_prose_700 | ac7a983cf9dbe5af656a2f00990a5c3d | ac7a983cf9dbe5af656a2f00990a5c3d | [256, 256] | yes |
+| code_tests | b276399d26be4c919ddb50e8139d3301 | b276399d26be4c919ddb50e8139d3301 | [256, 256] | yes |
+== F2: greedy ids, g3.json (code, len4k, len16k), 256 tokens, --ignore-eos
+g-off rc 0 t+129s | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+g-rev rc 0 t+148s | spec: verify passes=193 proposed=758 accepted=565 (acceptance 74.5%, 3.93 tokens per pass)
+g-new rc 0 t+166s | spec: verify passes=193 proposed=758 accepted=565 (acceptance 74.5%, 3.93 tokens per pass)
+| prompt | g-off.err | g-rev.err | g-new.err | n ids | equal |
+|---|---|---|---|---|---|
+| code | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | [256, 256, 256] | yes |
+| len4k | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | [256, 256, 256] | yes |
+| len16k | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | [256, 256, 256] | yes |
+== F3: decode ABBA x 4, speed.json (19 prompts, 256 tokens, EOS honoured), 45 s idle before each
+rev@r1 rc 0 01:47:02 t+261s | decode overall: 4261 tokens after the first, 35952 ms (118.52 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+new@r1 rc 0 01:48:35 t+354s | decode overall: 4261 tokens after the first, 33800 ms (126.07 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+new@r2 rc 0 01:50:08 t+447s | decode overall: 4261 tokens after the first, 33972 ms (125.43 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+rev@r2 rc 0 01:51:41 t+540s | decode overall: 4261 tokens after the first, 34742 ms (122.65 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+rev@r3 rc 0 01:53:15 t+634s | decode overall: 4261 tokens after the first, 34679 ms (122.87 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+new@r3 rc 0 01:54:48 t+727s | decode overall: 4261 tokens after the first, 33817 ms (126.00 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+new@r4 rc 0 01:56:21 t+820s | decode overall: 4261 tokens after the first, 33803 ms (126.05 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+rev@r4 rc 0 01:57:54 t+913s | decode overall: 4261 tokens after the first, 34671 ms (122.90 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+new vs rev: reps ['r1', 'r2', 'r3', 'r4'], 19 prompts each, all complete: True, ids identical across every process (both arms): True
+| cell | ratio | 95 % CI | per rep |
+|---|---:|---|---|
+| short | **1.040** | [0.997-1.085] | 1.082 1.024 1.028 1.027 |
+| 1k | **1.027** | [0.982-1.074] | 1.068 1.005 1.026 1.008 |
+| prose | **1.025** | [1.014-1.037] | 1.029 1.024 1.017 1.032 |
+| chat | **1.039** | [0.999-1.081] | 1.079 1.022 1.030 1.028 |
+| 4k | **1.029** | [1.024-1.034] | 1.032 1.026 1.028 1.031 |
+| 16k | **1.021** | [1.013-1.029] | 1.028 1.021 1.020 1.015 |
+mean of the six cells: geo 1.030, arith 1.030; per-rep geo means 1.053 1.020 1.025 1.024 -> 1.030 [1.007-1.054]
+cells with CI upper bound < 0.99: none; cells faster by the point estimate: ['short', '1k', 'prose', 'chat', '4k', '16k']
+VERDICT by the pre-registered rule: GO
+slot F3 end 01:57:54 t+913s
+fleetq: #12974 done (exit 0)
