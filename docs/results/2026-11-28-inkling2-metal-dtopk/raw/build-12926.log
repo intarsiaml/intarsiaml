@@ -1,0 +1,16 @@
+fleetq: #12926 running on endor: bash docs/results/2026-11-28-inkling2-metal-dtopk/raw/build.sh
+[build] tests 23:58:01 git 648dc9722 dirty 0
+test model::dflash2::tests::selector_post_softcap_keeps_greedy_picks ... ok
+test model::dflash2::tests::pick_conf_walks_as_pick ... ok
+test model::dflash2::tests::cut_drafts_are_a_prefix_of_the_picks ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 286 filtered out; finished in 0.01s
+[build] core dflash2 tests rc 0 23:58:09
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.52s
+[build] models tests rc 0 23:59:32
+[build] metal cli 23:59:32
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 15.82s
+MD5 (/opt/code/intarsiaml/.worktrees/ink-metal-dtopk/.scratch/bin/intarsia-dt) = 978535cb0e6db1bcae90b7d00114e921
+[build] done 23:59:48
+fleetq: #12926 done (exit 0)
