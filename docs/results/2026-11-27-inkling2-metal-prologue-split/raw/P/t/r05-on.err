@@ -1,0 +1,22 @@
+prefill chunk 2048 (recipe inkling2, metal)
+prefill chunk: long-prompt chunk off (INTARSIA_INK_LONG_CHUNK=1 turns it on: 4096 rows from 4097 tokens)
+P12 (INTARSIA_INK_PACK12=0 turns it off): unembed (200058 rows) packed lossless to 12 bits (1 tensors, 0.692 GB, was 0.922 GB bf16; escapes 7.49e-5; 0.3 s)
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.46 GB + bounds, cap 64, 0.9 s)
+P12 (INTARSIA_INK_PACK12=0 turns it off): in_proj + wo packed lossless to 12 bits (48 tensors, 0.970 GB, was 1.292 GB bf16; escapes 8.73e-5; 0.4 s)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 2.2 s
+loaded thinkingmachines/Inkling-2-Mini on Apple M5 Max in 4.2s: 24 layers, hidden 2304, act bf16, kv bf16, weights 15.44 GB, context 20480 tokens (recipe builtin:inkling2, chat template chat_template.jinja)
+device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel gumbel_argmax_f32
+INTARSIA_INK_HEAD_SCREEN: gathers through the serving head kernel 'matmul_p12_logits_gemv'
+INTARSIA_INK_HEAD_SCREEN: first screened head step served (1 row)
+ids[p1k]: [167182]
+decode[p1k]: 1 tokens, 0 ms (0.00 tok/s)
+prefill[p1k]: 1000 tokens, 648 ms
+ids[len4k]: [18]
+decode[len4k]: 1 tokens, 0 ms (0.00 tok/s)
+prefill[len4k]: 4108 tokens, 1280 ms
+ids[len16k]: [150102]
+decode[len16k]: 1 tokens, 0 ms (0.00 tok/s)
+prefill[len16k]: 16455 tokens, 5468 ms
+decode overall: 0 tokens after the first, 0 ms (0.00 tok/s)
+prefill overall: 21563 tokens, 7396 ms (2915.5 tok/s)
+spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)

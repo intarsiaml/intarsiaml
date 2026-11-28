@@ -1,0 +1,36 @@
+fleetq: #12805 waiting (#2 in line): in line behind #12804 "ink-metal-solo: slot S gates S1-S5 (DFlash2 alone on Metal)" (claude-7a483383) on endor
+fleetq:   #12804 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12804 set, or it will wait for #12804 to be released.
+fleetq: #12805 waiting (#1 in line): endor is held exclusively by #12804 "ink-metal-solo: slot S gates S1-S5 (DFlash2 alone on Metal)" (claude-7a483383)
+fleetq:   #12804 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=12804 set, or it will wait for #12804 to be released.
+fleetq: #12805 running on endor: bash docs/results/2026-11-27-inkling2-metal-prologue-split/raw/slotP.sh
+slot P start 20:35:41 binary md5 a3f254a1e18702701bd2df92daab105d commit ec5550a9d git ec5550a9d
+== P1: bitwise test (split vs ink_kv_prologue_bf16, 17..2048 rows)
+p1 rc 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s | 
+== P2: greedy ids, --spec off, p1k + len4k + len16k, 64 tokens, --ignore-eos (also the warm-up of both arms' kernels)
+g-off rc 0 t+22s | prefill[p1k]: 1000 tokens, 740 ms prefill[len4k]: 4108 tokens, 1434 ms prefill[len16k]: 16455 tokens, 8717 ms  | split traces: 0
+g-on rc 0 t+38s | prefill[p1k]: 1000 tokens, 650 ms prefill[len4k]: 4108 tokens, 1307 ms prefill[len16k]: 16455 tokens, 7021 ms  | split traces: 1
+| prompt | g-off.err | g-on.err | n ids | equal |
+|---|---|---|---|---|
+| p1k | 1d658008a035cc22678679a97ca8f6a4 | 1d658008a035cc22678679a97ca8f6a4 | [64, 64] | yes |
+| len4k | c71814c5d2fd380c5b7d9e0486942ff6 | c71814c5d2fd380c5b7d9e0486942ff6 | [64, 64] | yes |
+| len16k | c3911277c233d2442252679dcda21ea7 | c3911277c233d2442252679dcda21ea7 | [64, 64] | yes |
+== P3: prefill speed, ABBA x 3 (off on on off / on off off on / off on on off), 45 s idle before each run, 1 token
+r1 off rc 0 t+98s | prefill[p1k]: 1000 tokens, 689 ms prefill[len4k]: 4108 tokens, 1924 ms prefill[len16k]: 16455 tokens, 8485 ms 
+r2 on rc 0 t+158s | prefill[p1k]: 1000 tokens, 666 ms prefill[len4k]: 4108 tokens, 1462 ms prefill[len16k]: 16455 tokens, 6823 ms 
+r3 on rc 0 t+214s | prefill[p1k]: 1000 tokens, 641 ms prefill[len4k]: 4108 tokens, 1266 ms prefill[len16k]: 16455 tokens, 5355 ms 
+r4 off rc 0 t+271s | prefill[p1k]: 1000 tokens, 646 ms prefill[len4k]: 4108 tokens, 1313 ms prefill[len16k]: 16455 tokens, 5615 ms 
+r5 on rc 0 t+328s | prefill[p1k]: 1000 tokens, 648 ms prefill[len4k]: 4108 tokens, 1280 ms prefill[len16k]: 16455 tokens, 5468 ms 
+r6 off rc 0 t+385s | prefill[p1k]: 1000 tokens, 663 ms prefill[len4k]: 4108 tokens, 1318 ms prefill[len16k]: 16455 tokens, 5633 ms 
+r7 off rc 0 t+442s | prefill[p1k]: 1000 tokens, 662 ms prefill[len4k]: 4108 tokens, 1323 ms prefill[len16k]: 16455 tokens, 5539 ms 
+r8 on rc 0 t+498s | prefill[p1k]: 1000 tokens, 640 ms prefill[len4k]: 4108 tokens, 1278 ms prefill[len16k]: 16455 tokens, 5617 ms 
+r9 off rc 0 t+555s | prefill[p1k]: 1000 tokens, 662 ms prefill[len4k]: 4108 tokens, 1322 ms prefill[len16k]: 16455 tokens, 5650 ms 
+r10 on rc 0 t+612s | prefill[p1k]: 1000 tokens, 643 ms prefill[len4k]: 4108 tokens, 1274 ms prefill[len16k]: 16455 tokens, 5453 ms 
+r11 on rc 0 t+669s | prefill[p1k]: 1000 tokens, 642 ms prefill[len4k]: 4108 tokens, 1287 ms prefill[len16k]: 16455 tokens, 5450 ms 
+r12 off rc 0 t+726s | prefill[p1k]: 1000 tokens, 666 ms prefill[len4k]: 4108 tokens, 1314 ms prefill[len16k]: 16455 tokens, 5645 ms 
+| prompt | off tok/s (runs) | on tok/s (runs) | median off | median on | on / off | per-block on / off |
+|---|---|---|---|---|---|---|
+| p1k | 1451 / 1548 / 1508 / 1511 / 1511 / 1502 | 1502 / 1560 / 1543 / 1562 / 1555 / 1558 | 1509.4 | 1556.4 | **1.031** | 1.021 / 1.029 / 1.033 |
+| len4k | 2135 / 3129 / 3117 / 3105 / 3107 / 3126 | 2810 / 3245 / 3209 / 3214 / 3224 / 3192 | 3112.1 | 3211.9 | **1.032** | 1.150 / 1.032 / 1.029 |
+| len16k | 1939 / 2931 / 2921 / 2971 / 2912 / 2915 | 2412 / 3073 / 3009 / 2929 / 3018 / 3019 | 2918.1 | 3013.5 | **1.033** | 1.126 / 1.008 / 1.036 |
+slot P end 20:47:47 t+726s
+fleetq: #12805 done (exit 0)

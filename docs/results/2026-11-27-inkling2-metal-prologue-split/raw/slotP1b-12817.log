@@ -1,0 +1,5 @@
+fleetq: #12817 running on endor: bash docs/results/2026-11-27-inkling2-metal-prologue-split/raw/slotP1b.sh
+slot P1b start 20:54:28 test exe md5 5f9d30a277714a0d250a6928f183afb7 git b02f135b3
+p1b rc 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.98s | 11 cases bitwise | 
+slot P1b end 20:54:30
+fleetq: #12817 done (exit 0)
