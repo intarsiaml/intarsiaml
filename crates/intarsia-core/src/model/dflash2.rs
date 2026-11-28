@@ -130,6 +130,18 @@ pub(super) fn cand_prob(top: &[(f32, usize)], i: usize) -> f32 {
     (top[i].0 - m).exp() / z
 }
 
+/// Does the DFlash2 draft take its candidates by the device top-k (`INTARSIA_DFLASH_DEVICE_TOPK` = `env`)? A backend with
+/// `supports_topk()` (HIP): on unless `0` (lane dh item 2). Metal, whose `topk_rows` works but whose `supports_topk()` stays false
+/// (device sampling and the DCoCo corrector key on it): only when set to `1` or `check` (lane ink-metal-dtopk, opt-in). Else off.
+pub(super) fn device_topk_resolve(backend: &str, supports_topk: bool, env: &str) -> bool {
+    let v = env.trim();
+    if supports_topk {
+        v != "0"
+    } else {
+        backend == "metal" && (v == "1" || v == "check")
+    }
+}
+
 /// `INTARSIA_DFLASH_CUT` when set: `0` or unparsable = off; a value in (0, 1] = the cut (lane ink-dflash-cut).
 pub(super) fn cut_env(v: Option<&str>) -> Option<f32> {
     v.and_then(|s| s.trim().parse::<f32>().ok()).filter(|&c| c > 0.0 && c <= 1.0)
@@ -337,8 +349,8 @@ pub(super) struct Draft2 {
     /// split draft knows it (each sends rank 0 the top candidates of its vocabulary shard).
     pub(super) cand: usize,
     /// Lane dh item 2 (`INTARSIA_DFLASH_DEVICE_TOPK`, default on since 2026-11-06, `=0` off; only a backend with `Backend::topk_rows`,
-    /// `supports_topk()`: HIP and CUDA, and CUDA refuses DFlash2 drafts at load, so HIP is the only backend it runs on and the only one the
-    /// evidence covers; the CPU backend always takes the host path): each row's candidates
+    /// `supports_topk()`: HIP and CUDA, and CUDA refuses DFlash2 drafts at load, so HIP is the only backend it runs on by default; Metal
+    /// opt-in with `=1` / `check` since lane ink-metal-dtopk, [`device_topk_resolve`]; the CPU backend always takes the host path): each row's candidates
     /// taken on the device (ids i32 `[block, cand]`, values f32 `[block, cand]`, NaN flags i32 `[block]`, the kernel's scratch), so
     /// only `cand` values a row are downloaded instead of the row's logits. `None`: the host takes them from the downloaded logits.
     pub(super) topk: Option<[Buffer; 4]>,
@@ -574,9 +586,11 @@ pub(super) fn load2(
     };
     let topk_env = std::env::var("INTARSIA_DFLASH_DEVICE_TOPK").unwrap_or_default();
     let topk_check = topk_env.trim() == "check";
-    // On unless `=0`: the device top-k is the default where the backend has one (HIP; CPU has none and always takes the host path).
     // (a DSpine draft ranks the candidates by bf16-rounded logits with the lower id winning ties: host path only, for now)
-    let device_topk = topk_env.trim() != "0" && b.supports_topk() && cand <= 64 && spine_cfg.is_none();
+    let device_topk = device_topk_resolve(b.name(), b.supports_topk(), &topk_env) && cand <= 64 && spine_cfg.is_none();
+    if device_topk && b.name() == "metal" {
+        eprintln!("dflash: candidates by the Metal device top-k (INTARSIA_DFLASH_DEVICE_TOPK={}, opt-in)", topk_env.trim());
+    }
     let topk = if device_topk {
         let r = t.max(1);
         let mk = |bytes: usize| -> Result<Buffer> {
@@ -904,6 +918,11 @@ mod tests {
         assert_eq!(cut_resolve("metal", Some(" ")).0, Some(CUT_DEFAULT_METAL));
         assert_eq!(cut_resolve("metal", Some("0")).0, None);
         assert_eq!(cut_resolve("metal", Some("0.5")).0, Some(0.5));
+        // lane ink-metal-dtopk: HIP's device top-k on unless 0; Metal's only when set to 1 or check; cpu never
+        assert!(device_topk_resolve("hip", true, "") && device_topk_resolve("hip", true, "check") && !device_topk_resolve("hip", true, "0"));
+        assert!(!device_topk_resolve("metal", false, "") && !device_topk_resolve("metal", false, "0"));
+        assert!(device_topk_resolve("metal", false, "1") && device_topk_resolve("metal", false, " check "));
+        assert!(!device_topk_resolve("cpu", false, "1"));
         for b in ["hip", "cuda", "cpu"] {
             assert_eq!(cut_resolve(b, None).0, None, "{b}: off unless set");
             assert_eq!(cut_resolve(b, Some("0.3")).0, Some(0.3), "{b}: set");
