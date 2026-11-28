@@ -797,6 +797,26 @@ fn recipe_dflash2_default_finds_the_drafter_or_falls_back() {
     }
 }
 
+/// Lane ink-metal-solo: the recipe's DFlash2 default loads beside the checkpoint's DSpark draft only where sampled requests draft with
+/// it (HIP's default, flip A); on Metal, where sampled drafting is opt-in, it loads alone (the idle DSpark draft's 0.83 GB not spent).
+#[test]
+fn dflash2_default_loads_beside_dspark_only_where_sampled_requests_draft() {
+    use intarsia_core::spec::sampled_dflash_resolve as sampled;
+    use intarsia_models::load::dflash2_beside_dspark as beside;
+    let ink = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
+    // HIP: sampled requests draft with DSpark by default, so both drafts load; INTARSIA_SPEC_SAMPLED_DFLASH=0 loads DFlash2 alone
+    assert!(beside(true, sampled(None, ink.sampled_dflash("hip"), true)), "hip default: both drafts");
+    assert!(!beside(true, sampled(Some(false), ink.sampled_dflash("hip"), true)), "hip, sampled drafting off: DFlash2 alone");
+    // Metal: sampled drafting is opt-in, so DFlash2 alone; INTARSIA_SPEC_SAMPLED_DFLASH=1 loads both
+    assert!(!beside(true, sampled(None, ink.sampled_dflash("metal"), true)), "metal default: DFlash2 alone");
+    assert!(beside(true, sampled(Some(true), ink.sampled_dflash("metal"), true)), "metal, sampled drafting on: both drafts");
+    // no DSpark draft in the checkpoint: DFlash2 alone wherever
+    for b in ["hip", "metal"] {
+        assert!(!beside(false, sampled(None, ink.sampled_dflash(b), true)), "{b}: no DSpark draft");
+        assert!(!beside(false, true), "{b}: no DSpark draft, sampled drafting on");
+    }
+}
+
 /// The tiny target with Inkling-2's DSpark draft (`golden/inkling2-tiny-dspark`, `ds`) and/or the DFlash2 draft (`dd`), on `recipe`:
 /// `ds` + `dd` = option (a)'s dual load (DSpark first, DFlash2 second at `k2`); verify passes for the larger k.
 fn dual_model(recipe: &intarsia_core::recipe::Recipe, ds: Option<&Path>, dd: Option<&Path>, k: usize, k2: usize) -> (Model, Arc<Telemetry>) {
