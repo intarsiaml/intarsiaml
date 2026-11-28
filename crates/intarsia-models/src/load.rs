@@ -831,6 +831,15 @@ pub enum Dflash2Default {
     Found(PathBuf, usize),
 }
 
+/// Whether the recipe's DFlash2 default loads beside the checkpoint's DSpark draft (`dspark`: the checkpoint holds it) or alone. It
+/// loads beside only where sampled requests draft with the DSpark draft (`sampled`: [`intarsia_core::spec::sampled_dflash_resolve`]
+/// for the checkpoint's own draft, i.e. HIP's default). Elsewhere (Metal, where sampled drafting is opt-in) the DSpark draft would sit
+/// idle: lane ink-metal-solo loads DFlash2 alone there (0.83 GB of weights, +1.4 % context at the clamped capacity on endor; the
+/// same greedy ids and verify counters as both drafts, docs/results/2026-11-27-inkling2-metal-dflash2-flip.md G2 / G5 `dfl5`).
+pub fn dflash2_beside_dspark(dspark: bool, sampled: bool) -> bool {
+    dspark && sampled
+}
+
 /// The recipe's DFlash2 drafter for `backend` beside the checkpoint `model_dir`: `env` is `INTARSIA_SPEC_DFLASH2_DEFAULT` (`0` turns the
 /// default off); the value is an absolute directory or a name next to the checkpoint (`<model_dir>/../<name>`, the parent of the path
 /// as given, symlinks kept); found = its config.json is a DFlash2 draft (`dflash_config`, `DFlash2DraftModel`) and `open_dflash` takes it.
@@ -1043,7 +1052,9 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             Dflash2Default::Found(d, k2) => {
                 let k2 = if opts.spec_k_given { opts.spec.k } else { k2 };
                 let kn = if opts.spec_k_given { " (k from --spec-k)" } else { "" };
-                if dspark_draft_present(&cfg, dir) {
+                let dspark = dspark_draft_present(&cfg, dir);
+                let sampled = intarsia_core::spec::sampled_dflash_resolve(intarsia_core::spec::sampled_dflash_from_env(), recipe.sampled_dflash(backend_name), true);
+                if dflash2_beside_dspark(dspark, sampled) {
                     eprintln!(
                         "DFlash2 drafter {} (k {k2}{kn}): loaded beside the DSpark default of recipe {} on {backend_name} for greedy requests \
                          ([tuning.{backend_name}] dflash2_draft; sampled requests keep the DSpark draft; INTARSIA_SPEC_DFLASH2_DEFAULT=0 loads the \
@@ -1055,10 +1066,15 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
                 } else {
                     eprintln!(
                         "--spec dflash --spec-draft {} --spec-k {k2}{kn}: the DFlash2 default of recipe {} on {backend_name} ([tuning.{backend_name}] \
-                         dflash2_draft; no DSpark draft in this checkpoint: greedy requests draft with DFlash2, sampled ones stay plain; \
+                         dflash2_draft; {}: greedy requests draft with DFlash2, sampled ones stay plain; \
                          INTARSIA_SPEC_DFLASH2_DEFAULT=0 turns it off)",
                         d.display(),
-                        recipe.model.family
+                        recipe.model.family,
+                        if dspark {
+                            "sampled drafting is off on this backend, so the DSpark draft is not loaded (INTARSIA_SPEC_SAMPLED_DFLASH=1 loads it beside)"
+                        } else {
+                            "no DSpark draft in this checkpoint"
+                        }
                     );
                     let mut o = opts.clone();
                     o.spec = intarsia_core::spec::SpecConfig { mode: intarsia_core::spec::SpecMode::Dflash, k: k2, k_min: None };
