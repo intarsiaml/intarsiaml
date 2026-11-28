@@ -1,0 +1,73 @@
+== default-spec decode
+processes: 8 (8 complete, 7 prompts each); reps ['r1', 'r2', 'r3', 'r4']
+ids identical across every arm and rep: yes
+spec main7: verify passes 2160, proposed 6316, accepted 3200 (50.7 %, 2.48 tokens a pass), 4 processes
+spec now: verify passes 2140, proposed 8512, accepted 4140 (48.6 %, 2.93 tokens a pass), 4 processes
+
+| decode, arm / now | short | 1k | 4k | 16k |
+|---|---:|---:|---:|---:|
+| main7 | **0.877** [0.875-0.879; boot 0.845-0.913] | **0.879** [0.876-0.882] | **1.009** [1.005-1.013] | **0.908** [0.905-0.911] |
+
+| decode tok/s, median [range] | short | 1k | 4k | 16k |
+|---|---:|---:|---:|---:|
+| main7 | 98.38 [98.07-98.75] | 102.82 [102.54-103.26] | 117.71 [117.02-117.96] | 91.24 [90.86-91.51] |
+| now | 112.10 [111.77-112.87] | 116.85 [116.56-117.79] | 116.38 [116.11-117.24] | 100.34 [100.09-101.00] |
+
+per process (class geomean tok/s):
+  main7@r1: short 98.21 1k 102.62 4k 117.64 16k 91.22 | spec (540, 1579, 800)
+  main7@r2: short 98.07 1k 102.54 4k 117.02 16k 90.86 | spec (540, 1579, 800)
+  main7@r3: short 98.75 1k 103.26 4k 117.96 16k 91.51 | spec (540, 1579, 800)
+  main7@r4: short 98.55 1k 103.02 4k 117.78 16k 91.26 | spec (540, 1579, 800)
+  now@r1: short 112.02 1k 116.72 4k 116.26 16k 100.24 | spec (535, 2128, 1035)
+  now@r2: short 111.77 1k 116.56 4k 116.11 16k 100.09 | spec (535, 2128, 1035)
+  now@r3: short 112.87 1k 117.79 4k 117.24 16k 101.00 | spec (535, 2128, 1035)
+  now@r4: short 112.19 1k 116.98 4k 116.50 16k 100.45 | spec (535, 2128, 1035)
+
+tokens per verify pass (passes and accepted summed over the processes): | short | 1k | 4k | 16k |
+| main7 | 2.31 | 2.68 | 3.22 | 2.47 |
+| now | 2.81 | 3.19 | 3.23 | 3.00 |
+
+prefill tok/s per class (median over processes of the class's summed tokens / summed ms): | short | 1k | 4k | 16k |
+| main7 | 596 | 2820 | 3481 | 3282 |
+| now | 587 | 2805 | 3464 | 3267 |
+
+== plain decode (--spec off)
+processes: 8 (8 complete, 6 prompts each); reps ['r1', 'r2', 'r3', 'r4']
+ids identical across every arm and rep: yes
+spec main7: verify passes 0, proposed 0, accepted 0 (0.0 %, 0.00 tokens a pass), 4 processes
+spec now: verify passes 0, proposed 0, accepted 0 (0.0 %, 0.00 tokens a pass), 4 processes
+
+| decode, arm / now | short | 4k | 16k |
+|---|---:|---:|---:|
+| main7 | **1.000** [1.000-1.000; boot 1.000-1.000] | **1.000** [0.999-1.000] | **1.000** [0.999-1.000] |
+
+| decode tok/s, median [range] | short | 4k | 16k |
+|---|---:|---:|---:|
+| main7 | 83.63 [83.46-83.78] | 80.27 [80.13-80.42] | 75.26 [75.13-75.38] |
+| now | 83.63 [83.46-83.77] | 80.28 [80.16-80.43] | 75.28 [75.13-75.39] |
+
+per process (class geomean tok/s):
+  main7@r1: short 83.50 4k 80.13 16k 75.13 | spec (0, 0, 0)
+  main7@r2: short 83.46 4k 80.13 16k 75.15 | spec (0, 0, 0)
+  main7@r3: short 83.78 4k 80.41 16k 75.38 | spec (0, 0, 0)
+  main7@r4: short 83.76 4k 80.42 16k 75.38 | spec (0, 0, 0)
+  now@r1: short 83.50 4k 80.18 16k 75.17 | spec (0, 0, 0)
+  now@r2: short 83.46 4k 80.16 16k 75.13 | spec (0, 0, 0)
+  now@r3: short 83.76 4k 80.43 16k 75.39 | spec (0, 0, 0)
+  now@r4: short 83.77 4k 80.39 16k 75.38 | spec (0, 0, 0)
+
+tokens per verify pass (passes and accepted summed over the processes): | short | 4k | 16k |
+| main7 | - | - | - |
+| now | - | - | - |
+
+prefill tok/s per class (median over processes of the class's summed tokens / summed ms): | short | 4k | 16k |
+| main7 | 598 | 3478 | 3281 |
+| now | 598 | 3484 | 3281 |
+
+== prefill now / main7 (default-spec processes)
+prefill len1k: now / main7 **0.999** [0.993-1.004] n 4; now tok/s median 2805
+prefill len4k: now / main7 **0.999** [0.989-1.009] n 4; now tok/s median 3464
+prefill len16k: now / main7 **0.997** [0.988-1.007] n 4; now tok/s median 3267
+== prefill now / main7 (--spec off processes)
+prefill len4k: now / main7 **1.000** [0.998-1.003] n 4; now tok/s median 3484
+prefill len16k: now / main7 **1.000** [0.998-1.002] n 4; now tok/s median 3281
