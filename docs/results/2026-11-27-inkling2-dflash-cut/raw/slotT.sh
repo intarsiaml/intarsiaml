@@ -16,8 +16,8 @@ others=$(pgrep -fl 'intarsia[^ ]* (serve|generate)' | head -3)
 [ -n "$others" ] && { echo "GUARD: another intarsia run on the box: $others"; exit 1; }
 echo "slot T start $(date +%T) binary md5 $(md5 -q $B) git $(git -C $W rev-parse --short HEAD)"
 G="generate -m $M --backend metal --max-seq 20480 --profile-every 0 --show-ids --max-tokens 256 --prompt-ids $R/speed.json"
-for k in 7 5; do
-  f=$O/dfl$k
+for k in ${KS:-7 5}; do
+  f=$O/dfl$k${TAG:-}
   env INTARSIA_SPEC_TRACE=1 INTARSIA_DFLASH_CONF_TRACE=1 $B $G --spec dflash --spec-draft $D --spec-k $k > $f.out 2> $f.err
   echo "dfl$k traced rc $? $(date +%T) | conf lines $(grep -ac 'dflash2 conf' $f.err) | accepted lines $(grep -acE '^spec: .*token [0-9]+ pos [0-9]+ drafted' $f.err) | $(grep -aE '^spec: verify' $f.err)"
 done

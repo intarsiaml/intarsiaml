@@ -186,7 +186,15 @@ impl Selector {
             let row = &logits[p * v..(p + 1) * v];
             let m = tops[p][0].0;
             let lse = m + row.iter().map(|&x| (x - m).exp()).sum::<f32>().ln();
-            s.push_str(&format!(" {tok}:{:.5}:{:.5}:{:.5}:{:.3}", (u - lse).exp(), (m - lse).exp(), psel, margin));
+            let lse16 = m + tops[p].iter().map(|&(x, _)| (x - m).exp()).sum::<f32>().ln();
+            s.push_str(&format!(
+                " {tok}:{:.5}:{:.5}:{:.5}:{:.3}:{:.5}",
+                (u - lse).exp(),
+                (m - lse).exp(),
+                psel,
+                margin,
+                (u - lse16).exp()
+            ));
         }
         s
     }
