@@ -1,0 +1,71 @@
+fleetq: #12925 running on endor: bash docs/results/2026-11-27-inkling2-metal-flip2/raw/slotF.sh
+slot F start 23:16:44 binary md5 b3fe395f5f39e90fb417c98f837e8203 commit 30420f61c git 780fc4fc4
+== F0: prologue split bitwise on the GPU (test exe)
+f0 rc 0 | test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.98s | 
+== F1: greedy ids, g3.json (code, len4k, len16k), 256 tokens, --ignore-eos, prefill trace on
+g-off rc 0 t+29s | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass) | split traces 1 |          20294181704  peak memory footprint
+g-off load: 
+g-main rc 0 t+49s | spec: verify passes=203 proposed=1008 accepted=560 (acceptance 55.6%, 3.76 tokens per pass) | split traces 0 |          20313384208  peak memory footprint
+g-main load: --spec dflash --spec-draft /Users/josef/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots/Inkling-2-Mini-DFlash2 --spec-k 5 (k from --spec-k): the DFlash2 default of recipe ink|speculative decoding: Dflash, up to 5 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_bf16_gemv_rows ink_kv_prologue=ink_kv_prologue_bf16 |
+g-flip rc 0 t+68s | spec: verify passes=193 proposed=758 accepted=565 (acceptance 74.5%, 3.93 tokens per pass) | split traces 1 |          20318725368  peak memory footprint
+g-flip load: --spec dflash --spec-draft /Users/josef/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots/Inkling-2-Mini-DFlash2 --spec-k 7: the DFlash2 default of recipe inkling2 on metal ([t|dflash: cut 0.3 (the Metal default; INTARSIA_DFLASH_CUT=0 turns it off): drafting stops once the product of the drafts' candidate probabilities falls below it (cap --spec-k)|speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_bf16_gemv_rows ink_kv_prologue=ink_kv_prologue_bf16 |
+| prompt | g-off.err | g-main.err | g-flip.err | n ids | equal |
+|---|---|---|---|---|---|
+| code | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | c69d1438ab3e715feb93a0614ebddcfe | [256, 256, 256] | yes |
+| len4k | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | 9e85ba1117e4a6a6cc12c5c917532e7f | [256, 256, 256] | yes |
+| len16k | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | 89994b876223335763b2004d0d281157 | [256, 256, 256] | yes |
+== F2: sampled, seed 7, 32 tokens, --ignore-eos, T1.0 (w100) and T0.6 (w60): off vs flip
+off T1.0 n100 rc 0 t+122s | ids lines 100 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+off T0.6 n60 rc 0 t+157s | ids lines 60 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+flip T1.0 n100 rc 0 t+212s | ids lines 100 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+flip T0.6 n60 rc 0 t+246s | ids lines 60 | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+T0.6         flip   vs off: ref 60 / arm 60 prompts, compared 60, differ 0 []
+T1.0         flip   vs off: ref 100 / arm 100 prompts, compared 100, differ 0 []
+TOTAL flip vs off: compared 160, differ 0
+== F3a: decode ABBA, speed.json (19 prompts, 256 tokens, EOS honoured), 45 s idle before each
+main@r1 rc 0 23:22:32 t+348s |  | decode overall: 4261 tokens after the first, 41198 ms (103.43 tok/s) | spec: verify passes=1215 proposed=6042 accepted=3042 (acceptance 50.3%, 3.50 tokens per pass)
+flip@r1 rc 0 23:24:05 t+441s | dflash: cut 0.3 | decode overall: 4261 tokens after the first, 34581 ms (123.22 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+flip@r2 rc 0 23:25:39 t+535s | dflash: cut 0.3 | decode overall: 4261 tokens after the first, 34702 ms (122.79 tok/s) | spec: verify passes=1195 proposed=4244 accepted=3030 (acceptance 71.4%, 3.54 tokens per pass)
+main@r2 rc 0 23:27:18 t+634s |  | decode overall: 4261 tokens after the first, 39716 ms (107.29 tok/s) | spec: verify passes=1215 proposed=6042 accepted=3042 (acceptance 50.3%, 3.50 tokens per pass)
+flip vs main: reps ['r1', 'r2'], 19 prompts each, all complete: True, ids identical across every process (both arms): True
+| cell | ratio | 95 % CI | per rep |
+|---|---:|---|---|
+| short | **1.161** | [0.829-1.624] | 1.192 1.130 |
+| 1k | **1.175** | [0.813-1.698] | 1.210 1.142 |
+| prose | **1.252** | [1.037-1.513] | 1.271 1.234 |
+| chat | **1.141** | [0.834-1.559] | 1.169 1.113 |
+| 4k | **1.150** | [1.148-1.152] | 1.150 1.150 |
+| 16k | **1.149** | [1.111-1.188] | 1.146 1.152 |
+mean of the six cells: geo 1.171, arith 1.171; per-rep geo means 1.189 1.153 -> 1.171 [0.963-1.424]
+cells with CI upper bound < 0.99: none; cells faster by the point estimate: ['short', '1k', 'prose', 'chat', '4k', '16k']
+VERDICT by the pre-registered rule: GO
+== F3b: prefill ABBA, pf3.json (p1k, len4k, len16k), 1 token, 45 s idle before each (off = main, on = flip)
+r1 main rc 0 t+691s | prefill[p1k]: 1000 tokens, 623 ms prefill[len4k]: 4108 tokens, 1398 ms prefill[len16k]: 16455 tokens, 5864 ms 
+r2 flip rc 0 t+747s | prefill[p1k]: 1000 tokens, 621 ms prefill[len4k]: 4108 tokens, 1277 ms prefill[len16k]: 16455 tokens, 5330 ms 
+r3 flip rc 0 t+804s | prefill[p1k]: 1000 tokens, 625 ms prefill[len4k]: 4108 tokens, 1281 ms prefill[len16k]: 16455 tokens, 5259 ms 
+r4 main rc 0 t+861s | prefill[p1k]: 1000 tokens, 651 ms prefill[len4k]: 4108 tokens, 1327 ms prefill[len16k]: 16455 tokens, 5500 ms 
+| prompt | off tok/s (runs) | on tok/s (runs) | median off | median on | on / off | per-block on / off |
+|---|---|---|---|---|---|---|
+| p1k | 1605 / 1536 | 1610 / 1600 | 1570.6 | 1605.2 | **1.022** | 1.022 |
+| len4k | 2938 / 3096 | 3217 / 3207 | 3017.1 | 3211.9 | **1.065** | 1.065 |
+| len16k | 2806 / 2992 | 3087 / 3129 | 2899.0 | 3108.1 | **1.072** | 1.072 |
+== F4a: serve --max-batch 1, flip (no --spec) vs --spec off, multi-turn
+mb1-flip up after 197 s | loaded thinkingmachines/Inkling-2-Mini on metal (Apple M5 Max) in 197.0s, context 4096 tokens | --spec dflash --spec-draft /Users/josef/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots/Inkling-2-Mini-DFlash2 --spec-k 7: the DFlash2 default of recipe inkling2 on metal ([t|dflash: cut 0.3 (the Metal default; INTARSIA_DFLASH_CUT=0 turns it off): drafting stops once the product of the drafts' candidate probabilities falls below it (cap --spec-k)|admission on plan shapes: 42 kernel(s) checked, 170 case(s) run, 0 cached|
+chat: {'chat0-t1': (128, 31, 0), 'chat0-t2': (128, 47, 30), 'chat0-t3': (128, 66, 47), 'chat1-t1': (128, 29, 0), 'chat1-t2': (128, 44, 27), 'chat1-t3': (128, 60, 43), 'ids0-t1': (128, 93, 0), 'ids0-t2': (128, 256, 93), 'ids0-t3': (128, 424, 256), 'ids1-t1': (128, 300, 0), 'ids1-t2': (128, 468, 300), 'ids1-t3': (128, 631, 468)}
+mb1-flip stopped t+1073s
+mb1-off up after 5 s | loaded thinkingmachines/Inkling-2-Mini on metal (Apple M5 Max) in 4.5s, context 4096 tokens | admission on plan shapes: 32 kernel(s) checked, 0 case(s) run, 95 cached|
+chat: {'chat0-t1': (128, 31, 0), 'chat0-t2': (128, 47, 30), 'chat0-t3': (128, 66, 47), 'chat1-t1': (128, 29, 0), 'chat1-t2': (128, 44, 27), 'chat1-t3': (128, 60, 43), 'ids0-t1': (128, 93, 0), 'ids0-t2': (128, 256, 93), 'ids0-t3': (128, 424, 256), 'ids1-t1': (128, 300, 0), 'ids1-t2': (128, 468, 300), 'ids1-t3': (128, 631, 468)}
+mb1-off stopped t+1103s
+cmpchat /opt/code/intarsiaml/.worktrees/ink-metal-flip2/docs/results/2026-11-27-inkling2-metal-flip2/raw/F/chat-mb1-flip.json vs /opt/code/intarsiaml/.worktrees/ink-metal-flip2/docs/results/2026-11-27-inkling2-metal-flip2/raw/F/chat-mb1-off.json: turns 12 / 12, differ 0 []
+cached_tokens a: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+cached_tokens b: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+== F4b: serve --max-batch 4 (no --spec), solo + 2 x concurrent, vs #551's batch-4 replies
+batch4 up after 72 s | loaded thinkingmachines/Inkling-2-Mini on metal (Apple M5 Max) in 72.3s, context 4096 tokens
+greedy solo: [('code', 128), ('len1k', 128), ('long_prose_300', 128), ('chat_reasoning_rnone', 128)] in 8.5 s
+greedy concurrent: [('code', 128), ('chat_reasoning_rnone', 128), ('long_prose_300', 128), ('len1k', 128)] in 4.6 s
+greedy concurrent: [('code', 128), ('chat_reasoning_rnone', 128), ('long_prose_300', 128), ('len1k', 128)] in 4.7 s
+/opt/code/intarsiaml/.worktrees/ink-metal-flip2/docs/results/2026-11-27-inkling2-metal-flip2/raw/F/b4-solo.json vs /opt/code/intarsiaml/.worktrees/ink-metal-flip2/docs/results/2026-11-27-inkling2-metal-flip2/raw/F/b4-conc.json: common 4 (of 4 / 4), differ 0
+/opt/code/intarsiaml/.worktrees/ink-metal-flip2/docs/results/2026-11-27-inkling2-metal-flip2/raw/F/b4-solo.json vs /opt/code/intarsiaml/.worktrees/ink-metal-flip2/docs/results/2026-11-27-inkling2-metal-flip2/raw/F/b4-conc2.json: common 4 (of 4 / 4), differ 0
+/opt/code/intarsiaml/.worktrees/ink-metal-flip2/docs/results/2026-11-27-inkling2-metal-dflash2-flip/raw/G/b4-solo.json vs /opt/code/intarsiaml/.worktrees/ink-metal-flip2/docs/results/2026-11-27-inkling2-metal-flip2/raw/F/b4-solo.json: common 4 (of 4 / 4), differ 0
+slot F end 23:36:41 t+1197s
+fleetq: #12925 done (exit 0)

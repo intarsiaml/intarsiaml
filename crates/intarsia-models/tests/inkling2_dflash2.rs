@@ -178,6 +178,9 @@ fn recipe_dims() -> (intarsia_core::recipe::Recipe, ModelDims) {
 
 /// The tiny target with the draft of `ddir` (or none); verify passes for `--spec-k k`. `f32`: f32 activations (the reference test).
 fn try_model(ddir: Option<&Path>, k: usize, f32: bool, plan: &intarsia_core::plan::PlanOptions) -> intarsia_core::Result<(Model, Arc<Telemetry>)> {
+    // lane ink-metal-flip2: Metal's DFlash2 cut default (0.3, read at load) would drop every draft of the tiny random model (16
+    // near-uniform candidates), and the drafting checks would be vacuous on INTARSIA_INKLING2_BACKEND=metal; off here, every backend
+    std::env::set_var("INTARSIA_DFLASH_CUT", "0");
     let (recipe, dims) = recipe_dims();
     let src = SafeTensors::open_dir(&target_dir().unwrap()).unwrap();
     let dflash = match ddir {
@@ -754,9 +757,10 @@ fn recipe_dflash2_default_finds_the_drafter_or_falls_back() {
     let ink = intarsia_models::parse_recipe(include_str!("../../../recipes/inkling2.toml")).unwrap();
     assert_eq!(ink.dflash2_draft("hip"), Some("Inkling-2-Mini-DFlash2"), "recipes/inkling2.toml [tuning.hip] dflash2_draft");
     assert_eq!(ink.dflash2_k("hip"), Some(4));
-    // lane ink-metal-flip (user decision 2026-11-27 "Yes, flip Metal"): Metal's greedy default drafts with DFlash2 at k5
+    // lane ink-metal-flip (user decision 2026-11-27 "Yes, flip Metal"): Metal's greedy default drafts with DFlash2, at k7 with the
+    // cut 0.3 since lane ink-metal-flip2 (user decision 2026-11-27 "Flip both"; was k5)
     assert_eq!(ink.dflash2_draft("metal"), Some("Inkling-2-Mini-DFlash2"), "recipes/inkling2.toml [tuning.metal] dflash2_draft");
-    assert_eq!(ink.dflash2_k("metal"), Some(5));
+    assert_eq!(ink.dflash2_k("metal"), Some(7));
     let dd = draft_dir();
     let model_dir = dd.parent().unwrap().join("Inkling-2-Mini"); // need not exist: only its parent is read
     for b in ["cuda", "cpu"] {
@@ -773,7 +777,7 @@ fn recipe_dflash2_default_finds_the_drafter_or_falls_back() {
         assert_eq!(dflash2_default_draft(&found, b, &beside, None), Dflash2Default::NotSet, "{b}: the drafter is there, but no {b} key");
     }
     let metal = recipe_with("metal", &|t| t.dflash2_draft = Some(dd.file_name().unwrap().to_str().unwrap().to_string()));
-    assert_eq!(dflash2_default_draft(&metal, "metal", &beside, None), Dflash2Default::Found(dd.clone(), 5), "metal: found beside, k5");
+    assert_eq!(dflash2_default_draft(&metal, "metal", &beside, None), Dflash2Default::Found(dd.clone(), 7), "metal: found beside, the recipe's k7");
     assert_eq!(dflash2_default_draft(&metal, "metal", &beside, Some("0")), Dflash2Default::Off, "metal: =0 reverts");
     let name = dd.file_name().unwrap().to_str().unwrap().to_string();
     let sib = recipe_with("cpu", &|t| {

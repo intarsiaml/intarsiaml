@@ -1,0 +1,33 @@
+prefill chunk 2048 (recipe inkling2, metal)
+prefill chunk: long-prompt chunk off (INTARSIA_INK_LONG_CHUNK=1 turns it on: 4096 rows from 4097 tokens)
+intarsia-backend-metal: keep-warm: registered the file at 0x7a94000000, 19.53 GB
+pack12 off: the model is loaded to batch (--max-batch > 1); the bf16 weights serve every row
+INTARSIA_INK_HEAD_SCREEN: screened greedy head on (fp8 copy 0.46 GB + bounds, cap 64, 1.1 s)
+inkling2: 24 layers, 48 visits, 144 state slots, loaded in 1.7 s
+admission on plan shapes: 30 kernel(s) checked, 21 case(s) run, 92 cached
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048
+inkling2 packed prefill: off (INTARSIA_INK_PACK=0, or no segment-table ConvMix on this backend)
+device sampler (INTARSIA_GUMBEL_SAMPLING, else the recipe): on, kernel gumbel_argmax_f32
+loaded thinkingmachines/Inkling-2-Mini on metal (Apple M5 Max) in 72.3s, context 4096 tokens
+sampling defaults: temperature=1 top_p=1 top_k=0 (from /Users/josef/.cache/huggingface/hub/models--thinkingmachines--Inkling-2-Mini/snapshots/b85c3cfa615fc413cc9af3379f491b963f3b586a/generation_config.json; a request's own values win)
+intarsia server listening on http://127.0.0.1:8449
+INTARSIA_INK_HEAD_SCREEN: gathers through the serving head kernel 'logits_bf16_gemv'
+INTARSIA_INK_HEAD_SCREEN: first screened head step served (1 row)
+       90.42 real        84.08 user         3.96 sys
+         43507924992  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             3342258  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                  17  messages sent
+                  37  messages received
+                   1  signals received
+                   0  voluntary context switches
+               62233  involuntary context switches
+       1000247223506  instructions retired
+        369893303901  cycles elapsed
+         32124240392  peak memory footprint

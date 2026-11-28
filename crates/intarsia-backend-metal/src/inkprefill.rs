@@ -145,15 +145,16 @@ pub const SPLIT_SHADERS: [&str; 2] = ["ink_kv_prologue_norel_bf16", "ink_rel_pro
 /// Rows per `ink_rel_proj_bf16` threadgroup (`PS_RB` in the shader).
 pub const SPLIT_RB: usize = 8;
 
-/// InkKvPrologue of prefill chunks (rows > 16) as the two `SPLIT_SHADERS` kernels: `INTARSIA_INK_PROLOGUE_SPLIT=1`
-/// (default off).
+/// InkKvPrologue of prefill chunks (rows > 16) as the two `SPLIT_SHADERS` kernels: on unless `INTARSIA_INK_PROLOGUE_SPLIT=0`
+/// (lane ink-metal-flip2, user decision 2026-11-27 "Flip both": bitwise, prefill +3.1-3.3 % at 1k / 4k / 16k,
+/// docs/results/2026-11-27-inkling2-metal-prologue-split.md; opt-in `=1` before).
 pub fn prologue_split(rows: usize) -> bool {
     static L: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     rows > 16
         && match SPLIT_FORCE.load(std::sync::atomic::Ordering::Relaxed) {
             0 => false,
             1 => true,
-            _ => *L.get_or_init(|| std::env::var("INTARSIA_INK_PROLOGUE_SPLIT").is_ok_and(|v| v == "1")),
+            _ => *L.get_or_init(|| !std::env::var("INTARSIA_INK_PROLOGUE_SPLIT").is_ok_and(|v| v.trim() == "0")),
         }
 }
 
