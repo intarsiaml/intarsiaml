@@ -1,7 +1,7 @@
 # Inkling-2-Mini on Metal: the P12 draft head and the device top-k as defaults (lane ink-metal-flip3, 2026-11-28)
 
-Status: **DRAFT; the flip waits on the user's sign-off.** The branch stacks on #560 (`ink/metal-p12head`). Confirm slot F3 (fleetq #12974)
-passes F1-F3: GO, Metal decode **1.025x** in matched power, bitwise. Serve check F4 (fleetq #12981) passes.
+Status: **flipped; the user said yes on 2026-11-28 ("Yes, merge #561").** PR #561, built on #560 (`ink/metal-p12head`). Slot F3
+(fleetq #12974) passes F1-F3: GO, Metal decode **1.025x** in matched power, bitwise. Serve check F4 (fleetq #12981) passes.
 
 ## Change (Metal only; HIP and CPU unchanged)
 
