@@ -777,7 +777,7 @@ fn recipe_dflash2_default_finds_the_drafter_or_falls_back() {
         assert_eq!(dflash2_default_draft(&found, b, &beside, None), Dflash2Default::NotSet, "{b}: the drafter is there, but no {b} key");
     }
     let metal = recipe_with("metal", &|t| t.dflash2_draft = Some(dd.file_name().unwrap().to_str().unwrap().to_string()));
-    assert_eq!(dflash2_default_draft(&metal, "metal", &beside, None), Dflash2Default::Found(dd.clone(), 5), "metal: found beside, k5");
+    assert_eq!(dflash2_default_draft(&metal, "metal", &beside, None), Dflash2Default::Found(dd.clone(), 7), "metal: found beside, the recipe's k7");
     assert_eq!(dflash2_default_draft(&metal, "metal", &beside, Some("0")), Dflash2Default::Off, "metal: =0 reverts");
     let name = dd.file_name().unwrap().to_str().unwrap().to_string();
     let sib = recipe_with("cpu", &|t| {
