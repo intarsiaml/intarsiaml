@@ -1,5 +1,11 @@
 # Inkling-2-Mini on Metal: a confidence cut for DFlash2 drafts (lane ink-dflash-cut, 2026-11-27)
 
+Status: **GO by the pre-registered rule: k7 + `INTARSIA_DFLASH_CUT=0.3` is 1.126x the Metal default (DFlash2 k5), every cell 1.08-1.16,
+ids identical in every process.** Merged opt-in; no default changed (making it the Metal default is the user's call).
+
+Turn it on: `INTARSIA_DFLASH_CUT=0.3 intarsia generate|serve ... --backend metal --spec dflash --spec-draft <Inkling-2-Mini-DFlash2> --spec-k 7`.
+Off: unset the variable (or `0`).
+
 Branch `ink/dflash-cut` (worktree `.worktrees/ink-dflash-cut`), on main `930d19d4c` (#553 + #554 merged). Question: with the Metal default
 DFlash2 k5 (#551, #553), can a per-pass cut on the drafts' confidence make decode faster, with output unchanged?
 
@@ -57,5 +63,51 @@ Binary `intarsia-ct` md5 `77051af71927dadbdd9c50dcc3cc265f` (commit `057f9d6d1`)
    every prompt's ids equal across the four and to the goldens (code `c69d1438ab3e715feb93a0614ebddcfe`, len4k
    `9e85ba1117e4a6a6cc12c5c917532e7f`, len16k `89994b876223335763b2004d0d281157`).
 
-Not covered by this slot: serve, batched decode (`--max-batch` > 1 does not draft with DFlash2 on Metal), sampled requests (DFlash2 drafts
+## Results (slot A, endor exclusive fleetq #12850, 21:23:20-21:39:03)
+
+Binary md5 `77051af71927dadbdd9c50dcc3cc265f`, git `b93823f54`; raw `raw/A/` (`<arm>@<rep>.err/.out/.t`, `macmon.jsonl`, `rule-out.txt`,
+`cells-tps.txt`), log `raw/slotA-12850.log`.
+
+**Rule (`raw/rule.py`, unchanged from #546): GO.**
+
+| cell | ratio cut7 / dfl5 | 95 % CI | per rep (r1 r2 r3 r4) |
+|---|---:|---|---|
+| short | **1.081** | [0.847-1.379] | 0.861 1.201 1.161 1.136 |
+| 1k | **1.162** | [0.969-1.393] | 0.997 1.306 1.212 1.154 |
+| prose | **1.154** | [1.006-1.323] | 1.015 1.225 1.194 1.194 |
+| chat | **1.080** | [0.838-1.393] | 0.859 1.243 1.137 1.123 |
+| 4k | **1.136** | [1.014-1.274] | 1.028 1.214 1.141 1.171 |
+| 16k | **1.148** | [1.048-1.257] | 1.055 1.184 1.195 1.161 |
+
+Mean of the six cells 1.126 (the simulation said 1.123); no CI upper bound < 0.99; ids identical across all 8 processes, every prompt.
+
+- **Tokens per pass as simulated:** dfl5 1215 passes, 6042 proposed, 3042 accepted (3.50 tokens / pass); cut7 1195 passes, 4244 proposed
+  (3.55 drafts, 4.55 verify rows a pass), 3030 accepted (3.54 tokens / pass).
+- **Rep 1 is a power-state mismatch** (`macmon.jsonl`, GPU busy samples per process): dfl5@r1 ran in endor's burst state (median 1479 MHz,
+  42.8 W GPU), cut7@r1 right after it throttled (1091 MHz, 21.0 W); 0.966 that rep. Reps 3 and 4, at matched clocks (1180-1232 MHz,
+  25.6-27.4 W): cut7 103.7 / 105.0 tok/s vs dfl5 88.9 / 91.4, 1.149-1.167. The verdict does not depend on rep 1 (r2-r4 alone: every
+  cell > 1.12).
+- **Absolute tok/s** (median of 4 reps, geomean over a cell's prompts; this slot ran mostly in endor's ~1200 MHz state, so below #546's
+  absolute numbers):
+
+| cell | dfl5 | cut7 |
+|---|---:|---:|
+| short | 93.4 | 107.3 |
+| 1k | 72.6 | 85.8 |
+| prose | 92.4 | 110.4 |
+| chat | 91.6 | 103.5 |
+| 4k | 93.7 | 107.2 |
+| 16k | 69.2 | 79.9 |
+
+- **Ids gate PASS** (g3.json, 256 tokens, `--ignore-eos`): off / dfl5 / cut7 / cut5 all code `c69d1438ab3e715feb93a0614ebddcfe`, len4k
+  `9e85ba1117e4a6a6cc12c5c917532e7f`, len16k `89994b876223335763b2004d0d281157` (the goldens). cut7 193 passes / 3.93 tokens a pass,
+  cut5 210 / 3.61, dfl5 203 / 3.76.
+- **Per-row verify cost** (slot T traces, `raw/ana_d.py`): verify + rollback median 28.3 ms at 6 rows (k5), 30.9 ms at 8 rows (k7), so
+  ~1.3 ms a row. Whole passes at matched clocks (reps 3 / 4): cut7 34.4 / 33.9 ms, dfl5 39.5 / 38.4 ms, ~4.5 ms less for 1.42 fewer verify
+  rows, more than the verify rows alone; the rest (rollback, the host's per-row download and selection, the draft at k7) is not split
+  out. A diagnostic slot D (#12853, traced k7 arms) was cancelled before it started once macmon explained rep 1.
+
+## Not covered
+
+ serve, batched decode (`--max-batch` > 1 does not draft with DFlash2 on Metal), sampled requests (DFlash2 drafts
 greedy requests only on Metal), HIP.
