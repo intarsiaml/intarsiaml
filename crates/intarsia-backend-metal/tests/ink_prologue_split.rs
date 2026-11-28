@@ -2,7 +2,7 @@
 //! Lane ink-prefill: InkKvPrologue of prefill chunks as `ink_kv_prologue_norel_bf16` + `ink_rel_proj_bf16`
 //! (`INTARSIA_INK_PROLOGUE_SPLIT=1`, inkprefill.rs) equals `ink_kv_prologue_bf16` bit for bit: q, rel, k, v and both conv
 //! rings, at the real shapes (24 / 8 heads, head_dim 128, d_rel 16, extent 1024, K 4), static and dynamic taps with tau,
-//! the in-kernel ring write (ring 1040 rows) and the separate ring pass (ring 19 rows), 17 .. 2048 rows, a partial
+//! the in-kernel ring write (ring 1040 rows) and the separate ring pass (ring 19 rows), 17 .. 4100 rows, a partial
 //! 8-row block, positions 0 and past the tau floor / ring wrap.
 
 mod common;
@@ -103,6 +103,10 @@ fn prologue_split_is_bitwise_the_prologue() {
         (2048, 2048, 1040, true),
         (2048, 5000, 19, true),
         (1890, 6144, 1040, false),
+        // lane ink-prologue2: 4096-row chunks (INTARSIA_INK_LONG_CHUNK=1), one with a partial 8-row block
+        (4096, 0, 1040, false),
+        (4096, 8192, 19, true),
+        (4100, 4099, 1040, true),
     ] {
         let seed = 0x5917 + n as u64 * 31;
         let a = run(&be, t, pos0, rr, dynamic, false, seed);
