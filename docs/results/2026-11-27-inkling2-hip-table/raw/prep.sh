@@ -11,6 +11,7 @@ for pair in "$@"; do
   X=$W/.scratch/src-$NAME; rm -rf "$X"; mkdir -p "$X"
   git -C "$W" archive "$SHA" | tar -x -C "$X" || exit 3
   rsync -a --delete --exclude /target --exclude /.git --exclude /.worktrees --exclude /logs --exclude /.scratch "$X/" tatooine:$L/ < /dev/null || exit 4
+  ssh -o BatchMode=yes tatooine "mkdir -p ~/$L/$R" < /dev/null || exit 5
   rsync -a "$W/$R/" tatooine:$L/$R/ < /dev/null || exit 5
   full=$(git -C "$W" rev-parse "$SHA")
   echo "[prep] $NAME = $full $(date +%T)"
