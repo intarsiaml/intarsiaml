@@ -132,14 +132,11 @@ pub(super) fn cand_prob(top: &[(f32, usize)], i: usize) -> f32 {
 
 /// Does the DFlash2 draft take its candidates by the device top-k (`INTARSIA_DFLASH_DEVICE_TOPK` = `env`)? A backend with
 /// `supports_topk()` (HIP): on unless `0` (lane dh item 2). Metal, whose `topk_rows` works but whose `supports_topk()` stays false
-/// (device sampling and the DCoCo corrector key on it): only when set to `1` or `check` (lane ink-metal-dtopk, opt-in). Else off.
+/// (device sampling and the DCoCo corrector key on it): on unless `0` too (lane ink-metal-dtopk, default since lane ink-metal-flip3:
+/// bit-identical candidates, slot C). Else off.
 pub(super) fn device_topk_resolve(backend: &str, supports_topk: bool, env: &str) -> bool {
     let v = env.trim();
-    if supports_topk {
-        v != "0"
-    } else {
-        backend == "metal" && (v == "1" || v == "check")
-    }
+    (supports_topk || backend == "metal") && v != "0"
 }
 
 /// `INTARSIA_DFLASH_CUT` when set: `0` or unparsable = off; a value in (0, 1] = the cut (lane ink-dflash-cut).
@@ -350,7 +347,7 @@ pub(super) struct Draft2 {
     pub(super) cand: usize,
     /// Lane dh item 2 (`INTARSIA_DFLASH_DEVICE_TOPK`, default on since 2026-11-06, `=0` off; only a backend with `Backend::topk_rows`,
     /// `supports_topk()`: HIP and CUDA, and CUDA refuses DFlash2 drafts at load, so HIP is the only backend it runs on by default; Metal
-    /// opt-in with `=1` / `check` since lane ink-metal-dtopk, [`device_topk_resolve`]; the CPU backend always takes the host path): each row's candidates
+    /// on Metal too since lane ink-metal-flip3 (opt-in with `=1` / `check` in lane ink-metal-dtopk), [`device_topk_resolve`]; the CPU backend always takes the host path): each row's candidates
     /// taken on the device (ids i32 `[block, cand]`, values f32 `[block, cand]`, NaN flags i32 `[block]`, the kernel's scratch), so
     /// only `cand` values a row are downloaded instead of the row's logits. `None`: the host takes them from the downloaded logits.
     pub(super) topk: Option<[Buffer; 4]>,
@@ -589,7 +586,7 @@ pub(super) fn load2(
     // (a DSpine draft ranks the candidates by bf16-rounded logits with the lower id winning ties: host path only, for now)
     let device_topk = device_topk_resolve(b.name(), b.supports_topk(), &topk_env) && cand <= 64 && spine_cfg.is_none();
     if device_topk && b.name() == "metal" {
-        eprintln!("dflash: candidates by the Metal device top-k (INTARSIA_DFLASH_DEVICE_TOPK={}, opt-in)", topk_env.trim());
+        eprintln!("dflash: candidates by the Metal device top-k (default; INTARSIA_DFLASH_DEVICE_TOPK=0 takes the host's)");
     }
     let topk = if device_topk {
         let r = t.max(1);
@@ -920,9 +917,13 @@ mod tests {
         assert_eq!(cut_resolve("metal", Some("0.5")).0, Some(0.5));
         // lane ink-metal-dtopk: HIP's device top-k on unless 0; Metal's only when set to 1 or check; cpu never
         assert!(device_topk_resolve("hip", true, "") && device_topk_resolve("hip", true, "check") && !device_topk_resolve("hip", true, "0"));
-        assert!(!device_topk_resolve("metal", false, "") && !device_topk_resolve("metal", false, "0"));
+        assert!(device_topk_resolve("metal", false, "") && !device_topk_resolve("metal", false, "0") && !device_topk_resolve("metal", false, " 0 "));
         assert!(device_topk_resolve("metal", false, "1") && device_topk_resolve("metal", false, " check "));
         assert!(!device_topk_resolve("cpu", false, "1"));
+        // the P12 draft head (lane ink-metal-flip3): default on Metal, `p12` anywhere, any other value keeps the bf16 head
+        use super::super::dflash::head_p12_resolve as p12;
+        assert!(p12("metal", None) && p12("metal", Some("")) && p12("metal", Some(" p12 ")) && p12("hip", Some("p12")));
+        assert!(!p12("metal", Some("bf16")) && !p12("metal", Some("0")) && !p12("metal", Some("off")) && !p12("hip", None) && !p12("cpu", None));
         for b in ["hip", "cuda", "cpu"] {
             assert_eq!(cut_resolve(b, None).0, None, "{b}: off unless set");
             assert_eq!(cut_resolve(b, Some("0.3")).0, Some(0.3), "{b}: set");

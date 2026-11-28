@@ -361,9 +361,20 @@ pub(super) fn dflash2_head_kind(b: &dyn Backend) -> Result<Option<crate::quant::
 /// unembed (`Model::head_p12`, lane ink-pack12), whose kernels are bitwise the bf16 head's at 1..=`p12::ROWS_MAX` rows, rows-exact
 /// included: the same candidates and acceptance, 25 % fewer head bytes. Falls back to the bf16 head where the model has no P12
 /// copy, the rows exceed `p12::ROWS_MAX` or the backend has no kernel for the call. Read once.
-pub(super) fn dflash2_head_p12() -> bool {
-    static P: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *P.get_or_init(|| std::env::var("INTARSIA_DFLASH2_HEAD").is_ok_and(|v| v.trim() == "p12"))
+///
+/// Default on Metal (lane ink-metal-flip3): unset there = `p12`; `bf16` / `0` / `off` keep the bf16 head. Elsewhere only `p12` turns it on.
+pub(super) fn dflash2_head_p12(backend: &str) -> bool {
+    static P: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    head_p12_resolve(backend, P.get_or_init(|| std::env::var("INTARSIA_DFLASH2_HEAD").ok()).as_deref())
+}
+
+/// [`dflash2_head_p12`] for an `INTARSIA_DFLASH2_HEAD` value (`None` = unset).
+pub(super) fn head_p12_resolve(backend: &str, env: Option<&str>) -> bool {
+    match env.map(str::trim) {
+        Some("p12") => true,
+        None | Some("") => backend == "metal",
+        Some(_) => false,
+    }
 }
 
 fn ds_norm_ref(ds: &super::dspark::Dspark) -> TensorRef {
@@ -960,7 +971,7 @@ impl Model {
                 let xr = n.rows(1, t - 1);
                 // the target's P12 unembed (`INTARSIA_DFLASH2_HEAD=p12`, [`dflash2_head_p12`]): the bf16 head's bits, rows-exact
                 // like the pass (`exact_rows` is set while `rows_k`)
-                let p12 = (head.full_head.is_none() && !shard && dflash2_head_p12())
+                let p12 = (head.full_head.is_none() && !shard && dflash2_head_p12(self.backend.name()))
                     .then_some(())
                     .and(self.head_p12.as_ref())
                     .filter(|p| p.format == crate::quant::p12::P12 && t - 1 <= crate::quant::p12::ROWS_MAX)
@@ -970,13 +981,13 @@ impl Model {
                         c
                     })
                     .filter(|c| self.registry.select(c).is_ok());
-                if dflash2_head_p12() {
+                if dflash2_head_p12(self.backend.name()) {
                     // one note a process: which head the first draft pass took (the P12 copy, or the fallback)
                     static NOTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
                     if !NOTED.swap(true, std::sync::atomic::Ordering::Relaxed) {
                         match &p12 {
-                            Some(c) => eprintln!("dflash: DFlash2 draft head: the target's P12 unembed ({}, INTARSIA_DFLASH2_HEAD=p12)", self.registry.select(c).map(|k| k.name.clone()).unwrap_or_default()),
-                            None => eprintln!("dflash: DFlash2 draft head: INTARSIA_DFLASH2_HEAD=p12 but no P12 call here (no P12 unembed, a head copy, a shard, or no kernel): the bf16 head"),
+                            Some(c) => eprintln!("dflash: DFlash2 draft head: the target's P12 unembed ({}; INTARSIA_DFLASH2_HEAD=bf16 takes the bf16 head)", self.registry.select(c).map(|k| k.name.clone()).unwrap_or_default()),
+                            None => eprintln!("dflash: DFlash2 draft head: P12 wanted but no P12 call here (no P12 unembed, a head copy, a shard, or no kernel): the bf16 head"),
                         }
                     }
                 }
