@@ -1,8 +1,8 @@
 # Inkling-2-Mini on Metal: a confidence cut for DFlash2 drafts (lane ink-dflash-cut, 2026-11-27)
 
 Status: **GO by the pre-registered rule: k7 + `INTARSIA_DFLASH_CUT=0.3` is 1.126x the Metal default (DFlash2 k5), every cell 1.08-1.16,
-ids identical in every process.** Opt-in, PR #556; no default changed (making it the Metal default is the user's call, after the ready
-gates of slot R).
+ids identical in every process. Ready gates (slot R) PASS: sampled ids, peak memory, serve multi-turn.** Opt-in, PR #556; no
+default changed (making it the Metal default is the user's call).
 
 Turn it on: `INTARSIA_DFLASH_CUT=0.3 intarsia generate|serve ... --backend metal --spec dflash --spec-draft <Inkling-2-Mini-DFlash2> --spec-k 7`.
 Off: unset the variable (or `0`).
@@ -110,7 +110,23 @@ Mean of the six cells 1.126 (the simulation said 1.123); no CI upper bound < 0.9
   rows, more than the verify rows alone; the rest (rollback, the host's per-row download and selection, the draft at k7) is not split
   out. A diagnostic slot D (#12853, traced k7 arms) was cancelled before it started once macmon explained rep 1.
 
+## Ready gates (slot R, endor exclusive fleetq #12862, 21:50:07-21:57:52, binary md5 `77051af71927dadbdd9c50dcc3cc265f`, git `e8f2cbe1f`)
+
+Script `raw/slotR.sh`, log `raw/slotR-12862.log`, outputs `raw/R/`.
+
+| Gate | What ran | Result |
+|---|---|---|
+| R1 sampled | `generate` seed 7, 32 tokens, `--ignore-eos`, T1.0 (w100, 100 prompts) and T0.6 (w60, 60 prompts), off vs cut7 | **PASS**: 160 / 160 prompts' ids equal; cut7 0 verify passes (sampled requests do not draft with DFlash2 on Metal, as designed: "DFlash-family drafting off (default ...)"), so the cut never acts on them |
+| R2 memory | `generate --max-seq 4194304 --kv-fraction 0.25`, 64 tokens of c1, dfl5 / cut7 / dfl5 / cut7 | **PASS**: context 615458 tokens in all four; peak footprint 48.97 / 48.82 / 48.82 / 48.82 GB (the first run's +0.15 GB is the first run, not the arm) |
+| R3 serve | `serve --max-batch 1`, cut7 vs `--spec off`, 2 chats x 3 turns + 2 x 3 token-id extensions, 128 tokens each | **PASS**: 12 / 12 turns' ids equal, `cached_tokens` equal on every turn (0 / 30 / 47, 0 / 27 / 43, 0 / 93 / 256, 0 / 300 / 468) |
+
+- Serve prints no per-request spec counts, so R3 shows the replies and the prefix cache are unchanged with the cut configured
+  ("speculative decoding: Dflash, up to 7 drafts per verify pass" at load), not how many passes drafted.
+- The cut7 server took 191.5 s to load, the off server 4.4 s. The time is kernel admission on the spec plan's shapes ("42 kernel(s)
+  checked, 170 case(s) run, 0 cached"): results are cached per host fingerprint and kernel pack hash (`crates/intarsia-core/src/plan.rs`),
+  so it is the first serve start of a new build with `--spec`, and a k5 server on this build would run it too (not measured here).
+
 ## Not covered
 
- serve, batched decode (`--max-batch` > 1 does not draft with DFlash2 on Metal), sampled requests (DFlash2 drafts
-greedy requests only on Metal), HIP.
+Serve speed, batched decode (`--max-batch` > 1 does not draft with DFlash2 on Metal), sampled requests with drafting turned on
+(`INTARSIA_SPEC_SAMPLED_DFLASH=1`; off by default on Metal), HIP.
