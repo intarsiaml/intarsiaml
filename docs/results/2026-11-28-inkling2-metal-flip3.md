@@ -1,7 +1,7 @@
 # Inkling-2-Mini on Metal: the P12 draft head and the device top-k as defaults (lane ink-metal-flip3, 2026-11-28)
 
 Status: **DRAFT; the flip waits on the user's sign-off.** The branch stacks on #560 (`ink/metal-p12head`). Confirm slot F3 (fleetq #12974)
-passes F1-F3: GO, Metal decode **1.025x** in matched power, bitwise.
+passes F1-F3: GO, Metal decode **1.025x** in matched power, bitwise. Serve check F4 (fleetq #12981) passes.
 
 ## Change (Metal only; HIP and CPU unchanged)
 
@@ -67,3 +67,14 @@ Power grouping: the script logged macmon to `.scratch/macmon-H.jsonl` (a name le
 - **Matched power: 1.025x.** Slot C measured the same pair through env vars and got 1.026x.
 
 **Reverts:** `INTARSIA_DFLASH2_HEAD=bf16` (draft head) and `INTARSIA_DFLASH_DEVICE_TOPK=0` (host top-k), separately or together.
+
+## Slot F4: serve (fleetq #12981, same binary, added after F1-F3 to cover the serve path)
+
+`intarsia serve --max-batch 1` with the multi-turn chat set (`raw/b4.json` + `raw/abba3.json` through `raw/client.py chat`: 12 turns,
+chat endpoint and token-id prompts, prefix cache in use). Arms `new` / `rev` / `off`.
+
+- The `new` server's stderr carries both default notes: the P12 unembed head (`matmul_p12_logits_gemv_rows`) and the Metal device
+  top-k. It also carries the cut 0.3 note and runs DFlash2 up to 7 drafts. `rev` carries neither of the two new notes.
+- **Per-turn ids: `new` = `rev` (12 / 12 turns, 0 differ) and `new` = `off` (12 / 12, 0 differ).** `cached_tokens` are identical on
+  every turn.
+- The first `new` start took 195 s: kernel admission of the new binary, cached afterwards (`rev` came up in 9 s, `off` in 5 s).

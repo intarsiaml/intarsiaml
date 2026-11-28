@@ -1,0 +1,32 @@
+fleetq: #12981 waiting (#2 in line): endor is held exclusively by #12979 "p6-loop-attn-pass3-verify" (josef@endor); then in line behind #12980 "p6-moe-nax-build-vfinal" (josef@endor) on endor
+fleetq: #12981 waiting (#1 in line): needs endor to itself; running there: #12980 "p6-moe-nax-build-vfinal" (josef@endor); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq: #12981 running on endor: bash docs/results/2026-11-28-inkling2-metal-flip3/raw/slotF4.sh
+slot F4 start 02:08:20 binary md5 6a4ba6be3b2c5bbbb9bc0780b7978183 commit 167d227de
+mb1-new up after 195 s
+chat: {'chat0-t1': (128, 31, 0), 'chat0-t2': (128, 47, 30), 'chat0-t3': (128, 66, 47), 'chat1-t1': (128, 29, 0), 'chat1-t2': (128, 44, 27), 'chat1-t3': (128, 60, 43), 'ids0-t1': (128, 93, 0), 'ids0-t2': (128, 256, 93), 'ids0-t3': (128, 424, 256), 'ids1-t1': (128, 300, 0), 'ids1-t2': (128, 468, 300), 'ids1-t3': (128, 631, 468)}
+mb1-new chat done t+209s
+mb1-new stopped t+209s
+   1 dflash: DFlash2 draft head: the target's P12 unembed (matmul_p12_logits_gemv_rows; INTARSIA_DFLASH2_HEAD=bf16 takes the bf16 head)
+   1 dflash: candidates by the Metal device top-k (default; INTARSIA_DFLASH_DEVICE_TOPK=0 takes the host's)
+   1 dflash: cut 0.3 (the Metal default; INTARSIA_DFLASH_CUT=0 turns it off): drafting stops once the product of the drafts' candidate probabilities falls below it (cap --spec-k)
+   1 speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_bf16_gemv_rows ink_kv_prologue=ink_kv_prologue_
+mb1-rev up after 9 s
+chat: {'chat0-t1': (128, 31, 0), 'chat0-t2': (128, 47, 30), 'chat0-t3': (128, 66, 47), 'chat1-t1': (128, 29, 0), 'chat1-t2': (128, 44, 27), 'chat1-t3': (128, 60, 43), 'ids0-t1': (128, 93, 0), 'ids0-t2': (128, 256, 93), 'ids0-t3': (128, 424, 256), 'ids1-t1': (128, 300, 0), 'ids1-t2': (128, 468, 300), 'ids1-t3': (128, 631, 468)}
+mb1-rev chat done t+235s
+mb1-rev stopped t+236s
+   1 dflash: cut 0.3 (the Metal default; INTARSIA_DFLASH_CUT=0 turns it off): drafting stops once the product of the drafts' candidate probabilities falls below it (cap --spec-k)
+   1 speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 ink_in_proj=ink_in_proj_bf16_gemv_rows ink_kv_prologue=ink_kv_prologue_
+mb1-off up after 5 s
+chat: {'chat0-t1': (128, 31, 0), 'chat0-t2': (128, 47, 30), 'chat0-t3': (128, 66, 47), 'chat1-t1': (128, 29, 0), 'chat1-t2': (128, 44, 27), 'chat1-t3': (128, 60, 43), 'ids0-t1': (128, 93, 0), 'ids0-t2': (128, 256, 93), 'ids0-t3': (128, 424, 256), 'ids1-t1': (128, 300, 0), 'ids1-t2': (128, 468, 300), 'ids1-t3': (128, 631, 468)}
+mb1-off chat done t+265s
+mb1-off stopped t+266s
+== new vs rev
+cmpchat /opt/code/intarsiaml/.worktrees/ink-metal-flip3/docs/results/2026-11-28-inkling2-metal-flip3/raw/F4/chat-mb1-new.json vs /opt/code/intarsiaml/.worktrees/ink-metal-flip3/docs/results/2026-11-28-inkling2-metal-flip3/raw/F4/chat-mb1-rev.json: turns 12 / 12, differ 0 []
+cached_tokens a: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+cached_tokens b: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+== new vs off
+cmpchat /opt/code/intarsiaml/.worktrees/ink-metal-flip3/docs/results/2026-11-28-inkling2-metal-flip3/raw/F4/chat-mb1-new.json vs /opt/code/intarsiaml/.worktrees/ink-metal-flip3/docs/results/2026-11-28-inkling2-metal-flip3/raw/F4/chat-mb1-off.json: turns 12 / 12, differ 0 []
+cached_tokens a: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+cached_tokens b: {'chat0-t1': 0, 'chat0-t2': 30, 'chat0-t3': 47, 'chat1-t1': 0, 'chat1-t2': 27, 'chat1-t3': 43, 'ids0-t1': 0, 'ids0-t2': 93, 'ids0-t3': 256, 'ids1-t1': 0, 'ids1-t2': 300, 'ids1-t3': 468}
+slot F4 end 02:12:49 t+269s
+fleetq: #12981 done (exit 0)
